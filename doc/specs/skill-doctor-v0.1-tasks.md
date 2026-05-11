@@ -4,6 +4,22 @@
 > 依据：`doc/specs/skill-doctor-v0.1-plan.md`  
 > 执行规则：每个 Task 完成后独立验证，不跳过，不批量合并
 
+## Implementation Backfill Status (2026-05-11)
+
+| Task | Status | Notes |
+| --- | --- | --- |
+| 1 | done | 脚手架、build/test/dev 脚本、tsup/vitest/tsconfig 已完成。 |
+| 2 | done | `src/types/skill.ts` 已定义共享类型。 |
+| 3 | done | `resolvePaths` 已覆盖 9 个平台，并包含 Codex 误扫修复。 |
+| 4 | done | fixtures 已准备并用于解析/冲突测试。 |
+| 5 | done | `parseSkill` 与触发词提取已落地。 |
+| 6 | done | 分词器与停用词表已落地。 |
+| 7 | done | 冲突检测、duplicate 分类与 severity 分级已落地。 |
+| 8 | done | 三个 renderer 已落地，当前实现为纯文本格式。 |
+| 9 | done | `scan` / `show` / `conflicts` CLI 已完成，并扩展了 `--json`、`--scope`、`--limit`、`--kind`。 |
+| 10 | in-progress | 自动化测试链路已齐，`npm run test:coverage` 已恢复；当前总覆盖率 62.48%，需决定 coverage gate 的统计范围或补 source-level 覆盖。 |
+| 11 | done | `bin`、README、私有仓库远程、`npx skill-doctor --version` 冷启动测量（约 1.3s）均已完成。 |
+
 ---
 
 ## Day 1 — 脚手架 + 类型定义
@@ -196,4 +212,4 @@
 - [x] Phase 1: Specify
 - [x] Phase 2: Plan
 - [x] Phase 3: Tasks — 共 11 个 Tasks，跨 5 天
-- [ ] Phase 4: Implement — 等待人工 review 本文档后开始
+- [~] Phase 4: Implement — 主体已完成，正在做 release hardening

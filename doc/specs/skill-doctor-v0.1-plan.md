@@ -258,6 +258,27 @@ Jaccard(A, B) = |tokens(A) ∩ tokens(B)| / |tokens(A) ∪ tokens(B)|
 1. **Copilot 格式**：v0.1 降级处理，`.instructions.md` 读取正文 + `applyTo` frontmatter，不做深度解析
 2. **`.mdc` 精度**：纯文本扫描为主，globs 字段提取为附加 trigger
 3. **阈值**：v0.1 使用固定值（0.65/0.40/0.25），不在运行时可配置；后续根据数据调整
+
+---
+
+## 8. Plan Reconciliation (2026-05-11)
+
+- 已按分层结构落地 `types`、`discovery`、`parsing`、`conflicts`、`render`、`cli` 六个域，且补充了仓库索引文档：`doc/architecture-index.md`。
+- 计划中的核心路径覆盖、解析、冲突检测、CLI 主命令均已实现并有自动化测试保护。
+- 实际实现选择了更轻的依赖策略：
+  - CLI：自定义参数解析，未引入 `commander`
+  - Parser：自定义 frontmatter 解析，未引入 `gray-matter`
+  - Renderer：纯文本输出，未引入 `chalk` / `cli-table3`
+- 在原计划外已增加：
+  - `scan --json`
+  - `show --json`
+  - `conflicts --json`
+  - `--scope project|global|all`
+  - `--limit N`
+  - `--kind duplicate|conflict|all`
+- 当前剩余的 release hardening 主要是两类：
+  - 质量门槛定义：覆盖率脚本已恢复，但总覆盖率尚未达到 80%
+  - 发布收口：补发布清单、补路线图、决定 v0.1 完成定义
 4. **`--json` 输出**：v0.1 不加，刻意延后；CLI 已设计为"Renderer 返回字符串"，加 `--json` 改动极小
 5. **命令名**：直接叫 `skill-doctor`，本地 dev 阶段用 `npm link`，发布时用 `npx skill-doctor`
 

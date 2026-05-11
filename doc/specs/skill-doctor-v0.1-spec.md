@@ -211,5 +211,14 @@ export function normalizeSkillName(input: string): string {
 
 - [x] Phase 1: Specify — 已完成，路径覆盖已更新至全平台
 - [x] Phase 2: Plan — 见 `doc/specs/skill-doctor-v0.1-plan.md`
-- [ ] Phase 3: Tasks — 待 Plan 审批后展开
-- [ ] Phase 4: Implement
+- [x] Phase 3: Tasks — 已完成并进入持续回写阶段
+- [x] Phase 4: Implement — v0.1 CLI 主链路已落地
+- [~] Phase 4a: Release hardening — coverage 门槛与发布清单见 `doc/specs/skill-doctor-v0.1-release-checklist.md`
+
+## Implementation Notes (2026-05-11)
+
+- 当前实现保留了 spec 的核心分层，但为了降低冷启动和依赖复杂度，CLI 入口采用轻量自定义参数解析，而不是 `commander` / `cac`。
+- 解析层使用轻量自定义 frontmatter 提取，而不是 `gray-matter`。
+- 渲染层当前输出为纯文本格式，未引入 `chalk` 或 `cli-table3`，但保持了 CLI 输出与业务判断分离。
+- 已交付命令除 spec 中的最小集合外，还包含 `--scope`、`--json`、`--limit`、`--kind` 等增强参数。
+- 当前仓库已推送到私有远程：`evilstar2016/skill-doctor`。
