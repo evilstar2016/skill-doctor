@@ -103,4 +103,62 @@ describe('resolvePaths', () => {
     expect(codexFiles).toHaveLength(1);
     expect(codexFiles[0]?.filePath).toContain(join('.codex', 'AGENTS.md'));
   });
+
+  it('picks SKILL.md when a skill dir contains multiple md files', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'SKILL.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'README.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'README.en.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    expect(claudeFiles).toHaveLength(1);
+    expect(claudeFiles[0]?.filePath).toContain('SKILL.md');
+  });
+
+  it('does not recurse into support subdirs of a skill dir (references, assets, node_modules)', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'SKILL.md'));
+    // support subdirs should not produce extra skill entries
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'references', 'ref.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'assets', 'guide.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'scripts', 'node_modules', 'pkg', 'README.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    expect(claudeFiles).toHaveLength(1);
+    expect(claudeFiles[0]?.filePath).toContain('SKILL.md');
+  });
+
+  it('skips hidden subdirectories but recurses into non-hidden collection dirs', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    // non-standard but non-hidden collection dir — skills inside should be found
+    writeFile(join(homeDir, '.claude', 'skills', 'skills', 'nested-skill', 'SKILL.md'));
+    // hidden dir — should be skipped entirely
+    writeFile(join(homeDir, '.claude', 'skills', '.windsurf', 'skills', 'hidden-skill', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+    const paths = claudeFiles.map((f) => f.filePath);
+
+    expect(paths.some((p) => p.includes('nested-skill'))).toBe(true);
+    expect(paths.some((p) => p.includes('hidden-skill'))).toBe(false);
+  });
 });
