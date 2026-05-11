@@ -122,6 +122,7 @@ function collectPath(
   mode: PathTarget['mode'],
   scope: Scope,
   results: SkillFile[],
+  depth = 0,
 ): void {
   if (!existsSync(targetPath)) {
     return;
@@ -134,8 +135,17 @@ function collectPath(
       return;
     }
 
+    // Skill files live at most 1 directory deep inside the target:
+    //   target/<skill-name>/SKILL.md  (depth 1 → recurse into skill dir)
+    //   target/SKILL.md               (depth 0 → also fine)
+    // Deeper nesting means we've wandered into a nested platform directory
+    // (e.g. ~/.claude/skills/.windsurf/skills/...) — skip it.
+    if (depth > 1) {
+      return;
+    }
+
     for (const child of readdirSync(targetPath)) {
-      collectPath(join(targetPath, child), definition, mode, scope, results);
+      collectPath(join(targetPath, child), definition, mode, scope, results, depth + 1);
     }
     return;
   }

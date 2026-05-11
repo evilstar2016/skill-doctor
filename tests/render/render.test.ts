@@ -73,9 +73,10 @@ describe('renderers', () => {
     const output = renderConflicts([sampleDuplicate, sampleConflict]);
 
     expect(output).toContain('DUPLICATES');
+    expect(output).toContain('git-workflow  [2 copies]');
+    expect(output).toContain('E:/skills/git-workflow/SKILL.md');
     expect(output).toContain('E:/other/git-workflow/SKILL.md');
     expect(output).toContain('CONFLICTS');
-    expect(output).toContain('git-workflow');
     expect(output).toContain('github-automation');
     expect(output).toContain('high');
     expect(output).toContain('branch, pull, request');
