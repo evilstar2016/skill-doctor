@@ -135,21 +135,52 @@ function collectPath(
       return;
     }
 
-    // Skill files live at most 1 directory deep inside the target:
-    //   target/<skill-name>/SKILL.md  (depth 1 → recurse into skill dir)
-    //   target/SKILL.md               (depth 0 → also fine)
-    // Deeper nesting means we've wandered into a nested platform directory
-    // (e.g. ~/.claude/skills/.windsurf/skills/...) — skip it.
-    if (depth > 1) {
-      return;
+    const children = readdirSync(targetPath);
+    const matchingFiles: string[] = [];
+    const subdirs: string[] = [];
+
+    for (const child of children) {
+      if (child.startsWith('.')) continue; // skip hidden entries (other platform dirs)
+      const childPath = join(targetPath, child);
+      let childStats;
+      try {
+        childStats = statSync(childPath);
+      } catch {
+        continue; // skip broken symlinks or unreadable entries
+      }
+      if (childStats.isDirectory()) {
+        subdirs.push(childPath);
+      } else if (isAllowedFile(childPath, definition.extensions)) {
+        matchingFiles.push(childPath);
+      }
     }
 
-    for (const child of readdirSync(targetPath)) {
-      collectPath(join(targetPath, child), definition, mode, scope, results, depth + 1);
+    if (depth === 0) {
+      // Target root: collect all direct files + recurse into all non-hidden subdirs
+      for (const f of matchingFiles) {
+        results.push({ filePath: f, platform: definition.platform, scope, confidence: definition.confidence });
+      }
+      for (const subdir of subdirs) {
+        collectPath(subdir, definition, mode, scope, results, depth + 1);
+      }
+    } else if (matchingFiles.length > 0) {
+      // Has skill files → this IS the skill directory; pick primary, don't recurse into subdirs
+      // (subdirs are support material: assets/, references/, hooks/, node_modules/, etc.)
+      const primary = selectPrimaryFile(matchingFiles);
+      if (primary) {
+        results.push({ filePath: primary, platform: definition.platform, scope, confidence: definition.confidence });
+      }
+    } else {
+      // No skill files → collection directory (e.g. skills/); recurse into non-hidden subdirs
+      for (const subdir of subdirs) {
+        collectPath(subdir, definition, mode, scope, results, depth + 1);
+      }
     }
+
     return;
   }
 
+  // Single-file mode: the target itself is the file
   if (!isAllowedFile(targetPath, definition.extensions)) {
     return;
   }
@@ -160,6 +191,16 @@ function collectPath(
     scope,
     confidence: definition.confidence,
   });
+}
+
+function selectPrimaryFile(files: string[]): string | null {
+  if (files.length === 0) return null;
+  if (files.length === 1) return files[0];
+  return (
+    files.find((f) => basename(f) === 'SKILL.md') ??
+    files.find((f) => basename(f) === 'README.md') ??
+    [...files].sort((a, b) => basename(a).localeCompare(basename(b)))[0]
+  );
 }
 
 export function getParentDir(filePath: string): string {
