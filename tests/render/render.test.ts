@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { renderAudit } from '../../src/render/renderAudit';
 import { renderConflicts } from '../../src/render/renderConflicts';
 import { renderReport } from '../../src/render/renderReport';
 import { renderScan } from '../../src/render/renderScan';
 import { renderShow } from '../../src/render/renderShow';
+import type { AuditResult } from '../../src/types/audit';
 import type { ConflictPair, SkillRecord } from '../../src/types/skill';
 
 const sampleSkill: SkillRecord = {
@@ -89,5 +91,37 @@ describe('renderers', () => {
     expect(html).toContain('cursor');
     expect(html).toContain('72%');
     expect(html).toContain('branch');
+  });
+
+  it('renderAudit shows scanned count and no findings for empty result', () => {
+    const result: AuditResult = { scanned: 3, findings: [], summary: { high: 0, med: 0, low: 0 } };
+    const output = renderAudit(result);
+    expect(output).toContain('3 skills scanned');
+    expect(output).toContain('No findings.');
+  });
+
+  it('renderAudit lists findings with severity badge and rule id', () => {
+    const result: AuditResult = {
+      scanned: 1,
+      findings: [
+        {
+          skillName: 'deploy-helper',
+          sourcePath: '/fake/SKILL.md',
+          platform: 'claude',
+          scope: 'global',
+          ruleId: 'shell-exec',
+          severity: 'high',
+          matchedText: 'run the command',
+          summary: '"run the command" — shell execution instruction',
+        },
+      ],
+      summary: { high: 1, med: 0, low: 0 },
+    };
+    const output = renderAudit(result);
+    expect(output).toContain('HIGH');
+    expect(output).toContain('deploy-helper');
+    expect(output).toContain('shell-exec');
+    expect(output).toContain('1 finding');
+    expect(output).toContain('1 high');
   });
 });
