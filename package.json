@@ -1,0 +1,26 @@
+{
+  "name": "skill-doctor",
+  "version": "0.1.0",
+  "description": "Local CLI for discovering AI agent skills and detecting conflicts.",
+  "type": "module",
+  "bin": {
+    "skill-doctor": "dist/index.cjs"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}

@@ -1,0 +1,13 @@
+---
+description: Cursor rule for reviewing pull requests and git workflow.
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+# Cursor Git Review Rule
+
+## Trigger
+
+- create a pull request
+- review commit history
