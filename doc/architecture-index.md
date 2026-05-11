@@ -159,6 +159,12 @@ Module: `src/render/renderConflicts.ts`
 | --- | --- | --- | --- |
 | `src/render/renderConflicts.ts::renderConflicts` | 3 | exported renderer | Render duplicate and conflict sections for terminal output. |
 
+Module: `src/render/renderReport.ts`
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/render/renderReport.ts::renderReport` | 3 | exported renderer | Generate a self-contained HTML report for browser viewing. |
+
 ### Domain: Types
 
 Module: `src/types/skill.ts`

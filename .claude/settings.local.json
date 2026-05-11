@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api *)",
+      "Bash(gh repo *)",
+      "Bash(curl -s \"https://api.github.com/repos/mattpocock/skills/contents\")",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(d['name']\\) for d in data]\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(node dist/index.js scan --report /tmp/skill-doctor-report.html)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

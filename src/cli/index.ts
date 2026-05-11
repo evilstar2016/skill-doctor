@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+import { writeFileSync } from 'node:fs';
 import packageJson from '../../package.json';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
 import { renderConflicts } from '../render/renderConflicts';
+import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
 import type { ConflictPair, Scope, SkillRecord } from '../types/skill';
@@ -34,6 +36,15 @@ export function main(argv: string[] = process.argv.slice(2)): void {
 
     const skills = filterSkillsByScope(scanSkills(cwd), scope);
     const conflicts = detectConflicts(skills);
+
+    const reportPath = readReport(rest);
+    if (reportPath !== null) {
+      const outPath = reportPath === true ? 'skill-doctor-report.html' : reportPath;
+      writeFileSync(outPath, renderReport(skills, conflicts), 'utf-8');
+      process.stdout.write(`Report written to: ${outPath}\n`);
+      return;
+    }
+
     if (jsonOutput) {
       process.stdout.write(`${toJson(buildScanPayload(skills, conflicts))}\n`);
       return;
@@ -122,7 +133,7 @@ function getHelpText(): string {
     'skill-doctor',
     '',
     'Usage:',
-    '  skill-doctor scan [--scope project|global|all] [--json]',
+    '  skill-doctor scan [--scope project|global|all] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor --version',
@@ -308,6 +319,14 @@ function filterConflictsByKind(
   }
 
   return conflicts.filter((pair) => pair.kind === kind);
+}
+
+function readReport(args: string[]): string | true | null {
+  const index = args.indexOf('--report');
+  if (index === -1) return null;
+  const next = args[index + 1];
+  if (next && !next.startsWith('-')) return next;
+  return true;
 }
 
 function rankKind(kind: ConflictPair['kind']): number {

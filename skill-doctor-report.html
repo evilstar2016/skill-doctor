@@ -1,0 +1,2054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Doctor Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; line-height: 1.5; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font-size: 22px; font-weight: 700; color: #0f172a; }
+  h2 { font-size: 15px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .06em; margin: 32px 0 12px; }
+  .meta { color: #64748b; font-size: 13px; margin-top: 4px; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; }
+  .card-val { font-size: 28px; font-weight: 700; color: #0f172a; }
+  .card-val.warn { color: #b45309; }
+  .card-val.danger { color: #b91c1c; }
+  .card-label { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+  .pill-count { background: #e2e8f0; border-radius: 99px; padding: 0 6px; font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  th { text-align: left; padding: 10px 14px; background: #f8fafc; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-scope-project { background: #dbeafe; color: #1d4ed8; }
+  .badge-scope-global { background: #ede9fe; color: #6d28d9; }
+  .badge-high { background: #fee2e2; color: #b91c1c; }
+  .badge-med { background: #fef3c7; color: #92400e; }
+  .badge-low { background: #f1f5f9; color: #475569; }
+  .badge-duplicate { background: #fce7f3; color: #9d174d; }
+  .badge-conflict { background: #ffedd5; color: #9a3412; }
+  .desc { color: #475569; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .triggers { color: #64748b; font-size: 12px; }
+  .shared { font-size: 12px; color: #64748b; }
+  .sim { font-weight: 600; color: #0f172a; }
+  .empty { color: #94a3b8; font-style: italic; padding: 20px 14px; }
+  .conflict-pair td:first-child { font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Skill Doctor Report</h1>
+  <p class="meta">Generated 2026/5/11 18:57:24 &nbsp;·&nbsp; 90 skills scanned</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-val">90</div>
+      <div class="card-label">Skills installed</div>
+    </div>
+    <div class="card">
+      <div class="card-val">1</div>
+      <div class="card-label">Platforms</div>
+    </div>
+    <div class="card">
+      <div class="card-val warn">1</div>
+      <div class="card-label">Duplicates</div>
+    </div>
+    <div class="card">
+      <div class="card-val danger">2</div>
+      <div class="card-label">Conflicts</div>
+    </div>
+  </div>
+
+  <h2>Platforms</h2>
+  <div class="platforms">
+    <span class="pill">claude<span class="pill-count">90</span></span>
+  </div>
+
+  <h2>Skills (90)</h2>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Platform</th><th>Scope</th><th>Description</th><th>Triggers</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>agent-evaluator</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="&gt;">&gt;</span></td>
+        <td class="triggers">&gt;</td>
+      </tr>
+      <tr>
+        <td>baoyu-danger-gemini-web</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="Generates images and text via reverse-engineered Gemini Web API. Supports text generation, image generation from prompts, reference images for vision input, and multi-turn conversations. Use when other skills need image generation backend, or when user requests &quot;generate image with Gemini&quot;, &quot;Gemini text generation&quot;, or needs vision-capable AI generation.">Generates images and text via reverse-engineered Gemini Web API. Supports text generation, image generation from prompts, reference images for vision input, and multi-turn conversations. Use when other skills need image generation backend, or when user requests &quot;generate image with Gemini&quot;, &quot;Gemini text generation&quot;, or needs vision-capable AI generation.</span></td>
+        <td class="triggers">Generates images and text via reverse-engineered Gemini Web API. Supports text generation, image generation from prompts, reference images for vision input, and multi-turn conversations. Use when other skills need image generation backend, or when user requests &quot;generate image with Gemini&quot;, &quot;Gemini text generation&quot;, or needs vision-capable AI generation.</td>
+      </tr>
+      <tr>
+        <td>desensitize-document</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="Scans a document (Markdown, code, config, logs, etc.) for sensitive information and replaces it with generic placeholders. Covers company domains, email addresses, usernames, internal IPs, passwords/secrets, file paths, machine names, and personal identifiers. Use when the user asks to &quot;脱敏&quot;, &quot;去掉敏感信息&quot;, &quot;anonymize&quot;, &quot;redact&quot;, or wants to publish/share a document that may contain private details.">Scans a document (Markdown, code, config, logs, etc.) for sensitive information and replaces it with generic placeholders. Covers company domains, email addresses, usernames, internal IPs, passwords/secrets, file paths, machine names, and personal identifiers. Use when the user asks to &quot;脱敏&quot;, &quot;去掉敏感信息&quot;, &quot;anonymize&quot;, &quot;redact&quot;, or wants to publish/share a document that may contain private details.</span></td>
+        <td class="triggers">Scans a document (Markdown, code, config, logs, etc.) for sensitive information and replaces it with generic placeholders. Covers company domains, email addresses, usernames, internal IPs, passwords/secrets, file paths, machine names, and personal identifiers. Use when the user asks to &quot;脱敏&quot;, &quot;去掉敏感信息&quot;, &quot;anonymize&quot;, &quot;redact&quot;, or wants to publish/share a document that may contain private details.</td>
+      </tr>
+      <tr>
+        <td>hands-on-article</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="实操排障后自动生成可发布的技术实践文章。触发词：写排障文章、生成实践笔记、踩坑记录、排障总结、写个文章记录一下、整理成文章、发公众号、发掘金、hands-on article。Use when: 用户完成了一次动手排障/部署/配置操作后，希望把过程整理成适合公众号、知乎、掘金等平台发布的实践文章。">实操排障后自动生成可发布的技术实践文章。触发词：写排障文章、生成实践笔记、踩坑记录、排障总结、写个文章记录一下、整理成文章、发公众号、发掘金、hands-on article。Use when: 用户完成了一次动手排障/部署/配置操作后，希望把过程整理成适合公众号、知乎、掘金等平台发布的实践文章。</span></td>
+        <td class="triggers">实操排障后自动生成可发布的技术实践文章。触发词：写排障文章、生成实践笔记、踩坑记录、排障总结、写个文章记录一下、整理成文章、发公众号、发掘金、hands-on article。Use when: 用户完成了一次动手排障/部署/配置操作后，希望把过程整理成适合公众号、知乎、掘金等平台发布的实践文章。</td>
+      </tr>
+      <tr>
+        <td>Design Philosophy Showcases — 样例资产索引</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Design Philosophy Showcases — 样例资产索引
+
+&gt; 8 种场景 × 3 种风格 = 24 个预制设计样例
+&gt; 用于 Phase 3 推荐设计方向时，直接展示「这个风格做出来长什么样」
+
+## 风格说明
+
+| 代号 | 流派 | 风格名称 | 视觉气质 |
+|------|------|---------|---------|
+| **Pentagr"># Design Philosophy Showcases — 样例资产索引
+
+&gt; 8 种场景 × 3 种风格 = 24 个预制设计样例
+&gt; 用于 Phase 3 推荐设计方向时，直接展示「这个风格做出来长什么样」
+
+## 风格说明
+
+| 代号 | 流派 | 风格名称 | 视觉气质 |
+|------|------|---------|---------|
+| **Pentagr</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Huashu Design</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="&lt;sub&gt;&lt;b&gt;🌐 English&lt;/b&gt; · &lt;a href=&quot;README.md&quot;&gt;中文&lt;/a&gt;&lt;/sub&gt;
+
+&lt;div align=&quot;center&quot;&gt;
+
+# Huashu Design
+
+&gt; *&quot;Type. Hit enter. A finished design lands in your lap.&quot;*
+&gt; *「打字。回车。一份能交付的设计。」*
+
+[![License">&lt;sub&gt;&lt;b&gt;🌐 English&lt;/b&gt; · &lt;a href=&quot;README.md&quot;&gt;中文&lt;/a&gt;&lt;/sub&gt;
+
+&lt;div align=&quot;center&quot;&gt;
+
+# Huashu Design
+
+&gt; *&quot;Type. Hit enter. A finished design lands in your lap.&quot;*
+&gt; *「打字。回车。一份能交付的设计。」*
+
+[![License</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Huashu Design</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="&lt;sub&gt;🌐 &lt;a href=&quot;README.en.md&quot;&gt;English&lt;/a&gt; · &lt;b&gt;中文&lt;/b&gt;&lt;/sub&gt;
+
+&lt;div align=&quot;center&quot;&gt;
+
+# Huashu Design
+
+&gt; *「打字。回车。一份能交付的设计。」*
+&gt; *&quot;Type. Hit enter. A finished design lands in your lap.&quot;*
+
+[![Lice">&lt;sub&gt;🌐 &lt;a href=&quot;README.en.md&quot;&gt;English&lt;/a&gt; · &lt;b&gt;中文&lt;/b&gt;&lt;/sub&gt;
+
+&lt;div align=&quot;center&quot;&gt;
+
+# Huashu Design
+
+&gt; *「打字。回车。一份能交付的设计。」*
+&gt; *&quot;Type. Hit enter. A finished design lands in your lap.&quot;*
+
+[![Lice</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Animation Best Practices · 正向动画设计语法</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Animation Best Practices · 正向动画设计语法
+
+&gt; 基于 Anthropic 官方三支产品动画（Claude Design / Claude Code Desktop / Claude for Word）
+&gt; 的深度拆解，提炼出的&quot;Anthropic 级&quot;动画设计规则。
+&gt;
+&gt; 配套 `animation-pitfalls.md`（避坑清单）使用——本文件是"># Animation Best Practices · 正向动画设计语法
+
+&gt; 基于 Anthropic 官方三支产品动画（Claude Design / Claude Code Desktop / Claude for Word）
+&gt; 的深度拆解，提炼出的&quot;Anthropic 级&quot;动画设计规则。
+&gt;
+&gt; 配套 `animation-pitfalls.md`（避坑清单）使用——本文件是</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Animation Pitfalls：HTML 动画踩过的坑与规则</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Animation Pitfalls：HTML 动画踩过的坑与规则
+
+做动画时最常踩的 bug 和如何避免。每条规则都来自真实失败案例。
+
+写动画之前读完这篇，能省一轮迭代。
+
+## 1. 叠层布局 —— `position: relative` 是默认义务
+
+**踩的坑**：一个 sentence-wrap 元素包了 3 个 bracket-layer（`position: "># Animation Pitfalls：HTML 动画踩过的坑与规则
+
+做动画时最常踩的 bug 和如何避免。每条规则都来自真实失败案例。
+
+写动画之前读完这篇，能省一轮迭代。
+
+## 1. 叠层布局 —— `position: relative` 是默认义务
+
+**踩的坑**：一个 sentence-wrap 元素包了 3 个 bracket-layer（`position: </span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Animations：时间轴动画引擎</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Animations：时间轴动画引擎
+
+做动画/motion design HTML时读这个。原理、用法、典型模式。
+
+## 核心模式：Stage + Sprite
+
+我们的动画系统（`assets/animations.jsx`）提供一个时间轴驱动的引擎：
+
+- **`&lt;Stage&gt;`**：整个动画的容器，自动提供auto-scale（fit viewport）+ scrub"># Animations：时间轴动画引擎
+
+做动画/motion design HTML时读这个。原理、用法、典型模式。
+
+## 核心模式：Stage + Sprite
+
+我们的动画系统（`assets/animations.jsx`）提供一个时间轴驱动的引擎：
+
+- **`&lt;Stage&gt;`**：整个动画的容器，自动提供auto-scale（fit viewport）+ scrub</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Apple Gallery Showcase · 画廊展示墙动画风格</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Apple Gallery Showcase · 画廊展示墙动画风格
+
+&gt; 灵感来源：Claude Design 官网 hero 视频 + 苹果产品页「作品墙」式陈列
+&gt; 实战出处：huashu-design 发布 hero v5
+&gt; 适用场景：**产品发布 hero 动画、skill 能力演示、作品集展示**——任何需要把「多件高质量产出」同时展陈并引导观众注意力的场景
+
+---"># Apple Gallery Showcase · 画廊展示墙动画风格
+
+&gt; 灵感来源：Claude Design 官网 hero 视频 + 苹果产品页「作品墙」式陈列
+&gt; 实战出处：huashu-design 发布 hero v5
+&gt; 适用场景：**产品发布 hero 动画、skill 能力演示、作品集展示**——任何需要把「多件高质量产出」同时展陈并引导观众注意力的场景
+
+---</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>音频设计规则 · huashu-design</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 音频设计规则 · huashu-design
+
+&gt; 所有动画 demo 的音频应用配方。和 `sfx-library.md`（资产清单）配套使用。
+&gt; 实战锤炼：huashu-design 发布 hero v1-v9 迭代 · Anthropic 三支官方片子的 Gemini 深度拆解 · 8000+ 次 A/B 对比
+
+---
+
+## 核心原则 · 音频双轨制（铁律）
+
+动"># 音频设计规则 · huashu-design
+
+&gt; 所有动画 demo 的音频应用配方。和 `sfx-library.md`（资产清单）配套使用。
+&gt; 实战锤炼：huashu-design 发布 hero v1-v9 迭代 · Anthropic 三支官方片子的 Gemini 深度拆解 · 8000+ 次 A/B 对比
+
+---
+
+## 核心原则 · 音频双轨制（铁律）
+
+动</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Content Guidelines：反AI slop、内容准则、Scale规范</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Content Guidelines：反AI slop、内容准则、Scale规范
+
+AI设计里最容易掉进去的陷阱。这是一份「不做什么」的清单，比「做什么」更重要——因为AI slop是默认值，你不主动避免就会发生。
+
+## AI Slop 完整黑名单
+
+### 视觉陷阱
+
+**❌ 激进渐变背景**
+- 紫色 → 粉色 → 蓝色 全屏渐变（AI生成网页的典型味道）
+- 任何方"># Content Guidelines：反AI slop、内容准则、Scale规范
+
+AI设计里最容易掉进去的陷阱。这是一份「不做什么」的清单，比「做什么」更重要——因为AI slop是默认值，你不主动避免就会发生。
+
+## AI Slop 完整黑名单
+
+### 视觉陷阱
+
+**❌ 激进渐变背景**
+- 紫色 → 粉色 → 蓝色 全屏渐变（AI生成网页的典型味道）
+- 任何方</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>设计评审深度指南</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 设计评审深度指南
+
+&gt; Phase 7 的详细参考。提供评分标准、场景侧重点、常见问题清单。
+
+---
+
+## 评分标准详解
+
+### 1. 哲学一致性（Philosophy Alignment）
+
+| 分数 | 标准 |
+|------|------|
+| 9-10 | 设计完美体现了选定哲学的核心精神，每个细节都有哲学依据 |
+| 7-8 | 整体方向正确，核心特"># 设计评审深度指南
+
+&gt; Phase 7 的详细参考。提供评分标准、场景侧重点、常见问题清单。
+
+---
+
+## 评分标准详解
+
+### 1. 哲学一致性（Philosophy Alignment）
+
+| 分数 | 标准 |
+|------|------|
+| 9-10 | 设计完美体现了选定哲学的核心精神，每个细节都有哲学依据 |
+| 7-8 | 整体方向正确，核心特</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Design Context：从已有上下文出发</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Design Context：从已有上下文出发
+
+**这是这个skill最重要的one thing。**
+
+好的hi-fi设计一定是从已有design context长出来的。**凭空做hi-fi是last resort，一定会产出generic的作品**。所以每次设计任务开始，先问：有没有可以参考的东西？
+
+## 什么是Design Context
+
+按优先级从高到低：
+"># Design Context：从已有上下文出发
+
+**这是这个skill最重要的one thing。**
+
+好的hi-fi设计一定是从已有design context长出来的。**凭空做hi-fi是last resort，一定会产出generic的作品**。所以每次设计任务开始，先问：有没有可以参考的东西？
+
+## 什么是Design Context
+
+按优先级从高到低：
+</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>设计哲学风格库：20种体系</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 设计哲学风格库：20种体系
+
+&gt; 用于视觉设计（网页/PPT/PDF/信息图/配图/App等）的设计风格库。
+&gt; 每种风格提供：哲学内核 + 核心特征 + 提示词DNA（与场景模板组合使用）。
+
+## 风格×场景×执行路径 速查表
+
+| 风格 | 网页 | PPT | PDF | 信息图 | 封面 | AI生成 | 最佳路径 |
+|------|:---:|:---:|:---"># 设计哲学风格库：20种体系
+
+&gt; 用于视觉设计（网页/PPT/PDF/信息图/配图/App等）的设计风格库。
+&gt; 每种风格提供：哲学内核 + 核心特征 + 提示词DNA（与场景模板组合使用）。
+
+## 风格×场景×执行路径 速查表
+
+| 风格 | 网页 | PPT | PDF | 信息图 | 封面 | AI生成 | 最佳路径 |
+|------|:---:|:---:|:---</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>可编辑 PPTX 导出：HTML 硬约束 + 尺寸决策 + 常见错误</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 可编辑 PPTX 导出：HTML 硬约束 + 尺寸决策 + 常见错误
+
+本文档讲的是**用 `scripts/html2pptx.js` + `pptxgenjs` 把 HTML 逐元素翻译成真·可编辑 PowerPoint 文本框**的路径，也是 `export_deck_pptx.mjs` 唯一支持的路径。
+
+&gt; **核心前提**：要走这条路，HTML 必须从第一行就按下面 4 条"># 可编辑 PPTX 导出：HTML 硬约束 + 尺寸决策 + 常见错误
+
+本文档讲的是**用 `scripts/html2pptx.js` + `pptxgenjs` 把 HTML 逐元素翻译成真·可编辑 PowerPoint 文本框**的路径，也是 `export_deck_pptx.mjs` 唯一支持的路径。
+
+&gt; **核心前提**：要走这条路，HTML 必须从第一行就按下面 4 条</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Gallery Ripple + Multi-Focus · 场景编排哲学</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Gallery Ripple + Multi-Focus · 场景编排哲学
+
+&gt; 从 huashu-design hero 动画 v9（25 秒，8 场景）里提炼出的**一种可复用的视觉编排结构**。
+&gt; 不是动画制作流水线，是**什么场景下这种编排是&quot;对的&quot;**。
+&gt; 实战参考：[demos/hero-animation-v9.mp4](../demos/hero-animation"># Gallery Ripple + Multi-Focus · 场景编排哲学
+
+&gt; 从 huashu-design hero 动画 v9（25 秒，8 场景）里提炼出的**一种可复用的视觉编排结构**。
+&gt; 不是动画制作流水线，是**什么场景下这种编排是&quot;对的&quot;**。
+&gt; 实战参考：[demos/hero-animation-v9.mp4](../demos/hero-animation</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>React + Babel 项目规范</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# React + Babel 项目规范
+
+用HTML+React+Babel做原型时必须遵守的技术规范。不遵守会炸。
+
+## Pinned Script Tags（必须用这些版本）
+
+在HTML的`&lt;head&gt;`里放这三个script tag，用**固定版本+integrity hash**：
+
+```html
+&lt;script src=&quot;https://unpkg.com/re"># React + Babel 项目规范
+
+用HTML+React+Babel做原型时必须遵守的技术规范。不遵守会炸。
+
+## Pinned Script Tags（必须用这些版本）
+
+在HTML的`&lt;head&gt;`里放这三个script tag，用**固定版本+integrity hash**：
+
+```html
+&lt;script src=&quot;https://unpkg.com/re</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>场景模板库：按输出类型组织</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 场景模板库：按输出类型组织
+
+&gt; 与 design-styles.md 的「提示词DNA」组合使用。
+&gt; 公式：`[风格提示词DNA] + [场景模板] + [具体内容描述]`
+
+---
+
+## 1. 公众号封面 / 文章题图
+
+**规格**：
+- 封面图：2.35:1（900×383px 或 1200×510px）
+- 正文插图：16:9（1200×675px）或 4:"># 场景模板库：按输出类型组织
+
+&gt; 与 design-styles.md 的「提示词DNA」组合使用。
+&gt; 公式：`[风格提示词DNA] + [场景模板] + [具体内容描述]`
+
+---
+
+## 1. 公众号封面 / 文章题图
+
+**规格**：
+- 封面图：2.35:1（900×383px 或 1200×510px）
+- 正文插图：16:9（1200×675px）或 4:</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>SFX Library · huashu-design</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# SFX Library · huashu-design
+
+&gt; 全部由 ElevenLabs Sound Generation API 生成，苹果发布会级音质。
+&gt; 产品级 SFX 资产库，覆盖花叔动画/演示/产品 Demo 全场景。
+
+**资产位置**：`assets/sfx/&lt;category&gt;/&lt;name&gt;.mp3`
+**总数**：37 个 SFX（30 批量生成 + 7 个 "># SFX Library · huashu-design
+
+&gt; 全部由 ElevenLabs Sound Generation API 生成，苹果发布会级音质。
+&gt; 产品级 SFX 资产库，覆盖花叔动画/演示/产品 Demo 全场景。
+
+**资产位置**：`assets/sfx/&lt;category&gt;/&lt;name&gt;.mp3`
+**总数**：37 个 SFX（30 批量生成 + 7 个 </span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Slide Decks：HTML幻灯片制作规范</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Slide Decks：HTML幻灯片制作规范
+
+做幻灯片是设计工作的高频场景。这份文档说明怎么做好HTML幻灯片——从架构选型、单页设计，到 PDF/PPTX 导出的完整路径。
+
+**本 skill 的能力覆盖**：
+- **HTML 演示版（基础产物，永远默认必做）** → 每页独立 HTML + `assets/deck_index.html` 聚合，浏览器里键盘翻页、全屏演讲"># Slide Decks：HTML幻灯片制作规范
+
+做幻灯片是设计工作的高频场景。这份文档说明怎么做好HTML幻灯片——从架构选型、单页设计，到 PDF/PPTX 导出的完整路径。
+
+**本 skill 的能力覆盖**：
+- **HTML 演示版（基础产物，永远默认必做）** → 每页独立 HTML + `assets/deck_index.html` 聚合，浏览器里键盘翻页、全屏演讲</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Tweaks：设计变体实时调参</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Tweaks：设计变体实时调参
+
+Tweaks是这个skill里很核心的能力——让用户不改代码就能实时切换variations/调整参数。
+
+**跨 agent 环境适配**：某些 design-agent 原生环境（如 Claude.ai Artifacts）依赖 host 的 postMessage 把 tweak 值回写源码做持久化。本 skill 采用**纯前端 localSt"># Tweaks：设计变体实时调参
+
+Tweaks是这个skill里很核心的能力——让用户不改代码就能实时切换variations/调整参数。
+
+**跨 agent 环境适配**：某些 design-agent 原生环境（如 Claude.ai Artifacts）依赖 host 的 postMessage 把 tweak 值回写源码做持久化。本 skill 采用**纯前端 localSt</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Verification：输出验证流程</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Verification：输出验证流程
+
+一些 design-agent 原生环境（如 Claude.ai Artifacts）有内置的 `fork_verifier_agent` 起 subagent 用 iframe 截图检查。大部分 agent 环境（Claude Code / Codex / Cursor / Trae / 等）里没有这个内置能力——用 Playwright 手动做"># Verification：输出验证流程
+
+一些 design-agent 原生环境（如 Claude.ai Artifacts）有内置的 `fork_verifier_agent` 起 subagent 用 iframe 截图检查。大部分 agent 环境（Claude Code / Codex / Cursor / Trae / 等）里没有这个内置能力——用 Playwright 手动做</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Video Export：HTML 动画导出为 MP4/GIF</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Video Export：HTML 动画导出为 MP4/GIF
+
+动画 HTML 完成后，用户常想「能导出视频吗」。这份指南给出完整流程。
+
+## 何时导出
+
+**导出时机**：
+- 动画完整跑通、视觉验证过（Playwright 截图确认各时间点状态正确）
+- 用户在浏览器里看过至少一次，表示效果 OK
+- **不要**在动画 bug 没修完的阶段导出——导出到视频后改起来"># Video Export：HTML 动画导出为 MP4/GIF
+
+动画 HTML 完成后，用户常想「能导出视频吗」。这份指南给出完整流程。
+
+## 何时导出
+
+**导出时机**：
+- 动画完整跑通、视觉验证过（Playwright 截图确认各时间点状态正确）
+- 用户在浏览器里看过至少一次，表示效果 OK
+- **不要**在动画 bug 没修完的阶段导出——导出到视频后改起来</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Workflow：从接到任务到交付</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Workflow：从接到任务到交付
+
+你是用户的junior designer。用户是manager。按这个流程工作，能产出好设计的概率会显著提升。
+
+## 问问题的艺术
+
+大多数情况下，开工前要问至少10个问题。不是走过场，是真的要把需求摸清。
+
+**什么时候必须问**：新任务、模糊任务、没有design context、用户只说了一句模糊的要求。
+
+**什么时候可以不问"># Workflow：从接到任务到交付
+
+你是用户的junior designer。用户是manager。按这个流程工作，能产出好设计的概率会显著提升。
+
+## 问问题的艺术
+
+大多数情况下，开工前要问至少10个问题。不是走过场，是真的要把需求摸清。
+
+**什么时候必须问**：新任务、模糊任务、没有design context、用户只说了一句模糊的要求。
+
+**什么时候可以不问</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>huashu-design</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="花叔Design（Huashu-Design）——用HTML做高保真原型、交互Demo、幻灯片、动画、设计变体探索+设计方向顾问+专家评审的一体化设计能力。HTML是工具不是媒介，根据任务embody不同专家（UX设计师/动画师/幻灯片设计师/原型师），避免web design tropes。触发词：做原型、设计Demo、交互原型、HTML演示、动画Demo、设计变体、hi-fi设计、UI mockup、prototype、设计探索、做个HTML页面、做个可视化、app原型、iOS原型、移动应用mockup、导出MP4、导出GIF、60fps视频、设计风格、设计方向、设计哲学、配色方案、视觉风格、推荐风格、选个风格、做个好看的、评审、好不好看、review this design。**主干能力**：Junior Designer工作流（先给假设+reasoning+placeholder再迭代）、反AI slop清单、React+Babel最佳实践、Tweaks变体切换、Speaker Notes演示、Starter Components（幻灯片外壳/变体画布/动画引擎/设备边框）、App原型专属守则（默认从Wikimedia/Met/Unsplash取真图、每台iPhone包AppPhone状态管理器可交互、交付前跑Playwright点击测试）、Playwright验证、HTML动画→MP4/GIF视频导出（25fps基础 + 60fps插帧 + palette优化GIF + 6首场景化BGM + 自动fade）。**需求模糊时的Fallback**：设计方向顾问模式——从5流派×20种设计哲学（Pentagram信息建筑/Field.io运动诗学/Kenya Hara东方极简/Sagmeister实验先锋等）推荐3个差异化方向，展示24个预制showcase（8场景×3风格），并行生成3个视觉Demo让用户选。**交付后可选**：专家级5维度评审（哲学一致性/视觉层级/细节执行/功能性/创新性各打10分+修复清单）。">花叔Design（Huashu-Design）——用HTML做高保真原型、交互Demo、幻灯片、动画、设计变体探索+设计方向顾问+专家评审的一体化设计能力。HTML是工具不是媒介，根据任务embody不同专家（UX设计师/动画师/幻灯片设计师/原型师），避免web design tropes。触发词：做原型、设计Demo、交互原型、HTML演示、动画Demo、设计变体、hi-fi设计、UI mockup、prototype、设计探索、做个HTML页面、做个可视化、app原型、iOS原型、移动应用mockup、导出MP4、导出GIF、60fps视频、设计风格、设计方向、设计哲学、配色方案、视觉风格、推荐风格、选个风格、做个好看的、评审、好不好看、review this design。**主干能力**：Junior Designer工作流（先给假设+reasoning+placeholder再迭代）、反AI slop清单、React+Babel最佳实践、Tweaks变体切换、Speaker Notes演示、Starter Components（幻灯片外壳/变体画布/动画引擎/设备边框）、App原型专属守则（默认从Wikimedia/Met/Unsplash取真图、每台iPhone包AppPhone状态管理器可交互、交付前跑Playwright点击测试）、Playwright验证、HTML动画→MP4/GIF视频导出（25fps基础 + 60fps插帧 + palette优化GIF + 6首场景化BGM + 自动fade）。**需求模糊时的Fallback**：设计方向顾问模式——从5流派×20种设计哲学（Pentagram信息建筑/Field.io运动诗学/Kenya Hara东方极简/Sagmeister实验先锋等）推荐3个差异化方向，展示24个预制showcase（8场景×3风格），并行生成3个视觉Demo让用户选。**交付后可选**：专家级5维度评审（哲学一致性/视觉层级/细节执行/功能性/创新性各打10分+修复清单）。</span></td>
+        <td class="triggers">花叔Design（Huashu-Design）——用HTML做高保真原型、交互Demo、幻灯片、动画、设计变体探索+设计方向顾问+专家评审的一体化设计能力。HTML是工具不是媒介，根据任务embody不同专家（UX设计师/动画师/幻灯片设计师/原型师），避免web design tropes。触发词：做原型、设计Demo、交互原型、HTML演示、动画Demo、设计变体、hi-fi设计、UI mockup、prototype、设计探索、做个HTML页面、做个可视化、app原型、iOS原型、移动应用mockup、导出MP4、导出GIF、60fps视频、设计风格、设计方向、设计哲学、配色方案、视觉风格、推荐风格、选个风格、做个好看的、评审、好不好看、review this design。**主干能力**：Junior Designer工作流（先给假设+reasoning+placeholder再迭代）、反AI slop清单、React+Babel最佳实践、Tweaks变体切换、Speaker Notes演示、Starter Components（幻灯片外壳/变体画布/动画引擎/设备边框）、App原型专属守则（默认从Wikimedia/Met/Unsplash取真图、每台iPhone包AppPhone状态管理器可交互、交付前跑Playwright点击测试）、Playwright验证、HTML动画→MP4/GIF视频导出（25fps基础 + 60fps插帧 + palette优化GIF + 6首场景化BGM + 自动fade）。**需求模糊时的Fallback**：设计方向顾问模式——从5流派×20种设计哲学（Pentagram信息建筑/Field.io运动诗学/Kenya Hara东方极简/Sagmeister实验先锋等）推荐3个差异化方向，展示24个预制showcase（8场景×3风格），并行生成3个视觉Demo让用户选。**交付后可选**：专家级5维度评审（哲学一致性/视觉层级/细节执行/功能性/创新性各打10分+修复清单）。</td>
+      </tr>
+      <tr>
+        <td>示例：AI 工具选择文章配图（16:9）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 示例：AI 工具选择文章配图（16:9）
+
+这个示例展示“先规划几张图→压缩文案→输出提示词”的交付形态。
+
+建议做法：
+- 概念/选型：用“对比卡片/关系总览”
+- 过程/差异：用“流程/五格漫画”
+- 总结收束：用“三卡洞察”
+
+输出时每张图一个代码块，并复用同一段风格块（见 `templates/style-block.md`）。"># 示例：AI 工具选择文章配图（16:9）
+
+这个示例展示“先规划几张图→压缩文案→输出提示词”的交付形态。
+
+建议做法：
+- 概念/选型：用“对比卡片/关系总览”
+- 过程/差异：用“流程/五格漫画”
+- 总结收束：用“三卡洞察”
+
+输出时每张图一个代码块，并复用同一段风格块（见 `templates/style-block.md`）。</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>APIMart 批量出图（本地脚本）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# APIMart 批量出图（本地脚本）
+
+这个目录用于“阶段4 Prompt Pack 已确认后”的批量出图。
+
+## 1) 配置
+
+把配置写到 `scripts/apimart.env`（建议只放在本地，不要公开或提交）：
+
+- 示例：`scripts/apimart.env.example`
+
+## 2) 输入（JSONL）
+
+一行一张图（每行一个 JSON），最少需"># APIMart 批量出图（本地脚本）
+
+这个目录用于“阶段4 Prompt Pack 已确认后”的批量出图。
+
+## 1) 配置
+
+把配置写到 `scripts/apimart.env`（建议只放在本地，不要公开或提交）：
+
+- 示例：`scripts/apimart.env.example`
+
+## 2) 输入（JSONL）
+
+一行一张图（每行一个 JSON），最少需</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>image-assistant</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="配图助手 - 把文章/模块内容转成统一风格、少字高可读的 16:9 信息图提示词；先定“需要几张图+每张讲什么”，再压缩文案与隐喻，最后输出可直接复制的生图提示词并迭代。">配图助手 - 把文章/模块内容转成统一风格、少字高可读的 16:9 信息图提示词；先定“需要几张图+每张讲什么”，再压缩文案与隐喻，最后输出可直接复制的生图提示词并迭代。</span></td>
+        <td class="triggers">配图助手 - 把文章/模块内容转成统一风格、少字高可读的 16:9 信息图提示词；先定“需要几张图+每张讲什么”，再压缩文案与隐喻，最后输出可直接复制的生图提示词并迭代。</td>
+      </tr>
+      <tr>
+        <td>阶段1：需求澄清</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 阶段1：需求澄清
+
+**目标：** 在“拆文章/配图”之前，先把用户的真实需求说清楚：**内容是什么、用在什么场景、谁来看、想要字多还是字少**。其它默认值（如尺寸/风格）不打扰用户。
+
+## 你需要问用户的 4 个问题（优先级从高到低）
+
+1. **内容（先给我原文/要点）**：把要配图的内容贴过来（整段/小节/提纲都行）。
+   - （可选补一句）你希望读者看完**记住哪一句"># 阶段1：需求澄清
+
+**目标：** 在“拆文章/配图”之前，先把用户的真实需求说清楚：**内容是什么、用在什么场景、谁来看、想要字多还是字少**。其它默认值（如尺寸/风格）不打扰用户。
+
+## 你需要问用户的 4 个问题（优先级从高到低）
+
+1. **内容（先给我原文/要点）**：把要配图的内容贴过来（整段/小节/提纲都行）。
+   - （可选补一句）你希望读者看完**记住哪一句</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>阶段2：配图规划（要几张图？每张讲什么？）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 阶段2：配图规划（要几张图？每张讲什么？）
+
+**目标：** 基于阶段1已确认的规格（图类型/文字预算/用途），先“拆内容→定图清单→选版式”，避免一张图塞太多导致难看难读。
+
+## 规划原则（核心）
+
+- **优先遵守阶段1的图类型与文字预算**：不符合预算的内容，不要硬塞到图里。
+- **一张图=一个核心信息**（通常是一个判断）：读者扫一眼就能记住一句话。
+- **概念图"># 阶段2：配图规划（要几张图？每张讲什么？）
+
+**目标：** 基于阶段1已确认的规格（图类型/文字预算/用途），先“拆内容→定图清单→选版式”，避免一张图塞太多导致难看难读。
+
+## 规划原则（核心）
+
+- **优先遵守阶段1的图类型与文字预算**：不符合预算的内容，不要硬塞到图里。
+- **一张图=一个核心信息**（通常是一个判断）：读者扫一眼就能记住一句话。
+- **概念图</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>阶段3：文案定稿（Copy Spec：唯一真值）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 阶段3：文案定稿（Copy Spec：唯一真值）
+
+**目标：** 把内容变成“上图文案规格表（Copy Spec）”：逐字定稿 + 字数预算 + 区域结构。阶段4只负责“封装成提示词”，不再改文案本身。
+
+## 先选模式（必须与阶段1一致）
+
+- **封面模式（目录/路线图）**：每块只放标题；不写解释句；尽量不出现小字。
+- **概览模式（框架图）**：每块允许 1 行结论；"># 阶段3：文案定稿（Copy Spec：唯一真值）
+
+**目标：** 把内容变成“上图文案规格表（Copy Spec）”：逐字定稿 + 字数预算 + 区域结构。阶段4只负责“封装成提示词”，不再改文案本身。
+
+## 先选模式（必须与阶段1一致）
+
+- **封面模式（目录/路线图）**：每块只放标题；不写解释句；尽量不出现小字。
+- **概览模式（框架图）**：每块允许 1 行结论；</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>阶段4：提示词封装（Prompt Pack：可执行生成包）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 阶段4：提示词封装（Prompt Pack：可执行生成包）
+
+**目标：** 把阶段3的 Copy Spec 原样封装成&quot;可复制/可调用&quot;的提示词包（Prompt Pack），并支持批量出图。阶段4不负责改文案，只负责：模板拼装、风格一致、参数/约束齐全、避免模型乱加字、把提示词整理成可批量请求的结构化请求包。
+
+## 封装原则（避免和阶段3混淆）
+
+- **Copy Spec 是"># 阶段4：提示词封装（Prompt Pack：可执行生成包）
+
+**目标：** 把阶段3的 Copy Spec 原样封装成&quot;可复制/可调用&quot;的提示词包（Prompt Pack），并支持批量出图。阶段4不负责改文案，只负责：模板拼装、风格一致、参数/约束齐全、避免模型乱加字、把提示词整理成可批量请求的结构化请求包。
+
+## 封装原则（避免和阶段3混淆）
+
+- **Copy Spec 是</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>阶段5：迭代润色（让图更好看）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 阶段5：迭代润色（让图更好看）
+
+**目标：** 根据用户反馈快速迭代：更趣味、更少字、更清楚。
+
+## 常见反馈 → 对应动作
+
+- “字太多/太丑” → 每卡压到 **1 句 + 1 关键词**，删掉副标题或把副标题变短
+- “这张应该是封面/目录，但你给成了讲义” → 回到阶段1重锁：图类型 + 文字预算（封面模式：每块仅标题，禁小字）
+- “隐喻看不懂” → 换成更大众"># 阶段5：迭代润色（让图更好看）
+
+**目标：** 根据用户反馈快速迭代：更趣味、更少字、更清楚。
+
+## 常见反馈 → 对应动作
+
+- “字太多/太丑” → 每卡压到 **1 句 + 1 关键词**，删掉副标题或把副标题变短
+- “这张应该是封面/目录，但你给成了讲义” → 回到阶段1重锁：图类型 + 文字预算（封面模式：每块仅标题，禁小字）
+- “隐喻看不懂” → 换成更大众</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>16:9 三卡洞察模板（趣味少字版）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 16:9 三卡洞察模板（趣味少字版）
+
+标题：{标题}
+
+布局：三张等宽卡片横排（颜色区分、严格对齐）。
+
+卡片1：
+- 图标/隐喻：{台阶/进化/路标}
+- 文案：1 句 + “关键词：{词}”
+
+卡片2：
+- 图标/隐喻：{双刃剑/火箭+刹车}
+- 文案：1 句 + “关键词：{词}”
+
+卡片3：
+- 图标/隐喻：{分岔路牌}
+- 文案：极短路牌（3 行以内"># 16:9 三卡洞察模板（趣味少字版）
+
+标题：{标题}
+
+布局：三张等宽卡片横排（颜色区分、严格对齐）。
+
+卡片1：
+- 图标/隐喻：{台阶/进化/路标}
+- 文案：1 句 + “关键词：{词}”
+
+卡片2：
+- 图标/隐喻：{双刃剑/火箭+刹车}
+- 文案：1 句 + “关键词：{词}”
+
+卡片3：
+- 图标/隐喻：{分岔路牌}
+- 文案：极短路牌（3 行以内</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>16:9 五格漫画模板（小故事讲差异）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 16:9 五格漫画模板（小故事讲差异）
+
+标题：{标题}
+
+布局：横向 5 格漫画/流程格，箭头清晰；每格只放 1 句短文案。
+
+格1：{起点/目标}
+格2：{第一次失败}
+格3：{排查/分析}
+格4：{找到原因}
+格5：{给出解法+重试成功}
+
+底部对比一句话（可选）：{Workflow：…｜Agent：…}
+
+强制：中文清晰可读、无乱码；大字号；每格仅 1 句；"># 16:9 五格漫画模板（小故事讲差异）
+
+标题：{标题}
+
+布局：横向 5 格漫画/流程格，箭头清晰；每格只放 1 句短文案。
+
+格1：{起点/目标}
+格2：{第一次失败}
+格3：{排查/分析}
+格4：{找到原因}
+格5：{给出解法+重试成功}
+
+底部对比一句话（可选）：{Workflow：…｜Agent：…}
+
+强制：中文清晰可读、无乱码；大字号；每格仅 1 句；</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>16:9 两卡对比模板（少字好读）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 16:9 两卡对比模板（少字好读）
+
+标题：{标题}
+副标题：{副标题（可选）}
+
+布局：左右两张等宽大卡片 + 中间分隔线/对比符号，严格对齐。
+
+左卡：
+- 标题：{A}
+- 画面隐喻：{A 的物件/动作}
+- 文案（1–2 行）：{短句}
+
+右卡：
+- 标题：{B}
+- 画面隐喻：{B 的物件/动作}
+- 文案（1–2 行）：{短句}
+
+底部结论（1 行"># 16:9 两卡对比模板（少字好读）
+
+标题：{标题}
+副标题：{副标题（可选）}
+
+布局：左右两张等宽大卡片 + 中间分隔线/对比符号，严格对齐。
+
+左卡：
+- 标题：{A}
+- 画面隐喻：{A 的物件/动作}
+- 文案（1–2 行）：{短句}
+
+右卡：
+- 标题：{B}
+- 画面隐喻：{B 的物件/动作}
+- 文案（1–2 行）：{短句}
+
+底部结论（1 行</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>16:9 封面路线图模板（目录/课程结构）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 16:9 封面路线图模板（目录/课程结构）
+
+把 {占位符} 替换成你的内容：
+
+标题（顶部超大字）：{标题}
+副标题（可选，尽量短）：{副标题}
+
+中间主体：从左到右 4–6 个大模块（圆角矩形/里程碑），用粗箭头连接；每个模块只放 1 行标题。
+
+模块1：{标题}
+模块2：{标题}
+模块3：{标题}
+模块4：{标题}
+模块5（可选）：{标题}
+模块6（可选）：{"># 16:9 封面路线图模板（目录/课程结构）
+
+把 {占位符} 替换成你的内容：
+
+标题（顶部超大字）：{标题}
+副标题（可选，尽量短）：{副标题}
+
+中间主体：从左到右 4–6 个大模块（圆角矩形/里程碑），用粗箭头连接；每个模块只放 1 行标题。
+
+模块1：{标题}
+模块2：{标题}
+模块3：{标题}
+模块4：{标题}
+模块5（可选）：{标题}
+模块6（可选）：{</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>16:9 通用信息图模板（骨架）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 16:9 通用信息图模板（骨架）
+
+把 {占位符} 替换成你的内容：
+
+标题（顶部大字）：{标题}
+副标题（小字）：{副标题（可选，尽量短）}
+
+主体：{版式类型：对比/流程/卡片/漫画}
+- 画面隐喻：{用背包/毛线/路牌/工具箱等}
+- 文案规则：每块 1–2 行短句
+
+底部结论框（大字一行）：{结论}
+
+强制约束：
+- 中文清晰可读、无乱码
+- 不要小字密集"># 16:9 通用信息图模板（骨架）
+
+把 {占位符} 替换成你的内容：
+
+标题（顶部大字）：{标题}
+副标题（小字）：{副标题（可选，尽量短）}
+
+主体：{版式类型：对比/流程/卡片/漫画}
+- 画面隐喻：{用背包/毛线/路牌/工具箱等}
+- 文案规则：每块 1–2 行短句
+
+底部结论框（大字一行）：{结论}
+
+强制约束：
+- 中文清晰可读、无乱码
+- 不要小字密集</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>api-config.md</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="## API 配置
+
+&gt; 建议：把真实 `TOKEN` 放在 `scripts/apimart.env`（本地文件），不要写进文档/仓库或聊天记录。
+
+```
+API_URL: https://api.apimart.ai/v1/images/generations
+MODEL: gemini-3-pro-image-preview
+TOKEN: &lt;YOUR_TOKEN&gt;
+RESO">## API 配置
+
+&gt; 建议：把真实 `TOKEN` 放在 `scripts/apimart.env`（本地文件），不要写进文档/仓库或聊天记录。
+
+```
+API_URL: https://api.apimart.ai/v1/images/generations
+MODEL: gemini-3-pro-image-preview
+TOKEN: &lt;YOUR_TOKEN&gt;
+RESO</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>apimart-requests-jsonl.md</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="## 批量请求包（JSONL）模板
+
+一行一张图（每行一个 JSON），用于脚本批量出图。
+
+```jsonl
+{&quot;id&quot;:&quot;01&quot;,&quot;prompt&quot;:&quot;&lt;PROMPT_CONTENT&gt;&quot;,&quot;size&quot;:&quot;16:9&quot;,&quot;n&quot;:1,&quot;resolution&quot;:&quot;2K&quot;,&quot;model&quot;:&quot;gemini-3-pro-image-preview&quot;,&quot;pad_url&quot;:&quot;&quot;}
+```">## 批量请求包（JSONL）模板
+
+一行一张图（每行一个 JSON），用于脚本批量出图。
+
+```jsonl
+{&quot;id&quot;:&quot;01&quot;,&quot;prompt&quot;:&quot;&lt;PROMPT_CONTENT&gt;&quot;,&quot;size&quot;:&quot;16:9&quot;,&quot;n&quot;:1,&quot;resolution&quot;:&quot;2K&quot;,&quot;model&quot;:&quot;gemini-3-pro-image-preview&quot;,&quot;pad_url&quot;:&quot;&quot;}
+```</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>出图提示词回归检查（交付前 30 秒过一遍）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 出图提示词回归检查（交付前 30 秒过一遍）
+
+- [ ] 一张图只讲一个判断，没有把解释段落塞进图
+- [ ] 文案符合阶段1的“图类型+文字预算”（封面目录图=只放标题；概览=允许1行结论）
+- [ ] 每块区域 1–2 行短句（或更少），没有小字密集（封面模式：无解释小字）
+- [ ] 明确写了：中文清晰可读、无乱码、大字号
+- [ ] 明确写了：除指定文字外不加字（防止模型"># 出图提示词回归检查（交付前 30 秒过一遍）
+
+- [ ] 一张图只讲一个判断，没有把解释段落塞进图
+- [ ] 文案符合阶段1的“图类型+文字预算”（封面目录图=只放标题；概览=允许1行结论）
+- [ ] 每块区域 1–2 行短句（或更少），没有小字密集（封面模式：无解释小字）
+- [ ] 明确写了：中文清晰可读、无乱码、大字号
+- [ ] 明确写了：除指定文字外不加字（防止模型</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>通用风格块（风格基准：必须以此为唯一基础）</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 通用风格块（风格基准：必须以此为唯一基础）
+
+- 画幅：16:9 横版信息图（除非用户要竖版）
+- 质感：奶油色纸张底（纸纹可见），彩铅线稿（笔触可见） + 淡水彩上色（轻晕染）
+- 氛围：暖色调、轻涂鸦装饰、趣味但干净
+- 可读性：中文必须清晰可读、无乱码；大字号；少字短句；避免密集小字/段落
+- 版式：留白充足、层级清晰、卡片对齐、箭头醒目
+- 负面约束：不要扁平矢量海报风、"># 通用风格块（风格基准：必须以此为唯一基础）
+
+- 画幅：16:9 横版信息图（除非用户要竖版）
+- 质感：奶油色纸张底（纸纹可见），彩铅线稿（笔触可见） + 淡水彩上色（轻晕染）
+- 氛围：暖色调、轻涂鸦装饰、趣味但干净
+- 可读性：中文必须清晰可读、无乱码；大字号；少字短句；避免密集小字/段落
+- 版式：留白充足、层级清晰、卡片对齐、箭头醒目
+- 负面约束：不要扁平矢量海报风、</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Image Assistant - 快速使用指南</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# Image Assistant - 快速使用指南
+
+## 🎯 快速开始
+
+### 触发方式
+
+在与 Claude Code 或 OpenCode 的对话中，使用以下任一方式触发：
+
+1. **自然对话触发**:
+   - &quot;这段内容做个图&quot;
+   - &quot;配几张图？&quot;
+   - &quot;帮我生成图片提示词&quot;
+   - &quot;字太多不好看，帮我更趣味、更好读&quot;
+
+2. **命令"># Image Assistant - 快速使用指南
+
+## 🎯 快速开始
+
+### 触发方式
+
+在与 Claude Code 或 OpenCode 的对话中，使用以下任一方式触发：
+
+1. **自然对话触发**:
+   - &quot;这段内容做个图&quot;
+   - &quot;配几张图？&quot;
+   - &quot;帮我生成图片提示词&quot;
+   - &quot;字太多不好看，帮我更趣味、更好读&quot;
+
+2. **命令</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>md-to-pdf</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="Convert Markdown files to PDF using mdpdf (Node.js + Puppeteer). Supports batch conversion (multiple files, directories, glob patterns), optional watermark text tiled across every page, and runs on Windows/macOS/Linux with both `python` and `uv run`.">Convert Markdown files to PDF using mdpdf (Node.js + Puppeteer). Supports batch conversion (multiple files, directories, glob patterns), optional watermark text tiled across every page, and runs on Windows/macOS/Linux with both `python` and `uv run`.</span></td>
+        <td class="triggers">Convert Markdown files to PDF using mdpdf (Node.js + Puppeteer). Supports batch conversion (multiple files, directories, glob patterns), optional watermark text tiled across every page, and runs on Windows/macOS/Linux with both `python` and `uv run`.</td>
+      </tr>
+      <tr>
+        <td>PlantUML to PNG</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="````skill
+---
+name: puml-to-png
+description: Convert all .puml files in a target directory (and sub-directories) to PNG images using the PlantUML rendering API. Supports a user-specified PlantUML s">````skill
+---
+name: puml-to-png
+description: Convert all .puml files in a target directory (and sub-directories) to PNG images using the PlantUML rendering API. Supports a user-specified PlantUML s</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>文档模板集合</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 文档模板集合
+
+所有文档类型的 Markdown 模板，确保输出格式统一。
+
+## 目录
+
+1. [项目概览文档模板](#1-项目概览文档模板)
+2. [系统架构文档模板](#2-系统架构文档模板)
+3. [分层文档模板](#3-分层文档模板)
+4. [核心模块 README 模板](#4-核心模块-readme-模板)
+5. [功能详细说明文档模板](#5-功能详细说明文"># 文档模板集合
+
+所有文档类型的 Markdown 模板，确保输出格式统一。
+
+## 目录
+
+1. [项目概览文档模板](#1-项目概览文档模板)
+2. [系统架构文档模板](#2-系统架构文档模板)
+3. [分层文档模板](#3-分层文档模板)
+4. [核心模块 README 模板](#4-核心模块-readme-模板)
+5. [功能详细说明文档模板](#5-功能详细说明文</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>PlantUML 样式定义</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# PlantUML 样式定义
+
+所有分析图表使用统一样式，确保风格一致。
+
+---
+
+## 时序图风格
+
+```plantuml
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam sequenceArrowColor #1976D2
+skinparam sequenceActorBorderColor #42"># PlantUML 样式定义
+
+所有分析图表使用统一样式，确保风格一致。
+
+---
+
+## 时序图风格
+
+```plantuml
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam sequenceArrowColor #1976D2
+skinparam sequenceActorBorderColor #42</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>质量检查清单和注意事项</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 质量检查清单和注意事项
+
+完成所有分析步骤后，使用此清单进行最终检查。
+
+---
+
+## 文件结构检查
+
+- [ ] 所有预期的目录已创建
+- [ ] 所有预期的文档文件已生成
+- [ ] 文件命名符合规范
+
+```
+analysis/
+├─ 01-overview/
+│  └─ project-overview.md
+├─ 02-architecture/
+"># 质量检查清单和注意事项
+
+完成所有分析步骤后，使用此清单进行最终检查。
+
+---
+
+## 文件结构检查
+
+- [ ] 所有预期的目录已创建
+- [ ] 所有预期的文档文件已生成
+- [ ] 文件命名符合规范
+
+```
+analysis/
+├─ 01-overview/
+│  └─ project-overview.md
+├─ 02-architecture/
+</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 0：初始化与准备</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 0：初始化与准备
+
+## 目标
+
+验证 Serena MCP 可用性，初始化项目，识别项目类型、技术栈和主要依赖。
+
+## 执行指令
+
+### 0-A：Serena MCP 验证（必须首先执行）
+
+&gt; ⚠️ **此步骤为强制前置条件**，必须在任何代码分析之前完成。
+
+1. **探测 Serena 工具**：尝试调用带 &quot;serena&quot; 关键字的 MCP 工具（如"># 步骤 0：初始化与准备
+
+## 目标
+
+验证 Serena MCP 可用性，初始化项目，识别项目类型、技术栈和主要依赖。
+
+## 执行指令
+
+### 0-A：Serena MCP 验证（必须首先执行）
+
+&gt; ⚠️ **此步骤为强制前置条件**，必须在任何代码分析之前完成。
+
+1. **探测 Serena 工具**：尝试调用带 &quot;serena&quot; 关键字的 MCP 工具（如</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 1：生成项目概览文档</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 1：生成项目概览文档
+
+## 目标
+
+深度分析项目代码，生成全面的项目概览文档。
+
+## 输出文档
+
+```
+analysis/01-overview/project-overview.md
+```
+
+## 分析内容
+
+1. **项目基本信息**：名称、描述、技术栈、开发语言、许可证
+2. **项目目录结构**：使用树形格式展示，突出核心目录
+3. **主"># 步骤 1：生成项目概览文档
+
+## 目标
+
+深度分析项目代码，生成全面的项目概览文档。
+
+## 输出文档
+
+```
+analysis/01-overview/project-overview.md
+```
+
+## 分析内容
+
+1. **项目基本信息**：名称、描述、技术栈、开发语言、许可证
+2. **项目目录结构**：使用树形格式展示，突出核心目录
+3. **主</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 2：生成系统架构文档和架构图</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 2：生成系统架构文档和架构图
+
+## 目标
+
+深度分析项目代码，编写系统架构说明文档，并使用 PlantUML 绘制组件架构图。
+
+## 输出文档
+
+```
+analysis/02-architecture/system-architecture.md
+analysis/02-architecture/system-component-architecture.pum"># 步骤 2：生成系统架构文档和架构图
+
+## 目标
+
+深度分析项目代码，编写系统架构说明文档，并使用 PlantUML 绘制组件架构图。
+
+## 输出文档
+
+```
+analysis/02-architecture/system-architecture.md
+analysis/02-architecture/system-component-architecture.pum</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 3：生成分层架构说明文档</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 3：生成分层架构说明文档
+
+## 目标
+
+参照步骤 2 生成的组件架构图，按系统分层编写各层详细说明文档。
+
+## 输出文档
+
+```
+analysis/03-layers/01-{layer-name}.md
+analysis/03-layers/02-{layer-name}.md
+...
+```
+
+## 确定分层
+
+1. 阅读 `analysis/0"># 步骤 3：生成分层架构说明文档
+
+## 目标
+
+参照步骤 2 生成的组件架构图，按系统分层编写各层详细说明文档。
+
+## 输出文档
+
+```
+analysis/03-layers/01-{layer-name}.md
+analysis/03-layers/02-{layer-name}.md
+...
+```
+
+## 确定分层
+
+1. 阅读 `analysis/0</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 4：生成核心模块详细分析文档</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 4：生成核心模块详细分析文档
+
+## 目标
+
+深度分析各核心模块，编写模块 README、功能说明文档，并绘制核心流程的时序图。
+
+## 输出文档
+
+```
+analysis/04-core-modules/{module-name}/
+├─ README.md
+├─ {feature}-management.md
+├─ 01-{sequence-name}-se"># 步骤 4：生成核心模块详细分析文档
+
+## 目标
+
+深度分析各核心模块，编写模块 README、功能说明文档，并绘制核心流程的时序图。
+
+## 输出文档
+
+```
+analysis/04-core-modules/{module-name}/
+├─ README.md
+├─ {feature}-management.md
+├─ 01-{sequence-name}-se</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 5：深度分析核心模块的子功能</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 5：深度分析核心模块的子功能
+
+## 目标
+
+在步骤 4 的基础上，对核心模块中重要子功能进行更深入分析。
+
+## 输出文档
+
+```
+analysis/04-core-modules/{module-name}/{sub-feature}/
+├─ 00-overview.md
+├─ 01-{type1}.md
+├─ 01-{type1}-sequence.pum"># 步骤 5：深度分析核心模块的子功能
+
+## 目标
+
+在步骤 4 的基础上，对核心模块中重要子功能进行更深入分析。
+
+## 输出文档
+
+```
+analysis/04-core-modules/{module-name}/{sub-feature}/
+├─ 00-overview.md
+├─ 01-{type1}.md
+├─ 01-{type1}-sequence.pum</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 6：数据架构分析</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 6：数据架构分析
+
+## 目标
+
+深入分析项目的数据架构设计，包括数据库选型、数据模型、数据流和性能优化策略。
+
+## 输出文件
+
+```
+analysis/05-data-architecture/
+├─ data-architecture.md       # 完整数据架构文档
+├─ data-architecture.puml     # 数据架构组件图
+├"># 步骤 6：数据架构分析
+
+## 目标
+
+深入分析项目的数据架构设计，包括数据库选型、数据模型、数据流和性能优化策略。
+
+## 输出文件
+
+```
+analysis/05-data-architecture/
+├─ data-architecture.md       # 完整数据架构文档
+├─ data-architecture.puml     # 数据架构组件图
+├</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 7：分析第三方集成方案</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 7：分析第三方集成方案
+
+## 目标
+
+识别项目中所有第三方集成，按类别编写集成文档。
+
+## 输出文档
+
+```
+analysis/06-ThirdParty/
+├─ README.md                    # 总览
+├─ 01-{category}.md
+├─ 02-{category}.md
+└─ ...
+```
+
+## 常见集成类"># 步骤 7：分析第三方集成方案
+
+## 目标
+
+识别项目中所有第三方集成，按类别编写集成文档。
+
+## 输出文档
+
+```
+analysis/06-ThirdParty/
+├─ README.md                    # 总览
+├─ 01-{category}.md
+├─ 02-{category}.md
+└─ ...
+```
+
+## 常见集成类</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 8：后处理 — 图片渲染与 PDF 生成</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 8：后处理 — 图片渲染与 PDF 生成
+
+## 目标
+
+将 PlantUML 源文件渲染为 PNG，嵌入到 Markdown 文档，最后将所有 MD 转换为带水印的 PDF。
+
+## 前置条件
+
+| 条件 | 说明 |
+|------|------|
+| 步骤 0-7 完成 | 所有分析文档和 PUML 文件已生成 |
+| PlantUML 渲染服务 | 用户提供"># 步骤 8：后处理 — 图片渲染与 PDF 生成
+
+## 目标
+
+将 PlantUML 源文件渲染为 PNG，嵌入到 Markdown 文档，最后将所有 MD 转换为带水印的 PDF。
+
+## 前置条件
+
+| 条件 | 说明 |
+|------|------|
+| 步骤 0-7 完成 | 所有分析文档和 PUML 文件已生成 |
+| PlantUML 渲染服务 | 用户提供</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>project-analysis</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="&gt;">&gt;</span></td>
+        <td class="triggers">&gt;</td>
+      </tr>
+      <tr>
+        <td>IR JSON Schema 参考</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# IR JSON Schema 参考
+
+生成任何 IR 文件前，对照此文件确认字段名和类型。
+
+---
+
+## `ir/index.json`
+
+```json
+{
+  &quot;_ai_loading_protocol&quot;: {
+    &quot;description&quot;: &quot;string — AI 消费协议说明&quot;,
+    &quot;step_1_always&quot;: &quot;string&quot;,
+   "># IR JSON Schema 参考
+
+生成任何 IR 文件前，对照此文件确认字段名和类型。
+
+---
+
+## `ir/index.json`
+
+```json
+{
+  &quot;_ai_loading_protocol&quot;: {
+    &quot;description&quot;: &quot;string — AI 消费协议说明&quot;,
+    &quot;step_1_always&quot;: &quot;string&quot;,
+   </span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 0：初始化与侦察</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 0：初始化与侦察
+
+## 目标
+
+建立项目地图，验证工具可用性，创建 IR 输出目录骨架。
+
+---
+
+## 0.1 激活 Serena MCP
+
+执行以下操作并记录结果：
+
+```
+1. 调用 Serena 的 activate_project（传入项目根路径）
+2. 调用 get_symbols_overview 或等效接口，验证是否成功索引
+3. 记录"># 步骤 0：初始化与侦察
+
+## 目标
+
+建立项目地图，验证工具可用性，创建 IR 输出目录骨架。
+
+---
+
+## 0.1 激活 Serena MCP
+
+执行以下操作并记录结果：
+
+```
+1. 调用 Serena 的 activate_project（传入项目根路径）
+2. 调用 get_symbols_overview 或等效接口，验证是否成功索引
+3. 记录</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 1：识别 Domain 与 Module</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 1：识别 Domain 与 Module
+
+## 目标
+
+将代码库分解为业务域（Domain）和功能模块（Module），
+生成 `ir/domains.json`。
+
+---
+
+## 1.1 识别策略
+
+按以下优先级依次使用，取置信度最高的结果：
+
+### 策略 A：目录语义分析（首选）
+
+分析源码根目录下的一级/二级子目录，提取语义名称：
+
+```"># 步骤 1：识别 Domain 与 Module
+
+## 目标
+
+将代码库分解为业务域（Domain）和功能模块（Module），
+生成 `ir/domains.json`。
+
+---
+
+## 1.1 识别策略
+
+按以下优先级依次使用，取置信度最高的结果：
+
+### 策略 A：目录语义分析（首选）
+
+分析源码根目录下的一级/二级子目录，提取语义名称：
+
+```</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 2：识别 Component</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 2：识别 Component
+
+## 目标
+
+在每个 Module 内识别最小语义单元（Component），
+为每个 Component 生成独立的 `ir/components/{id}.json`，
+并更新 `ir/index.json` 的组件列表。
+
+---
+
+## 2.1 什么是 Component
+
+**Component = 最小可独立修改、有明确"># 步骤 2：识别 Component
+
+## 目标
+
+在每个 Module 内识别最小语义单元（Component），
+为每个 Component 生成独立的 `ir/components/{id}.json`，
+并更新 `ir/index.json` 的组件列表。
+
+---
+
+## 2.1 什么是 Component
+
+**Component = 最小可独立修改、有明确</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 3：构建依赖图</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 3：构建依赖图
+
+## 目标
+
+从所有 Component 的 `depends_on` 字段汇编依赖边，
+构建反向索引（谁依赖了我），
+生成 `ir/dependency-graph.json`，并回填各 Component 的 `used_by` 字段。
+
+---
+
+## 3.1 汇编依赖边
+
+读取所有 `ir/components/*.json`，
+提取每"># 步骤 3：构建依赖图
+
+## 目标
+
+从所有 Component 的 `depends_on` 字段汇编依赖边，
+构建反向索引（谁依赖了我），
+生成 `ir/dependency-graph.json`，并回填各 Component 的 `used_by` 字段。
+
+---
+
+## 3.1 汇编依赖边
+
+读取所有 `ir/components/*.json`，
+提取每</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 4：提取架构约束</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 4：提取架构约束
+
+## 目标
+
+从代码模式中推断架构约束规则，
+向用户确认并请求补充，
+生成 `ir/constraints.json`。
+
+约束是 **AI 执行代码变更时的安全护栏**——违反任何规则必须停下来向用户确认。
+
+---
+
+## 4.1 自动推断约束
+
+### 4.1.1 Layer 访问规则（从依赖图推断）
+
+分析 `ir/depend"># 步骤 4：提取架构约束
+
+## 目标
+
+从代码模式中推断架构约束规则，
+向用户确认并请求补充，
+生成 `ir/constraints.json`。
+
+约束是 **AI 执行代码变更时的安全护栏**——违反任何规则必须停下来向用户确认。
+
+---
+
+## 4.1 自动推断约束
+
+### 4.1.1 Layer 访问规则（从依赖图推断）
+
+分析 `ir/depend</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 5：生成符号映射</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 5：生成符号映射
+
+## 目标
+
+对每个 Component，提取函数/方法级符号信息，
+包括文件路径、符号名、调用关系，
+生成 `ir/symbols/{id}.json`。
+
+**注意：** 符号文件是&quot;改代码时才加载&quot;的第三层数据，
+AI 仅在确认要修改某个 Component 时才加载对应的 symbols 文件。
+
+---
+
+## 5.1 符号提取原则"># 步骤 5：生成符号映射
+
+## 目标
+
+对每个 Component，提取函数/方法级符号信息，
+包括文件路径、符号名、调用关系，
+生成 `ir/symbols/{id}.json`。
+
+**注意：** 符号文件是&quot;改代码时才加载&quot;的第三层数据，
+AI 仅在确认要修改某个 Component 时才加载对应的 symbols 文件。
+
+---
+
+## 5.1 符号提取原则</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>步骤 6：组装与验证</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="# 步骤 6：组装与验证
+
+## 目标
+
+最终化 `ir/index.json`（写入完整 quick_nav 和元数据），
+执行一致性校验，向用户输出知识库摘要。
+
+---
+
+## 6.1 最终化 `ir/index.json`
+
+读取当前的 `ir/index.json` 骨架，填充所有 `__FILL__` 占位符：
+
+### 6.1.1 填充项目元信息
+
+``"># 步骤 6：组装与验证
+
+## 目标
+
+最终化 `ir/index.json`（写入完整 quick_nav 和元数据），
+执行一致性校验，向用户输出知识库摘要。
+
+---
+
+## 6.1 最终化 `ir/index.json`
+
+读取当前的 `ir/index.json` 骨架，填充所有 `__FILL__` 占位符：
+
+### 6.1.1 填充项目元信息
+
+``</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>project-ir-skill</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="&gt;">&gt;</span></td>
+        <td class="triggers">&gt;</td>
+      </tr>
+      <tr>
+        <td>skill-decoder</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-global">global</span></td>
+        <td><span class="desc" title="解读任意 Agent Skill / Agent，生成结构化解构 HTML（支持静态/动画/视频/PPT）。分析 SKILL.md 的工作流节点、依赖环境、文件角色、输入输出式样，生成可交互的可视化概览。触发词：解读skill、skill解构、skill分析、skill overview、分析这个skill、解读这个技能、skill workflow、技能工作流、skill是怎么工作的、拆解这个agent。用户未指定输出格式或风格时弹窗询问。HTML/动画/视频生成复用 huashu-design skill。">解读任意 Agent Skill / Agent，生成结构化解构 HTML（支持静态/动画/视频/PPT）。分析 SKILL.md 的工作流节点、依赖环境、文件角色、输入输出式样，生成可交互的可视化概览。触发词：解读skill、skill解构、skill分析、skill overview、分析这个skill、解读这个技能、skill workflow、技能工作流、skill是怎么工作的、拆解这个agent。用户未指定输出格式或风格时弹窗询问。HTML/动画/视频生成复用 huashu-design skill。</span></td>
+        <td class="triggers">解读任意 Agent Skill / Agent，生成结构化解构 HTML（支持静态/动画/视频/PPT）。分析 SKILL.md 的工作流节点、依赖环境、文件角色、输入输出式样，生成可交互的可视化概览。触发词：解读skill、skill解构、skill分析、skill overview、分析这个skill、解读这个技能、skill workflow、技能工作流、skill是怎么工作的、拆解这个agent。用户未指定输出格式或风格时弹窗询问。HTML/动画/视频生成复用 huashu-design skill。</td>
+      </tr>
+      <tr>
+        <td>diagnose</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says &quot;diagnose this&quot; / &quot;debug this&quot;, reports a bug, says something is broken/throwing/failing, or describes a performance regression.">Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says &quot;diagnose this&quot; / &quot;debug this&quot;, reports a bug, says something is broken/throwing/failing, or describes a performance regression.</span></td>
+        <td class="triggers">Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says &quot;diagnose this&quot; / &quot;debug this&quot;, reports a bug, says something is broken/throwing/failing, or describes a performance regression.</td>
+      </tr>
+      <tr>
+        <td>ADR Format</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# ADR Format
+
+ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+
+Create the `docs/adr/` directory lazily — only when the first ADR is needed.
+
+## Template
+
+``"># ADR Format
+
+ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+
+Create the `docs/adr/` directory lazily — only when the first ADR is needed.
+
+## Template
+
+``</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>CONTEXT.md Format</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# CONTEXT.md Format
+
+## Structure
+
+```md
+# {Context Name}
+
+{One or two sentence description of what this context is and why it exists.}
+
+## Language
+
+**Order**:
+{A concise description of the term}
+_Av"># CONTEXT.md Format
+
+## Structure
+
+```md
+# {Context Name}
+
+{One or two sentence description of what this context is and why it exists.}
+
+## Language
+
+**Order**:
+{A concise description of the term}
+_Av</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>grill-with-docs</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.">Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.</span></td>
+        <td class="triggers">Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.</td>
+      </tr>
+      <tr>
+        <td>idea-refine</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Refines ideas iteratively. Refine ideas through structured divergent and convergent thinking. Use &quot;idea-refine&quot; or &quot;ideate&quot; to trigger.">Refines ideas iteratively. Refine ideas through structured divergent and convergent thinking. Use &quot;idea-refine&quot; or &quot;ideate&quot; to trigger.</span></td>
+        <td class="triggers">Refines ideas iteratively. Refine ideas through structured divergent and convergent thinking. Use &quot;idea-refine&quot; or &quot;ideate&quot; to trigger.</td>
+      </tr>
+      <tr>
+        <td>Interface Design</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# Interface Design
+
+When the user wants to explore alternative interfaces for a chosen deepening candidate, use this parallel sub-agent pattern. Based on &quot;Design It Twice&quot; (Ousterhout) — your first id"># Interface Design
+
+When the user wants to explore alternative interfaces for a chosen deepening candidate, use this parallel sub-agent pattern. Based on &quot;Design It Twice&quot; (Ousterhout) — your first id</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Language</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# Language
+
+Shared vocabulary for every suggestion this skill makes. Use these terms exactly — don't substitute &quot;component,&quot; &quot;service,&quot; &quot;API,&quot; or &quot;boundary.&quot; Consistent language is the whole point.
+
+#"># Language
+
+Shared vocabulary for every suggestion this skill makes. Use these terms exactly — don't substitute &quot;component,&quot; &quot;service,&quot; &quot;API,&quot; or &quot;boundary.&quot; Consistent language is the whole point.
+
+#</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>improve-codebase-architecture</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Find deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.">Find deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.</span></td>
+        <td class="triggers">Find deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.</td>
+      </tr>
+      <tr>
+        <td>incremental-implementation</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Delivers changes incrementally. Use when implementing any feature or change that touches more than one file. Use when you're about to write a large amount of code at once, or when a task feels too big to land in one step.">Delivers changes incrementally. Use when implementing any feature or change that touches more than one file. Use when you're about to write a large amount of code at once, or when a task feels too big to land in one step.</span></td>
+        <td class="triggers">Implementing any multi-file change, Building a new feature from a task breakdown, Refactoring existing code +2</td>
+      </tr>
+      <tr>
+        <td>Logic Prototype</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# Logic Prototype
+
+A tiny interactive terminal app that lets the user drive a state model by hand. Use this when the question is about **business logic, state transitions, or data shape** — the kind o"># Logic Prototype
+
+A tiny interactive terminal app that lets the user drive a state model by hand. Use this when the question is about **business logic, state transitions, or data shape** — the kind o</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>prototype</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Build a throwaway prototype to flush out a design before committing to it. Routes between two branches — a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route. Use when the user wants to prototype, sanity-check a data model or state machine, mock up a UI, explore design options, or says &quot;prototype this&quot;, &quot;let me play with it&quot;, &quot;try a few designs&quot;.">Build a throwaway prototype to flush out a design before committing to it. Routes between two branches — a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route. Use when the user wants to prototype, sanity-check a data model or state machine, mock up a UI, explore design options, or says &quot;prototype this&quot;, &quot;let me play with it&quot;, &quot;try a few designs&quot;.</span></td>
+        <td class="triggers">Build a throwaway prototype to flush out a design before committing to it. Routes between two branches — a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route. Use when the user wants to prototype, sanity-check a data model or state machine, mock up a UI, explore design options, or says &quot;prototype this&quot;, &quot;let me play with it&quot;, &quot;try a few designs&quot;.</td>
+      </tr>
+      <tr>
+        <td>UI Prototype</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# UI Prototype
+
+Generate **several radically different UI variations** on a single route, switchable from a floating bottom bar. The user flips between variants in the browser, picks one (or steals bi"># UI Prototype
+
+Generate **several radically different UI variations** on a single route, switchable from a floating bottom bar. The user flips between variants in the browser, picks one (or steals bi</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>spec-driven-development</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Creates specs before coding. Use when starting a new project, feature, or significant change and no specification exists yet. Use when requirements are unclear, ambiguous, or only exist as a vague idea.">Creates specs before coding. Use when starting a new project, feature, or significant change and no specification exists yet. Use when requirements are unclear, ambiguous, or only exist as a vague idea.</span></td>
+        <td class="triggers">Starting a new project or feature, Requirements are ambiguous or incomplete, The change touches multiple files or modules +3</td>
+      </tr>
+      <tr>
+        <td>tdd</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions &quot;red-green-refactor&quot;, wants integration tests, or asks for test-first development.">Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions &quot;red-green-refactor&quot;, wants integration tests, or asks for test-first development.</span></td>
+        <td class="triggers">Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions &quot;red-green-refactor&quot;, wants integration tests, or asks for test-first development.</td>
+      </tr>
+      <tr>
+        <td>to-issues</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.">Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.</span></td>
+        <td class="triggers">Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.</td>
+      </tr>
+      <tr>
+        <td>to-prd</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.">Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.</span></td>
+        <td class="triggers">Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.</td>
+      </tr>
+      <tr>
+        <td>Writing Agent Briefs</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# Writing Agent Briefs
+
+An agent brief is a structured comment posted on a GitHub issue when it moves to `ready-for-agent`. It is the authoritative specification that an AFK agent will work from. The "># Writing Agent Briefs
+
+An agent brief is a structured comment posted on a GitHub issue when it moves to `ready-for-agent`. It is the authoritative specification that an AFK agent will work from. The </span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>Out-of-Scope Knowledge Base</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="# Out-of-Scope Knowledge Base
+
+The `.out-of-scope/` directory in a repo stores persistent records of rejected feature requests. It serves two purposes:
+
+1. **Institutional memory** — why a feature was"># Out-of-Scope Knowledge Base
+
+The `.out-of-scope/` directory in a repo stores persistent records of rejected feature requests. It serves two purposes:
+
+1. **Institutional memory** — why a feature was</span></td>
+        <td class="triggers">—</td>
+      </tr>
+      <tr>
+        <td>triage</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Triage issues through a state machine driven by triage roles. Use when user wants to create an issue, triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow.">Triage issues through a state machine driven by triage roles. Use when user wants to create an issue, triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow.</span></td>
+        <td class="triggers">Triage issues through a state machine driven by triage roles. Use when user wants to create an issue, triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow.</td>
+      </tr>
+      <tr>
+        <td>zoom-out</td>
+        <td><span class="pill">claude</span></td>
+        <td><span class="badge badge-scope-project">project</span></td>
+        <td><span class="desc" title="Tell the agent to zoom out and give broader context or a higher-level perspective. Use when you're unfamiliar with a section of code or need to understand how it fits into the bigger picture.">Tell the agent to zoom out and give broader context or a higher-level perspective. Use when you're unfamiliar with a section of code or need to understand how it fits into the bigger picture.</span></td>
+        <td class="triggers">Tell the agent to zoom out and give broader context or a higher-level perspective. Use when you're unfamiliar with a section of code or need to understand how it fits into the bigger picture.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Duplicates (1)</h2>
+  <table>
+    <thead>
+      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Similarity</th><th>Shared tokens</th></tr>
+    </thead>
+    <tbody>
+      <tr class="conflict-pair">
+      <td>Huashu Design<br><span class="badge badge-scope-global">global</span> <span class="pill">claude</span></td>
+      <td>Huashu Design<br><span class="badge badge-scope-global">global</span> <span class="pill">claude</span></td>
+      <td><span class="badge badge-high">high</span></td>
+      <td class="sim">100%</td>
+      <td class="shared">—</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Conflicts (2)</h2>
+  <table>
+    <thead>
+      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Similarity</th><th>Shared tokens</th></tr>
+    </thead>
+    <tbody>
+      <tr class="conflict-pair">
+      <td>步骤 4：生成核心模块详细分析文档<br><span class="badge badge-scope-global">global</span> <span class="pill">claude</span></td>
+      <td>步骤 5：深度分析核心模块的子功能<br><span class="badge badge-scope-global">global</span> <span class="pill">claude</span></td>
+      <td><span class="badge badge-low">low</span></td>
+      <td class="sim">35%</td>
+      <td class="shared">analysi, core, feature, modul, module, name, sequence, 输出文档</td>
+    </tr>
+    <tr class="conflict-pair">
+      <td>to-issues<br><span class="badge badge-scope-project">project</span> <span class="pill">claude</span></td>
+      <td>to-prd<br><span class="badge badge-scope-project">project</span> <span class="pill">claude</span></td>
+      <td><span class="badge badge-low">low</span></td>
+      <td class="sim">30%</td>
+      <td class="shared">create, into, issue, prd, project, tracker, use, user, want</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
