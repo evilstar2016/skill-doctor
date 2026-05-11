@@ -53,8 +53,8 @@ Goal: tell users how a skill is meant to be used, not only that it exists.
 | Small feature | Status | Notes |
 | --- | --- | --- |
 | Trigger extraction | done | Basic triggers already parsed. |
-| Usage explanation generation | next | Convert parsed structure into human-friendly summaries. |
-| Skill grouping by workflow | next | Cluster related skills by job-to-be-done. |
+| Usage explanation generation | in-progress | Spec written. Enhance `show` with WHEN TO USE + RELATED SKILLS. See `doc/specs/skill-doctor-f4-explanation-layer-spec.md`. |
+| Skill grouping by workflow | in-progress | Spec written. `scan --group` via Union-Find clustering on token overlap. |
 | Cross-skill overlap narratives | later | Explain why two skills compete and when each should win. |
 
 ## F5. Safety Audit
