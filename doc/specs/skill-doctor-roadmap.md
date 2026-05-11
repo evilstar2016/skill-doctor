@@ -42,8 +42,8 @@ Goal: make the CLI easy to validate, ship, and adopt.
 | Build and test scripts | done | `build`, `test`, `test:watch`, `test:coverage`. |
 | Private remote repository | done | GitHub private repo is live. |
 | Coverage reporting | done | Script runs and the gate is defined on executable core source modules. |
-| Cold-start measurement | next | Needed for release checklist. |
-| Public release flow | next | Decide npm release vs GitHub-only release. |
+| Cold-start measurement | done | Measured at ~1.3s locally. |
+| Public release flow | done | v0.1.0 GitHub release published (private dogfood, not npm). |
 | CI automation | later | Add after coverage gate is stable. |
 
 ## F4. Skill Explanation Layer
@@ -81,6 +81,6 @@ Goal: move from inspection to operational cleanup of the local skill set.
 
 ## Current Recommendation
 
-1. Finish F3 release hardening first.
-2. Then build F5 safety audit as the next differentiating feature.
+1. ~~Finish F3 release hardening first.~~ done — v0.1.0 shipped 2026-05-11.
+2. **Now**: build F5 safety audit as the next differentiating feature.
 3. Keep F4 explanation layer as the supporting product layer after safety signals exist.
