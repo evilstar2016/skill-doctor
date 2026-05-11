@@ -2,19 +2,22 @@ import { describe, expect, it } from 'vitest';
 
 import { renderAudit } from '../../src/render/renderAudit';
 import { renderConflicts } from '../../src/render/renderConflicts';
+import { renderGroup } from '../../src/render/renderGroup';
 import { renderReport } from '../../src/render/renderReport';
 import { renderScan } from '../../src/render/renderScan';
 import { renderShow } from '../../src/render/renderShow';
 import type { AuditResult } from '../../src/types/audit';
+import type { GroupResult, SkillExplanation } from '../../src/types/explain';
 import type { ConflictPair, SkillRecord } from '../../src/types/skill';
 
-const sampleSkill: SkillRecord = {
+const sampleSkill: SkillExplanation = {
   name: 'git-workflow',
   sourcePath: 'E:/skills/git-workflow/SKILL.md',
   platform: 'claude',
   scope: 'project',
   description: 'Manage git branches and pull requests.',
   triggers: ['create branch', 'open pull request'],
+  relatedSkills: [],
 };
 
 const conflictingSkill: SkillRecord = {
@@ -67,6 +70,50 @@ describe('renderers', () => {
     expect(output).toContain('Platform: claude');
     expect(output).toContain('Scope: project');
     expect(output).toContain('create branch');
+    expect(output).toContain('WHEN TO USE');
+  });
+
+  it('renders skill detail card with related skills when present', () => {
+    const withRelated: SkillExplanation = {
+      ...sampleSkill,
+      relatedSkills: [
+        { name: 'github-automation', similarity: 0.72, sharedTokens: ['branch', 'pull', 'request'] },
+      ],
+    };
+    const output = renderShow(withRelated);
+
+    expect(output).toContain('RELATED SKILLS');
+    expect(output).toContain('github-automation');
+    expect(output).toContain('0.72');
+    expect(output).toContain('branch');
+  });
+
+  it('renderGroup groups related skills under a label', () => {
+    const groupResult: GroupResult = {
+      groups: [
+        {
+          label: 'git · workflow · branch',
+          skills: [sampleSkill, conflictingSkill],
+        },
+      ],
+      ungrouped: [],
+    };
+    const output = renderGroup(groupResult);
+
+    expect(output).toContain('git · workflow · branch');
+    expect(output).toContain('git-workflow');
+    expect(output).toContain('github-automation');
+  });
+
+  it('renderGroup lists ungrouped skills separately', () => {
+    const groupResult: GroupResult = {
+      groups: [],
+      ungrouped: [sampleSkill],
+    };
+    const output = renderGroup(groupResult);
+
+    expect(output).toContain('(other)');
+    expect(output).toContain('git-workflow');
   });
 
   it('renders conflicts with severity and shared tokens', () => {
