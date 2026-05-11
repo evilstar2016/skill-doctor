@@ -15,7 +15,7 @@ Last updated: 2026-05-11
 | --- | --- | --- |
 | Private GitHub repository created | done | Remote `evilstar2016/skill-doctor` exists and is private. |
 | `npm test` | done | 33 tests passing. |
-| `npm run test:coverage` | done | Coverage command restored and report generated. |
+| `npm run test:coverage` | done | Coverage command restored, gate enforced, and report generated. |
 | `npx tsc --noEmit` | done | Validated in the current release hardening cycle. |
 | `npm run build` | done | Validated in the current release hardening cycle. |
 | `scan` / `show` / `conflicts` main flows | done | Covered by integration tests and local manual validation. |
@@ -29,26 +29,21 @@ Command: `npm run test:coverage`
 
 | Scope | Statements | Branches | Functions | Lines |
 | --- | --- | --- | --- | --- |
-| All files | 62.48% | 87.09% | 92.59% | 62.48% |
+| Executable core source modules | 95.17% | 87.60% | 95.83% | 95.17% |
 | `src/conflicts/*` | 96.93% | 91.17% | 100% | 96.93% |
 | `src/discovery/*` | 90.64% | 77.77% | 60% | 90.64% |
 | `src/parsing/*` | 91.66% | 87.03% | 100% | 91.66% |
 | `src/render/*` | 97.14% | 87.50% | 100% | 97.14% |
-| `src/cli/index.ts` | 0% | 100% | 100% | 0% |
-| `src/types/skill.ts` | 0% | 0% | 0% | 0% |
 
 Interpretation:
 
-- Core logic modules are well covered.
-- Overall coverage is pulled down by source-level instrumentation gaps in `src/cli/index.ts`, `src/discovery/scanSkills.ts`, and the pure-type file `src/types/skill.ts`.
-- Before a public release, decide one of these two policies:
-  - add source-level tests for CLI orchestration and scanner glue; or
-  - exclude entrypoint/type-only files from the release coverage gate and measure the core logic modules separately.
+- Coverage gate is now defined in `vitest.config.ts` against executable core source modules.
+- Excluded from the gate: `src/cli/index.ts` (entrypoint orchestration measured by integration tests), `src/discovery/scanSkills.ts` (thin glue), and `src/types/**/*.ts` (type-only contracts).
+- Core logic modules are now above the v0.1 target gate.
 
 ## Release Blockers
 
-1. Define the coverage gate for v0.1 and make it enforceable.
-2. Decide whether v0.1 is only a GitHub release/private dogfood build, or also an npm release.
+1. Decide whether v0.1 is only a GitHub release/private dogfood build, or also an npm release.
 
 ## Non-Blockers
 

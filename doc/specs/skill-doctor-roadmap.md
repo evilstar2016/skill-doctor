@@ -41,7 +41,7 @@ Goal: make the CLI easy to validate, ship, and adopt.
 | --- | --- | --- |
 | Build and test scripts | done | `build`, `test`, `test:watch`, `test:coverage`. |
 | Private remote repository | done | GitHub private repo is live. |
-| Coverage reporting | in-progress | Script runs, but gate definition still unresolved. |
+| Coverage reporting | done | Script runs and the gate is defined on executable core source modules. |
 | Cold-start measurement | next | Needed for release checklist. |
 | Public release flow | next | Decide npm release vs GitHub-only release. |
 | CI automation | later | Add after coverage gate is stable. |

@@ -17,7 +17,7 @@
 | 7 | done | 冲突检测、duplicate 分类与 severity 分级已落地。 |
 | 8 | done | 三个 renderer 已落地，当前实现为纯文本格式。 |
 | 9 | done | `scan` / `show` / `conflicts` CLI 已完成，并扩展了 `--json`、`--scope`、`--limit`、`--kind`。 |
-| 10 | in-progress | 自动化测试链路已齐，`npm run test:coverage` 已恢复；当前总覆盖率 62.48%，需决定 coverage gate 的统计范围或补 source-level 覆盖。 |
+| 10 | done | 自动化测试链路已齐，`npm run test:coverage` 已恢复；coverage gate 已定义为可执行核心源码模块，当前覆盖率 95.17%。 |
 | 11 | done | `bin`、README、私有仓库远程、`npx skill-doctor --version` 冷启动测量（约 1.3s）均已完成。 |
 
 ---
