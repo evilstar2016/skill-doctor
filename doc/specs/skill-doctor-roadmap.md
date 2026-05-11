@@ -63,8 +63,8 @@ Goal: become the inspection layer that helps users trust or reject third-party s
 
 | Small feature | Status | Notes |
 | --- | --- | --- |
-| Risk rulebook for local skills | next | Define risky patterns: shell execution, destructive commands, secret exposure, network use. |
-| Static scan for dangerous instructions | next | Parse markdown/rule files and flag risk signatures. |
+| Risk rulebook for local skills | in-progress | Spec written: 4 rules — shell-exec / destructive / secret-leak / network-call. See `doc/specs/skill-doctor-f5-safety-audit-spec.md`. |
+| Static scan for dangerous instructions | in-progress | `audit` command — spec written, implementation next. |
 | Trust/provenance metadata | later | Show source repo, author, local origin, and confidence. |
 | Security report output | later | Add `audit` command or `scan --security`. |
 
