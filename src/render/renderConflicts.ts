@@ -11,14 +11,19 @@ export function renderConflicts(pairs: ConflictPair[]): string {
   const sections: string[] = [];
 
   if (duplicates.length > 0) {
+    const clusters = new Map<string, Set<string>>();
+    for (const pair of duplicates) {
+      if (!clusters.has(pair.a.name)) clusters.set(pair.a.name, new Set());
+      clusters.get(pair.a.name)!.add(pair.a.sourcePath);
+      clusters.get(pair.a.name)!.add(pair.b.sourcePath);
+    }
+
     sections.push([
       'DUPLICATES',
-      ...duplicates.map((pair) =>
+      ...[...clusters.entries()].map(([name, paths]) =>
         [
-          `${pair.a.name}`,
-          `severity: ${pair.severity}`,
-          `left: ${pair.a.sourcePath}`,
-          `right: ${pair.b.sourcePath}`,
+          `${name}  [${paths.size} copies]`,
+          ...[...paths].map((p) => `  ${p}`),
         ].join('\n'),
       ),
     ].join('\n\n'));
