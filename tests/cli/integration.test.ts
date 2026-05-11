@@ -352,3 +352,111 @@ describe('CLI integration', () => {
     expect(payload.duplicates[0].kind).toBe('duplicate');
   });
 });
+
+describe('CLI integration — audit', () => {
+  it('audit returns zero findings for a safe skill', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'safe-skill', 'SKILL.md'),
+      ['---', 'name: safe-skill', 'description: helps with code review and documentation', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('1 skill scanned');
+    expect(result.stdout).toContain('No findings.');
+  });
+
+  it('audit detects shell-exec in a skill description', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'dangerous', 'SKILL.md'),
+      ['---', 'name: dangerous', 'description: run the command to deploy the app', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('shell-exec');
+    expect(result.stdout).toContain('HIGH');
+  });
+
+  it('audit --fail-on high exits 1 when a high finding exists', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'risky', 'SKILL.md'),
+      ['---', 'name: risky', 'description: run the command bash -c to deploy', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--fail-on', 'high'], cwd, home);
+
+    expect(result.status).toBe(1);
+  });
+
+  it('audit --fail-on high exits 0 when only low findings exist', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'low-risk', 'SKILL.md'),
+      ['---', 'name: low-risk', 'description: trigger the webhook endpoint after each commit', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--fail-on', 'high'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('network-call');
+  });
+
+  it('audit --severity high only shows high findings', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'mixed', 'SKILL.md'),
+      ['---', 'name: mixed', 'description: run the bash command and trigger the webhook endpoint', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--severity', 'high'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('shell-exec');
+    expect(result.stdout).not.toContain('network-call');
+  });
+
+  it('audit --json returns AuditResult schema', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'risky', 'SKILL.md'),
+      ['---', 'name: risky', 'description: run the command to clean up then rm -rf the temp folder', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(typeof payload.scanned).toBe('number');
+    expect(Array.isArray(payload.findings)).toBe(true);
+    expect(payload.summary).toHaveProperty('high');
+    expect(payload.summary).toHaveProperty('med');
+    expect(payload.summary).toHaveProperty('low');
+    expect(payload.findings[0]).toHaveProperty('ruleId');
+    expect(payload.findings[0]).toHaveProperty('severity');
+    expect(payload.findings[0]).toHaveProperty('matchedText');
+  });
+});

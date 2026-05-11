@@ -2,12 +2,15 @@
 
 import { writeFileSync } from 'node:fs';
 import packageJson from '../../package.json';
+import { runAudit } from '../audit/runAudit';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
+import { renderAudit } from '../render/renderAudit';
 import { renderConflicts } from '../render/renderConflicts';
 import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
+import type { AuditFinding } from '../types/audit';
 import type { ConflictPair, Scope, SkillRecord } from '../types/skill';
 
 export function main(argv: string[] = process.argv.slice(2)): void {
@@ -122,6 +125,36 @@ export function main(argv: string[] = process.argv.slice(2)): void {
     return;
   }
 
+  if (command === 'audit') {
+    const scope = readScope(rest);
+    const minSeverity = readSeverity(rest);
+    const threshold = readFailOn(rest);
+
+    if (scope === 'invalid') {
+      process.stderr.write('Invalid scope. Use --scope project|global|all\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const skills = filterSkillsByScope(scanSkills(cwd), scope);
+    const result = runAudit(skills);
+    const filtered = minSeverity
+      ? { ...result, findings: filterFindingsBySeverity(result.findings, minSeverity) }
+      : result;
+
+    if (jsonOutput) {
+      process.stdout.write(`${toJson(filtered)}\n`);
+    } else {
+      process.stdout.write(`${renderAudit(filtered)}\n`);
+    }
+
+    if (threshold && filtered.findings.some((f) => shouldFail(f.severity, threshold))) {
+      process.exitCode = 1;
+    }
+
+    return;
+  }
+
   process.stderr.write(`Unknown command: ${command}\n\n${getHelpText()}`);
   process.exitCode = 1;
 }
@@ -136,12 +169,27 @@ function getHelpText(): string {
     '  skill-doctor scan [--scope project|global|all] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
+    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json]',
     '  skill-doctor --version',
   ].join('\n');
 }
 
 function hasFlag(args: string[], flag: string): boolean {
   return args.includes(flag);
+}
+
+function readSeverity(args: string[]): 'high' | 'med' | 'low' | null {
+  const index = args.indexOf('--severity');
+  if (index === -1) return null;
+  const value = args[index + 1];
+  return value === 'high' || value === 'med' || value === 'low' ? value : null;
+}
+
+function filterFindingsBySeverity(
+  findings: AuditFinding[],
+  minSeverity: 'high' | 'med' | 'low',
+): AuditFinding[] {
+  return findings.filter((f) => shouldFail(f.severity, minSeverity));
 }
 
 function readFailOn(args: string[]): 'high' | 'med' | 'low' | null {
