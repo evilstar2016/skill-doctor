@@ -42,5 +42,6 @@ node dist/index.cjs conflicts --limit 10 --json
 
 ```bash
 npm test
+npm run test:coverage
 npx tsc --noEmit
 ```
