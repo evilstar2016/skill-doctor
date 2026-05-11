@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderConflicts } from '../../src/render/renderConflicts';
+import { renderReport } from '../../src/render/renderReport';
 import { renderScan } from '../../src/render/renderScan';
 import { renderShow } from '../../src/render/renderShow';
 import type { ConflictPair, SkillRecord } from '../../src/types/skill';
@@ -76,5 +77,17 @@ describe('renderers', () => {
     expect(output).toContain('github-automation');
     expect(output).toContain('high');
     expect(output).toContain('branch, pull, request');
+  });
+
+  it('renderReport produces a self-contained HTML page', () => {
+    const html = renderReport([sampleSkill, conflictingSkill], [sampleConflict, sampleDuplicate]);
+
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('git-workflow');
+    expect(html).toContain('github-automation');
+    expect(html).toContain('claude');
+    expect(html).toContain('cursor');
+    expect(html).toContain('72%');
+    expect(html).toContain('branch');
   });
 });

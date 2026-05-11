@@ -2,3 +2,7 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+.serena/
+.vscode/
+.idea/
+.DS_Store
