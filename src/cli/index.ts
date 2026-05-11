@@ -5,8 +5,11 @@ import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
+import { buildExplanation } from '../explain/buildExplanation';
+import { groupSkills } from '../explain/groupSkills';
 import { renderAudit } from '../render/renderAudit';
 import { renderConflicts } from '../render/renderConflicts';
+import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
@@ -30,6 +33,7 @@ export function main(argv: string[] = process.argv.slice(2)): void {
 
   if (command === 'scan') {
     const scope = readScope(rest);
+    const groupMode = hasFlag(rest, '--group');
 
     if (scope === 'invalid') {
       process.stderr.write('Invalid scope. Use --scope project|global|all\n');
@@ -38,6 +42,17 @@ export function main(argv: string[] = process.argv.slice(2)): void {
     }
 
     const skills = filterSkillsByScope(scanSkills(cwd), scope);
+
+    if (groupMode) {
+      const groupResult = groupSkills(skills);
+      if (jsonOutput) {
+        process.stdout.write(`${toJson(groupResult)}\n`);
+      } else {
+        process.stdout.write(`${renderGroup(groupResult)}\n`);
+      }
+      return;
+    }
+
     const conflicts = detectConflicts(skills);
 
     const reportPath = readReport(rest);
@@ -66,7 +81,8 @@ export function main(argv: string[] = process.argv.slice(2)): void {
       return;
     }
 
-    const skill = scanSkills(cwd).find((entry) => entry.name === name);
+    const allSkills = scanSkills(cwd);
+    const skill = allSkills.find((entry) => entry.name === name);
 
     if (!skill) {
       process.stderr.write(`Skill not found: ${name}\n`);
@@ -74,12 +90,14 @@ export function main(argv: string[] = process.argv.slice(2)): void {
       return;
     }
 
+    const explanation = buildExplanation(skill, allSkills);
+
     if (jsonOutput) {
-      process.stdout.write(`${toJson(skill)}\n`);
+      process.stdout.write(`${toJson(explanation)}\n`);
       return;
     }
 
-    process.stdout.write(`${renderShow(skill)}\n`);
+    process.stdout.write(`${renderShow(explanation)}\n`);
     return;
   }
 

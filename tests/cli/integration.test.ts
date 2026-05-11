@@ -460,3 +460,83 @@ describe('CLI integration — audit', () => {
     expect(payload.findings[0]).toHaveProperty('matchedText');
   });
 });
+
+describe('CLI integration — F4 explanation', () => {
+  it('show includes WHEN TO USE section with triggers', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow and pull requests', '---', '', '## When to Use', '', '- create branch', '- open pull request'].join('\n'),
+    );
+
+    const result = runCli(['show', 'git-workflow'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('WHEN TO USE');
+    expect(result.stdout).toContain('create branch');
+  });
+
+  it('show --json includes relatedSkills array', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git branches and pull requests', '---'].join('\n'),
+    );
+
+    const result = runCli(['show', 'git-workflow', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(Array.isArray(payload.relatedSkills)).toBe(true);
+  });
+
+  it('scan --group groups skills into clusters', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git branches and pull requests', '---', '', '## When to Use', '', '- create branch', '- open pull request'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'github-automation', 'SKILL.md'),
+      ['---', 'name: github-automation', 'description: automate git branches and pull requests', '---', '', '## When to Use', '', '- create branch', '- open pull request'].join('\n'),
+    );
+
+    const result = runCli(['scan', '--group'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Skill Groups');
+    expect(result.stdout).toContain('git-workflow');
+    expect(result.stdout).toContain('github-automation');
+  });
+
+  it('scan --group --json returns groups and ungrouped arrays', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git branches and pull requests', '---'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'cooking-tips', 'SKILL.md'),
+      ['---', 'name: cooking-tips', 'description: how to cook pasta and make sauces', '---'].join('\n'),
+    );
+
+    const result = runCli(['scan', '--group', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(Array.isArray(payload.groups)).toBe(true);
+    expect(Array.isArray(payload.ungrouped)).toBe(true);
+  });
+});
