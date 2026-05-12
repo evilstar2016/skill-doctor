@@ -8,8 +8,15 @@ export interface EmbeddingUserConfig {
   apiKey?: string;
 }
 
+export interface AnalysisUserConfig {
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+}
+
 export interface SkillDoctorUserConfig {
   embedding?: EmbeddingUserConfig;
+  analysis?: AnalysisUserConfig;
 }
 
 export interface LoadedUserConfig {
@@ -45,16 +52,28 @@ export function getDefaultUserConfigPath(homeDir: string = resolveHomeDir()): st
 
 function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserConfig {
   const embedding = readObject(value.embedding);
+  const analysis = readObject(value.analysis);
 
-  return embedding
-    ? {
-        embedding: {
-          baseUrl: readString(embedding.baseUrl),
-          model: readString(embedding.model),
-          apiKey: readString(embedding.apiKey),
-        },
-      }
-    : {};
+  return {
+    ...(embedding
+      ? {
+          embedding: {
+            baseUrl: readString(embedding.baseUrl),
+            model: readString(embedding.model),
+            apiKey: readString(embedding.apiKey),
+          },
+        }
+      : {}),
+    ...(analysis
+      ? {
+          analysis: {
+            baseUrl: readString(analysis.baseUrl),
+            model: readString(analysis.model),
+            apiKey: readString(analysis.apiKey),
+          },
+        }
+      : {}),
+  };
 }
 
 function readObject(value: unknown): Record<string, unknown> | null {

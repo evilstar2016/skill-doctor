@@ -50,6 +50,32 @@ describe('loadUserConfig', () => {
     });
   });
 
+  it('loads analysis settings from the user config', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
+    const configPath = getDefaultUserConfigPath(homeDir);
+    mkdirSync(join(homeDir, '.skill-doctor'), { recursive: true });
+    writeFileSync(
+      configPath,
+      JSON.stringify(
+        {
+          embedding: { baseUrl: 'http://127.0.0.1:3000/v1', model: 'bge-m3' },
+          analysis: { baseUrl: 'http://127.0.0.1:11434/v1', model: 'llama3.2', apiKey: 'local' },
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    );
+
+    const result = loadUserConfig(homeDir);
+
+    expect(result.config.analysis).toEqual({
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      model: 'llama3.2',
+      apiKey: 'local',
+    });
+  });
+
   it('throws a clear error for invalid config json', () => {
     const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
     const configPath = getDefaultUserConfigPath(homeDir);
