@@ -78,4 +78,8 @@ export interface ConflictDetectionOptions {
   cacheDir?: string;
   provider?: ConflictEmbeddingProvider;
   cache?: ConflictEmbeddingCache;
+  analyze?: boolean;
+  analysisBaseUrl?: string;
+  analysisModelId?: string;
+  analysisApiKey?: string;
 }

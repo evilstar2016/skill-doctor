@@ -5,6 +5,7 @@ import type {
   SkillRecord,
 } from '../../types/skill';
 import { tokenize } from '../tokenize';
+import { analyzeConflict } from './analyzeConflict';
 import { buildSemanticText } from './buildSemanticText';
 import { cosineSimilarity } from './cosine';
 import { createEmbeddingCache } from './embeddingCache';
@@ -71,7 +72,7 @@ export async function detectEmbeddingConflicts(
 
       const sharedTokens = [...getTokens(left)].filter((token) => getTokens(right).has(token)).sort().slice(0, 10);
 
-      pairs.push({
+      const pair: ConflictPair = {
         a: left,
         b: right,
         kind: 'conflict',
@@ -79,7 +80,21 @@ export async function detectEmbeddingConflicts(
         sharedTokens,
         severity: getSeverity(similarity),
         detectionMethod: 'embedding',
-      });
+      };
+
+      if (options.analyze && options.analysisBaseUrl && options.analysisModelId) {
+        try {
+          pair.analysis = await analyzeConflict(left, right, {
+            baseUrl: options.analysisBaseUrl,
+            modelId: options.analysisModelId,
+            apiKey: options.analysisApiKey,
+          });
+        } catch {
+          // analysis is optional — silently skip on error
+        }
+      }
+
+      pairs.push(pair);
     }
   }
 

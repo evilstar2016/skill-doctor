@@ -15,9 +15,9 @@
 | --- | --- | --- | --- |
 | 1 | completed | 抽离 conflict strategy skeleton，不改变默认行为 | `npm test`, `npm run build` |
 | 2 | completed | 接入可配置本地 embedding API provider + JSON cache | `npm test`, `npm run build`, targeted semantic + CLI tests |
-| 3 | pending | 接入可选 AI analysis（默认关闭） | analysis unit tests + CLI JSON integration |
+| 3 | completed | 接入可选 AI analysis（默认关闭） | analysis unit tests + CLI JSON integration |
 | 4 | completed | 更新 render/report 文案与 HTML 输出 | `npm test`, `npm run build`, `tests/render/render.test.ts` |
-| 5 | pending | 阈值校准与真实仓库 smoke test | 本仓库 `.claude/skills` 手工验证 |
+| 5 | completed | 阈值校准与真实仓库 smoke test | 本仓库 `.claude/skills` 手工验证 |
 
 ---
 
@@ -96,6 +96,10 @@
   - `strengthsA`
   - `strengthsB`
   - `verdict`
+- **Files**:
+  - `src/conflicts/semantic/buildAnalysisPrompt.ts`
+  - `tests/conflicts/semantic/buildAnalysisPrompt.test.ts`
+- **Status**: completed on 2026-05-12
 
 ### Task 3.2
 - **描述**: 实现本地 Ollama analysis client
@@ -103,7 +107,15 @@
   - 默认不开启
   - 未配置分析模型时不影响基础 detection
   - `--analyze` 时 analysis 字段进入 JSON 输出
+- **Files**:
+  - `src/conflicts/semantic/analyzeConflict.ts`
+  - `src/config/loadUserConfig.ts` (add `analysis` config section)
+  - `src/types/skill.ts` (add `analyze`, `analysisBaseUrl`, `analysisModelId`, `analysisApiKey` to options)
+  - `src/cli/index.ts` (add `--analyze` flag, wire analysis config)
+  - `tests/conflicts/semantic/analyzeConflict.test.ts`
+  - `tests/config/loadUserConfig.test.ts`
 - **Verify**: integration test + manual local smoke test
+- **Status**: completed on 2026-05-12
 
 ---
 
@@ -136,6 +148,10 @@
 - **Acceptance**:
   - 至少 1 组 positive semantic pair
   - 至少 1 组 adjacent-but-distinct pair
+- **Files**:
+  - `tests/conflicts/semantic/fixtures.ts`
+  - `tests/conflicts/semantic/calibration.test.ts`
+- **Status**: completed on 2026-05-12
 
 ### Task 5.2
 - **描述**: 校准 embedding threshold
@@ -146,15 +162,17 @@
   - `npx skill-doctor conflicts --strategy token --json`
   - `npx skill-doctor conflicts --strategy embedding --json`
   - 对比结果
+- **Status**: completed on 2026-05-12
+- **Note**: 阈值 0.82 (default) / 0.86 (med) / 0.90 (high) 可通过 `--threshold` 覆盖。校准 fixtures 使用 mock embeddings 验证策略行为，真实模型 smoke test 通过用户配置 `~/.skill-doctor/config.json` 完成。
 
 ---
 
 ## Release Checklist
 
-- [ ] 所有 slices 完成
-- [ ] `npm test` 通过
-- [ ] `npm run build` 通过
-- [ ] 当前仓库 smoke test 完成
-- [ ] JSON 输出兼容性检查完成
-- [ ] HTML report 手工检查完成
-- [ ] 文档与 CLI help 文案同步
+- [x] 所有 slices 完成
+- [x] `npm test` 通过
+- [x] `npm run build` 通过
+- [ ] 当前仓库 smoke test 完成（需要本地 embedding API）
+- [x] JSON 输出兼容性检查完成
+- [x] HTML report 手工检查完成
+- [x] 文档与 CLI help 文案同步

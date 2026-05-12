@@ -213,7 +213,7 @@ function getHelpText(): string {
     'Usage:',
     '  skill-doctor scan [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
-    '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
+    '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json]',
     '  skill-doctor --version',
     '',
@@ -257,10 +257,12 @@ function readConflictOptions(args: string[]): ConflictOptionsResult {
     };
   }
 
+  const analyze = args.includes('--analyze');
   const options: ConflictDetectionOptions = {
     ...(strategy ? { strategy } : {}),
     ...(threshold === null ? {} : { threshold }),
     ...(modelId ? { modelId } : {}),
+    ...(analyze ? { analyze } : {}),
   };
 
   if (strategy !== 'embedding') {
@@ -281,12 +283,21 @@ function readConflictOptions(args: string[]): ConflictOptionsResult {
       };
     }
 
+    const analysisOptions: Partial<ConflictDetectionOptions> = {};
+    if (analyze) {
+      const analysisConfig = config.analysis ?? {};
+      analysisOptions.analysisBaseUrl = analysisConfig.baseUrl ?? embeddingConfig.baseUrl;
+      analysisOptions.analysisModelId = analysisConfig.model;
+      analysisOptions.analysisApiKey = analysisConfig.apiKey ?? embeddingConfig.apiKey;
+    }
+
     return {
       options: {
         ...options,
         baseUrl: resolvedBaseUrl,
         modelId: resolvedModelId,
         ...(resolvedApiKey ? { apiKey: resolvedApiKey } : {}),
+        ...analysisOptions,
       },
     };
   } catch (error) {
