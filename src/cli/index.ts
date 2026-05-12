@@ -3,6 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
+import { loadUserConfig } from '../config/loadUserConfig';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
 import { buildExplanation } from '../explain/buildExplanation';
@@ -14,9 +15,15 @@ import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
 import type { AuditFinding } from '../types/audit';
-import type { ConflictPair, Scope, SkillRecord } from '../types/skill';
+import type {
+  ConflictDetectionOptions,
+  ConflictDetectionStrategy,
+  ConflictPair,
+  Scope,
+  SkillRecord,
+} from '../types/skill';
 
-export function main(argv: string[] = process.argv.slice(2)): void {
+export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const [command, ...rest] = argv;
   const cwd = process.cwd();
   const jsonOutput = hasFlag(rest, '--json');
@@ -53,7 +60,15 @@ export function main(argv: string[] = process.argv.slice(2)): void {
       return;
     }
 
-    const conflicts = detectConflicts(skills);
+    const conflictOptions = readConflictOptions(rest);
+
+    if (conflictOptions.error) {
+      process.stderr.write(`${conflictOptions.error}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const conflicts = await detectConflicts(skills, conflictOptions.options);
 
     const reportPath = readReport(rest);
     if (reportPath !== null) {
@@ -125,9 +140,17 @@ export function main(argv: string[] = process.argv.slice(2)): void {
       return;
     }
 
+    const conflictOptions = readConflictOptions(rest);
+
+    if (conflictOptions.error) {
+      process.stderr.write(`${conflictOptions.error}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
     const skills = filterSkillsByScope(scanSkills(cwd), scope);
     const conflicts = limitConflicts(
-      sortConflicts(filterConflictsByKind(detectConflicts(skills), kind)),
+      sortConflicts(filterConflictsByKind(await detectConflicts(skills, conflictOptions.options), kind)),
       limit,
     );
     if (jsonOutput) {
@@ -177,23 +200,141 @@ export function main(argv: string[] = process.argv.slice(2)): void {
   process.exitCode = 1;
 }
 
-main();
+void main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+});
 
 function getHelpText(): string {
   return [
     'skill-doctor',
     '',
     'Usage:',
-    '  skill-doctor scan [--scope project|global|all] [--json] [--report [path]]',
+    '  skill-doctor scan [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
-    '  skill-doctor conflicts [--scope project|global|all] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
+    '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json]',
     '  skill-doctor --version',
+    '',
+    'Embedding config file:',
+    '  ~/.skill-doctor/config.json',
+    '  { "embedding": { "baseUrl": "http://host/v1", "model": "bge-m3", "apiKey": "..." } }',
   ].join('\n');
 }
 
 function hasFlag(args: string[], flag: string): boolean {
   return args.includes(flag);
+}
+
+interface ConflictOptionsResult {
+  options: ConflictDetectionOptions;
+  error?: string;
+}
+
+function readConflictOptions(args: string[]): ConflictOptionsResult {
+  const strategy = readStrategy(args);
+  if (strategy === 'invalid') {
+    return {
+      options: {},
+      error: 'Invalid strategy. Use --strategy token|embedding',
+    };
+  }
+
+  const threshold = readThreshold(args);
+  if (threshold === 'invalid') {
+    return {
+      options: {},
+      error: 'Invalid threshold. Use --threshold <number between 0 and 1>',
+    };
+  }
+
+  const modelId = readEmbeddingModel(args);
+  if (modelId === 'invalid') {
+    return {
+      options: {},
+      error: 'Invalid embedding model. Use --embedding-model <model-id>',
+    };
+  }
+
+  const options: ConflictDetectionOptions = {
+    ...(strategy ? { strategy } : {}),
+    ...(threshold === null ? {} : { threshold }),
+    ...(modelId ? { modelId } : {}),
+  };
+
+  if (strategy !== 'embedding') {
+    return { options };
+  }
+
+  try {
+    const { config, path } = loadUserConfig();
+    const embeddingConfig = config.embedding ?? {};
+    const resolvedBaseUrl = embeddingConfig.baseUrl;
+    const resolvedModelId = modelId ?? embeddingConfig.model;
+    const resolvedApiKey = embeddingConfig.apiKey;
+
+    if (!resolvedBaseUrl || !resolvedModelId) {
+      return {
+        options,
+        error: `Embedding config is incomplete. Set embedding.baseUrl and embedding.model in ${path}.`,
+      };
+    }
+
+    return {
+      options: {
+        ...options,
+        baseUrl: resolvedBaseUrl,
+        modelId: resolvedModelId,
+        ...(resolvedApiKey ? { apiKey: resolvedApiKey } : {}),
+      },
+    };
+  } catch (error) {
+    return {
+      options,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function readStrategy(args: string[]): ConflictDetectionStrategy | null | 'invalid' {
+  const index = args.indexOf('--strategy');
+  if (index === -1) {
+    return null;
+  }
+
+  const value = args[index + 1];
+  return value === 'token' || value === 'embedding' ? value : 'invalid';
+}
+
+function readThreshold(args: string[]): number | null | 'invalid' {
+  const index = args.indexOf('--threshold');
+  if (index === -1) {
+    return null;
+  }
+
+  const rawValue = args[index + 1];
+  const parsed = Number(rawValue);
+
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    return 'invalid';
+  }
+
+  return parsed;
+}
+
+function readEmbeddingModel(args: string[]): string | null | 'invalid' {
+  const index = args.indexOf('--embedding-model');
+  if (index === -1) {
+    return null;
+  }
+
+  const value = args[index + 1];
+  if (!value || value.startsWith('-')) {
+    return 'invalid';
+  }
+
+  return value;
 }
 
 function readSeverity(args: string[]): 'high' | 'med' | 'low' | null {
@@ -271,7 +412,7 @@ function filterSkillsByScope(skills: SkillRecord[], scope: Scope | 'all'): Skill
   return skills.filter((skill) => skill.scope === scope);
 }
 
-function buildScanPayload(skills: SkillRecord[], conflicts: ReturnType<typeof detectConflicts>) {
+function buildScanPayload(skills: SkillRecord[], conflicts: ConflictPair[]) {
   return {
     summary: {
       totalSkillsInstalled: skills.length,
@@ -287,7 +428,7 @@ function buildScanPayload(skills: SkillRecord[], conflicts: ReturnType<typeof de
   };
 }
 
-function buildConflictsPayload(conflicts: ReturnType<typeof detectConflicts>) {
+function buildConflictsPayload(conflicts: ConflictPair[]) {
   return {
     duplicates: conflicts.filter((pair) => pair.kind === 'duplicate'),
     conflicts: conflicts.filter((pair) => pair.kind === 'conflict'),

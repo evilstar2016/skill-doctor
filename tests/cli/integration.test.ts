@@ -1,5 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -31,6 +33,38 @@ function runCli(args: string[], cwd: string, homeDir: string) {
   });
 }
 
+function runCliAsync(args: string[], cwd: string, homeDir: string): Promise<{ status: number | null; stdout: string; stderr: string; }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cliEntry, ...args], {
+      cwd,
+      env: {
+        ...process.env,
+        HOME: homeDir,
+        USERPROFILE: homeDir,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+
+    child.on('error', reject);
+    child.on('close', (status) => {
+      resolve({ status, stdout, stderr });
+    });
+  });
+}
+
 beforeAll(() => {
   const build = spawnSync('npm', ['run', 'build'], {
     cwd: process.cwd(),
@@ -41,7 +75,7 @@ beforeAll(() => {
   if (build.status !== 0) {
     throw new Error(build.stderr || build.stdout || 'build failed');
   }
-});
+}, 30000);
 
 afterEach(() => {
   for (const root of tempRoots) {
@@ -88,7 +122,7 @@ describe('CLI integration', () => {
     expect(missing.stderr).toContain('Skill not found: missing-skill');
   });
 
-  it('scan --json returns structured output for downstream tooling', () => {
+  it('scan --json accepts explicit token strategy flags', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -98,7 +132,11 @@ describe('CLI integration', () => {
       ['---', 'name: karpathy-guidelines', 'description: avoid overengineering', '---', '', '# Karpathy Guidelines'].join('\n'),
     );
 
-    const result = runCli(['scan', '--json'], cwd, home);
+    const result = runCli(
+      ['scan', '--strategy', 'token', '--threshold', '0.8', '--embedding-model', 'local-model', '--json'],
+      cwd,
+      home,
+    );
     const payload = JSON.parse(result.stdout);
 
     expect(result.status).toBe(0);
@@ -242,7 +280,147 @@ describe('CLI integration', () => {
     expect(payload.duplicates).toHaveLength(1);
     expect(payload.conflicts).toHaveLength(1);
     expect(payload.duplicates[0].kind).toBe('duplicate');
+    expect(payload.duplicates[0].detectionMethod).toBe('duplicate-name');
     expect(payload.conflicts[0].kind).toBe('conflict');
+    expect(payload.conflicts[0].detectionMethod).toBe('token');
+  });
+
+  it('conflicts --json accepts explicit token strategy flags', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow, branches, commits, and pull requests', '---', '', '# Git Workflow', '', '## When to Use', '', '- create branch', '- write commit message', '- open pull request'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'github-automation', 'SKILL.md'),
+      ['---', 'name: github-automation', 'description: automate git workflow, branch creation, commit messages, and pull request handling', '---', '', '# GitHub Automation', '', '## When to Use', '', '- create branch', '- write commit message', '- open pull request'].join('\n'),
+    );
+
+    const result = runCli(
+      ['conflicts', '--json', '--strategy', 'token', '--threshold', '0.8', '--embedding-model', 'local-model'],
+      cwd,
+      home,
+    );
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.conflicts).toHaveLength(1);
+    expect(payload.conflicts[0].detectionMethod).toBe('token');
+  });
+
+  it('conflicts --strategy embedding reads user config and calls a local embedding API', async () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    let receivedAuthorization = '';
+    let receivedModel = '';
+
+    const server = createServer((request, response) => {
+      let body = '';
+      request.setEncoding('utf8');
+      request.on('data', (chunk) => {
+        body += chunk;
+      });
+      request.on('end', () => {
+        receivedAuthorization = request.headers.authorization ?? '';
+        const payload = JSON.parse(body) as { model: string; input: string };
+        receivedModel = payload.model;
+        const embedding = payload.input.startsWith('Release Workflow') ? [1, 0] : [0.99, 0.01];
+
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          connection: 'close',
+        });
+        response.end(JSON.stringify({ data: [{ embedding, index: 0 }], model: payload.model }));
+      });
+    });
+
+    try {
+      const port = await new Promise<number>((resolve) => {
+        server.listen(0, '127.0.0.1', () => {
+          resolve((server.address() as AddressInfo).port);
+        });
+      });
+
+      writeFile(
+        join(home, '.skill-doctor', 'config.json'),
+        JSON.stringify(
+          {
+            embedding: {
+              baseUrl: `http://127.0.0.1:${port}/v1`,
+              model: 'bge-m3',
+              apiKey: '111111',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      writeFile(
+        join(cwd, '.claude', 'skills', 'release-workflow', 'SKILL.md'),
+        ['---', 'name: Release Workflow', 'description: prepare release planning and commit summary', '---', '', '# Release Workflow', '', '## When to Use', '', '- open release branch'].join('\n'),
+      );
+      writeFile(
+        join(cwd, '.claude', 'skills', 'deploy-workflow', 'SKILL.md'),
+        ['---', 'name: Deploy Workflow', 'description: coordinate release planning and commit summary', '---', '', '# Deploy Workflow', '', '## When to Use', '', '- open release branch'].join('\n'),
+      );
+
+      const result = await runCliAsync(
+        ['conflicts', '--strategy', 'embedding', '--threshold', '0.8', '--json'],
+        cwd,
+        home,
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const payload = JSON.parse(result.stdout);
+
+      expect(payload.conflicts).toHaveLength(1);
+      expect(payload.conflicts[0].detectionMethod).toBe('embedding');
+      expect(receivedAuthorization).toBe('Bearer 111111');
+      expect(receivedModel).toBe('bge-m3');
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('conflicts --strategy embedding reports missing user config', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    mkdirSync(cwd, { recursive: true });
+
+    const result = runCli(['conflicts', '--strategy', 'embedding'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Embedding config is incomplete. Set embedding.baseUrl and embedding.model');
+  });
+
+  it('conflicts rejects invalid strategy values', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    mkdirSync(cwd, { recursive: true });
+
+    const result = runCli(['conflicts', '--strategy', 'invalid'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid strategy. Use --strategy token|embedding');
   });
 
   it('conflicts --kind duplicate only returns duplicate pairs', () => {

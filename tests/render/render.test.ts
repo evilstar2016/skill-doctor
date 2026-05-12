@@ -36,6 +36,15 @@ const sampleConflict: ConflictPair = {
   similarity: 0.72,
   sharedTokens: ['branch', 'pull', 'request'],
   severity: 'high',
+  detectionMethod: 'embedding',
+  analysis: {
+    summary: 'Overlap in git workflow guidance, but each skill emphasizes a different execution focus.',
+    overlapAreas: ['git workflow'],
+    boundaries: ['branching vs automation'],
+    strengthsA: ['clear manual workflow'],
+    strengthsB: ['automation shortcuts'],
+    verdict: 'adjacent',
+  },
 };
 
 const sampleDuplicate: ConflictPair = {
@@ -49,6 +58,7 @@ const sampleDuplicate: ConflictPair = {
   similarity: 1,
   sharedTokens: [],
   severity: 'high',
+  detectionMethod: 'duplicate-name',
 };
 
 describe('renderers', () => {
@@ -116,7 +126,7 @@ describe('renderers', () => {
     expect(output).toContain('git-workflow');
   });
 
-  it('renders conflicts with severity and shared tokens', () => {
+  it('renders conflicts with severity, method, and shared tokens', () => {
     const output = renderConflicts([sampleDuplicate, sampleConflict]);
 
     expect(output).toContain('DUPLICATES');
@@ -126,7 +136,9 @@ describe('renderers', () => {
     expect(output).toContain('CONFLICTS');
     expect(output).toContain('github-automation');
     expect(output).toContain('high');
+    expect(output).toContain('method: embedding');
     expect(output).toContain('branch, pull, request');
+    expect(output).toContain('Overlap in git workflow guidance');
   });
 
   it('renderReport produces a self-contained HTML page', () => {
@@ -137,8 +149,10 @@ describe('renderers', () => {
     expect(html).toContain('github-automation');
     expect(html).toContain('claude');
     expect(html).toContain('cursor');
+    expect(html).toContain('embedding');
     expect(html).toContain('72%');
     expect(html).toContain('branch');
+    expect(html).toContain('Overlap in git workflow guidance');
   });
 
   it('renderAudit shows scanned count and no findings for empty result', () => {
