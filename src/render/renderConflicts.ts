@@ -36,8 +36,10 @@ export function renderConflicts(pairs: ConflictPair[]): string {
         [
           `${pair.a.name} <-> ${pair.b.name}`,
           `severity: ${pair.severity}`,
+          `method: ${pair.detectionMethod ?? 'unknown'}`,
           `similarity: ${pair.similarity.toFixed(2)}`,
-          `shared: ${pair.sharedTokens.join(', ')}`,
+          `shared: ${pair.sharedTokens.join(', ') || '—'}`,
+          ...(pair.analysis ? [`summary: ${pair.analysis.summary}`] : []),
         ].join('\n'),
       ),
     ].join('\n\n'));

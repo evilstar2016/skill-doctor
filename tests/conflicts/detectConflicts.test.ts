@@ -24,7 +24,7 @@ function isSkillRecord(value: SkillRecord | null): value is SkillRecord {
 }
 
 describe('detectConflicts', () => {
-  it('returns a duplicate pair for same-name skills from different paths', () => {
+  it('returns a duplicate pair for same-name skills from different paths', async () => {
     const left: SkillRecord = {
       name: 'Huashu Design',
       sourcePath: 'E:/skills/global/Huashu-Design/SKILL.md',
@@ -42,23 +42,25 @@ describe('detectConflicts', () => {
       triggers: ['make prototype'],
     };
 
-    const pairs = detectConflicts([left, right]);
+    const pairs = await detectConflicts([left, right]);
 
     expect(pairs).toHaveLength(1);
     expect(pairs[0]?.kind).toBe('duplicate');
     expect(pairs[0]?.severity).toBe('high');
     expect(pairs[0]?.similarity).toBe(1);
+    expect(pairs[0]?.detectionMethod).toBe('duplicate-name');
   });
 
-  it('returns a high-severity conflict for highly overlapping skills', () => {
+  it('returns a high-severity conflict for highly overlapping skills', async () => {
     const left = parseSkill(makeSkillFile(fixturePath('conflicting-a.md')));
     const right = parseSkill(makeSkillFile(fixturePath('conflicting-b.md')));
 
-    const pairs = detectConflicts([left, right].filter(isSkillRecord));
+    const pairs = await detectConflicts([left, right].filter(isSkillRecord));
 
     expect(pairs).toHaveLength(1);
     expect(pairs[0]?.kind).toBe('conflict');
     expect(pairs[0]?.severity).toBe('high');
+    expect(pairs[0]?.detectionMethod).toBe('token');
     expect(pairs[0]?.sharedTokens).toEqual([
       'branch',
       'commit',
@@ -73,19 +75,58 @@ describe('detectConflicts', () => {
     ]);
   });
 
-  it('returns no conflicts for unrelated skills', () => {
+  it('routes embedding strategy through the semantic detector', async () => {
+    const left: SkillRecord = {
+      name: 'Release Workflow',
+      sourcePath: 'E:/skills/release/SKILL.md',
+      platform: 'claude',
+      scope: 'project',
+      description: 'Prepare release planning and commit summary.',
+      triggers: ['open release branch'],
+    };
+    const right: SkillRecord = {
+      name: 'Deploy Workflow',
+      sourcePath: 'E:/skills/deploy/SKILL.md',
+      platform: 'claude',
+      scope: 'project',
+      description: 'Coordinate release planning and commit summary.',
+      triggers: ['open release branch'],
+    };
+    const cache = {
+      get: () => null,
+      set: () => {},
+    };
+    const provider = {
+      modelId: 'test-model',
+      embed: async (text: string) =>
+        text.startsWith('Release Workflow') ? [1, 0] : [0.99, 0.01],
+    };
+
+    const pairs = await detectConflicts([left, right], {
+      strategy: 'embedding',
+      threshold: 0.8,
+      provider,
+      cache,
+    });
+
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]?.kind).toBe('conflict');
+    expect(pairs[0]?.detectionMethod).toBe('embedding');
+  });
+
+  it('returns no conflicts for unrelated skills', async () => {
     const left = parseSkill(makeSkillFile(fixturePath('unrelated-a.md')));
     const right = parseSkill(makeSkillFile(fixturePath('unrelated-b.md')));
 
-    const pairs = detectConflicts([left, right].filter(isSkillRecord));
+    const pairs = await detectConflicts([left, right].filter(isSkillRecord));
 
     expect(pairs).toEqual([]);
   });
 
-  it('returns an empty array for fewer than two skills', () => {
+  it('returns an empty array for fewer than two skills', async () => {
     const single = parseSkill(makeSkillFile(fixturePath('conflicting-a.md')));
 
-    expect(detectConflicts(single ? [single] : [])).toEqual([]);
-    expect(detectConflicts([])).toEqual([]);
+    await expect(detectConflicts(single ? [single] : [])).resolves.toEqual([]);
+    await expect(detectConflicts([])).resolves.toEqual([]);
   });
 });

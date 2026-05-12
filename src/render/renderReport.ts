@@ -44,6 +44,7 @@ export function renderReport(skills: SkillRecord[], conflicts: ConflictPair[]): 
   .desc { color: #475569; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .triggers { color: #64748b; font-size: 12px; }
   .shared { font-size: 12px; color: #64748b; }
+  .analysis { font-size: 12px; color: #475569; max-width: 320px; }
   .sim { font-weight: 600; color: #0f172a; }
   .empty { color: #94a3b8; font-style: italic; padding: 20px 14px; }
   .conflict-pair td:first-child { font-weight: 500; }
@@ -122,15 +123,17 @@ function renderPairsTable(pairs: ConflictPair[]): string {
       <td>${esc(p.a.name)}<br><span class="badge badge-scope-${p.a.scope}">${p.a.scope}</span> <span class="pill">${esc(p.a.platform)}</span></td>
       <td>${esc(p.b.name)}<br><span class="badge badge-scope-${p.b.scope}">${p.b.scope}</span> <span class="pill">${esc(p.b.platform)}</span></td>
       <td><span class="badge badge-${p.severity}">${p.severity}</span></td>
+      <td>${esc(p.detectionMethod ?? 'unknown')}</td>
       <td class="sim">${Math.round(p.similarity * 100)}%</td>
       <td class="shared">${p.sharedTokens.join(', ') || '—'}</td>
+      <td class="analysis">${esc(p.analysis?.summary ?? '—')}</td>
     </tr>`,
     )
     .join('\n    ');
 
   return `<table>
     <thead>
-      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Similarity</th><th>Shared tokens</th></tr>
+      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Method</th><th>Similarity</th><th>Shared tokens</th><th>Summary</th></tr>
     </thead>
     <tbody>
       ${rows}
