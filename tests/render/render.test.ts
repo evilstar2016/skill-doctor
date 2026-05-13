@@ -141,6 +141,28 @@ describe('renderers', () => {
     expect(output).toContain('Overlap in git workflow guidance');
   });
 
+  it('renderConflicts appends SUGGESTIONS section when suggestions are provided', () => {
+    const suggestions = [
+      {
+        skillName: 'git-workflow',
+        keepPath: 'E:/skills/git-workflow/SKILL.md',
+        removePath: 'E:/other/git-workflow/SKILL.md',
+        keepReason: 'newer (modified 2026-05-01)',
+      },
+    ];
+    const output = renderConflicts([sampleDuplicate], suggestions);
+
+    expect(output).toContain('SUGGESTIONS');
+    expect(output).toContain('consider removing: E:/other/git-workflow/SKILL.md');
+    expect(output).toContain('keep: E:/skills/git-workflow/SKILL.md');
+    expect(output).toContain('newer (modified 2026-05-01)');
+  });
+
+  it('renderConflicts omits SUGGESTIONS section when suggestions array is empty', () => {
+    const output = renderConflicts([sampleDuplicate], []);
+    expect(output).not.toContain('SUGGESTIONS');
+  });
+
   it('renderReport produces a self-contained HTML page', () => {
     const html = renderReport([sampleSkill, conflictingSkill], [sampleConflict, sampleDuplicate]);
 

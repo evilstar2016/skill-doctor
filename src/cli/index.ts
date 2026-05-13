@@ -3,6 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
+import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { loadUserConfig } from '../config/loadUserConfig';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
@@ -153,10 +154,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       sortConflicts(filterConflictsByKind(await detectConflicts(skills, conflictOptions.options), kind)),
       limit,
     );
+    const suggestions = suggestCleanup(conflicts);
     if (jsonOutput) {
-      process.stdout.write(`${toJson(buildConflictsPayload(conflicts))}\n`);
+      process.stdout.write(`${toJson(buildConflictsPayload(conflicts, suggestions))}\n`);
     } else {
-      process.stdout.write(`${renderConflicts(conflicts)}\n`);
+      process.stdout.write(`${renderConflicts(conflicts, suggestions)}\n`);
     }
 
     if (threshold && conflicts.some((pair) => shouldFail(pair.severity, threshold))) {
@@ -439,10 +441,11 @@ function buildScanPayload(skills: SkillRecord[], conflicts: ConflictPair[]) {
   };
 }
 
-function buildConflictsPayload(conflicts: ConflictPair[]) {
+function buildConflictsPayload(conflicts: ConflictPair[], suggestions: ReturnType<typeof suggestCleanup>) {
   return {
     duplicates: conflicts.filter((pair) => pair.kind === 'duplicate'),
     conflicts: conflicts.filter((pair) => pair.kind === 'conflict'),
+    suggestions,
   };
 }
 

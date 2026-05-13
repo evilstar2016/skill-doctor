@@ -215,6 +215,55 @@ describe('CLI integration', () => {
     expect(payload.conflicts[0].detectionMethod).toBe('token');
   });
 
+  it('conflicts --json includes suggestions array for duplicate pairs', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow and branches', '---'].join('\n'),
+    );
+    writeFile(
+      join(home, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: global duplicate copy', '---'].join('\n'),
+    );
+
+    const result = runCli(['conflicts', '--json', '--kind', 'duplicate'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.duplicates).toHaveLength(1);
+    expect(Array.isArray(payload.suggestions)).toBe(true);
+    expect(payload.suggestions).toHaveLength(1);
+    expect(payload.suggestions[0].skillName).toBe('git-workflow');
+    expect(typeof payload.suggestions[0].keepPath).toBe('string');
+    expect(typeof payload.suggestions[0].removePath).toBe('string');
+    expect(payload.suggestions[0].keepReason).toMatch(/newer \(modified \d{4}-\d{2}-\d{2}\)/);
+  });
+
+  it('conflicts plain-text output includes SUGGESTIONS section for duplicate pairs', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow and branches', '---'].join('\n'),
+    );
+    writeFile(
+      join(home, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: global duplicate copy', '---'].join('\n'),
+    );
+
+    const result = runCli(['conflicts', '--kind', 'duplicate'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('SUGGESTIONS');
+    expect(result.stdout).toContain('consider removing:');
+    expect(result.stdout).toContain('newer (modified');
+  });
+
   it('conflicts --json accepts explicit token strategy flags', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

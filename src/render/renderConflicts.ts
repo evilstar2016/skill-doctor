@@ -1,6 +1,7 @@
 import type { ConflictPair } from '../types/skill';
+import type { CleanupSuggestion } from '../types/cleanup';
 
-export function renderConflicts(pairs: ConflictPair[]): string {
+export function renderConflicts(pairs: ConflictPair[], suggestions?: CleanupSuggestion[]): string {
   if (pairs.length === 0) {
     return 'CONFLICTS\nNo conflicts found.';
   }
@@ -41,6 +42,15 @@ export function renderConflicts(pairs: ConflictPair[]): string {
           `shared: ${pair.sharedTokens.join(', ') || '—'}`,
           ...(pair.analysis ? [`summary: ${pair.analysis.summary}`] : []),
         ].join('\n'),
+      ),
+    ].join('\n\n'));
+  }
+
+  if (suggestions && suggestions.length > 0) {
+    sections.push([
+      'SUGGESTIONS',
+      ...suggestions.map((s) =>
+        `consider removing: ${s.removePath}\n  keep: ${s.keepPath}  (${s.keepReason})`,
       ),
     ].join('\n\n'));
   }
