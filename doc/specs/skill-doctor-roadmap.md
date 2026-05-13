@@ -65,8 +65,8 @@ Goal: become the inspection layer that helps users trust or reject third-party s
 
 | Small feature | Status | Notes |
 | --- | --- | --- |
-| Risk rulebook for local skills | in-progress | Spec written: 4 rules — shell-exec / destructive / secret-leak / network-call. See `doc/specs/skill-doctor-f5-safety-audit-spec.md`. |
-| Static scan for dangerous instructions | in-progress | `audit` command — spec written, implementation next. |
+| Risk rulebook for local skills | done | 4 rules shipped: shell-exec / destructive / secret-leak / network-call. |
+| Static scan for dangerous instructions | done | `audit` command live. HIGH=red / MED=yellow / LOW=gray in TTY; plain text in CI. 100% unit coverage. |
 | Trust/provenance metadata | later | Show source repo, author, local origin, and confidence. |
 | Security report output | later | Add `audit` command or `scan --security`. |
 
@@ -84,6 +84,6 @@ Goal: move from inspection to operational cleanup of the local skill set.
 ## Current Recommendation
 
 1. ~~Finish F3 release hardening first.~~ done — v0.1.0 shipped 2026-05-11.
-2. **Now**: land the scoped F2 branch (embedding conflict detection + feature scenario workflow).
-3. Next: resume F5 safety audit now that conflict diagnosis has a stronger semantic baseline.
-4. Keep F4 explanation layer as the supporting product layer after conflict and safety signals are both stronger.
+2. ~~Land the scoped F2 branch (embedding conflict detection + feature scenario workflow).~~ done — 2026-05-13.
+3. ~~Resume F5 safety audit.~~ done — `audit` command with 4 rules + TTY color output shipped 2026-05-13.
+4. **Now**: F6 Asset Management — duplicate cleanup suggestions and ignore list are the next `next` items.
