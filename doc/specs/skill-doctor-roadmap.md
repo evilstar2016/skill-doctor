@@ -77,7 +77,7 @@ Goal: move from inspection to operational cleanup of the local skill set.
 | Small feature | Status | Notes |
 | --- | --- | --- |
 | Duplicate cleanup suggestions | done | `conflicts` output now includes SUGGESTIONS section (plain text) and `suggestions` array (JSON) pointing to the older copy by mtime. |
-| Ignore list / allow list | next | Suppress known false positives. |
+| Ignore list / allow list | done | `~/.skill-doctor/config.json` `ignore.skillNames` and `ignore.conflictPairs` fields suppress pairs from `conflicts` and findings from `audit`. |
 | Enable/disable workflow | later | Requires mutation policy and platform-specific write support. |
 | Merge or consolidate suggestions | later | Needs stronger semantic understanding. |
 
@@ -86,4 +86,4 @@ Goal: move from inspection to operational cleanup of the local skill set.
 1. ~~Finish F3 release hardening first.~~ done — v0.1.0 shipped 2026-05-11.
 2. ~~Land the scoped F2 branch (embedding conflict detection + feature scenario workflow).~~ done — 2026-05-13.
 3. ~~Resume F5 safety audit.~~ done — `audit` command with 4 rules + TTY color output shipped 2026-05-13.
-4. **Now**: F6 Asset Management — ignore list / allow list is the next `next` item (duplicate cleanup done).
+4. ~~F6 Asset Management — duplicate cleanup suggestions and ignore list.~~ done — 2026-05-13. All planned F6 `next` items complete; remaining items are `later`.
