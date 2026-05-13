@@ -50,13 +50,15 @@ describe('resolvePaths', () => {
     const cwd = join(tempRoot, 'workspace');
 
     writeFile(join(cwd, '.cursor', 'rules', 'test-driven-development.mdc'));
+    writeFile(join(cwd, '.cursor', 'rules', 'reviews', 'pull-request.mdc'));
     writeFile(join(cwd, '.cursorrules'));
 
     const result = resolvePaths(cwd, { homeDir });
     const cursorFiles = result.filter((entry) => entry.platform === 'cursor');
 
-    expect(cursorFiles).toHaveLength(2);
+    expect(cursorFiles).toHaveLength(3);
     expect(cursorFiles.every((entry) => entry.scope === 'project')).toBe(true);
+    expect(cursorFiles.some((entry) => entry.filePath.includes(join('reviews', 'pull-request.mdc')))).toBe(true);
   });
 
   it('skips non-existent directories without throwing', () => {
@@ -68,6 +70,55 @@ describe('resolvePaths', () => {
 
     expect(() => resolvePaths(cwd, { homeDir })).not.toThrow();
     expect(resolvePaths(cwd, { homeDir })).toEqual([]);
+  });
+
+  it('finds global copilot skills from the .copilot/skills directory', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.copilot', 'skills', 'review-pr', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const copilotFiles = result.filter((entry) => entry.platform === 'copilot' && entry.scope === 'global');
+
+    expect(copilotFiles).toHaveLength(1);
+    expect(copilotFiles[0]?.filePath).toContain(join('.copilot', 'skills', 'review-pr', 'SKILL.md'));
+  });
+
+  it('finds global opencode skills from the AppData directory', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const appDataDir = join(tempRoot, 'appdata');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(appDataDir, 'opencode', 'skills', 'review-pr', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir, appDataDir });
+    const opencodeFiles = result.filter((entry) => entry.platform === 'opencode' && entry.scope === 'global');
+
+    expect(opencodeFiles).toHaveLength(1);
+    expect(opencodeFiles[0]?.filePath).toContain(join('opencode', 'skills', 'review-pr', 'SKILL.md'));
+  });
+
+  it('finds the project .windsurfrules file', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.windsurfrules'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const windsurfFiles = result.filter((entry) => entry.platform === 'windsurf');
+
+    expect(windsurfFiles).toHaveLength(1);
+    expect(windsurfFiles[0]?.filePath).toContain('.windsurfrules');
   });
 
   it('returns AGENTS.md once for codex and once for opencode', () => {
@@ -84,6 +135,39 @@ describe('resolvePaths', () => {
 
     expect(agentsEntries).toHaveLength(2);
     expect(agentsEntries.map((entry) => entry.platform).sort()).toEqual(['codex', 'opencode']);
+  });
+
+  it('ignores direct markdown files at the root of skill-dir platforms', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.claude', 'skills', 'README.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'review-pr', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    expect(claudeFiles).toHaveLength(1);
+    expect(claudeFiles[0]?.filePath).toContain(join('review-pr', 'SKILL.md'));
+  });
+
+  it('finds nested copilot instruction files in .github/instructions', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.github', 'instructions', 'reviews', 'pull-request.instructions.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const copilotFiles = result.filter((entry) => entry.platform === 'copilot' && entry.scope === 'project');
+
+    expect(copilotFiles).toHaveLength(1);
+    expect(copilotFiles[0]?.filePath).toContain(join('reviews', 'pull-request.instructions.md'));
   });
 
   it('does not recursively ingest arbitrary markdown from the codex home directory', () => {
@@ -160,5 +244,60 @@ describe('resolvePaths', () => {
 
     expect(paths.some((p) => p.includes('nested-skill'))).toBe(true);
     expect(paths.some((p) => p.includes('hidden-skill'))).toBe(false);
+  });
+
+  it('does not treat reference sub-subdirectories as skills when skill dir has no main file', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    // skill dir with no top-level .md — only a references/ subdir with multiple step files
+    writeFile(join(homeDir, '.claude', 'skills', 'project-analysis', 'references', 'step-1.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'project-analysis', 'references', 'step-2.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'project-analysis', 'references', 'step-3.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    // references/ files are not named SKILL.md — with strict entry enforcement, none qualify
+    expect(claudeFiles).toHaveLength(0);
+  });
+
+  it('skips a skill dir that has .md files but none named SKILL.md', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    // dir with README.md but no SKILL.md → should not be picked as a skill
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'README.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'my-skill', 'README.en.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    expect(claudeFiles).toHaveLength(0);
+  });
+
+  it('does not recurse into sub-subdirectories of support dirs when skill has no main file', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    // references/ has no direct .md — only sub-subdirs with individual step files
+    writeFile(join(homeDir, '.claude', 'skills', 'project-analysis', 'references', 'step-1', 'guide.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'project-analysis', 'references', 'step-2', 'guide.md'));
+    writeFile(join(homeDir, '.claude', 'skills', 'project-analysis', 'references', 'step-3', 'guide.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    // depth >= 2 with no direct .md → skipped entirely; no step sub-dirs should produce skills
+    expect(claudeFiles).toHaveLength(0);
   });
 });

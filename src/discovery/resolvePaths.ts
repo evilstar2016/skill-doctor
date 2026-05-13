@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { basename, dirname, extname, join } from 'node:path';
+import { basename, dirname, extname, join, normalize } from 'node:path';
 import { homedir } from 'node:os';
 
 import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
@@ -15,26 +15,28 @@ interface PlatformPathDefinition {
 interface PathTarget {
   path: string;
   mode: 'recursive-dir' | 'single-file';
+  layout?: 'files' | 'skill-dirs';
 }
 
 interface ResolvePathsOptions {
   homeDir?: string;
+  appDataDir?: string;
 }
 
 const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'claude',
     confidence: 'high',
-    global: [{ path: '.claude/skills', mode: 'recursive-dir' }],
-    project: [{ path: '.claude/skills', mode: 'recursive-dir' }],
+    global: [{ path: '~/.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [{ path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     extensions: ['.md'],
   },
   {
     platform: 'cursor',
     confidence: 'high',
-    global: [{ path: '.cursor/rules', mode: 'recursive-dir' }],
+    global: [{ path: '~/.cursor/rules', mode: 'recursive-dir', layout: 'files' }],
     project: [
-      { path: '.cursor/rules', mode: 'recursive-dir' },
+      { path: '.cursor/rules', mode: 'recursive-dir', layout: 'files' },
       { path: '.cursorrules', mode: 'single-file' },
     ],
     extensions: ['.md', '.mdc'],
@@ -42,26 +44,26 @@ const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'copilot',
     confidence: 'high',
-    global: [{ path: '.github/copilot', mode: 'recursive-dir' }],
+    global: [{ path: '~/.copilot/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [
       { path: '.github/copilot-instructions.md', mode: 'single-file' },
-      { path: '.github/instructions', mode: 'recursive-dir' },
+      { path: '.github/instructions', mode: 'recursive-dir', layout: 'files' },
     ],
     extensions: ['.md'],
   },
   {
     platform: 'codex',
     confidence: 'high',
-    global: [{ path: '.codex/AGENTS.md', mode: 'single-file' }],
+    global: [{ path: '~/.codex/AGENTS.md', mode: 'single-file' }],
     project: [{ path: 'AGENTS.md', mode: 'single-file' }],
     extensions: ['.md'],
   },
   {
     platform: 'gemini',
     confidence: 'high',
-    global: [{ path: '.gemini/skills', mode: 'recursive-dir' }],
+    global: [{ path: '~/.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [
-      { path: '.gemini/skills', mode: 'recursive-dir' },
+      { path: '.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
       { path: 'GEMINI.md', mode: 'single-file' },
     ],
     extensions: ['.md'],
@@ -69,47 +71,59 @@ const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'windsurf',
     confidence: 'high',
-    global: [],
+    global: [{ path: '~/.codeium/windsurf/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [{ path: '.windsurfrules', mode: 'single-file' }],
     extensions: ['.md'],
   },
   {
     platform: 'trae',
     confidence: 'low',
-    global: [{ path: '.trae/rules', mode: 'recursive-dir' }],
-    project: [{ path: '.trae/rules', mode: 'recursive-dir' }],
+    global: [{ path: '~/.trae/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [{ path: '.trae/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     extensions: ['.md'],
   },
   {
     platform: 'opencode',
     confidence: 'low',
-    global: [],
+    global: [
+      { path: '~/.config/opencode/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '%APPDATA%/opencode/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
     project: [
       { path: 'AGENTS.md', mode: 'single-file' },
-      { path: 'skills', mode: 'recursive-dir' },
+      { path: 'skills', mode: 'recursive-dir', layout: 'skill-dirs' },
     ],
     extensions: ['.md'],
   },
   {
     platform: 'kiro',
     confidence: 'high',
-    global: [{ path: '.kiro/skills', mode: 'recursive-dir' }],
-    project: [{ path: '.kiro/skills', mode: 'recursive-dir' }],
+    global: [{ path: '~/.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [{ path: '.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     extensions: ['.md'],
   },
 ];
 
 export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): SkillFile[] {
   const homeDir = options.homeDir ?? homedir();
+  const appDataDir = options.appDataDir ?? join(homeDir, 'AppData', 'Roaming');
   const results: SkillFile[] = [];
+  const seen = new Set<string>();
 
   for (const definition of PLATFORM_PATHS) {
     for (const target of definition.global) {
-      collectPath(join(homeDir, target.path), definition, target.mode, 'global', results);
+      collectPath(
+        resolveGlobalPath(target.path, homeDir, appDataDir),
+        definition,
+        target,
+        'global',
+        results,
+        seen,
+      );
     }
 
     for (const target of definition.project) {
-      collectPath(join(cwd, target.path), definition, target.mode, 'project', results);
+      collectPath(join(cwd, target.path), definition, target, 'project', results, seen);
     }
   }
 
@@ -119,9 +133,10 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
 function collectPath(
   targetPath: string,
   definition: PlatformPathDefinition,
-  mode: PathTarget['mode'],
+  target: PathTarget,
   scope: Scope,
   results: SkillFile[],
+  seen: Set<string>,
   depth = 0,
 ): void {
   if (!existsSync(targetPath)) {
@@ -131,7 +146,7 @@ function collectPath(
   const stats = statSync(targetPath);
 
   if (stats.isDirectory()) {
-    if (mode !== 'recursive-dir') {
+    if (target.mode !== 'recursive-dir') {
       return;
     }
 
@@ -140,13 +155,13 @@ function collectPath(
     const subdirs: string[] = [];
 
     for (const child of children) {
-      if (child.startsWith('.')) continue; // skip hidden entries (other platform dirs)
+      if (child.startsWith('.')) continue;
       const childPath = join(targetPath, child);
       let childStats;
       try {
         childStats = statSync(childPath);
       } catch {
-        continue; // skip broken symlinks or unreadable entries
+        continue;
       }
       if (childStats.isDirectory()) {
         subdirs.push(childPath);
@@ -156,51 +171,127 @@ function collectPath(
     }
 
     if (depth === 0) {
-      // Target root: collect all direct files + recurse into all non-hidden subdirs
-      for (const f of matchingFiles) {
-        results.push({ filePath: f, platform: definition.platform, scope, confidence: definition.confidence });
+      if (target.layout !== 'skill-dirs') {
+        for (const filePath of matchingFiles) {
+          pushResult(filePath, definition, scope, results, seen);
+        }
       }
+
       for (const subdir of subdirs) {
-        collectPath(subdir, definition, mode, scope, results, depth + 1);
+        collectPath(subdir, definition, target, scope, results, seen, depth + 1);
       }
-    } else if (matchingFiles.length > 0) {
-      // Has skill files → this IS the skill directory; pick primary, don't recurse into subdirs
-      // (subdirs are support material: assets/, references/, hooks/, node_modules/, etc.)
-      const primary = selectPrimaryFile(matchingFiles);
+      return;
+    }
+
+    if (matchingFiles.length > 0) {
+      const primary = selectPrimaryFile(matchingFiles, definition.platform, target.layout === 'skill-dirs');
       if (primary) {
-        results.push({ filePath: primary, platform: definition.platform, scope, confidence: definition.confidence });
+        pushResult(primary, definition, scope, results, seen);
       }
-    } else {
-      // No skill files → collection directory (e.g. skills/); recurse into non-hidden subdirs
+      return;
+    }
+
+    if (depth === 1) {
       for (const subdir of subdirs) {
-        collectPath(subdir, definition, mode, scope, results, depth + 1);
+        collectPath(subdir, definition, target, scope, results, seen, depth + 1);
       }
     }
 
     return;
   }
 
-  // Single-file mode: the target itself is the file
   if (!isAllowedFile(targetPath, definition.extensions)) {
     return;
   }
 
+  pushResult(targetPath, definition, scope, results, seen);
+}
+
+function pushResult(
+  filePath: string,
+  definition: PlatformPathDefinition,
+  scope: Scope,
+  results: SkillFile[],
+  seen: Set<string>,
+): void {
+  const key = `${definition.platform}|${scope}|${filePath}`;
+  if (seen.has(key)) {
+    return;
+  }
+  seen.add(key);
   results.push({
-    filePath: targetPath,
+    filePath,
     platform: definition.platform,
     scope,
     confidence: definition.confidence,
   });
 }
 
-function selectPrimaryFile(files: string[]): string | null {
-  if (files.length === 0) return null;
-  if (files.length === 1) return files[0];
-  return (
-    files.find((f) => basename(f) === 'SKILL.md') ??
-    files.find((f) => basename(f) === 'README.md') ??
-    [...files].sort((a, b) => basename(a).localeCompare(basename(b)))[0]
+function resolveGlobalPath(pathTemplate: string, homeDir: string, appDataDir: string): string {
+  return normalize(
+    pathTemplate
+      .replace(/^~(?=[/\\]|$)/, homeDir)
+      .replace(/%USERPROFILE%/gi, homeDir)
+      .replace(/%APPDATA%/gi, appDataDir),
   );
+}
+
+function getEntryFileName(platform: Platform): string | null {
+  switch (platform) {
+    case 'claude':
+    case 'copilot':
+    case 'gemini':
+    case 'kiro':
+    case 'trae':
+    case 'opencode':
+    case 'windsurf':
+      return 'SKILL.md';
+    default:
+      return 'SKILL.md';
+  }
+}
+
+function selectPrimaryFile(files: string[], platform: Platform, strictEntryFile: boolean): string | null {
+  if (files.length === 0) return null;
+
+  const sorted = [...files].sort((a, b) => basename(a).localeCompare(basename(b)));
+
+  if (strictEntryFile) {
+    const entryFileName = getEntryFileName(platform);
+    if (entryFileName === null) {
+      return selectFlexiblePrimaryFile(sorted, platform);
+    }
+    return sorted.find((filePath) => basename(filePath) === entryFileName) ?? null;
+  }
+
+  return selectFlexiblePrimaryFile(sorted, platform);
+}
+
+function selectFlexiblePrimaryFile(files: string[], platform: Platform): string | null {
+  switch (platform) {
+    case 'cursor':
+      return (
+        files.find((filePath) => extname(filePath).toLowerCase() === '.mdc') ??
+        files.find((filePath) => basename(filePath) === 'SKILL.md') ??
+        files[0] ??
+        null
+      );
+    case 'copilot':
+      return (
+        files.find((filePath) => basename(filePath) === 'copilot-instructions.md') ??
+        files.find((filePath) => basename(filePath).endsWith('.instructions.md')) ??
+        files.find((filePath) => basename(filePath) === 'SKILL.md') ??
+        files[0] ??
+        null
+      );
+    default:
+      return (
+        files.find((filePath) => basename(filePath) === 'SKILL.md') ??
+        files.find((filePath) => basename(filePath) === 'README.md') ??
+        files[0] ??
+        null
+      );
+  }
 }
 
 export function getParentDir(filePath: string): string {
@@ -208,7 +299,8 @@ export function getParentDir(filePath: string): string {
 }
 
 function isAllowedFile(targetPath: string, extensions: string[]): boolean {
-  if (basename(targetPath) === '.cursorrules') {
+  const name = basename(targetPath);
+  if (name === '.cursorrules' || name === '.windsurfrules') {
     return true;
   }
 
