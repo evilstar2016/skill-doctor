@@ -75,7 +75,9 @@ describe('buildExplanation', () => {
   it('sets whenToUse from LLM when options provided and call succeeds', async () => {
     const fakeFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: 'Use when managing git branches.' } }] }),
+      json: async () => ({
+        choices: [{ message: { content: '{"whenToUse":"Use when managing git branches."}' } }],
+      }),
     });
     vi.stubGlobal('fetch', fakeFetch);
 
@@ -117,7 +119,7 @@ describe('buildExplanation', () => {
   it('writes LLM result to cache', async () => {
     const fakeFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: 'LLM explanation.' } }] }),
+      json: async () => ({ choices: [{ message: { content: '{"whenToUse":"LLM explanation."}' } }] }),
     });
     vi.stubGlobal('fetch', fakeFetch);
 

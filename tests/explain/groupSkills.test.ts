@@ -79,13 +79,16 @@ describe('groupSkills', () => {
   it('calls LLM and writes to cache for new clusters', async () => {
     const a = makeSkill('git-workflow', 'Manage git branches and pull requests.', ['create branch', 'open pull request']);
     const b = makeSkill('github-automation', 'Automate git branches and pull requests.', ['create branch', 'open pull request']);
+    const { clusterKey } = await import('../../src/explain/groupLabelCache');
+    const key = clusterKey([a, b]);
     const fakeFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: 'Version Control' } }] }),
+      json: async () => ({
+        choices: [{ message: { content: `{"groups":[{"key":"${key}","label":"Version Control"}]}` } }],
+      }),
     });
     vi.stubGlobal('fetch', fakeFetch);
 
-    const { clusterKey } = await import('../../src/explain/groupLabelCache');
     const labelCache = new Map<string, string>();
     const llmOptions: LlmExplainOptions = { baseUrl: 'http://localhost/v1', modelId: 'llama3' };
 
@@ -96,14 +99,18 @@ describe('groupSkills', () => {
   });
 
   it('uses LLM label when options provided and call succeeds', async () => {
+    const a = makeSkill('git-workflow', 'Manage git branches and pull requests.', ['create branch', 'open pull request']);
+    const b = makeSkill('github-automation', 'Automate git branches and pull requests.', ['create branch', 'open pull request']);
+    const { clusterKey } = await import('../../src/explain/groupLabelCache');
+    const key = clusterKey([a, b]);
     const fakeFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: 'Version Control' } }] }),
+      json: async () => ({
+        choices: [{ message: { content: `{"groups":[{"key":"${key}","label":"Version Control"}]}` } }],
+      }),
     });
     vi.stubGlobal('fetch', fakeFetch);
 
-    const a = makeSkill('git-workflow', 'Manage git branches and pull requests.', ['create branch', 'open pull request']);
-    const b = makeSkill('github-automation', 'Automate git branches and pull requests.', ['create branch', 'open pull request']);
     const llmOptions: LlmExplainOptions = { baseUrl: 'http://localhost:11434/v1', modelId: 'llama3' };
     const result = await groupSkills([a, b], { llmOptions });
 
@@ -122,5 +129,38 @@ describe('groupSkills', () => {
 
     expect(result.groups[0].label.length).toBeGreaterThan(0);
     vi.unstubAllGlobals();
+  });
+
+  it('batches multiple uncached groups into one LLM request', async () => {
+    const gitA = makeSkill('git-a', 'Manage git branches and pull requests.', ['create branch', 'open pull request']);
+    const gitB = makeSkill('git-b', 'Automate git branches and pull requests.', ['create branch', 'open pull request']);
+    const docsA = makeSkill('docs-a', 'Write and review architecture documentation.', ['write docs', 'review adr']);
+    const docsB = makeSkill('docs-b', 'Draft and review technical documentation.', ['write docs', 'review adr']);
+    const { clusterKey } = await import('../../src/explain/groupLabelCache');
+    const gitKey = clusterKey([gitA, gitB]);
+    const docsKey = clusterKey([docsA, docsB]);
+
+    const fakeFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                `{"groups":[{"key":"${gitKey}","label":"Version Control"},{"key":"${docsKey}","label":"Documentation"}]}`,
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const llmOptions: LlmExplainOptions = { baseUrl: 'http://localhost:11434/v1', modelId: 'llama3' };
+    const result = await groupSkills([gitA, gitB, docsA, docsB], { llmOptions });
+
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+    expect(result.groups.map((group) => group.label)).toEqual(
+      expect.arrayContaining(['Version Control', 'Documentation']),
+    );
   });
 });

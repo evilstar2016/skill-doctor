@@ -55,8 +55,8 @@ Goal: tell users how a skill is meant to be used, not only that it exists.
 | Small feature | Status | Notes |
 | --- | --- | --- |
 | Trigger extraction | done | Basic triggers already parsed. |
-| Usage explanation generation | in-progress | Spec written. Enhance `show` with WHEN TO USE + RELATED SKILLS. See `doc/specs/skill-doctor-f4-explanation-layer-spec.md`. |
-| Skill grouping by workflow | in-progress | Spec written. `scan --group` via Union-Find clustering on token overlap. |
+| Usage explanation generation | done | `show` now renders WHEN TO USE + RELATED SKILLS with persistent cache and non-LLM fallback. |
+| Skill grouping by workflow | done | `scan --group` shipped with Union-Find clustering, persistent label cache, and batched LLM labeling for uncached groups. |
 | Cross-skill overlap narratives | later | Explain why two skills compete and when each should win. |
 
 ## F5. Safety Audit
@@ -87,3 +87,4 @@ Goal: move from inspection to operational cleanup of the local skill set.
 2. ~~Land the scoped F2 branch (embedding conflict detection + feature scenario workflow).~~ done — 2026-05-13.
 3. ~~Resume F5 safety audit.~~ done — `audit` command with 4 rules + TTY color output shipped 2026-05-13.
 4. ~~F6 Asset Management — duplicate cleanup suggestions and ignore list.~~ done — 2026-05-13. All planned F6 `next` items complete; remaining items are `later`.
+5. ~~F4 Skill Explanation Layer — explanation generation and workflow grouping.~~ done — 2026-05-13. Added persistent caches, structured JSON LLM calls, and batched group labeling.

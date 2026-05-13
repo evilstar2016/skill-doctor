@@ -45,3 +45,26 @@ npm test
 npm run test:coverage
 npx tsc --noEmit
 ```
+
+## LLM Configuration (OpenAI-Compatible)
+
+The `show` command's LLM explanation and `scan --group` semantic labels read from:
+
+- `~/.skill-doctor/config.json`
+
+Example (MiniMax OpenAI-compatible API):
+
+```json
+{
+  "analysis": {
+    "baseUrl": "https://api.minimaxi.com/v1",
+    "model": "MiniMax-M2.7-highspeed",
+    "apiKey": "<YOUR_PLAN_API_KEY>"
+  }
+}
+```
+
+Notes:
+
+- Provider type in some tools is named `OpenAI Compatible`, `Custom`, or `OpenAI-format`.
+- You can switch model to `MiniMax-M2.7` if needed.
