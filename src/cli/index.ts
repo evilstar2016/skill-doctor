@@ -10,6 +10,9 @@ import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
 import { buildExplanation } from '../explain/buildExplanation';
 import { groupSkills } from '../explain/groupSkills';
+import { loadGroupLabelCache, saveGroupLabelCache } from '../explain/groupLabelCache';
+import { loadWhenToUseCache, saveWhenToUseCache } from '../explain/whenToUseCache';
+import type { LlmExplainOptions } from '../types/explain';
 import { renderAudit } from '../render/renderAudit';
 import { renderConflicts } from '../render/renderConflicts';
 import { renderGroup } from '../render/renderGroup';
@@ -53,7 +56,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const skills = filterSkillsByScope(scanSkills(cwd), scope);
 
     if (groupMode) {
-      const groupResult = groupSkills(skills);
+      const llmOptions = readLlmExplainOptions();
+      const labelCache = loadGroupLabelCache();
+      const groupResult = await groupSkills(skills, { llmOptions: llmOptions ?? undefined, labelCache });
+      saveGroupLabelCache(labelCache);
       if (jsonOutput) {
         process.stdout.write(`${toJson(groupResult)}\n`);
       } else {
@@ -107,7 +113,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const explanation = buildExplanation(skill, allSkills);
+    const llmOptions = readLlmExplainOptions();
+    const whenToUseCache = loadWhenToUseCache();
+    const explanation = await buildExplanation(skill, allSkills, {
+      llmOptions: llmOptions ?? undefined,
+      whenToUseCache,
+    });
+    saveWhenToUseCache(whenToUseCache);
 
     if (jsonOutput) {
       process.stdout.write(`${toJson(explanation)}\n`);
@@ -565,4 +577,17 @@ function rankSeverity(severity: ConflictPair['severity']): number {
   } as const;
 
   return ranks[severity];
+}
+
+function readLlmExplainOptions(): LlmExplainOptions | null {
+  try {
+    const { config } = loadUserConfig();
+    const analysis = config.analysis ?? {};
+    const baseUrl = analysis.baseUrl;
+    const modelId = analysis.model;
+    if (!baseUrl || !modelId) return null;
+    return { baseUrl, modelId, ...(analysis.apiKey ? { apiKey: analysis.apiKey } : {}) };
+  } catch {
+    return null;
+  }
 }

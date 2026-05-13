@@ -12,7 +12,15 @@ export function renderShow(skill: SkillExplanation): string {
     'WHEN TO USE',
   ];
 
-  if (skill.triggers.length > 0) {
+  if (skill.whenToUse) {
+    lines.push(`  ${skill.whenToUse}`);
+    if (skill.triggers.length > 0) {
+      lines.push('');
+      for (const trigger of skill.triggers) {
+        lines.push(`  → ${trigger}`);
+      }
+    }
+  } else if (skill.triggers.length > 0) {
     for (const trigger of skill.triggers) {
       lines.push(`  → ${trigger}`);
     }
