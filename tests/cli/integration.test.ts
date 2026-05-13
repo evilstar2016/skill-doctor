@@ -508,6 +508,32 @@ describe('CLI integration', () => {
     expect(payload.conflicts).toHaveLength(0);
     expect(payload.duplicates[0].kind).toBe('duplicate');
   });
+
+  it('conflicts respects ignore.skillNames from config.json', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow and branches', '---'].join('\n'),
+    );
+    writeFile(
+      join(home, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: global duplicate copy', '---'].join('\n'),
+    );
+    writeFile(
+      join(home, '.skill-doctor', 'config.json'),
+      JSON.stringify({ ignore: { skillNames: ['git-workflow'] } }),
+    );
+
+    const result = runCli(['conflicts', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.duplicates).toHaveLength(0);
+    expect(payload.conflicts).toHaveLength(0);
+  });
 });
 
 describe('CLI integration — audit', () => {
@@ -615,6 +641,27 @@ describe('CLI integration — audit', () => {
     expect(payload.findings[0]).toHaveProperty('ruleId');
     expect(payload.findings[0]).toHaveProperty('severity');
     expect(payload.findings[0]).toHaveProperty('matchedText');
+  });
+
+  it('audit suppresses findings for skills in ignore.skillNames', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'risky-helper', 'SKILL.md'),
+      ['---', 'name: risky-helper', 'description: run the command to deploy using rm -rf dist', '---'].join('\n'),
+    );
+    writeFile(
+      join(home, '.skill-doctor', 'config.json'),
+      JSON.stringify({ ignore: { skillNames: ['risky-helper'] } }),
+    );
+
+    const result = runCli(['audit', '--scope', 'project', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.findings.filter((f: { skillName: string }) => f.skillName === 'risky-helper')).toHaveLength(0);
   });
 });
 

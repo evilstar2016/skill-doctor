@@ -14,9 +14,15 @@ export interface AnalysisUserConfig {
   apiKey?: string;
 }
 
+export interface IgnoreUserConfig {
+  skillNames?: string[];
+  conflictPairs?: [string, string][];
+}
+
 export interface SkillDoctorUserConfig {
   embedding?: EmbeddingUserConfig;
   analysis?: AnalysisUserConfig;
+  ignore?: IgnoreUserConfig;
 }
 
 export interface LoadedUserConfig {
@@ -53,6 +59,7 @@ export function getDefaultUserConfigPath(homeDir: string = resolveHomeDir()): st
 function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserConfig {
   const embedding = readObject(value.embedding);
   const analysis = readObject(value.analysis);
+  const ignore = readObject(value.ignore);
 
   return {
     ...(embedding
@@ -73,6 +80,25 @@ function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserCon
           },
         }
       : {}),
+    ...(ignore ? { ignore: normalizeIgnoreConfig(ignore) } : {}),
+  };
+}
+
+function normalizeIgnoreConfig(value: Record<string, unknown>): IgnoreUserConfig {
+  const skillNames = Array.isArray(value.skillNames)
+    ? value.skillNames.filter((x): x is string => typeof x === 'string')
+    : undefined;
+
+  const conflictPairs = Array.isArray(value.conflictPairs)
+    ? value.conflictPairs.filter(
+        (x): x is [string, string] =>
+          Array.isArray(x) && x.length === 2 && typeof x[0] === 'string' && typeof x[1] === 'string',
+      )
+    : undefined;
+
+  return {
+    ...(skillNames ? { skillNames } : {}),
+    ...(conflictPairs ? { conflictPairs } : {}),
   };
 }
 

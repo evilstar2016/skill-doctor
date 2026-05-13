@@ -86,4 +86,41 @@ describe('loadUserConfig', () => {
       `Failed to read skill-doctor config "${configPath}".`,
     );
   });
+
+  it('loads ignore.skillNames and ignore.conflictPairs from config', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
+    const configPath = getDefaultUserConfigPath(homeDir);
+    mkdirSync(join(homeDir, '.skill-doctor'), { recursive: true });
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ignore: {
+          skillNames: ['risky-helper', 'old-deploy'],
+          conflictPairs: [['git-workflow', 'github-automation']],
+        },
+      }),
+      'utf-8',
+    );
+
+    const result = loadUserConfig(homeDir);
+
+    expect(result.config.ignore).toEqual({
+      skillNames: ['risky-helper', 'old-deploy'],
+      conflictPairs: [['git-workflow', 'github-automation']],
+    });
+  });
+
+  it('ignores non-string entries in skillNames array', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
+    const configPath = getDefaultUserConfigPath(homeDir);
+    mkdirSync(join(homeDir, '.skill-doctor'), { recursive: true });
+    writeFileSync(
+      configPath,
+      JSON.stringify({ ignore: { skillNames: ['valid', 42, null] } }),
+      'utf-8',
+    );
+
+    const result = loadUserConfig(homeDir);
+    expect(result.config.ignore?.skillNames).toEqual(['valid']);
+  });
 });

@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
+import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { scanSkills } from '../discovery/scanSkills';
@@ -150,8 +151,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     const skills = filterSkillsByScope(scanSkills(cwd), scope);
+    const ignore = loadUserConfig().config.ignore ?? {};
     const conflicts = limitConflicts(
-      sortConflicts(filterConflictsByKind(await detectConflicts(skills, conflictOptions.options), kind)),
+      sortConflicts(filterConflictsByKind(filterConflicts(await detectConflicts(skills, conflictOptions.options), ignore), kind)),
       limit,
     );
     const suggestions = suggestCleanup(conflicts);
@@ -180,10 +182,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     const skills = filterSkillsByScope(scanSkills(cwd), scope);
+    const ignore = loadUserConfig().config.ignore ?? {};
     const result = runAudit(skills);
-    const filtered = minSeverity
-      ? { ...result, findings: filterFindingsBySeverity(result.findings, minSeverity) }
-      : result;
+    let findings = filterFindings(result.findings, ignore);
+    if (minSeverity) findings = filterFindingsBySeverity(findings, minSeverity);
+    const filtered = { ...result, findings };
 
     if (jsonOutput) {
       process.stdout.write(`${toJson(filtered)}\n`);
