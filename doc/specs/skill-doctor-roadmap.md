@@ -31,6 +31,8 @@ Goal: identify which rules overlap and explain why the agent may behave unstably
 | Duplicate vs conflict split | done | Separate conflict kinds already shipped. |
 | Conflict severity explanation | done | Shared tokens and similarity are exposed. |
 | Conflict filtering and ranking | done | `--kind`, `--scope`, `--limit`, `--fail-on` already available. |
+| Embedding-based semantic conflict scoring | done | Local embedding strategy, cache, scenario workflow, and recorded evidence are all in place on the F2 branch. |
+| Optional AI conflict analysis | done | `--analyze` returns structured overlap / boundaries / strengths payloads for embedding candidates. |
 | Suggested remediation text | next | Explain what to remove, merge, or inspect first. |
 
 ## F3. Release And Operability
@@ -82,5 +84,6 @@ Goal: move from inspection to operational cleanup of the local skill set.
 ## Current Recommendation
 
 1. ~~Finish F3 release hardening first.~~ done — v0.1.0 shipped 2026-05-11.
-2. **Now**: build F5 safety audit as the next differentiating feature.
-3. Keep F4 explanation layer as the supporting product layer after safety signals exist.
+2. **Now**: land the scoped F2 branch (embedding conflict detection + feature scenario workflow).
+3. Next: resume F5 safety audit now that conflict diagnosis has a stronger semantic baseline.
+4. Keep F4 explanation layer as the supporting product layer after conflict and safety signals are both stronger.

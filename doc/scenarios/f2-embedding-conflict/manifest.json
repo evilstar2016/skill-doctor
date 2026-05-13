@@ -1,0 +1,45 @@
+{
+  "feature": "f2-embedding-conflict",
+  "spec": "doc/specs/skill-doctor-f2-embedding-conflict-spec.md",
+  "tasks": "doc/specs/skill-doctor-f2-embedding-conflict-tasks.md",
+  "evidenceDir": "doc/scenarios/f2-embedding-conflict/evidence",
+  "scenarios": [
+    {
+      "id": "it-semantic-cluster-detection",
+      "stage": "it",
+      "doc": "doc/scenarios/f2-embedding-conflict/it/semantic-cluster-detection.md",
+      "test": "tests/scenarios/f2-embedding-conflict/semantic-cluster.scenario.ts"
+    },
+    {
+      "id": "slice-1-strategy-parity",
+      "stage": "slice",
+      "slice": 1,
+      "doc": "doc/scenarios/f2-embedding-conflict/slices/slice-1/strategy-parity.md"
+    },
+    {
+      "id": "slice-2-local-embedding-provider",
+      "stage": "slice",
+      "slice": 2,
+      "doc": "doc/scenarios/f2-embedding-conflict/slices/slice-2/local-embedding-provider.md"
+    },
+    {
+      "id": "slice-3-optional-analysis",
+      "stage": "slice",
+      "slice": 3,
+      "doc": "doc/scenarios/f2-embedding-conflict/slices/slice-3/optional-analysis.md"
+    },
+    {
+      "id": "slice-4-report-output",
+      "stage": "slice",
+      "slice": 4,
+      "doc": "doc/scenarios/f2-embedding-conflict/slices/slice-4/report-output.md"
+    },
+    {
+      "id": "slice-5-semantic-calibration",
+      "stage": "slice",
+      "slice": 5,
+      "doc": "doc/scenarios/f2-embedding-conflict/slices/slice-5/semantic-calibration.md",
+      "test": "tests/scenarios/f2-embedding-conflict/semantic-cluster.scenario.ts"
+    }
+  ]
+}

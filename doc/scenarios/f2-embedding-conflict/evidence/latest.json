@@ -1,0 +1,19 @@
+{
+  "feature": "f2-embedding-conflict",
+  "lastUpdated": "2026-05-13T04:18:13.593Z",
+  "manualValidation": {
+    "recordPath": "doc/scenarios/f2-embedding-conflict/evidence/2026-05-13-embedding-validation.json",
+    "status": "passed"
+  },
+  "scenarioValidation": {
+    "recordedAt": "2026-05-13T04:18:13.593Z",
+    "status": "passed",
+    "scenarioIds": [
+      "it-semantic-cluster-detection",
+      "slice-5-semantic-calibration"
+    ],
+    "testFiles": [
+      "tests/scenarios/f2-embedding-conflict/semantic-cluster.scenario.ts"
+    ]
+  }
+}

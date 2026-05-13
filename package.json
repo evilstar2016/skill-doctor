@@ -11,7 +11,9 @@
     "dev": "tsx src/cli/index.ts",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
-    "test:coverage": "vitest run --coverage --passWithNoTests"
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "test:scenarios": "tsx scripts/testing/run-feature-scenarios.ts",
+    "verify:feature": "npm test && npm run test:scenarios --"
   },
   "engines": {
     "node": ">=20"

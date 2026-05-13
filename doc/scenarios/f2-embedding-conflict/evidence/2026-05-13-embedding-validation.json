@@ -1,0 +1,41 @@
+{
+  "feature": "f2-embedding-conflict",
+  "recordedOn": "2026-05-13",
+  "summary": "Embedding conflict detection is validated by green automated checks, a real local provider smoke test, and a synthetic semantic-cluster scenario.",
+  "manualValidation": {
+    "automatedChecks": [
+      {
+        "command": "npm test",
+        "result": "passed",
+        "details": "130 tests passed"
+      },
+      {
+        "command": "npm run build",
+        "result": "passed"
+      }
+    ],
+    "realEmbeddingSmoke": {
+      "result": "passed",
+      "provider": "local OpenAI-compatible embedding endpoint",
+      "model": "bge-m3",
+      "vectorDimensions": 1024,
+      "apiReachable": true,
+      "commands": [
+        "direct embedding provider probe",
+        "skill-doctor conflicts --strategy embedding --json"
+      ]
+    },
+    "syntheticSemanticCluster": {
+      "result": "passed",
+      "tokenConflicts": 0,
+      "embeddingConflicts": 3,
+      "controlSkillFlagged": false,
+      "skills": [
+        "pr-readiness-auditor",
+        "merge-readiness-reviewer",
+        "ship-branch-checker",
+        "migration-safety-guard"
+      ]
+    }
+  }
+}

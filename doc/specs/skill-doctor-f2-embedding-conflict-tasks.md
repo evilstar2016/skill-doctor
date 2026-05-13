@@ -9,6 +9,10 @@
 - **Goal**: 降低当前 token overlap 误报，并为 conflict pair 提供更强的边界解释
 - **Default Behavior Constraint**: 在 PR 完成前，`token` 仍是默认策略；任何增量都不能破坏当前 CLI 主路径
 
+## Scenario Root
+
+- `doc/scenarios/f2-embedding-conflict/`
+
 ## Tracking Board
 
 | Slice | Status | Goal | Verify |
@@ -22,6 +26,8 @@
 ---
 
 ## Slice 1 — Conflict Strategy Skeleton
+
+- **Scenario IDs**: `slice-1-strategy-parity`
 
 ### Task 1.1
 - **描述**: 将当前 `detectConflicts` 重构为可选择 strategy 的异步入口
@@ -46,6 +52,8 @@
 ---
 
 ## Slice 2 — Local Embedding Detection
+
+- **Scenario IDs**: `slice-2-local-embedding-provider`
 
 ### Task 2.1
 - **描述**: 新增 semantic text builder
@@ -87,6 +95,8 @@
 
 ## Slice 3 — Optional AI Analysis
 
+- **Scenario IDs**: `slice-3-optional-analysis`
+
 ### Task 3.1
 - **描述**: 定义分析输出结构与 prompt builder
 - **Acceptance**:
@@ -121,6 +131,8 @@
 
 ## Slice 4 — Output And Report
 
+- **Scenario IDs**: `slice-4-report-output`
+
 ### Task 4.1
 - **描述**: 更新 terminal output
 - **Acceptance**:
@@ -142,6 +154,8 @@
 ---
 
 ## Slice 5 — Calibration And Rollout
+
+- **Scenario IDs**: `slice-5-semantic-calibration`, `it-semantic-cluster-detection`
 
 ### Task 5.1
 - **描述**: 新增语义相近但词面不重合 fixtures
@@ -172,7 +186,8 @@
 - [x] 所有 slices 完成
 - [x] `npm test` 通过
 - [x] `npm run build` 通过
-- [ ] 当前仓库 smoke test 完成（需要本地 embedding API）
+- [x] 当前仓库 smoke test 完成（真实本地 embedding API + synthetic semantic cluster 已验证）
+- [x] feature scenario workflow 验证完成（`npm run test:scenarios -- --feature f2-embedding-conflict` / `npm run verify:feature -- --feature f2-embedding-conflict --record`）
 - [x] JSON 输出兼容性检查完成
 - [x] HTML report 手工检查完成
 - [x] 文档与 CLI help 文案同步

@@ -3,6 +3,11 @@
 > 在现有 token overlap 冲突检测之上，引入本地 embedding 语义检测与可选 AI 分析。  
 > 本 spec 对应 F2 的下一阶段能力，目标是降低误报、提升相近 skill 的边界解释能力。
 
+## Traceability
+
+- Feature ID: `f2-embedding-conflict`
+- Scenario root: `doc/scenarios/f2-embedding-conflict/`
+
 ## Objective
 
 让 `skill-doctor conflicts` 不再主要依赖共享词，而能基于 skill 的语义相似性检测真正的冲突候选，并在需要时给出更清晰的差异说明。
@@ -224,6 +229,11 @@ v1 不使用真正的 vector DB。
 - `npx skill-doctor conflicts --strategy embedding --json`
 - `npx skill-doctor scan --strategy embedding --report`
 - 如启用 AI：`npx skill-doctor conflicts --strategy embedding --analyze --json`
+
+## Scenario Coverage
+
+- `it-semantic-cluster-detection` → `doc/scenarios/f2-embedding-conflict/it/semantic-cluster-detection.md`
+- `slice-5-semantic-calibration` → `doc/scenarios/f2-embedding-conflict/slices/slice-5/semantic-calibration.md`
 
 ## Out of Scope (v1)
 
