@@ -1,88 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { dirname, join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-const tempRoots: string[] = [];
-const cliEntry = resolve(process.cwd(), 'dist', 'index.cjs');
-
-function createTempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'skill-doctor-cli-'));
-  tempRoots.push(root);
-  return root;
-}
-
-function writeFile(filePath: string, content: string): void {
-  mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, content, 'utf8');
-}
-
-function runCli(args: string[], cwd: string, homeDir: string) {
-  return spawnSync(process.execPath, [cliEntry, ...args], {
-    cwd,
-    env: {
-      ...process.env,
-      HOME: homeDir,
-      USERPROFILE: homeDir,
-    },
-    encoding: 'utf8',
-  });
-}
-
-function runCliAsync(args: string[], cwd: string, homeDir: string): Promise<{ status: number | null; stdout: string; stderr: string; }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cliEntry, ...args], {
-      cwd,
-      env: {
-        ...process.env,
-        HOME: homeDir,
-        USERPROFILE: homeDir,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-
-    child.on('error', reject);
-    child.on('close', (status) => {
-      resolve({ status, stdout, stderr });
-    });
-  });
-}
+import { buildCli, cleanupTempRoots, createTempRoot, runCli, runCliAsync, writeFile } from '../helpers/cliHarness';
 
 beforeAll(() => {
-  const build = spawnSync('npm', ['run', 'build'], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-    shell: true,
-  });
-
-  if (build.status !== 0) {
-    throw new Error(build.stderr || build.stdout || 'build failed');
-  }
+  buildCli();
 }, 30000);
 
 afterEach(() => {
-  for (const root of tempRoots) {
-    rmSync(root, { recursive: true, force: true });
-  }
-
-  tempRoots.length = 0;
+  cleanupTempRoots();
 });
 
 describe('CLI integration', () => {
