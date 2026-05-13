@@ -1,5 +1,5 @@
 import { tokenize } from '../conflicts/tokenize';
-import { llmGroupLabel } from './llmExplain';
+import { llmGroupLabels } from './llmExplain';
 import { clusterKey } from './groupLabelCache';
 import type { GroupLabelCache } from './groupLabelCache';
 import type { LlmExplainOptions, GroupResult, SkillGroup } from '../types/explain';
@@ -48,6 +48,8 @@ export async function groupSkills(skills: SkillRecord[], options: GroupSkillsOpt
 
   const groups: SkillGroup[] = [];
   const ungrouped: SkillRecord[] = [];
+  const pendingRequests: { key: string; tokenLabel: string; skills: SkillRecord[] }[] = [];
+  const tokenLabels = new Map<string, string>();
 
   for (const [, indices] of clusterMap) {
     const clusterSkills = indices.map((i) => skills[i]);
@@ -71,17 +73,28 @@ export async function groupSkills(skills: SkillRecord[], options: GroupSkillsOpt
       .join(' · ');
 
     const key = clusterKey(clusterSkills);
-    let label: string;
-    if (labelCache?.has(key)) {
-      label = labelCache.get(key)!;
-    } else if (llmOptions) {
-      label = await llmGroupLabel(clusterSkills, tokenLabel, llmOptions);
-      labelCache?.set(key, label);
-    } else {
-      label = tokenLabel;
+    tokenLabels.set(key, tokenLabel);
+    if (!labelCache?.has(key) && llmOptions) {
+      pendingRequests.push({ key, tokenLabel, skills: clusterSkills });
     }
 
-    groups.push({ label, skills: clusterSkills });
+    groups.push({ label: tokenLabel, skills: clusterSkills });
+  }
+
+  const fetchedLabels = llmOptions
+    ? await llmGroupLabels(pendingRequests, llmOptions)
+    : new Map<string, string>();
+
+  for (const group of groups) {
+    const key = clusterKey(group.skills);
+    const cachedLabel = labelCache?.get(key);
+    const fetchedLabel = fetchedLabels.get(key);
+    const tokenLabel = tokenLabels.get(key) ?? group.label;
+    const label = cachedLabel ?? fetchedLabel ?? tokenLabel;
+    group.label = label;
+    if (fetchedLabel) {
+      labelCache?.set(key, fetchedLabel);
+    }
   }
 
   groups.sort((a, b) => b.skills.length - a.skills.length);

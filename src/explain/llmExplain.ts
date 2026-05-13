@@ -1,6 +1,14 @@
 import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
 
+const warnedLlmFailures = new Set<string>();
+
+interface GroupLabelRequest {
+  key: string;
+  tokenLabel: string;
+  skills: SkillRecord[];
+}
+
 /**
  * Ask the LLM to generate a 1-2 sentence "when to use" explanation for a skill.
  * Returns null on any error so callers can fall back to token-based output.
@@ -9,16 +17,20 @@ export async function llmWhenToUse(
   skill: SkillRecord,
   options: LlmExplainOptions,
 ): Promise<string | null> {
-  const triggersText = skill.triggers.length > 0 ? skill.triggers.join(', ') : 'none';
+  const triggers = skill.triggers.length > 0 ? skill.triggers : [];
   const prompt =
-    `You are a developer tool assistant. Given an AI agent skill's name, description, and triggers, ` +
-    `write a concise 1-2 sentence "When to use" explanation aimed at developers.\n\n` +
-    `Skill: ${skill.name}\n` +
-    `Description: ${skill.description}\n` +
-    `Triggers: ${triggersText}\n\n` +
-    `Respond with only the explanation text. No JSON, no markdown, no prefix like "Use this when:".`;
+    'You are a developer tool assistant. ' +
+    'Return strict JSON with exactly one key: "whenToUse". ' +
+    'The value must be a concise 1-2 sentence explanation aimed at developers. ' +
+    'Do not include markdown or any keys besides "whenToUse".\n\n' +
+    `Skill payload:\n${JSON.stringify({
+      name: skill.name,
+      description: skill.description,
+      triggers,
+    }, null, 2)}`;
 
-  return callLlm(prompt, options);
+  const result = await callJsonLlm<{ whenToUse?: string }>(prompt, options);
+  return normalizeTextField(result?.whenToUse);
 }
 
 /**
@@ -30,22 +42,54 @@ export async function llmGroupLabel(
   tokenLabel: string,
   options: LlmExplainOptions,
 ): Promise<string> {
-  const skillSummaries = skills
-    .slice(0, 8) // cap context length
-    .map((s) => `- ${s.name}: ${s.description}`)
-    .join('\n');
-
-  const prompt =
-    `You are categorizing developer workflow AI skills into a group. ` +
-    `Write a short 2-4 word group label (like "Version Control", "Code Review", "Documentation").\n\n` +
-    `Skills in this group:\n${skillSummaries}\n\n` +
-    `Respond with only the label text. No JSON, no markdown, no period.`;
-
-  const result = await callLlm(prompt, options);
-  return result ?? tokenLabel;
+  const labels = await llmGroupLabels(
+    [{ key: 'single', tokenLabel, skills }],
+    options,
+  );
+  return labels.get('single') ?? tokenLabel;
 }
 
-async function callLlm(prompt: string, options: LlmExplainOptions): Promise<string | null> {
+export async function llmGroupLabels(
+  requests: GroupLabelRequest[],
+  options: LlmExplainOptions,
+): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+  if (requests.length === 0) {
+    return results;
+  }
+
+  const prompt =
+    'You are categorizing developer workflow AI skills into semantic groups. ' +
+    'Return strict JSON with exactly one key: "groups". ' +
+    '"groups" must be an array of objects with keys "key" and "label". ' +
+    'Each "label" must be a short 2-4 word label like "Version Control" or "Code Review". ' +
+    'Use the provided "key" values unchanged. Do not include markdown or any extra keys.\n\n' +
+    `Group payload:\n${JSON.stringify(
+      requests.map((request) => ({
+        key: request.key,
+        tokenLabel: request.tokenLabel,
+        skills: request.skills.slice(0, 8).map((skill) => ({
+          name: skill.name,
+          description: skill.description,
+        })),
+      })),
+      null,
+      2,
+    )}`;
+
+  const response = await callJsonLlm<{ groups?: { key?: string; label?: string }[] }>(prompt, options);
+  for (const item of response?.groups ?? []) {
+    const key = normalizeTextField(item?.key);
+    const label = normalizeTextField(item?.label);
+    if (key && label) {
+      results.set(key, label);
+    }
+  }
+
+  return results;
+}
+
+async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions): Promise<T | null> {
   const url = `${options.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -60,18 +104,66 @@ async function callLlm(prompt: string, options: LlmExplainOptions): Promise<stri
       body: JSON.stringify({
         model: options.modelId,
         messages: [{ role: 'user', content: prompt }],
+        response_format: {
+          type: 'json_object',
+        },
         stream: false,
       }),
     });
 
     if (!response.ok) {
+      warnLlmFailure(await readFailureMessage(response));
       return null;
     }
 
     const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const content = data?.choices?.[0]?.message?.content?.trim();
-    return content ?? null;
-  } catch {
+    if (!content) {
+      warnLlmFailure('response did not include choices[0].message.content');
+      return null;
+    }
+
+    try {
+      return JSON.parse(content) as T;
+    } catch {
+      warnLlmFailure(`response was not valid JSON: ${content.slice(0, 240)}`);
+      return null;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warnLlmFailure(message);
     return null;
   }
+}
+
+function normalizeTextField(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+}
+
+async function readFailureMessage(response: Response): Promise<string> {
+  let detail = '';
+
+  try {
+    const body = await response.text();
+    const normalized = body.replace(/\s+/g, ' ').trim();
+    detail = normalized.slice(0, 240);
+  } catch {
+    // ignore body parse failures and keep the status-only message
+  }
+
+  return detail ? `HTTP ${response.status}: ${detail}` : `HTTP ${response.status}`;
+}
+
+function warnLlmFailure(message: string): void {
+  if (warnedLlmFailures.has(message)) {
+    return;
+  }
+
+  warnedLlmFailures.add(message);
+  process.stderr.write(`skill-doctor: LLM request failed, falling back to non-LLM output. ${message}\n`);
 }
