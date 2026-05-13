@@ -1,12 +1,21 @@
 import { tokenize } from '../conflicts/tokenize';
-import type { GroupResult, SkillGroup } from '../types/explain';
+import { llmGroupLabel } from './llmExplain';
+import { clusterKey } from './groupLabelCache';
+import type { GroupLabelCache } from './groupLabelCache';
+import type { LlmExplainOptions, GroupResult, SkillGroup } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
 
 const GROUP_THRESHOLD = 0.30;
 
-export function groupSkills(skills: SkillRecord[]): GroupResult {
+export interface GroupSkillsOptions {
+  llmOptions?: LlmExplainOptions;
+  labelCache?: GroupLabelCache;
+}
+
+export async function groupSkills(skills: SkillRecord[], options: GroupSkillsOptions = {}): Promise<GroupResult> {
   if (skills.length === 0) return { groups: [], ungrouped: [] };
 
+  const { llmOptions, labelCache } = options;
   const n = skills.length;
   const parent = Array.from({ length: n }, (_, i) => i);
 
@@ -48,18 +57,29 @@ export function groupSkills(skills: SkillRecord[]): GroupResult {
       continue;
     }
 
-    // Label: tokens present in the most skills of the cluster
+    // Token-based label: tokens present in the most skills of the cluster
     const tokenPresence = new Map<string, number>();
     for (const idx of indices) {
       for (const token of tokenSets[idx]) {
         tokenPresence.set(token, (tokenPresence.get(token) ?? 0) + 1);
       }
     }
-    const label = [...tokenPresence.entries()]
+    const tokenLabel = [...tokenPresence.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 3)
       .map(([token]) => token)
       .join(' · ');
+
+    const key = clusterKey(clusterSkills);
+    let label: string;
+    if (labelCache?.has(key)) {
+      label = labelCache.get(key)!;
+    } else if (llmOptions) {
+      label = await llmGroupLabel(clusterSkills, tokenLabel, llmOptions);
+      labelCache?.set(key, label);
+    } else {
+      label = tokenLabel;
+    }
 
     groups.push({ label, skills: clusterSkills });
   }

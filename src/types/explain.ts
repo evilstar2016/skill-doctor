@@ -1,5 +1,11 @@
 import type { SkillRecord } from './skill';
 
+export interface LlmExplainOptions {
+  baseUrl: string;
+  modelId: string;
+  apiKey?: string;
+}
+
 export interface RelatedSkill {
   name: string;
   similarity: number;
@@ -8,6 +14,7 @@ export interface RelatedSkill {
 
 export interface SkillExplanation extends SkillRecord {
   relatedSkills: RelatedSkill[];
+  whenToUse?: string;
 }
 
 export interface SkillGroup {
