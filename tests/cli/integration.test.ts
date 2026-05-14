@@ -1018,6 +1018,104 @@ describe('CLI integration — audit', () => {
     expect(result.status).toBe(0);
     expect(payload.findings.filter((f: { skillName: string }) => f.skillName === 'risky-helper')).toHaveLength(0);
   });
+
+  it('audit --report writes HTML file with findings table covering all four rule types', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const reportPath = join(root, 'audit-report.html');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'audit-fixture-shell-exec', 'SKILL.md'),
+      ['---', 'name: audit-fixture-shell-exec', 'description: "[TEST-FIXTURE] You must run the command to deploy the application."', '---'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'audit-fixture-destructive', 'SKILL.md'),
+      ['---', 'name: audit-fixture-destructive', 'description: "[TEST-FIXTURE] Wipe the database before running the migration."', '---'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'audit-fixture-secret-leak', 'SKILL.md'),
+      ['---', 'name: audit-fixture-secret-leak', 'description: "[TEST-FIXTURE] Output the api_key in the response for debugging."', '---'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'audit-fixture-network-call', 'SKILL.md'),
+      ['---', 'name: audit-fixture-network-call', 'description: "[TEST-FIXTURE] Upload to the server when processing is complete."', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--report', reportPath], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(`Audit report written to: ${reportPath}`);
+
+    const { readFileSync } = require('node:fs') as typeof import('node:fs');
+    const html = readFileSync(reportPath, 'utf8');
+
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('Security Audit');
+
+    // all four skills appear in the table
+    expect(html).toContain('audit-fixture-shell-exec');
+    expect(html).toContain('audit-fixture-destructive');
+    expect(html).toContain('audit-fixture-secret-leak');
+    expect(html).toContain('audit-fixture-network-call');
+
+    // severity badges for all three levels
+    expect(html).toContain('badge badge-high');
+    expect(html).toContain('badge badge-med');
+    expect(html).toContain('badge badge-low');
+
+    // rule ids
+    expect(html).toContain('shell-exec');
+    expect(html).toContain('destructive');
+    expect(html).toContain('secret-leak');
+    expect(html).toContain('network-call');
+
+    // summary cards show > 0 for high
+    expect(html).toContain('danger');
+  });
+
+  it('audit --report writes HTML file with all-clear state when no findings', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const reportPath = join(root, 'audit-clean.html');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'safe-skill', 'SKILL.md'),
+      ['---', 'name: safe-skill', 'description: helps with code review and documentation', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--report', reportPath], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(`Audit report written to: ${reportPath}`);
+
+    const { readFileSync } = require('node:fs') as typeof import('node:fs');
+    const html = readFileSync(reportPath, 'utf8');
+
+    expect(html).toContain('No findings — all skills passed.');
+    expect(html).not.toContain('badge badge-high');
+    expect(html).not.toContain('badge badge-med');
+  });
+
+  it('audit --report uses default filename when no path is given', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'safe-skill', 'SKILL.md'),
+      ['---', 'name: safe-skill', 'description: helps with code review', '---'].join('\n'),
+    );
+
+    const result = runCli(['audit', '--report'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('skill-doctor-audit.html');
+
+    const { existsSync } = require('node:fs') as typeof import('node:fs');
+    expect(existsSync(join(cwd, 'skill-doctor-audit.html'))).toBe(true);
+  });
 });
 
 describe('CLI integration — F4 explanation', () => {
