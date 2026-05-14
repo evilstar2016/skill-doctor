@@ -18,6 +18,7 @@ const validAnalysis = {
   strengthsA: ['strength-a'],
   strengthsB: ['strength-b'],
   verdict: 'conflicting',
+  remediation: 'Merge these skills or rename their triggers to clarify the boundary.',
 };
 
 describe('analyzeConflict', () => {
@@ -38,6 +39,7 @@ describe('analyzeConflict', () => {
     expect(result.summary).toBe('They overlap significantly');
     expect(result.verdict).toBe('conflicting');
     expect(result.overlapAreas).toEqual(['area-1']);
+    expect(result.remediation).toBe('Merge these skills or rename their triggers to clarify the boundary.');
 
     vi.unstubAllGlobals();
   });

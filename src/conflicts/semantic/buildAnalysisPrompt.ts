@@ -18,13 +18,16 @@ Analyze these two skills and respond with ONLY a JSON object in this exact forma
   "boundaries": ["where skill A ends and B begins", "..."],
   "strengthsA": ["what skill A does better or uniquely", "..."],
   "strengthsB": ["what skill B does better or uniquely", "..."],
-  "verdict": "conflicting"
+  "verdict": "conflicting",
+  "remediation": "one concrete action to reduce overlap or clarify boundaries"
 }
 
 The verdict must be one of:
 - "conflicting": they overlap significantly and would confuse an agent choosing between them
 - "adjacent": they are related but serve clearly different purposes
 - "distinct": they are unrelated despite surface similarity
+
+The remediation must be a single actionable sentence focused on renaming triggers, narrowing scope, merging skills, or removing one skill.
 
 Respond with only the JSON object, no explanation.`;
 }

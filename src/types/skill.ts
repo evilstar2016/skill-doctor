@@ -56,6 +56,7 @@ export interface ConflictAnalysis {
   strengthsA: string[];
   strengthsB: string[];
   verdict: 'conflicting' | 'adjacent' | 'distinct';
+  remediation?: string;
 }
 
 export interface ConflictPair {
@@ -67,6 +68,7 @@ export interface ConflictPair {
   severity: Severity;
   detectionMethod?: ConflictDetectionMethod;
   analysis?: ConflictAnalysis;
+  remediation?: string;
 }
 
 export interface ConflictDetectionOptions {

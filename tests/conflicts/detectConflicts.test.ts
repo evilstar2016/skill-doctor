@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { detectConflicts } from '../../src/conflicts/detectConflicts';
 import { parseSkill } from '../../src/parsing/parseSkill';
@@ -112,6 +112,69 @@ describe('detectConflicts', () => {
     expect(pairs).toHaveLength(1);
     expect(pairs[0]?.kind).toBe('conflict');
     expect(pairs[0]?.detectionMethod).toBe('embedding');
+  });
+
+  it('uses LLM remediation when analysis returns one', async () => {
+    const left: SkillRecord = {
+      name: 'Release Workflow',
+      sourcePath: 'E:/skills/release/SKILL.md',
+      platform: 'claude',
+      scope: 'project',
+      description: 'Prepare release planning and commit summary.',
+      triggers: ['open release branch'],
+    };
+    const right: SkillRecord = {
+      name: 'Deploy Workflow',
+      sourcePath: 'E:/skills/deploy/SKILL.md',
+      platform: 'claude',
+      scope: 'project',
+      description: 'Coordinate release planning and commit summary.',
+      triggers: ['open release branch'],
+    };
+    const cache = {
+      get: () => null,
+      set: () => {},
+    };
+    const provider = {
+      modelId: 'test-model',
+      embed: async (text: string) =>
+        text.startsWith('Release Workflow') ? [1, 0] : [0.99, 0.01],
+    };
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              summary: 'They overlap significantly',
+              overlapAreas: ['release planning'],
+              boundaries: ['planning vs deployment'],
+              strengthsA: ['planning detail'],
+              strengthsB: ['deployment detail'],
+              verdict: 'conflicting',
+              remediation: 'Rename one trigger and merge duplicate planning steps into a single skill.',
+            }),
+          },
+        }],
+      }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const pairs = await detectConflicts([left, right], {
+      strategy: 'embedding',
+      threshold: 0.8,
+      provider,
+      cache,
+      analyze: true,
+      analysisBaseUrl: 'http://localhost:11434/v1',
+      analysisModelId: 'llama3.2',
+    });
+
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]?.analysis?.remediation).toBe('Rename one trigger and merge duplicate planning steps into a single skill.');
+    expect(pairs[0]?.remediation).toBe('Rename one trigger and merge duplicate planning steps into a single skill.');
+
+    vi.unstubAllGlobals();
   });
 
   it('returns no conflicts for unrelated skills', async () => {

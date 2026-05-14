@@ -1,4 +1,5 @@
 import type { ConflictDetectionOptions, ConflictPair, SkillRecord } from '../types/skill';
+import { generateRemediation } from './generateRemediation';
 import { detectEmbeddingConflicts } from './semantic/detectEmbeddingConflicts';
 import { detectTokenConflicts } from './token/detectTokenConflicts';
 
@@ -8,10 +9,19 @@ export async function detectConflicts(
 ): Promise<ConflictPair[]> {
   const strategy = options.strategy ?? 'token';
 
+  let pairs: ConflictPair[];
   switch (strategy) {
     case 'token':
-      return detectTokenConflicts(skills);
+      pairs = detectTokenConflicts(skills);
+      break;
     case 'embedding':
-      return detectEmbeddingConflicts(skills, options);
+      pairs = await detectEmbeddingConflicts(skills, options);
+      break;
   }
+
+  for (const pair of pairs) {
+    pair.remediation = generateRemediation(pair);
+  }
+
+  return pairs;
 }

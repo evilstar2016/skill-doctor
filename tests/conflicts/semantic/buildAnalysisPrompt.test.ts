@@ -51,6 +51,7 @@ describe('buildAnalysisPrompt', () => {
     expect(prompt).toContain('strengthsA');
     expect(prompt).toContain('strengthsB');
     expect(prompt).toContain('verdict');
+    expect(prompt).toContain('remediation');
   });
 
   it('lists all valid verdict values', () => {

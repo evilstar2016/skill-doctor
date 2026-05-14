@@ -37,6 +37,7 @@ const sampleConflict: ConflictPair = {
   sharedTokens: ['branch', 'pull', 'request'],
   severity: 'high',
   detectionMethod: 'embedding',
+  remediation: "Refine trigger keywords so they don't overlap. Consider narrowing each skill's description.",
   analysis: {
     summary: 'Overlap in git workflow guidance, but each skill emphasizes a different execution focus.',
     overlapAreas: ['git workflow'],
@@ -139,6 +140,7 @@ describe('renderers', () => {
     expect(output).toContain('method: embedding');
     expect(output).toContain('branch, pull, request');
     expect(output).toContain('Overlap in git workflow guidance');
+    expect(output).toContain("fix: Refine trigger keywords");
   });
 
   it('renderConflicts appends SUGGESTIONS section when suggestions are provided', () => {
@@ -175,6 +177,7 @@ describe('renderers', () => {
     expect(html).toContain('72%');
     expect(html).toContain('branch');
     expect(html).toContain('Overlap in git workflow guidance');
+    expect(html).toContain('Refine trigger keywords');
   });
 
   it('renderAudit shows scanned count and no findings for empty result', () => {
