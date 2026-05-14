@@ -107,7 +107,7 @@ function readEmbedding(payload: unknown): number[] | null {
     return null;
   }
 
-  return first.embedding.every((value) => typeof value === 'number')
+  return first.embedding.every((value: unknown) => typeof value === 'number')
     ? [...first.embedding]
     : null;
 }
