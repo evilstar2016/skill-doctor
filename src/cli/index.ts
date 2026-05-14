@@ -16,6 +16,7 @@ import { parseSkill } from '../parsing/parseSkill';
 import { loadProvenanceCache, saveProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
 import { renderAudit } from '../render/renderAudit';
+import { renderAuditReport } from '../render/renderAuditReport';
 import { renderConflicts } from '../render/renderConflicts';
 import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
@@ -230,6 +231,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     if (minSeverity) findings = filterFindingsBySeverity(findings, minSeverity);
     const filtered = { ...result, findings };
 
+    const reportPath = readReport(rest);
+    if (reportPath !== null) {
+      const outPath = reportPath === true ? 'skill-doctor-audit.html' : reportPath;
+      writeFileSync(outPath, renderAuditReport(filtered), 'utf-8');
+      process.stdout.write(`Audit report written to: ${outPath}\n`);
+      return;
+    }
+
     if (jsonOutput) {
       process.stdout.write(`${toJson(filtered)}\n`);
     } else {
@@ -261,7 +270,7 @@ function getHelpText(): string {
     '  skill-doctor scan [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
-    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json]',
+    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json] [--report [path]]',
     '  skill-doctor --version',
     '',
     'Embedding config file:',

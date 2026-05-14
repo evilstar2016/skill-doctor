@@ -68,7 +68,7 @@ Goal: become the inspection layer that helps users trust or reject third-party s
 | Risk rulebook for local skills | done | 4 rules shipped: shell-exec / destructive / secret-leak / network-call. |
 | Static scan for dangerous instructions | done | `audit` command live. HIGH=red / MED=yellow / LOW=gray in TTY; plain text in CI. 100% unit coverage. |
 | Trust/provenance metadata | done | `scan` / `show` / `audit` now surface source repo, author, install source, local/global origin, and confidence. |
-| Security report output | later | Add `audit` command or `scan --security`. |
+| Security report output | done | `audit --report [path]` writes an HTML report with summary cards, findings table, and provenance. Default filename: `skill-doctor-audit.html`. |
 
 ## F6. Asset Management
 
