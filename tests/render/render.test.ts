@@ -17,6 +17,12 @@ const sampleSkill: SkillExplanation = {
   scope: 'project',
   description: 'Manage git branches and pull requests.',
   triggers: ['create branch', 'open pull request'],
+  provenance: {
+    installSource: '.claude/skills',
+    confidence: 'high',
+    repository: 'https://github.com/example/git-workflow.git',
+    author: 'Git Author',
+  },
   relatedSkills: [],
 };
 
@@ -27,6 +33,12 @@ const conflictingSkill: SkillRecord = {
   scope: 'global',
   description: 'Automate git workflow and pull requests.',
   triggers: ['create branch', 'open pull request'],
+  provenance: {
+    installSource: '~/.cursor/rules',
+    confidence: 'high',
+    repository: 'https://github.com/example/github-automation.git',
+    author: 'Cursor Author',
+  },
 };
 
 const sampleConflict: ConflictPair = {
@@ -72,6 +84,8 @@ describe('renderers', () => {
     expect(output).toContain('Conflicts detected: 1');
     expect(output).toContain('claude');
     expect(output).toContain('cursor');
+    expect(output).toContain('install source: .claude/skills');
+    expect(output).toContain('repository: https://github.com/example/git-workflow.git');
   });
 
   it('renders a single skill detail card', () => {
@@ -80,6 +94,10 @@ describe('renderers', () => {
     expect(output).toContain('SKILL: git-workflow');
     expect(output).toContain('Platform: claude');
     expect(output).toContain('Scope: project');
+    expect(output).toContain('PROVENANCE');
+    expect(output).toContain('Install source: .claude/skills');
+    expect(output).toContain('Repository: https://github.com/example/git-workflow.git');
+    expect(output).toContain('Author: Git Author');
     expect(output).toContain('create branch');
     expect(output).toContain('WHEN TO USE');
   });
@@ -173,6 +191,9 @@ describe('renderers', () => {
     expect(html).toContain('github-automation');
     expect(html).toContain('claude');
     expect(html).toContain('cursor');
+    expect(html).toContain('Provenance');
+    expect(html).toContain('https://github.com/example/git-workflow.git');
+    expect(html).toContain('Git Author');
     expect(html).toContain('embedding');
     expect(html).toContain('72%');
     expect(html).toContain('branch');
@@ -196,6 +217,12 @@ describe('renderers', () => {
           sourcePath: '/fake/SKILL.md',
           platform: 'claude',
           scope: 'global',
+          provenance: {
+            installSource: '~/.claude/skills',
+            confidence: 'high',
+            repository: 'https://github.com/example/deploy-helper.git',
+            author: 'Deploy Author',
+          },
           ruleId: 'shell-exec',
           severity: 'high',
           matchedText: 'run the command',
@@ -208,6 +235,9 @@ describe('renderers', () => {
     expect(output).toContain('HIGH');
     expect(output).toContain('deploy-helper');
     expect(output).toContain('shell-exec');
+    expect(output).toContain('install: ~/.claude/skills');
+    expect(output).toContain('repo: https://github.com/example/deploy-helper.git');
+    expect(output).toContain('author: Deploy Author');
     expect(output).toContain('1 finding');
     expect(output).toContain('1 high');
   });

@@ -1,41 +1,61 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 
-import type { SkillFile, SkillRecord } from '../types/skill';
+import { llmExtractProvenance } from '../explain/llmExplain';
+import type { LlmExplainOptions } from '../types/explain';
+import type { SkillFile, SkillProvenance, SkillRecord } from '../types/skill';
+import type { ProvenanceCache } from './provenanceCache';
 import { extractBulletLines, uniqueStrings } from './extractTriggers';
 
 interface FrontmatterData {
   name?: string;
   description?: string;
   when_to_use?: string;
+  author?: string;
+  repository?: string;
   /** Official Claude field name; `globs` kept for backward compat */
   paths: string[];
   globs: string[];
   applyTo?: string;
 }
 
-interface ManifestData {
+interface SkillDirMetadata {
   name?: string;
   description?: string;
+  author?: string;
+  repository?: string;
+  rawFiles: Record<string, string>;
+}
+
+interface ParseSkillOptions {
+  llmOptions?: LlmExplainOptions;
+  provenanceCache?: ProvenanceCache;
 }
 
 type ListField = 'globs' | 'paths';
 type BlockScalarField = 'description' | 'when_to_use' | 'applyTo';
 type BlockScalarStyle = 'folded' | 'literal';
+type GitProvenance = Pick<SkillProvenance, 'author' | 'repository'>;
 
-export function parseSkill(file: SkillFile): SkillRecord | null {
+const gitRepoCache = new Map<string, string | null>();
+const gitAuthorCache = new Map<string, string | null>();
+const SKILL_METADATA_FILE_NAMES = ['manifest.json', 'meta.json', 'metadata.json'] as const;
+
+export async function parseSkill(file: SkillFile, options: ParseSkillOptions = {}): Promise<SkillRecord | null> {
   const raw = readFileSync(file.filePath, 'utf8');
 
   if (!raw.trim()) {
     return null;
   }
 
-  const manifest = readSiblingManifest(file.filePath);
+  const skillDir = dirname(file.filePath);
+  const metadata = readSkillDirMetadata(skillDir);
   const { frontmatter, body } = splitFrontmatter(raw);
   const heading = extractHeading(body);
   const description =
     frontmatter.description ??
-    manifest.description ??
+    metadata.description ??
     extractNamedSection(body, 'Description')?.replace(/\s+/g, ' ').trim() ??
     body.trim().slice(0, 200);
 
@@ -47,16 +67,82 @@ export function parseSkill(file: SkillFile): SkillRecord | null {
     ...frontmatter.globs,
     ...(frontmatter.applyTo ? [frontmatter.applyTo] : []),
     ...(frontmatter.description ? [frontmatter.description] : []),
-    ...(!frontmatter.description && manifest.description ? [manifest.description] : []),
+    ...(!frontmatter.description && metadata.description ? [metadata.description] : []),
   ]);
 
+  const provenance = await resolveProvenance(
+    file,
+    skillDir,
+    raw,
+    frontmatter,
+    metadata,
+    frontmatter.name ?? metadata.name ?? heading ?? getFallbackName(file.filePath),
+    options.llmOptions,
+    options.provenanceCache,
+  );
+
   return {
-    name: frontmatter.name ?? manifest.name ?? heading ?? getFallbackName(file.filePath),
+    name: frontmatter.name ?? metadata.name ?? heading ?? getFallbackName(file.filePath),
     sourcePath: file.filePath,
     platform: file.platform,
     scope: file.scope,
     description,
     triggers,
+    provenance,
+  };
+}
+
+async function resolveProvenance(
+  file: SkillFile,
+  skillDir: string,
+  raw: string,
+  frontmatter: FrontmatterData,
+  metadata: SkillDirMetadata,
+  skillName: string,
+  llmOptions?: LlmExplainOptions,
+  provenanceCache?: ProvenanceCache,
+): Promise<SkillProvenance> {
+  const gitProvenance = readGitProvenance(skillDir, file.filePath);
+  let repository = gitProvenance.repository ?? metadata.repository ?? frontmatter.repository;
+  let author = gitProvenance.author ?? metadata.author ?? frontmatter.author;
+
+  const cached = provenanceCache?.get(file.filePath);
+
+  if (!repository || !author) {
+    repository ??= cached?.repository;
+    author ??= cached?.author;
+  }
+
+  if ((!repository || !author) && llmOptions && cached?.resolved !== true) {
+    const llmProvenance = await llmExtractProvenance(
+      {
+        skillName,
+        sourcePath: file.filePath,
+        frontmatter: {
+          ...(frontmatter.author ? { author: frontmatter.author } : {}),
+          ...(frontmatter.repository ? { repository: frontmatter.repository } : {}),
+        },
+        metadataFiles: truncateMetadataFiles(metadata.rawFiles),
+        content: truncateText(raw, 6000),
+      },
+      llmOptions,
+    );
+
+    provenanceCache?.set(file.filePath, {
+      ...(llmProvenance?.repository ? { repository: llmProvenance.repository } : {}),
+      ...(llmProvenance?.author ? { author: llmProvenance.author } : {}),
+      resolved: true,
+    });
+
+    repository ??= llmProvenance?.repository;
+    author ??= llmProvenance?.author;
+  }
+
+  return {
+    installSource: file.installSource,
+    confidence: file.confidence,
+    ...(repository ? { repository } : {}),
+    ...(author ? { author } : {}),
   };
 }
 
@@ -151,6 +237,14 @@ function parseFrontmatter(raw: string): FrontmatterData {
 
     if (key === 'when_to_use') {
       parsed.when_to_use = stripQuotes(value);
+    }
+
+    if (key === 'author') {
+      parsed.author = stripQuotes(value);
+    }
+
+    if (key === 'repository' || key === 'repo') {
+      parsed.repository = stripQuotes(value);
     }
 
     if (key === 'applyTo') {
@@ -261,25 +355,120 @@ function foldBlockLines(lines: string[]): string {
   return paragraphs.join('\n\n').trim();
 }
 
-function readSiblingManifest(filePath: string): ManifestData {
-  if (basename(filePath) !== 'SKILL.md') {
+function readSkillDirMetadata(skillDir: string): SkillDirMetadata {
+  const metadata: SkillDirMetadata = { rawFiles: {} };
+
+  for (const fileName of SKILL_METADATA_FILE_NAMES) {
+    const metadataPath = join(skillDir, fileName);
+    if (!existsSync(metadataPath)) {
+      continue;
+    }
+
+    const raw = readFileSync(metadataPath, 'utf8');
+    metadata.rawFiles[fileName] = raw;
+
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      metadata.name ??= typeof parsed.name === 'string' ? parsed.name : undefined;
+      metadata.description ??= typeof parsed.description === 'string' ? parsed.description : undefined;
+      metadata.author ??= readMetadataAuthor(parsed.author);
+      metadata.repository ??= readMetadataRepository(parsed);
+    } catch {
+      continue;
+    }
+  }
+
+  return metadata;
+}
+
+function readGitProvenance(skillDir: string, filePath: string): GitProvenance {
+  if (!existsSync(join(skillDir, '.git'))) {
     return {};
   }
 
-  const manifestPath = join(dirname(filePath), 'manifest.json');
-  if (!existsSync(manifestPath)) {
-    return {};
+  return {
+    repository: readGitRepository(skillDir) ?? undefined,
+    author: readGitAuthor(skillDir, filePath) ?? undefined,
+  };
+}
+
+function readGitRepository(skillDir: string): string | null {
+  if (gitRepoCache.has(skillDir)) {
+    return gitRepoCache.get(skillDir) ?? null;
   }
 
+  const repository = runGit(skillDir, ['config', '--get', 'remote.origin.url']);
+  gitRepoCache.set(skillDir, repository);
+  return repository;
+}
+
+function readGitAuthor(skillDir: string, filePath: string): string | null {
+  const fileKey = `${skillDir}|${filePath}`;
+  if (gitAuthorCache.has(fileKey)) {
+    return gitAuthorCache.get(fileKey) ?? null;
+  }
+
+  const relativeFilePath = relative(skillDir, filePath).replace(/\\/g, '/');
+  const author =
+    runGit(skillDir, ['log', '-1', '--format=%an', '--', relativeFilePath]) ??
+    runGit(skillDir, ['log', '-1', '--format=%an']);
+
+  gitAuthorCache.set(fileKey, author);
+  return author;
+}
+
+function runGit(skillDir: string, args: string[]): string | null {
   try {
-    const parsed = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
-    return {
-      name: typeof parsed.name === 'string' ? parsed.name : undefined,
-      description: typeof parsed.description === 'string' ? parsed.description : undefined,
-    };
+    const output = execFileSync('git', ['-C', skillDir, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return output || null;
   } catch {
-    return {};
+    return null;
   }
+}
+
+function readMetadataAuthor(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (isRecord(value) && typeof value.name === 'string') {
+    return value.name;
+  }
+
+  return undefined;
+}
+
+function readMetadataRepository(parsed: Record<string, unknown>): string | undefined {
+  return readRepositoryValue(parsed.repository) ?? readRepositoryValue(parsed.repo);
+}
+
+function readRepositoryValue(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (isRecord(value) && typeof value.url === 'string') {
+    return value.url;
+  }
+
+  return undefined;
+}
+
+function truncateMetadataFiles(files: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(files).map(([fileName, content]) => [fileName, truncateText(content, 3000)]),
+  );
+}
+
+function truncateText(value: string, limit: number): string {
+  return value.length <= limit ? value : `${value.slice(0, limit)}\n...[truncated]`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 function getFallbackName(filePath: string): string {

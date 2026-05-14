@@ -40,6 +40,7 @@ describe('resolvePaths', () => {
 
     expect(claudeFiles).toHaveLength(2);
     expect(claudeFiles.every((entry) => entry.scope === 'global')).toBe(true);
+    expect(claudeFiles.every((entry) => entry.installSource === '~/.claude/skills')).toBe(true);
   });
 
   it('finds cursor project rule directories and .cursorrules files', () => {
@@ -103,6 +104,8 @@ describe('resolvePaths', () => {
 
     expect(opencodeFiles).toHaveLength(1);
     expect(opencodeFiles[0]?.filePath).toContain(join('opencode', 'skills', 'review-pr', 'SKILL.md'));
+    expect(opencodeFiles[0]?.installSource).toBe('%APPDATA%/opencode/skills');
+    expect(opencodeFiles[0]?.confidence).toBe('low');
   });
 
   it('finds the project .windsurfrules file', () => {

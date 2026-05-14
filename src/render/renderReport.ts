@@ -41,8 +41,9 @@ export function renderReport(skills: SkillRecord[], conflicts: ConflictPair[]): 
   .badge-low { background: #f1f5f9; color: #475569; }
   .badge-duplicate { background: #fce7f3; color: #9d174d; }
   .badge-conflict { background: #ffedd5; color: #9a3412; }
-  .desc { color: #475569; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .desc { color: #475569; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .triggers { color: #64748b; font-size: 12px; }
+  .provenance { color: #64748b; font-size: 12px; line-height: 1.6; }
   .shared { font-size: 12px; color: #64748b; }
   .analysis { font-size: 12px; color: #475569; max-width: 320px; }
   .sim { font-weight: 600; color: #0f172a; }
@@ -85,15 +86,16 @@ export function renderReport(skills: SkillRecord[], conflicts: ConflictPair[]): 
   <h2>Skills (${skills.length})</h2>
   <table>
     <thead>
-      <tr><th>Name</th><th>Platform</th><th>Scope</th><th>Description</th><th>Triggers</th></tr>
+      <tr><th>Name</th><th>Platform</th><th>Scope</th><th>Provenance</th><th>Description</th><th>Triggers</th></tr>
     </thead>
     <tbody>
-      ${skills.length === 0 ? '<tr><td colspan="5" class="empty">No skills found.</td></tr>' : skills
+      ${skills.length === 0 ? '<tr><td colspan="6" class="empty">No skills found.</td></tr>' : skills
         .map(
           (s) => `<tr>
         <td>${esc(s.name)}</td>
         <td><span class="pill">${esc(s.platform)}</span></td>
         <td><span class="badge badge-scope-${s.scope}">${s.scope}</span></td>
+        <td class="provenance">${renderProvenance(s)}</td>
         <td><span class="desc" title="${esc(s.description)}">${esc(s.description)}</span></td>
         <td class="triggers">${s.triggers.length > 0 ? esc(s.triggers.slice(0, 3).join(', ')) + (s.triggers.length > 3 ? ` +${s.triggers.length - 3}` : '') : '—'}</td>
       </tr>`,
@@ -140,6 +142,15 @@ function renderPairsTable(pairs: ConflictPair[]): string {
       ${rows}
     </tbody>
   </table>`;
+}
+
+function renderProvenance(skill: SkillRecord): string {
+  return [
+    `install: ${esc(skill.provenance?.installSource ?? '—')}`,
+    `confidence: ${esc(skill.provenance?.confidence ?? '—')}`,
+    `repo: ${esc(skill.provenance?.repository ?? '—')}`,
+    `author: ${esc(skill.provenance?.author ?? '—')}`,
+  ].join('<br>');
 }
 
 function countBy<T>(arr: T[], key: (item: T) => string): Record<string, number> {

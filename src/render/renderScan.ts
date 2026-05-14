@@ -8,6 +8,16 @@ export function renderScan(skills: SkillRecord[], conflicts: ConflictPair[]): st
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([platform, count]) => `- ${platform}: ${count}`)
     .join('\n');
+  const skillLines =
+    skills.length === 0
+      ? ['- none']
+      : skills.flatMap((skill) => [
+          `- ${skill.name}`,
+          `  platform: ${skill.platform}  scope: ${skill.scope}`,
+          `  install source: ${skill.provenance?.installSource ?? '—'}  confidence: ${skill.provenance?.confidence ?? '—'}`,
+          `  repository: ${skill.provenance?.repository ?? '—'}`,
+          `  author: ${skill.provenance?.author ?? '—'}`,
+        ]);
 
   return [
     'SKILL DOCTOR REPORT',
@@ -16,6 +26,9 @@ export function renderScan(skills: SkillRecord[], conflicts: ConflictPair[]): st
     `Conflicts detected: ${conflictCount}`,
     'Platforms:',
     platformLines || '- none',
+    '',
+    'Skills:',
+    ...skillLines,
   ].join('\n');
 }
 

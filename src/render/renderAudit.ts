@@ -28,6 +28,9 @@ export function renderAudit(result: AuditResult): string {
     const name = f.skillName.padEnd(24);
     const rule = f.ruleId.padEnd(16);
     lines.push(`${badge}  ${name}  ${rule}  ${f.summary}`);
+    lines.push(
+      `      install: ${f.provenance?.installSource ?? '—'}  scope: ${f.scope}  confidence: ${f.provenance?.confidence ?? '—'}  repo: ${f.provenance?.repository ?? '—'}  author: ${f.provenance?.author ?? '—'}`,
+    );
   }
 
   const { high, med, low } = result.summary;

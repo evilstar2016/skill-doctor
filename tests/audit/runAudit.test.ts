@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runAudit } from '../../src/audit/runAudit';
 import type { SkillRecord } from '../../src/types/skill';
 
-function makeSkill(name: string, description: string, triggers: string[] = []): SkillRecord {
+function makeSkill(name: string, description: string, triggers: string[] = [], provenance?: SkillRecord['provenance']): SkillRecord {
   return {
     name,
     sourcePath: `/fake/${name}/SKILL.md`,
@@ -10,6 +10,7 @@ function makeSkill(name: string, description: string, triggers: string[] = []): 
     scope: 'global',
     description,
     triggers,
+    provenance,
   };
 }
 
@@ -129,6 +130,19 @@ describe('runAudit', () => {
     const f = result.findings[0];
     expect(f.matchedText.length).toBeGreaterThan(0);
     expect(f.summary).toContain(f.matchedText);
+  });
+
+  it('copies provenance onto findings', () => {
+    const provenance = {
+      installSource: '.claude/skills',
+      confidence: 'high' as const,
+      repository: 'https://github.com/example/risky.git',
+      author: 'Risky Author',
+    };
+
+    const result = runAudit([makeSkill('bad', 'run the command in the terminal', [], provenance)]);
+
+    expect(result.findings[0]?.provenance).toEqual(provenance);
   });
 
   it('counts summary buckets correctly', () => {

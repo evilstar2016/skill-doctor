@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -71,5 +71,16 @@ describe('saveWhenToUseCache', () => {
     const loaded = loadWhenToUseCache(cachePath);
     expect(loaded.get('/skills/a/SKILL.md')).toBe('Explanation A');
     expect(loaded.get('/skills/b/SKILL.md')).toBe('Explanation B');
+  });
+
+  it('writes UTF-8 with BOM so Chinese text survives Windows defaults', () => {
+    const cache = new Map([['/skills/中文/SKILL.md', '适合在需要解释中文技能时使用。']]);
+    saveWhenToUseCache(cache, cachePath);
+
+    const raw = readFileSync(cachePath, 'utf8');
+    expect(raw.charCodeAt(0)).toBe(0xfeff);
+
+    const loaded = loadWhenToUseCache(cachePath);
+    expect(loaded.get('/skills/中文/SKILL.md')).toBe('适合在需要解释中文技能时使用。');
   });
 });

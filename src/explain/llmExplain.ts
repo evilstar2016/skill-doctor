@@ -2,11 +2,23 @@ import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
 
 const warnedLlmFailures = new Set<string>();
+const LLM_REQUEST_TIMEOUT_MS = 15000;
 
 interface GroupLabelRequest {
   key: string;
   tokenLabel: string;
   skills: SkillRecord[];
+}
+
+interface ProvenanceRequest {
+  skillName: string;
+  sourcePath: string;
+  frontmatter: {
+    author?: string;
+    repository?: string;
+  };
+  metadataFiles: Record<string, string>;
+  content: string;
 }
 
 /**
@@ -31,6 +43,33 @@ export async function llmWhenToUse(
 
   const result = await callJsonLlm<{ whenToUse?: string }>(prompt, options);
   return normalizeTextField(result?.whenToUse);
+}
+
+/**
+ * Ask the LLM to infer repository/author provenance when local git and metadata are missing.
+ * Returns null on any error so callers can keep the fields empty.
+ */
+export async function llmExtractProvenance(
+  request: ProvenanceRequest,
+  options: LlmExplainOptions,
+): Promise<{ repository?: string; author?: string } | null> {
+  const prompt =
+    'You are extracting provenance metadata for a developer skill. ' +
+    'Return strict JSON with exactly two keys: "repository" and "author". ' +
+    'Use strings when the value is explicitly supported by the provided evidence. ' +
+    'Use empty string when the value is unknown. ' +
+    'Do not invent repository URLs, owners, or author names. ' +
+    'Prefer exact literals from the files.\n\n' +
+    `Provenance payload:\n${JSON.stringify(request, null, 2)}`;
+
+  const result = await callJsonLlm<{ repository?: string; author?: string }>(prompt, options);
+  if (!result) {
+    return null;
+  }
+
+  const repository = normalizeTextField(result.repository) ?? undefined;
+  const author = normalizeTextField(result.author) ?? undefined;
+  return repository || author ? { ...(repository ? { repository } : {}), ...(author ? { author } : {}) } : null;
 }
 
 /**
@@ -89,7 +128,7 @@ export async function llmGroupLabels(
   return results;
 }
 
-async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions): Promise<T | null> {
+export async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions): Promise<T | null> {
   const url = `${options.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -101,6 +140,7 @@ async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions): Promi
     const response = await fetch(url, {
       method: 'POST',
       headers,
+      signal: AbortSignal.timeout(LLM_REQUEST_TIMEOUT_MS),
       body: JSON.stringify({
         model: options.modelId,
         messages: [{ role: 'user', content: prompt }],

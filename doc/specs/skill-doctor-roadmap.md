@@ -33,7 +33,7 @@ Goal: identify which rules overlap and explain why the agent may behave unstably
 | Conflict filtering and ranking | done | `--kind`, `--scope`, `--limit`, `--fail-on` already available. |
 | Embedding-based semantic conflict scoring | done | Local embedding strategy, cache, scenario workflow, and recorded evidence are all in place on the F2 branch. |
 | Optional AI conflict analysis | done | `--analyze` returns structured overlap / boundaries / strengths payloads for embedding candidates. |
-| Suggested remediation text | next | Explain what to remove, merge, or inspect first. |
+| Suggested remediation text | done | Explain what to remove, merge, or inspect first. |
 
 ## F3. Release And Operability
 
@@ -67,7 +67,7 @@ Goal: become the inspection layer that helps users trust or reject third-party s
 | --- | --- | --- |
 | Risk rulebook for local skills | done | 4 rules shipped: shell-exec / destructive / secret-leak / network-call. |
 | Static scan for dangerous instructions | done | `audit` command live. HIGH=red / MED=yellow / LOW=gray in TTY; plain text in CI. 100% unit coverage. |
-| Trust/provenance metadata | later | Show source repo, author, local origin, and confidence. |
+| Trust/provenance metadata | done | `scan` / `show` / `audit` now surface source repo, author, install source, local/global origin, and confidence. |
 | Security report output | later | Add `audit` command or `scan --security`. |
 
 ## F6. Asset Management

@@ -167,8 +167,6 @@ src/
 
 - 行级精确定位（只到文件级）
 - AI 辅助误报过滤
-- Trust/provenance 元数据（F5 roadmap 中标注为 later）
-- 修复建议（F5 roadmap 中 "suggested remediation" 属于 F2，已有 next 状态）
 - 任何写操作（不删除、不修改 skill 文件）
 
 ## Open Questions
