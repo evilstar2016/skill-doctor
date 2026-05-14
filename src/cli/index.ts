@@ -15,9 +15,12 @@ import { loadWhenToUseCache, saveWhenToUseCache } from '../explain/whenToUseCach
 import { parseSkill } from '../parsing/parseSkill';
 import { loadProvenanceCache, saveProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
+import { DiffError, runDiff } from '../diff/runDiff';
 import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
 import { renderConflicts } from '../render/renderConflicts';
+import { renderDiff } from '../render/renderDiff';
+import { renderDiffReport } from '../render/renderDiffReport';
 import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
@@ -252,6 +255,35 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'diff') {
+    const [nameA, nameB] = rest.filter((a) => !a.startsWith('-'));
+    if (!nameA || !nameB) {
+      process.stderr.write('Usage: skill-doctor diff <skill-a> <skill-b> [--report [path]]\n');
+      process.exitCode = 1;
+      return;
+    }
+    const llmOptions = readAnalysisLlmOptions();
+    try {
+      const result = await runDiff(nameA, nameB, cwd, { llmOptions: llmOptions ?? undefined });
+      const reportPath = readReport(rest);
+      if (reportPath !== null) {
+        const outPath = reportPath === true ? `skill-doctor-diff-${nameA}-vs-${nameB}.html` : reportPath;
+        writeFileSync(outPath, renderDiffReport(result), 'utf-8');
+        process.stdout.write(`Diff report written to: ${outPath}\n`);
+      } else {
+        process.stdout.write(`${renderDiff(result)}\n`);
+      }
+    } catch (err) {
+      if (err instanceof DiffError) {
+        process.stderr.write(`${err.message}\n`);
+        process.exitCode = 1;
+      } else {
+        throw err;
+      }
+    }
+    return;
+  }
+
   process.stderr.write(`Unknown command: ${command}\n\n${getHelpText()}`);
   process.exitCode = 1;
 }
@@ -271,6 +303,7 @@ function getHelpText(): string {
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json] [--report [path]]',
+    '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor --version',
     '',
     'Embedding config file:',
