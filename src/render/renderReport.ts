@@ -127,13 +127,14 @@ function renderPairsTable(pairs: ConflictPair[]): string {
       <td class="sim">${Math.round(p.similarity * 100)}%</td>
       <td class="shared">${p.sharedTokens.join(', ') || '—'}</td>
       <td class="analysis">${esc(p.analysis?.summary ?? '—')}</td>
+      <td class="analysis">${esc(p.remediation ?? '—')}</td>
     </tr>`,
     )
     .join('\n    ');
 
   return `<table>
     <thead>
-      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Method</th><th>Similarity</th><th>Shared tokens</th><th>Summary</th></tr>
+      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Method</th><th>Similarity</th><th>Shared tokens</th><th>Summary</th><th>Fix</th></tr>
     </thead>
     <tbody>
       ${rows}

@@ -41,6 +41,7 @@ export function renderConflicts(pairs: ConflictPair[], suggestions?: CleanupSugg
           `similarity: ${pair.similarity.toFixed(2)}`,
           `shared: ${pair.sharedTokens.join(', ') || '—'}`,
           ...(pair.analysis ? [`summary: ${pair.analysis.summary}`] : []),
+          ...(pair.remediation ? [`fix: ${pair.remediation}`] : []),
         ].join('\n'),
       ),
     ].join('\n\n'));

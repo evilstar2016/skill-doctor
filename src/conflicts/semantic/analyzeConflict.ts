@@ -52,6 +52,8 @@ function parseAnalysis(content: string): ConflictAnalysis {
 
   const parsed = JSON.parse(jsonMatch[0]) as Partial<ConflictAnalysis>;
 
+  const remediation = String(parsed.remediation ?? '').trim();
+
   return {
     summary: String(parsed.summary ?? ''),
     overlapAreas: toStringArray(parsed.overlapAreas),
@@ -59,6 +61,7 @@ function parseAnalysis(content: string): ConflictAnalysis {
     strengthsA: toStringArray(parsed.strengthsA),
     strengthsB: toStringArray(parsed.strengthsB),
     verdict: toVerdict(parsed.verdict),
+    ...(remediation ? { remediation } : {}),
   };
 }
 
