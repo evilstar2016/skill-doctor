@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderAudit } from '../../src/render/renderAudit';
+import { renderAuditReport } from '../../src/render/renderAuditReport';
 import { renderConflicts } from '../../src/render/renderConflicts';
 import { renderGroup } from '../../src/render/renderGroup';
 import { renderReport } from '../../src/render/renderReport';
@@ -240,5 +241,139 @@ describe('renderers', () => {
     expect(output).toContain('author: Deploy Author');
     expect(output).toContain('1 finding');
     expect(output).toContain('1 high');
+  });
+
+  it('renderAuditReport produces valid HTML with clean all-clear state when no findings', () => {
+    const result: AuditResult = { scanned: 5, findings: [], summary: { high: 0, med: 0, low: 0 } };
+    const html = renderAuditReport(result);
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('5');
+    expect(html).toContain('Skills scanned');
+    expect(html).toContain('No findings — all skills passed.');
+    expect(html).not.toContain('badge badge-high');
+    expect(html).not.toContain('badge badge-med');
+  });
+
+  it('renderAuditReport renders summary cards and findings table with all four rule types', () => {
+    const result: AuditResult = {
+      scanned: 4,
+      findings: [
+        {
+          skillName: 'audit-fixture-shell-exec',
+          sourcePath: '/fake/shell-exec/SKILL.md',
+          platform: 'claude',
+          scope: 'project',
+          provenance: { installSource: '.claude/skills', confidence: 'high', repository: 'https://github.com/example/shell-exec.git', author: 'Shell Author' },
+          ruleId: 'shell-exec',
+          severity: 'high',
+          matchedText: 'run the command',
+          summary: '"run the command" — shell execution instruction',
+        },
+        {
+          skillName: 'audit-fixture-destructive',
+          sourcePath: '/fake/destructive/SKILL.md',
+          platform: 'claude',
+          scope: 'project',
+          provenance: { installSource: '.claude/skills', confidence: 'med', repository: '—', author: 'DB Author' },
+          ruleId: 'destructive',
+          severity: 'high',
+          matchedText: 'wipe the database',
+          summary: '"wipe the database" — destructive operation',
+        },
+        {
+          skillName: 'audit-fixture-secret-leak',
+          sourcePath: '/fake/secret-leak/SKILL.md',
+          platform: 'cursor',
+          scope: 'global',
+          provenance: { installSource: '~/.cursor/rules', confidence: 'low', repository: '—', author: '—' },
+          ruleId: 'secret-leak',
+          severity: 'med',
+          matchedText: 'Output the api_key',
+          summary: '"Output the api_key" — potential credential exposure',
+        },
+        {
+          skillName: 'audit-fixture-network-call',
+          sourcePath: '/fake/network-call/SKILL.md',
+          platform: 'cursor',
+          scope: 'global',
+          provenance: undefined,
+          ruleId: 'network-call',
+          severity: 'low',
+          matchedText: 'Upload to the server',
+          summary: '"Upload to the server" — external network request',
+        },
+      ],
+      summary: { high: 2, med: 1, low: 1 },
+    };
+
+    const html = renderAuditReport(result);
+
+    // page structure
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('Security Audit');
+
+    // summary cards show correct counts
+    expect(html).toContain('>4<'); // scanned
+    expect(html).toContain('>2<'); // high
+    expect(html).toContain('>1<'); // med (also matches low=1, both present)
+    expect(html).toContain('danger'); // high card colored red
+
+    // findings table — all four skills present
+    expect(html).toContain('audit-fixture-shell-exec');
+    expect(html).toContain('audit-fixture-destructive');
+    expect(html).toContain('audit-fixture-secret-leak');
+    expect(html).toContain('audit-fixture-network-call');
+
+    // severity badges
+    expect(html).toContain('badge badge-high');
+    expect(html).toContain('badge badge-med');
+    expect(html).toContain('badge badge-low');
+
+    // rule ids
+    expect(html).toContain('shell-exec');
+    expect(html).toContain('destructive');
+    expect(html).toContain('secret-leak');
+    expect(html).toContain('network-call');
+
+    // matched text (HTML-escaped as needed)
+    expect(html).toContain('run the command');
+    expect(html).toContain('wipe the database');
+    expect(html).toContain('Upload to the server');
+
+    // provenance fields
+    expect(html).toContain('.claude/skills');
+    expect(html).toContain('Shell Author');
+    expect(html).toContain('~/.cursor/rules');
+
+    // missing provenance falls back to em-dash
+    expect(html).toContain('install: —');
+
+    // HTML escaping: the api_key text with underscore should be present verbatim (no injection)
+    expect(html).toContain('Output the api_key');
+  });
+
+  it('renderAuditReport escapes HTML special characters in skill names and matched text', () => {
+    const result: AuditResult = {
+      scanned: 1,
+      findings: [
+        {
+          skillName: '<script>xss</script>',
+          sourcePath: '/fake/SKILL.md',
+          platform: 'claude',
+          scope: 'project',
+          provenance: undefined,
+          ruleId: 'shell-exec',
+          severity: 'high',
+          matchedText: 'run the command & "escape" <this>',
+          summary: '"run the command" — shell execution instruction',
+        },
+      ],
+      summary: { high: 1, med: 0, low: 0 },
+    };
+    const html = renderAuditReport(result);
+    expect(html).not.toContain('<script>xss</script>');
+    expect(html).toContain('&lt;script&gt;xss&lt;/script&gt;');
+    expect(html).toContain('&amp;');
+    expect(html).toContain('&quot;');
   });
 });
