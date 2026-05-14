@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createEmbeddingProvider,
   type FetchLike,
-  type FetchRequestLike,
 } from '../../../src/conflicts/semantic/embeddingProvider';
 
 describe('createEmbeddingProvider', () => {
@@ -30,7 +29,7 @@ describe('createEmbeddingProvider', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/v1/embeddings',
-      expect.objectContaining<FetchRequestLike>({
+      expect.objectContaining({
         method: 'POST',
         headers: {
           'content-type': 'application/json',
