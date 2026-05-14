@@ -10,7 +10,22 @@
       "Bash(npm test *)",
       "Bash(npm run *)",
       "Bash(node dist/index.js scan --report /tmp/skill-doctor-report.html)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "mcp__mcp-serena-sse__get_symbols_overview",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npx tsc *)",
+      "Bash(node dist/index.cjs diff --help)",
+      "Bash(node dist/index.cjs diff)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node dist/index.cjs diff foo bar)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(node *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }
