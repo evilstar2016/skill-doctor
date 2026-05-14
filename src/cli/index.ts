@@ -12,6 +12,8 @@ import { buildExplanation } from '../explain/buildExplanation';
 import { groupSkills } from '../explain/groupSkills';
 import { loadGroupLabelCache, saveGroupLabelCache } from '../explain/groupLabelCache';
 import { loadWhenToUseCache, saveWhenToUseCache } from '../explain/whenToUseCache';
+import { parseSkill } from '../parsing/parseSkill';
+import { loadProvenanceCache, saveProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
 import { renderAudit } from '../render/renderAudit';
 import { renderConflicts } from '../render/renderConflicts';
@@ -25,6 +27,7 @@ import type {
   ConflictDetectionStrategy,
   ConflictPair,
   Scope,
+  SkillFile,
   SkillRecord,
 } from '../types/skill';
 
@@ -53,10 +56,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByScope(scanSkills(cwd), scope);
+    const llmOptions = readAnalysisLlmOptions();
 
     if (groupMode) {
-      const llmOptions = readLlmExplainOptions();
+      const skills = filterSkillsByScope(await scanSkills(cwd), scope);
       const labelCache = loadGroupLabelCache();
       const groupResult = await groupSkills(skills, { llmOptions: llmOptions ?? undefined, labelCache });
       saveGroupLabelCache(labelCache);
@@ -66,6 +69,15 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         process.stdout.write(`${renderGroup(groupResult)}\n`);
       }
       return;
+    }
+
+    const provenanceCache = loadProvenanceCache();
+    const skills = filterSkillsByScope(
+      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache }),
+      scope,
+    );
+    if (llmOptions && provenanceCache.size > 0) {
+      saveProvenanceCache(provenanceCache);
     }
 
     const conflictOptions = readConflictOptions(rest);
@@ -104,7 +116,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const allSkills = scanSkills(cwd);
+    const llmOptions = readAnalysisLlmOptions();
+    const provenanceCache = loadProvenanceCache();
+    const allSkills = await scanSkills(cwd, { provenanceCache });
     const skill = allSkills.find((entry) => entry.name === name);
 
     if (!skill) {
@@ -113,9 +127,17 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const llmOptions = readLlmExplainOptions();
+    const detailedSkill =
+      llmOptions
+        ? ((await parseSkill(toSkillFile(skill), { llmOptions, provenanceCache })) ?? skill)
+        : skill;
+
+    if (llmOptions && provenanceCache.size > 0) {
+      saveProvenanceCache(provenanceCache);
+    }
+
     const whenToUseCache = loadWhenToUseCache();
-    const explanation = await buildExplanation(skill, allSkills, {
+    const explanation = await buildExplanation(detailedSkill, allSkills, {
       llmOptions: llmOptions ?? undefined,
       whenToUseCache,
     });
@@ -162,7 +184,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByScope(scanSkills(cwd), scope);
+    const skills = filterSkillsByScope(await scanSkills(cwd), scope);
     const ignore = loadUserConfig().config.ignore ?? {};
     const conflicts = limitConflicts(
       sortConflicts(filterConflictsByKind(filterConflicts(await detectConflicts(skills, conflictOptions.options), ignore), kind)),
@@ -193,7 +215,15 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByScope(scanSkills(cwd), scope);
+    const llmOptions = readAnalysisLlmOptions();
+    const provenanceCache = loadProvenanceCache();
+    const skills = filterSkillsByScope(
+      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache }),
+      scope,
+    );
+    if (llmOptions && provenanceCache.size > 0) {
+      saveProvenanceCache(provenanceCache);
+    }
     const ignore = loadUserConfig().config.ignore ?? {};
     const result = runAudit(skills);
     let findings = filterFindings(result.findings, ignore);
@@ -579,7 +609,17 @@ function rankSeverity(severity: ConflictPair['severity']): number {
   return ranks[severity];
 }
 
-function readLlmExplainOptions(): LlmExplainOptions | null {
+function toSkillFile(skill: SkillRecord): SkillFile {
+  return {
+    filePath: skill.sourcePath,
+    platform: skill.platform,
+    scope: skill.scope,
+    confidence: skill.provenance?.confidence ?? 'low',
+    installSource: skill.provenance?.installSource ?? skill.sourcePath,
+  };
+}
+
+function readAnalysisLlmOptions(): LlmExplainOptions | null {
   try {
     const { config } = loadUserConfig();
     const analysis = config.analysis ?? {};

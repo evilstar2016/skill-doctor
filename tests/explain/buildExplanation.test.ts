@@ -31,6 +31,21 @@ describe('buildExplanation', () => {
     expect(result.description).toBe(gitWorkflow.description);
   });
 
+  it('preserves provenance fields when present', async () => {
+    const skill: SkillRecord = {
+      ...gitWorkflow,
+      provenance: {
+        installSource: '.claude/skills',
+        confidence: 'high',
+        repository: 'https://github.com/example/git-workflow.git',
+        author: 'Git Author',
+      },
+    };
+
+    const result = await buildExplanation(skill, [skill, githubAutomation, unrelated]);
+    expect(result.provenance).toEqual(skill.provenance);
+  });
+
   it('finds related skills above the similarity threshold', async () => {
     const result = await buildExplanation(gitWorkflow, [gitWorkflow, githubAutomation, unrelated]);
     const names = result.relatedSkills.map((r) => r.name);

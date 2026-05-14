@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -93,5 +93,14 @@ describe('saveGroupLabelCache', () => {
     const loaded = loadGroupLabelCache(cachePath);
     expect(loaded.get('key-1')).toBe('Label One');
     expect(loaded.get('key-2')).toBe('Label Two');
+  });
+
+  it('writes UTF-8 with BOM for non-ASCII labels', () => {
+    const cache = new Map([['key-1', '中文分组']]);
+    saveGroupLabelCache(cache, cachePath);
+
+    const raw = readFileSync(cachePath, 'utf8');
+    expect(raw.charCodeAt(0)).toBe(0xfeff);
+    expect(loadGroupLabelCache(cachePath).get('key-1')).toBe('中文分组');
   });
 });

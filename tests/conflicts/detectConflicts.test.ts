@@ -16,6 +16,7 @@ function makeSkillFile(filePath: string): SkillFile {
     platform: 'claude',
     scope: 'project',
     confidence: 'high',
+    installSource: '.claude/skills',
   };
 }
 
@@ -52,8 +53,8 @@ describe('detectConflicts', () => {
   });
 
   it('returns a high-severity conflict for highly overlapping skills', async () => {
-    const left = parseSkill(makeSkillFile(fixturePath('conflicting-a.md')));
-    const right = parseSkill(makeSkillFile(fixturePath('conflicting-b.md')));
+    const left = await parseSkill(makeSkillFile(fixturePath('conflicting-a.md')));
+    const right = await parseSkill(makeSkillFile(fixturePath('conflicting-b.md')));
 
     const pairs = await detectConflicts([left, right].filter(isSkillRecord));
 
@@ -178,8 +179,8 @@ describe('detectConflicts', () => {
   });
 
   it('returns no conflicts for unrelated skills', async () => {
-    const left = parseSkill(makeSkillFile(fixturePath('unrelated-a.md')));
-    const right = parseSkill(makeSkillFile(fixturePath('unrelated-b.md')));
+    const left = await parseSkill(makeSkillFile(fixturePath('unrelated-a.md')));
+    const right = await parseSkill(makeSkillFile(fixturePath('unrelated-b.md')));
 
     const pairs = await detectConflicts([left, right].filter(isSkillRecord));
 
@@ -187,7 +188,7 @@ describe('detectConflicts', () => {
   });
 
   it('returns an empty array for fewer than two skills', async () => {
-    const single = parseSkill(makeSkillFile(fixturePath('conflicting-a.md')));
+    const single = await parseSkill(makeSkillFile(fixturePath('conflicting-a.md')));
 
     await expect(detectConflicts(single ? [single] : [])).resolves.toEqual([]);
     await expect(detectConflicts([])).resolves.toEqual([]);

@@ -173,7 +173,7 @@ function collectPath(
     if (depth === 0) {
       if (target.layout !== 'skill-dirs') {
         for (const filePath of matchingFiles) {
-          pushResult(filePath, definition, scope, results, seen);
+          pushResult(filePath, target.path, definition, scope, results, seen);
         }
       }
 
@@ -186,7 +186,7 @@ function collectPath(
     if (matchingFiles.length > 0) {
       const primary = selectPrimaryFile(matchingFiles, definition.platform, target.layout === 'skill-dirs');
       if (primary) {
-        pushResult(primary, definition, scope, results, seen);
+        pushResult(primary, target.path, definition, scope, results, seen);
       }
       return;
     }
@@ -204,11 +204,12 @@ function collectPath(
     return;
   }
 
-  pushResult(targetPath, definition, scope, results, seen);
+  pushResult(targetPath, target.path, definition, scope, results, seen);
 }
 
 function pushResult(
   filePath: string,
+  installSource: string,
   definition: PlatformPathDefinition,
   scope: Scope,
   results: SkillFile[],
@@ -224,6 +225,7 @@ function pushResult(
     platform: definition.platform,
     scope,
     confidence: definition.confidence,
+    installSource,
   });
 }
 

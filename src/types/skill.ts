@@ -22,11 +22,19 @@ export type ConflictDetectionMethod = 'duplicate-name' | 'token' | 'embedding';
 
 export type Confidence = 'high' | 'low';
 
+export interface SkillProvenance {
+  repository?: string;
+  author?: string;
+  installSource: string;
+  confidence: Confidence;
+}
+
 export interface SkillFile {
   filePath: string;
   platform: Platform;
   scope: Scope;
   confidence: Confidence;
+  installSource: string;
 }
 
 export interface SkillRecord {
@@ -36,6 +44,7 @@ export interface SkillRecord {
   scope: Scope;
   description: string;
   triggers: string[];
+  provenance?: SkillProvenance;
 }
 
 export interface ConflictEmbeddingProvider {

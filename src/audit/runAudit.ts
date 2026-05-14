@@ -17,6 +17,7 @@ export function runAudit(skills: SkillRecord[]): AuditResult {
             sourcePath: skill.sourcePath,
             platform: skill.platform,
             scope: skill.scope,
+            provenance: skill.provenance,
             ruleId: rule.ruleId,
             severity: rule.severity,
             matchedText: match[0].trim(),

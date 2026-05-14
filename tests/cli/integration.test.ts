@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -121,6 +122,360 @@ describe('CLI integration', () => {
     expect(payload.name).toBe('karpathy-guidelines');
     expect(payload.platform).toBe('claude');
     expect(payload.scope).toBe('project');
+  });
+
+  it('scan, show, and audit prefer skill metadata without leaking workspace git provenance', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const skillDir = join(cwd, '.claude', 'skills', 'provenance-skill');
+
+    writeFile(
+      join(skillDir, 'SKILL.md'),
+      [
+        '---',
+        'name: provenance-skill',
+        'description: you must run the command to deploy the app',
+        'author: Frontmatter Author',
+        'repository: https://example.com/frontmatter.git',
+        '---',
+        '',
+        '# Provenance Skill',
+        '',
+        '## When to Use',
+        '',
+        '- run the command to deploy the app',
+      ].join('\n'),
+    );
+    writeFile(
+      join(skillDir, 'metadata.json'),
+      JSON.stringify(
+        {
+          author: { name: 'Metadata Author' },
+          repository: { url: 'https://github.com/example/provenance-skill.git' },
+        },
+        null,
+        2,
+      ),
+    );
+
+    execFileSync('git', ['init'], { cwd, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.name', 'Workspace Author'], { cwd, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.email', 'workspace@example.com'], { cwd, stdio: 'ignore' });
+    execFileSync('git', ['remote', 'add', 'origin', 'https://github.com/example/workspace.git'], { cwd, stdio: 'ignore' });
+    execFileSync('git', ['add', '.claude/skills/provenance-skill/SKILL.md', '.claude/skills/provenance-skill/metadata.json'], {
+      cwd,
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['commit', '-m', 'Add provenance skill'], { cwd, stdio: 'ignore' });
+
+    const scan = runCli(['scan'], cwd, home);
+    const scanJson = JSON.parse(runCli(['scan', '--json'], cwd, home).stdout);
+    const show = runCli(['show', 'provenance-skill'], cwd, home);
+    const showJson = JSON.parse(runCli(['show', 'provenance-skill', '--json'], cwd, home).stdout);
+    const audit = runCli(['audit'], cwd, home);
+    const auditJson = JSON.parse(runCli(['audit', '--json'], cwd, home).stdout);
+
+    expect(scan.status).toBe(0);
+    expect(scan.stdout).toContain('install source: .claude/skills');
+    expect(scan.stdout).toContain('repository: https://github.com/example/provenance-skill.git');
+    expect(scan.stdout).toContain('author: Metadata Author');
+    expect(scan.stdout).not.toContain('Workspace Author');
+    expect(scan.stdout).not.toContain('https://github.com/example/workspace.git');
+    expect(scan.stdout).not.toContain('https://example.com/frontmatter.git');
+    expect(scanJson.skills[0]?.provenance).toEqual({
+      installSource: '.claude/skills',
+      confidence: 'high',
+      repository: 'https://github.com/example/provenance-skill.git',
+      author: 'Metadata Author',
+    });
+
+    expect(show.status).toBe(0);
+    expect(show.stdout).toContain('PROVENANCE');
+    expect(show.stdout).toContain('Install source: .claude/skills');
+    expect(show.stdout).toContain('Repository: https://github.com/example/provenance-skill.git');
+    expect(show.stdout).toContain('Author: Metadata Author');
+    expect(show.stdout).not.toContain('Workspace Author');
+    expect(showJson.provenance).toEqual({
+      installSource: '.claude/skills',
+      confidence: 'high',
+      repository: 'https://github.com/example/provenance-skill.git',
+      author: 'Metadata Author',
+    });
+
+    expect(audit.status).toBe(0);
+    expect(audit.stdout).toContain('install: .claude/skills');
+    expect(audit.stdout).toContain('repo: https://github.com/example/provenance-skill.git');
+    expect(audit.stdout).toContain('author: Metadata Author');
+    expect(audit.stdout).not.toContain('Workspace Author');
+    expect(auditJson.findings[0]?.provenance).toEqual({
+      installSource: '.claude/skills',
+      confidence: 'high',
+      repository: 'https://github.com/example/provenance-skill.git',
+      author: 'Metadata Author',
+    });
+  });
+
+  it('scan --json uses analysis LLM config to fill missing provenance', async () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    let receivedAuthorization = '';
+    let receivedModel = '';
+    let requestCount = 0;
+
+    const server = createServer((request, response) => {
+      let body = '';
+      request.setEncoding('utf8');
+      request.on('data', (chunk) => {
+        body += chunk;
+      });
+      request.on('end', () => {
+        requestCount += 1;
+        receivedAuthorization = request.headers.authorization ?? '';
+        const payload = JSON.parse(body) as { model: string };
+        receivedModel = payload.model;
+
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          connection: 'close',
+        });
+        response.end(JSON.stringify({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                repository: 'https://github.com/example/llm-provenance-skill.git',
+                author: 'LLM Author',
+              }),
+            },
+          }],
+        }));
+      });
+    });
+
+    try {
+      const port = await new Promise<number>((resolve) => {
+        server.listen(0, '127.0.0.1', () => {
+          resolve((server.address() as AddressInfo).port);
+        });
+      });
+
+      writeFile(
+        join(home, '.skill-doctor', 'config.json'),
+        JSON.stringify(
+          {
+            analysis: {
+              baseUrl: `http://127.0.0.1:${port}/v1`,
+              model: 'llama3.2',
+              apiKey: '222222',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      writeFile(
+        join(cwd, '.claude', 'skills', 'llm-provenance-skill', 'SKILL.md'),
+        [
+          '---',
+          'name: llm-provenance-skill',
+          'description: inspect provenance when explicit metadata is absent',
+          '---',
+          '',
+          '# LLM Provenance Skill',
+        ].join('\n'),
+      );
+
+      const result = await runCliAsync(['scan', '--json'], cwd, home);
+      const payload = JSON.parse(result.stdout);
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(requestCount).toBe(1);
+      expect(receivedAuthorization).toBe('Bearer 222222');
+      expect(receivedModel).toBe('llama3.2');
+      expect(payload.skills[0]?.provenance).toEqual({
+        installSource: '.claude/skills',
+        confidence: 'high',
+        repository: 'https://github.com/example/llm-provenance-skill.git',
+        author: 'LLM Author',
+      });
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('scan --json reuses cached provenance between runs', async () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    let requestCount = 0;
+
+    const server = createServer((request, response) => {
+      request.setEncoding('utf8');
+      request.on('data', () => {});
+      request.on('end', () => {
+        requestCount += 1;
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          connection: 'close',
+        });
+        response.end(JSON.stringify({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                repository: 'https://github.com/example/cached-provenance.git',
+                author: 'Cached Author',
+              }),
+            },
+          }],
+        }));
+      });
+    });
+
+    try {
+      const port = await new Promise<number>((resolve) => {
+        server.listen(0, '127.0.0.1', () => {
+          resolve((server.address() as AddressInfo).port);
+        });
+      });
+
+      writeFile(
+        join(home, '.skill-doctor', 'config.json'),
+        JSON.stringify(
+          {
+            analysis: {
+              baseUrl: `http://127.0.0.1:${port}/v1`,
+              model: 'llama3.2',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      writeFile(
+        join(cwd, '.claude', 'skills', 'cached-provenance-skill', 'SKILL.md'),
+        ['---', 'name: cached-provenance-skill', 'description: cache provenance lookups', '---', '', '# Cached Provenance Skill'].join('\n'),
+      );
+
+      const first = await runCliAsync(['scan', '--json'], cwd, home);
+      const second = await runCliAsync(['scan', '--json'], cwd, home);
+
+      expect(first.status).toBe(0);
+      expect(second.status).toBe(0);
+      expect(requestCount).toBe(1);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('show only uses analysis LLM for the selected skill', async () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    let requestCount = 0;
+
+    const server = createServer((request, response) => {
+      let body = '';
+      request.setEncoding('utf8');
+      request.on('data', (chunk) => {
+        body += chunk;
+      });
+      request.on('end', () => {
+        requestCount += 1;
+        const payload = JSON.parse(body) as { messages?: { content?: string }[] };
+        const prompt = payload.messages?.[0]?.content ?? '';
+
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          connection: 'close',
+        });
+        response.end(JSON.stringify({
+          choices: [{
+            message: {
+              content: prompt.includes('"whenToUse"')
+                ? JSON.stringify({ whenToUse: 'Use when you need the selected skill.' })
+                : JSON.stringify({
+                    repository: 'https://github.com/example/selected-skill.git',
+                    author: 'Selected Author',
+                  }),
+            },
+          }],
+        }));
+      });
+    });
+
+    try {
+      const port = await new Promise<number>((resolve) => {
+        server.listen(0, '127.0.0.1', () => {
+          resolve((server.address() as AddressInfo).port);
+        });
+      });
+
+      writeFile(
+        join(home, '.skill-doctor', 'config.json'),
+        JSON.stringify(
+          {
+            analysis: {
+              baseUrl: `http://127.0.0.1:${port}/v1`,
+              model: 'llama3.2',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      writeFile(
+        join(cwd, '.claude', 'skills', 'selected-skill', 'SKILL.md'),
+        ['---', 'name: selected-skill', 'description: inspect the chosen skill', '---', '', '# Selected Skill'].join('\n'),
+      );
+      writeFile(
+        join(cwd, '.claude', 'skills', 'other-skill', 'SKILL.md'),
+        ['---', 'name: other-skill', 'description: should not trigger provenance lookup in show', '---', '', '# Other Skill'].join('\n'),
+      );
+
+      const result = await runCliAsync(['show', 'selected-skill', '--json'], cwd, home);
+      const payload = JSON.parse(result.stdout);
+
+      expect(result.status).toBe(0);
+      expect(requestCount).toBe(2);
+      expect(payload.provenance).toEqual({
+        installSource: '.claude/skills',
+        confidence: 'high',
+        repository: 'https://github.com/example/selected-skill.git',
+        author: 'Selected Author',
+      });
+      expect(payload.whenToUse).toBe('Use when you need the selected skill.');
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
   });
 
   it('conflicts --fail-on high exits with code 1 when a high conflict exists', () => {
