@@ -30,6 +30,12 @@ node dist/index.cjs conflicts --fail-on high
 node dist/index.cjs conflicts --scope global
 node dist/index.cjs conflicts --kind duplicate
 node dist/index.cjs conflicts --limit 10 --json
+node dist/index.cjs audit
+node dist/index.cjs audit --severity high --fail-on high
+node dist/index.cjs audit --report
+node dist/index.cjs diff skill-a skill-b
+node dist/index.cjs diff skill-a skill-b --report
+node dist/index.cjs diff skill-a skill-b --report /path/to/output.html
 ```
 
 ## Commands
@@ -37,6 +43,8 @@ node dist/index.cjs conflicts --limit 10 --json
 - `scan` — discover skills from supported local paths and print a summary, including duplicate counts; `--json` also includes `summary.scopes` and `summary.platformsByScope`
 - `show <name>` — print one skill's details; supports `--json`
 - `conflicts` — detect duplicates and overlapping skills, with optional `--scope project|global|all`, `--kind duplicate|conflict|all`, `--limit N`, and `--json`
+- `audit` — security scan for dangerous patterns (shell execution, data exfiltration, secret leaks, etc.); supports `--scope`, `--severity high|med|low`, `--fail-on high|med|low`, `--json`, and `--report [path]` to generate an HTML report
+- `diff <skill-a> <skill-b>` — compare two skills side-by-side: trigger conditions, feature coverage, pros/cons, and situational recommendations; add `--report [path]` to generate an HTML report instead of terminal output; LLM analysis is used when `~/.skill-doctor/config.json` is configured
 
 ## Development
 

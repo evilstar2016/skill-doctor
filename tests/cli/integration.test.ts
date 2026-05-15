@@ -1197,3 +1197,132 @@ describe('CLI integration — F4 explanation', () => {
     expect(Array.isArray(payload.ungrouped)).toBe(true);
   });
 });
+
+describe('CLI integration — diff', () => {
+  const SKILL_A_CONTENT = [
+    '---',
+    'name: code-review',
+    'description: Helps with code review and pull request feedback',
+    '---',
+    '',
+    '# Code Review',
+    '',
+    '## When to Use',
+    'Use when reviewing pull requests or giving feedback on code quality.',
+    '',
+    '## Checklist',
+    '- Check naming conventions',
+    '- Verify error handling',
+  ].join('\n');
+
+  const SKILL_B_CONTENT = [
+    '---',
+    'name: tdd-workflow',
+    'description: Guides test-driven development workflow',
+    '---',
+    '',
+    '# TDD Workflow',
+    '',
+    '## When to Use',
+    'Use when writing new features using TDD approach.',
+    '',
+    '## Checklist',
+    '- Write failing test first',
+    '- Implement minimal code to pass',
+    '- Refactor',
+  ].join('\n');
+
+  it('diff prints terminal output without LLM', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'code-review', 'SKILL.md'), SKILL_A_CONTENT);
+    writeFile(join(cwd, '.claude', 'skills', 'tdd-workflow', 'SKILL.md'), SKILL_B_CONTENT);
+
+    const result = runCli(['diff', 'code-review', 'tdd-workflow'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('code-review');
+    expect(result.stdout).toContain('tdd-workflow');
+  });
+
+  it('diff --report writes an HTML file to cwd', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'code-review', 'SKILL.md'), SKILL_A_CONTENT);
+    writeFile(join(cwd, '.claude', 'skills', 'tdd-workflow', 'SKILL.md'), SKILL_B_CONTENT);
+
+    const result = runCli(['diff', 'code-review', 'tdd-workflow', '--report'], cwd, home);
+
+    const { existsSync, readFileSync } = require('node:fs') as typeof import('node:fs');
+    const expectedPath = join(cwd, 'skill-doctor-diff-code-review-vs-tdd-workflow.html');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('skill-doctor-diff-code-review-vs-tdd-workflow.html');
+    expect(existsSync(expectedPath)).toBe(true);
+    const html = readFileSync(expectedPath, 'utf8');
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('code-review');
+    expect(html).toContain('tdd-workflow');
+  });
+
+  it('diff --report <path> writes HTML to the specified path', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const outPath = join(root, 'custom-report.html');
+
+    writeFile(join(cwd, '.claude', 'skills', 'code-review', 'SKILL.md'), SKILL_A_CONTENT);
+    writeFile(join(cwd, '.claude', 'skills', 'tdd-workflow', 'SKILL.md'), SKILL_B_CONTENT);
+
+    const result = runCli(['diff', 'code-review', 'tdd-workflow', '--report', outPath], cwd, home);
+
+    const { existsSync } = require('node:fs') as typeof import('node:fs');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('custom-report.html');
+    expect(existsSync(outPath)).toBe(true);
+  });
+
+  it('diff fails with exit code 1 when a skill is missing', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'code-review', 'SKILL.md'), SKILL_A_CONTENT);
+
+    const result = runCli(['diff', 'code-review', 'no-such-skill'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('"no-such-skill"');
+  });
+
+  it('diff fails with exit code 1 when both skill names are the same', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'code-review', 'SKILL.md'), SKILL_A_CONTENT);
+
+    const result = runCli(['diff', 'code-review', 'code-review'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('same');
+  });
+
+  it('diff fails with usage message when fewer than two skill names are given', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'code-review', 'SKILL.md'), SKILL_A_CONTENT);
+
+    const result = runCli(['diff', 'code-review'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Usage:');
+  });
+});
