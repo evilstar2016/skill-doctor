@@ -1,25 +1,24 @@
-import type { CleanupSuggestion } from '../types/cleanup';
+import type { ConflictPair } from '../types/skill';
 
 const useColor = process.stdout.isTTY === true;
 const bold = (s: string) => (useColor ? `\x1b[1m${s}\x1b[0m` : s);
-const gray = (s: string) => (useColor ? `\x1b[90m${s}\x1b[0m` : s);
-const green = (s: string) => (useColor ? `\x1b[32m${s}\x1b[0m` : s);
-const yellow = (s: string) => (useColor ? `\x1b[33m${s}\x1b[0m` : s);
 
-export function renderCleanup(suggestions: CleanupSuggestion[]): string {
-  const lines: string[] = ['CLEANUP SUGGESTIONS'];
+export function renderCleanup(duplicates: ConflictPair[]): string {
+  const lines: string[] = ['DUPLICATE SKILLS'];
 
-  if (suggestions.length === 0) {
+  if (duplicates.length === 0) {
     lines.push('No duplicate skills found.');
     return lines.join('\n');
   }
 
-  lines.push(`${suggestions.length} suggestion${suggestions.length > 1 ? 's' : ''} found.\n`);
+  lines.push(
+    `${duplicates.length} duplicate${duplicates.length > 1 ? 's' : ''} found. Run with --execute to remove interactively.\n`,
+  );
 
-  for (const s of suggestions) {
-    lines.push(bold(s.skillName));
-    lines.push(`  ${yellow('remove:')} ${s.removePath}`);
-    lines.push(`  ${green('keep:')}   ${s.keepPath}  ${gray(`(${s.keepReason})`)}`);
+  for (const pair of duplicates) {
+    lines.push(bold(pair.a.name));
+    lines.push(`  [1] ${pair.a.sourcePath}`);
+    lines.push(`  [2] ${pair.b.sourcePath}`);
     lines.push('');
   }
 

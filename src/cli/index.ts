@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
+import { dirname } from 'node:path';
 import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
@@ -268,13 +270,40 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const ignore = loadUserConfig().config.ignore ?? {};
     const skills = filterSkillsByScope(await scanSkills(cwd), scope);
     const conflicts = filterConflicts(await detectConflicts(skills), ignore);
-    const suggestions = suggestCleanup(conflicts);
+    const duplicates = conflicts.filter((p) => p.kind === 'duplicate');
 
     if (jsonOutput) {
-      process.stdout.write(`${toJson(suggestions)}\n`);
-    } else {
-      process.stdout.write(`${renderCleanup(suggestions)}\n`);
+      process.stdout.write(
+        `${toJson(duplicates.map((p) => ({ name: p.a.name, paths: [p.a.sourcePath, p.b.sourcePath] })))}\n`,
+      );
+      return;
     }
+
+    if (hasFlag(rest, '--execute')) {
+      if (duplicates.length === 0) {
+        process.stdout.write('No duplicate skills found.\n');
+        return;
+      }
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      const ask = (q: string) => new Promise<string>((resolve) => rl.question(q, resolve));
+      for (const pair of duplicates) {
+        process.stdout.write(`\nDuplicate: ${pair.a.name}\n  [1] ${pair.a.sourcePath}\n  [2] ${pair.b.sourcePath}\n`);
+        const answer = await ask('Remove which copy? [1/2/s to skip]: ');
+        if (answer === '1') {
+          rmSync(dirname(pair.a.sourcePath), { recursive: true });
+          process.stdout.write(`Removed: ${pair.a.sourcePath}\n`);
+        } else if (answer === '2') {
+          rmSync(dirname(pair.b.sourcePath), { recursive: true });
+          process.stdout.write(`Removed: ${pair.b.sourcePath}\n`);
+        } else {
+          process.stdout.write('Skipped.\n');
+        }
+      }
+      rl.close();
+      return;
+    }
+
+    process.stdout.write(`${renderCleanup(duplicates)}\n`);
     return;
   }
 

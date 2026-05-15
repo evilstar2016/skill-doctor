@@ -1342,11 +1342,11 @@ describe('CLI integration — cleanup', () => {
     const result = runCli(['cleanup'], cwd, home);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('CLEANUP SUGGESTIONS');
+    expect(result.stdout).toContain('DUPLICATE SKILLS');
     expect(result.stdout).toContain('No duplicate skills found.');
   });
 
-  it('cleanup shows suggestions when the same skill exists in two locations', () => {
+  it('cleanup lists both paths for a duplicate skill without recommending either', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -1358,10 +1358,13 @@ describe('CLI integration — cleanup', () => {
     const result = runCli(['cleanup', '--scope', 'all'], cwd, home);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('CLEANUP SUGGESTIONS');
+    expect(result.stdout).toContain('DUPLICATE SKILLS');
     expect(result.stdout).toContain('karpathy-guidelines');
-    expect(result.stdout).toContain('remove:');
-    expect(result.stdout).toContain('keep:');
+    expect(result.stdout).toContain('[1]');
+    expect(result.stdout).toContain('[2]');
+    expect(result.stdout).toContain('--execute');
+    expect(result.stdout).not.toContain('remove:');
+    expect(result.stdout).not.toContain('keep:');
   });
 
   it('cleanup --json returns an empty array when no duplicates', () => {
@@ -1378,7 +1381,7 @@ describe('CLI integration — cleanup', () => {
     expect(payload).toEqual([]);
   });
 
-  it('cleanup --json returns suggestion objects when duplicates exist', () => {
+  it('cleanup --json returns name and paths for each duplicate', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -1393,10 +1396,10 @@ describe('CLI integration — cleanup', () => {
     expect(result.status).toBe(0);
     expect(Array.isArray(payload)).toBe(true);
     expect(payload.length).toBeGreaterThan(0);
-    expect(payload[0]).toHaveProperty('skillName');
-    expect(payload[0]).toHaveProperty('keepPath');
-    expect(payload[0]).toHaveProperty('removePath');
-    expect(payload[0]).toHaveProperty('keepReason');
+    expect(payload[0]).toHaveProperty('name', 'karpathy-guidelines');
+    expect(payload[0]).toHaveProperty('paths');
+    expect(Array.isArray(payload[0].paths)).toBe(true);
+    expect(payload[0].paths).toHaveLength(2);
   });
 
   it('cleanup --scope project ignores global duplicates', () => {
@@ -1412,5 +1415,48 @@ describe('CLI integration — cleanup', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('No duplicate skills found.');
+  });
+
+  it('cleanup --execute removes the chosen skill directory and leaves the other', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    const content = SKILL_CONTENT('karpathy-guidelines');
+    const projectSkillDir = join(cwd, '.claude', 'skills', 'karpathy-guidelines');
+    const globalSkillDir = join(home, '.claude', 'skills', 'karpathy-guidelines');
+    writeFile(join(projectSkillDir, 'SKILL.md'), content);
+    writeFile(join(globalSkillDir, 'SKILL.md'), content);
+
+    // answer '2' to remove the second path shown
+    const result = runCli(['cleanup', '--scope', 'all', '--execute'], cwd, home, '2\n');
+
+    const { existsSync } = require('node:fs') as typeof import('node:fs');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Removed:');
+    // exactly one of the two dirs was removed
+    const projectExists = existsSync(projectSkillDir);
+    const globalExists = existsSync(globalSkillDir);
+    expect(projectExists !== globalExists).toBe(true);
+  });
+
+  it('cleanup --execute skips when user answers s', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    const content = SKILL_CONTENT('karpathy-guidelines');
+    writeFile(join(cwd, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+    writeFile(join(home, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+
+    const result = runCli(['cleanup', '--scope', 'all', '--execute'], cwd, home, 's\n');
+
+    const { existsSync } = require('node:fs') as typeof import('node:fs');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Skipped.');
+    expect(existsSync(join(cwd, '.claude', 'skills', 'karpathy-guidelines'))).toBe(true);
+    expect(existsSync(join(home, '.claude', 'skills', 'karpathy-guidelines'))).toBe(true);
   });
 });
