@@ -4,6 +4,7 @@ export interface LlmExplainOptions {
   baseUrl: string;
   modelId: string;
   apiKey?: string;
+  timeoutMs?: number;
 }
 
 export interface RelatedSkill {

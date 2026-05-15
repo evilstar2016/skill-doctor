@@ -12,6 +12,7 @@ export interface AnalysisUserConfig {
   baseUrl?: string;
   model?: string;
   apiKey?: string;
+  timeoutMs?: number;
 }
 
 export interface IgnoreUserConfig {
@@ -77,6 +78,7 @@ function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserCon
             baseUrl: readString(analysis.baseUrl),
             model: readString(analysis.model),
             apiKey: readString(analysis.apiKey),
+            timeoutMs: readPositiveInt(analysis.timeoutMs),
           },
         }
       : {}),
@@ -115,6 +117,13 @@ function readString(value: unknown): string | undefined {
 
   const normalized = value.trim();
   return normalized ? normalized : undefined;
+}
+
+function readPositiveInt(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    return undefined;
+  }
+  return value;
 }
 
 function resolveHomeDir(): string {

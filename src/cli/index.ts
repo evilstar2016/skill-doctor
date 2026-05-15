@@ -668,7 +668,12 @@ function readAnalysisLlmOptions(): LlmExplainOptions | null {
     const baseUrl = analysis.baseUrl;
     const modelId = analysis.model;
     if (!baseUrl || !modelId) return null;
-    return { baseUrl, modelId, ...(analysis.apiKey ? { apiKey: analysis.apiKey } : {}) };
+    return {
+      baseUrl,
+      modelId,
+      ...(analysis.apiKey ? { apiKey: analysis.apiKey } : {}),
+      ...(analysis.timeoutMs ? { timeoutMs: analysis.timeoutMs } : {}),
+    };
   } catch {
     return null;
   }
