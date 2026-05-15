@@ -18,6 +18,7 @@ import type { LlmExplainOptions } from '../types/explain';
 import { DiffError, runDiff } from '../diff/runDiff';
 import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
+import { renderCleanup } from '../render/renderCleanup';
 import { renderConflicts } from '../render/renderConflicts';
 import { renderDiff } from '../render/renderDiff';
 import { renderDiffReport } from '../render/renderDiffReport';
@@ -255,6 +256,28 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'cleanup') {
+    const scope = readScope(rest);
+
+    if (scope === 'invalid') {
+      process.stderr.write('Invalid scope. Use --scope project|global|all\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const ignore = loadUserConfig().config.ignore ?? {};
+    const skills = filterSkillsByScope(await scanSkills(cwd), scope);
+    const conflicts = filterConflicts(await detectConflicts(skills), ignore);
+    const suggestions = suggestCleanup(conflicts);
+
+    if (jsonOutput) {
+      process.stdout.write(`${toJson(suggestions)}\n`);
+    } else {
+      process.stdout.write(`${renderCleanup(suggestions)}\n`);
+    }
+    return;
+  }
+
   if (command === 'diff') {
     const [nameA, nameB] = rest.filter((a) => !a.startsWith('-'));
     if (!nameA || !nameB) {
@@ -303,6 +326,7 @@ function getHelpText(): string {
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json] [--report [path]]',
+    '  skill-doctor cleanup [--scope project|global|all] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor --version',
     '',
