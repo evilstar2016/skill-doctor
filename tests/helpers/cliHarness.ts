@@ -43,7 +43,7 @@ export function writeFile(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf8');
 }
 
-export function runCli(args: string[], cwd: string, homeDir: string) {
+export function runCli(args: string[], cwd: string, homeDir: string, stdin?: string) {
   return spawnSync(process.execPath, [cliEntry, ...args], {
     cwd,
     env: {
@@ -52,6 +52,7 @@ export function runCli(args: string[], cwd: string, homeDir: string) {
       USERPROFILE: homeDir,
     },
     encoding: 'utf8',
+    input: stdin,
   });
 }
 
