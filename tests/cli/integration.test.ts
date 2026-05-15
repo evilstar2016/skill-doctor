@@ -1060,9 +1060,9 @@ describe('CLI integration — audit', () => {
     expect(html).toContain('audit-fixture-network-call');
 
     // severity badges for all three levels
-    expect(html).toContain('badge badge-high');
-    expect(html).toContain('badge badge-med');
-    expect(html).toContain('badge badge-low');
+    expect(html).toContain('sev-badge high');
+    expect(html).toContain('sev-badge med');
+    expect(html).toContain('sev-badge low');
 
     // rule ids
     expect(html).toContain('shell-exec');
@@ -1093,9 +1093,9 @@ describe('CLI integration — audit', () => {
     const { readFileSync } = require('node:fs') as typeof import('node:fs');
     const html = readFileSync(reportPath, 'utf8');
 
-    expect(html).toContain('No findings — all skills passed.');
-    expect(html).not.toContain('badge badge-high');
-    expect(html).not.toContain('badge badge-med');
+    expect(html).toContain('No security findings detected.');
+    expect(html).not.toContain('sev-badge high');
+    expect(html).not.toContain('sev-badge med');
   });
 
   it('audit --report uses default filename when no path is given', () => {

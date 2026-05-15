@@ -248,10 +248,10 @@ describe('renderers', () => {
     const html = renderAuditReport(result);
     expect(html).toContain('<!DOCTYPE html>');
     expect(html).toContain('5');
-    expect(html).toContain('Skills scanned');
-    expect(html).toContain('No findings — all skills passed.');
-    expect(html).not.toContain('badge badge-high');
-    expect(html).not.toContain('badge badge-med');
+    expect(html).toContain('Scanned');
+    expect(html).toContain('No security findings detected.');
+    expect(html).not.toContain('sev-badge high');
+    expect(html).not.toContain('sev-badge med');
   });
 
   it('renderAuditReport renders summary cards and findings table with all four rule types', () => {
@@ -325,9 +325,9 @@ describe('renderers', () => {
     expect(html).toContain('audit-fixture-network-call');
 
     // severity badges
-    expect(html).toContain('badge badge-high');
-    expect(html).toContain('badge badge-med');
-    expect(html).toContain('badge badge-low');
+    expect(html).toContain('sev-badge high');
+    expect(html).toContain('sev-badge med');
+    expect(html).toContain('sev-badge low');
 
     // rule ids
     expect(html).toContain('shell-exec');
