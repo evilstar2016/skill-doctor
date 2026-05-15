@@ -1326,3 +1326,91 @@ describe('CLI integration — diff', () => {
     expect(result.stderr).toContain('Usage:');
   });
 });
+
+describe('CLI integration — cleanup', () => {
+  const SKILL_CONTENT = (name: string) =>
+    ['---', `name: ${name}`, `description: ${name} helps with code review`, '---', '', `# ${name}`].join('\n');
+
+  it('cleanup shows no-duplicates message when no skills conflict', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'skill-alpha', 'SKILL.md'), SKILL_CONTENT('skill-alpha'));
+    writeFile(join(cwd, '.claude', 'skills', 'skill-beta', 'SKILL.md'), SKILL_CONTENT('skill-beta'));
+
+    const result = runCli(['cleanup'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('CLEANUP SUGGESTIONS');
+    expect(result.stdout).toContain('No duplicate skills found.');
+  });
+
+  it('cleanup shows suggestions when the same skill exists in two locations', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    const content = SKILL_CONTENT('karpathy-guidelines');
+    writeFile(join(cwd, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+    writeFile(join(home, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+
+    const result = runCli(['cleanup', '--scope', 'all'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('CLEANUP SUGGESTIONS');
+    expect(result.stdout).toContain('karpathy-guidelines');
+    expect(result.stdout).toContain('remove:');
+    expect(result.stdout).toContain('keep:');
+  });
+
+  it('cleanup --json returns an empty array when no duplicates', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'skill-alpha', 'SKILL.md'), SKILL_CONTENT('skill-alpha'));
+
+    const result = runCli(['cleanup', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload).toEqual([]);
+  });
+
+  it('cleanup --json returns suggestion objects when duplicates exist', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    const content = SKILL_CONTENT('karpathy-guidelines');
+    writeFile(join(cwd, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+    writeFile(join(home, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+
+    const result = runCli(['cleanup', '--scope', 'all', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload.length).toBeGreaterThan(0);
+    expect(payload[0]).toHaveProperty('skillName');
+    expect(payload[0]).toHaveProperty('keepPath');
+    expect(payload[0]).toHaveProperty('removePath');
+    expect(payload[0]).toHaveProperty('keepReason');
+  });
+
+  it('cleanup --scope project ignores global duplicates', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    const content = SKILL_CONTENT('karpathy-guidelines');
+    writeFile(join(cwd, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+    writeFile(join(home, '.claude', 'skills', 'karpathy-guidelines', 'SKILL.md'), content);
+
+    const result = runCli(['cleanup', '--scope', 'project'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('No duplicate skills found.');
+  });
+});
