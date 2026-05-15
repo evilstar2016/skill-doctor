@@ -1,156 +1,161 @@
 import type { ConflictPair, SkillRecord } from '../types/skill';
+import { esc, htmlPage, section } from './theme';
 
 export function renderReport(skills: SkillRecord[], conflicts: ConflictPair[]): string {
   const duplicates = conflicts.filter((p) => p.kind === 'duplicate');
   const semantic = conflicts.filter((p) => p.kind === 'conflict');
   const platformCounts = countBy(skills, (s) => s.platform);
-  const generatedAt = new Date().toLocaleString();
+  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skill Doctor Report</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; line-height: 1.5; }
-  .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
-  h1 { font-size: 22px; font-weight: 700; color: #0f172a; }
-  h2 { font-size: 15px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .06em; margin: 32px 0 12px; }
-  .meta { color: #64748b; font-size: 13px; margin-top: 4px; }
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
-  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; }
-  .card-val { font-size: 28px; font-weight: 700; color: #0f172a; }
-  .card-val.warn { color: #b45309; }
-  .card-val.danger { color: #b91c1c; }
-  .card-label { font-size: 12px; color: #64748b; margin-top: 2px; }
-  .platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
-  .pill-count { background: #e2e8f0; border-radius: 99px; padding: 0 6px; font-size: 11px; }
-  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-  th { text-align: left; padding: 10px 14px; background: #f8fafc; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid #e2e8f0; }
-  td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #f8fafc; }
-  .badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-  .badge-scope-project { background: #dbeafe; color: #1d4ed8; }
-  .badge-scope-global { background: #ede9fe; color: #6d28d9; }
-  .badge-high { background: #fee2e2; color: #b91c1c; }
-  .badge-med { background: #fef3c7; color: #92400e; }
-  .badge-low { background: #f1f5f9; color: #475569; }
-  .badge-duplicate { background: #fce7f3; color: #9d174d; }
-  .badge-conflict { background: #ffedd5; color: #9a3412; }
-  .desc { color: #475569; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .triggers { color: #64748b; font-size: 12px; }
-  .provenance { color: #64748b; font-size: 12px; line-height: 1.6; }
-  .shared { font-size: 12px; color: #64748b; }
-  .analysis { font-size: 12px; color: #475569; max-width: 320px; }
-  .sim { font-weight: 600; color: #0f172a; }
-  .empty { color: #94a3b8; font-style: italic; padding: 20px 14px; }
-  .conflict-pair td:first-child { font-weight: 500; }
-</style>
-</head>
-<body>
-<div class="page">
-  <h1>Skill Doctor Report</h1>
-  <p class="meta">Generated ${generatedAt} &nbsp;·&nbsp; ${skills.length} skill${skills.length !== 1 ? 's' : ''} scanned</p>
+  const totalConflicts = duplicates.length + semantic.length;
+  const brandSub = `${skills.length} skill${skills.length !== 1 ? 's' : ''} &middot; ${Object.keys(platformCounts).length} platform${Object.keys(platformCounts).length !== 1 ? 's' : ''} &middot; ${totalConflicts} issue${totalConflicts !== 1 ? 's' : ''} &middot; ${date}`;
 
-  <div class="cards">
-    <div class="card">
-      <div class="card-val">${skills.length}</div>
-      <div class="card-label">Skills installed</div>
-    </div>
-    <div class="card">
-      <div class="card-val">${Object.keys(platformCounts).length}</div>
-      <div class="card-label">Platforms</div>
-    </div>
-    <div class="card">
-      <div class="card-val ${duplicates.length > 0 ? 'warn' : ''}">${duplicates.length}</div>
-      <div class="card-label">Duplicates</div>
-    </div>
-    <div class="card">
-      <div class="card-val ${semantic.length > 0 ? 'danger' : ''}">${semantic.length}</div>
-      <div class="card-label">Conflicts</div>
-    </div>
-  </div>
+  const body = [
+    section('Overview', metricsRow(skills, duplicates, semantic, platformCounts)),
+    section('Platforms', platformTags(platformCounts)),
+    section(`Conflicts&thinsp;(${semantic.length})`, conflictCards(semantic, 'conflict')),
+    section(`Duplicates&thinsp;(${duplicates.length})`, conflictCards(duplicates, 'duplicate')),
+    section(`All Skills&thinsp;(${skills.length})`, skillsTable(skills)),
+  ].join('\n');
 
-  <h2>Platforms</h2>
-  <div class="platforms">
-    ${Object.entries(platformCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([platform, count]) => `<span class="pill">${platform}<span class="pill-count">${count}</span></span>`)
-      .join('\n    ')}
-  </div>
-
-  <h2>Skills (${skills.length})</h2>
-  <table>
-    <thead>
-      <tr><th>Name</th><th>Platform</th><th>Scope</th><th>Provenance</th><th>Description</th><th>Triggers</th></tr>
-    </thead>
-    <tbody>
-      ${skills.length === 0 ? '<tr><td colspan="6" class="empty">No skills found.</td></tr>' : skills
-        .map(
-          (s) => `<tr>
-        <td>${esc(s.name)}</td>
-        <td><span class="pill">${esc(s.platform)}</span></td>
-        <td><span class="badge badge-scope-${s.scope}">${s.scope}</span></td>
-        <td class="provenance">${renderProvenance(s)}</td>
-        <td><span class="desc" title="${esc(s.description)}">${esc(s.description)}</span></td>
-        <td class="triggers">${s.triggers.length > 0 ? esc(s.triggers.slice(0, 3).join(', ')) + (s.triggers.length > 3 ? ` +${s.triggers.length - 3}` : '') : '—'}</td>
-      </tr>`,
-        )
-        .join('\n      ')}
-    </tbody>
-  </table>
-
-  <h2>Duplicates (${duplicates.length})</h2>
-  ${renderPairsTable(duplicates)}
-
-  <h2>Conflicts (${semantic.length})</h2>
-  ${renderPairsTable(semantic)}
-</div>
-</body>
-</html>`;
+  return htmlPage('Skill Doctor Report', brandSub, body);
 }
 
-function renderPairsTable(pairs: ConflictPair[]): string {
+function metricsRow(
+  skills: SkillRecord[],
+  duplicates: ConflictPair[],
+  semantic: ConflictPair[],
+  platformCounts: Record<string, number>,
+): string {
+  return `<div class="metrics">
+  <div class="metric-card">
+    <div class="metric-val">${skills.length}</div>
+    <div class="metric-label">Skills</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-val">${Object.keys(platformCounts).length}</div>
+    <div class="metric-label">Platforms</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-val${duplicates.length > 0 ? ' warn' : ''}">${duplicates.length}</div>
+    <div class="metric-label">Duplicates</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-val${semantic.length > 0 ? ' danger' : ''}">${semantic.length}</div>
+    <div class="metric-label">Conflicts</div>
+  </div>
+</div>`;
+}
+
+function platformTags(counts: Record<string, number>): string {
+  if (Object.keys(counts).length === 0) {
+    return '<span class="empty-state">No platforms detected.</span>';
+  }
+  const tags = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([p, n]) => `<span class="tag">${esc(p)}<span class="tag-count">${n}</span></span>`)
+    .join('\n  ');
+  return `<div class="tag-list">\n  ${tags}\n</div>`;
+}
+
+function conflictCards(pairs: ConflictPair[], kind: 'conflict' | 'duplicate'): string {
   if (pairs.length === 0) {
-    return '<table><tbody><tr><td class="empty">None detected.</td></tr></tbody></table>';
+    const msg = kind === 'duplicate' ? 'No duplicates found.' : 'No conflicts detected.';
+    return `<div class="all-clear">
+  <div class="all-clear-icon">&#10003;</div>
+  <div class="all-clear-title">${msg}</div>
+</div>`;
   }
 
-  const rows = pairs
-    .map(
-      (p) => `<tr class="conflict-pair">
-      <td>${esc(p.a.name)}<br><span class="badge badge-scope-${p.a.scope}">${p.a.scope}</span> <span class="pill">${esc(p.a.platform)}</span></td>
-      <td>${esc(p.b.name)}<br><span class="badge badge-scope-${p.b.scope}">${p.b.scope}</span> <span class="pill">${esc(p.b.platform)}</span></td>
-      <td><span class="badge badge-${p.severity}">${p.severity}</span></td>
-      <td>${esc(p.detectionMethod ?? 'unknown')}</td>
-      <td class="sim">${Math.round(p.similarity * 100)}%</td>
-      <td class="shared">${p.sharedTokens.join(', ') || '—'}</td>
-      <td class="analysis">${esc(p.analysis?.summary ?? '—')}</td>
-      <td class="analysis">${esc(p.remediation ?? '—')}</td>
-    </tr>`,
-    )
-    .join('\n    ');
-
-  return `<table>
-    <thead>
-      <tr><th>Skill A</th><th>Skill B</th><th>Severity</th><th>Method</th><th>Similarity</th><th>Shared tokens</th><th>Summary</th><th>Fix</th></tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>`;
+  const cards = pairs.map((p) => conflictCard(p, kind)).join('\n');
+  return `<div class="conflict-list">\n${cards}\n</div>`;
 }
 
-function renderProvenance(skill: SkillRecord): string {
-  return [
-    `install: ${esc(skill.provenance?.installSource ?? '—')}`,
-    `confidence: ${esc(skill.provenance?.confidence ?? '—')}`,
-    `repo: ${esc(skill.provenance?.repository ?? '—')}`,
-    `author: ${esc(skill.provenance?.author ?? '—')}`,
-  ].join('<br>');
+function conflictCard(p: ConflictPair, kind: 'conflict' | 'duplicate'): string {
+  const cssKind = kind === 'duplicate' ? 'dup' : p.severity;
+  const sevLabel = kind === 'duplicate' ? 'DUP' : p.severity.toUpperCase();
+  const simPct = `${Math.round(p.similarity * 100)}%`;
+
+  const metaParts: string[] = [esc(p.detectionMethod ?? 'token')];
+  if (p.sharedTokens.length > 0) {
+    metaParts.push(`shared: ${esc(p.sharedTokens.slice(0, 6).join(', '))}${p.sharedTokens.length > 6 ? ` +${p.sharedTokens.length - 6}` : ''}`);
+  }
+
+  const summary = p.analysis?.summary
+    ? `<div class="conflict-summary">${esc(p.analysis.summary)}</div>`
+    : '';
+  const fix = p.remediation
+    ? `<div class="conflict-fix">&#8594; ${esc(p.remediation)}</div>`
+    : '';
+  const pathA = `<span style="font-size:11px;color:var(--muted);font-family:var(--font)">${esc(p.a.scope)} &middot; ${esc(p.a.platform)}</span>`;
+  const pathB = `<span style="font-size:11px;color:var(--muted);font-family:var(--font)">${esc(p.b.scope)} &middot; ${esc(p.b.platform)}</span>`;
+
+  return `<div class="conflict-card ${cssKind}">
+  <div class="conflict-head">
+    <div class="conflict-names">
+      <span>${esc(p.a.name)}</span>
+      <span class="conflict-sep">&#8596;</span>
+      <span>${esc(p.b.name)}</span>
+    </div>
+    <span class="sev-badge ${cssKind}">${sevLabel}</span>
+    <span class="sim-pct">${simPct}</span>
+    <span class="toggle-icon">&#8964;</span>
+  </div>
+  <div class="conflict-body">
+    <div class="conflict-meta">
+      ${metaParts.map((m) => `<span>${m}</span>`).join('\n      ')}
+    </div>
+    <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap">
+      <div>${pathA}<br><span style="font-family:var(--mono);font-size:12px;color:var(--text-light)">${esc(p.a.description || '—')}</span></div>
+      <div>${pathB}<br><span style="font-family:var(--mono);font-size:12px;color:var(--text-light)">${esc(p.b.description || '—')}</span></div>
+    </div>
+    ${summary}
+    ${fix}
+  </div>
+</div>`;
+}
+
+function renderProvenance(prov: SkillRecord['provenance']): string {
+  const parts: string[] = [];
+  if (prov?.installSource) parts.push(esc(prov.installSource));
+  if (prov?.repository) parts.push(esc(prov.repository));
+  if (prov?.author) parts.push(esc(prov.author));
+  return parts.length > 0 ? parts.join('<br>') : '—';
+}
+
+function skillsTable(skills: SkillRecord[]): string {
+  if (skills.length === 0) {
+    return '<div class="empty-state">No skills found.</div>';
+  }
+
+  const rows = skills
+    .map(
+      (s) => `<tr>
+    <td class="skill-name-cell">${esc(s.name)}</td>
+    <td><span class="platform-tag">${esc(s.platform)}</span></td>
+    <td><span class="scope-badge ${s.scope}">${s.scope}</span></td>
+    <td class="desc-cell" title="${esc(s.description)}">${esc(s.description || '—')}</td>
+    <td class="trigger-cell">${s.triggers.length > 0 ? esc(s.triggers.slice(0, 3).join(', ')) + (s.triggers.length > 3 ? ` <span style="color:var(--accent)">+${s.triggers.length - 3}</span>` : '') : '<span style="color:var(--muted)">—</span>'}</td>
+    <td style="font-size:11px;color:var(--muted);line-height:1.5">${renderProvenance(s.provenance)}</td>
+  </tr>`,
+    )
+    .join('\n  ');
+
+  return `<table class="skills-table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Platform</th>
+      <th>Scope</th>
+      <th>Description</th>
+      <th>Triggers</th>
+      <th>Provenance</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows}
+  </tbody>
+</table>`;
 }
 
 function countBy<T>(arr: T[], key: (item: T) => string): Record<string, number> {
@@ -160,12 +165,4 @@ function countBy<T>(arr: T[], key: (item: T) => string): Record<string, number> 
     counts[k] = (counts[k] ?? 0) + 1;
   }
   return counts;
-}
-
-function esc(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
