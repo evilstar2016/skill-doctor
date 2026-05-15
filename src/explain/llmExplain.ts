@@ -2,7 +2,7 @@ import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
 
 const warnedLlmFailures = new Set<string>();
-const LLM_REQUEST_TIMEOUT_MS = 15000;
+const DEFAULT_LLM_TIMEOUT_MS = 15000;
 
 interface GroupLabelRequest {
   key: string;
@@ -140,7 +140,7 @@ export async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions)
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      signal: AbortSignal.timeout(LLM_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS),
       body: JSON.stringify({
         model: options.modelId,
         messages: [{ role: 'user', content: prompt }],
