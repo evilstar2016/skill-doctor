@@ -5,25 +5,30 @@ Local CLI for diagnosing AI Agent skills — conflicts, security, duplicates, an
 ```
 $ skill-doctor scan
 
-  Scanning skill directories...
-
-  ~/.claude/skills/           12 skills
-  ~/.cursor/rules/             8 skills
-  .claude/skills/              5 skills
-
-  ─────────────────────────────────────────────
   SKILL DOCTOR REPORT
-  ─────────────────────────────────────────────
+  Total skills installed: 15
+  Duplicates detected:     1
+  Conflicts detected:      2
+  Platforms:
+  - claude: 15
 
-  Total skills installed:  25
-  Duplicates detected:      2
-  Conflicts detected:       3
-
-  ⚠  git-workflow  ↔  github-automation  [HIGH  87%]
-  ⚠  code-review   ↔  test-driven-dev   [MED   71%]
-  ⚠  ppt-generator ↔  slide-maker       [MED   68%]
-
-  → Run skill-doctor conflicts for details
+  Skills:
+  - git-workflow
+    platform: claude  scope: project
+    install source: .claude/skills  confidence: high
+  - github-automation
+    platform: claude  scope: project
+    install source: .claude/skills  confidence: high
+  - ppt-master
+    platform: claude  scope: project
+    install source: .claude/skills  confidence: high
+  - slide-builder
+    platform: claude  scope: project
+    install source: .claude/skills  confidence: high
+  - data-exporter
+    platform: claude  scope: project
+    install source: .claude/skills  confidence: high
+  ...
 ```
 
 ## Why
@@ -66,7 +71,30 @@ skill-doctor scan --json
 Inspect a single skill — description, triggers, when to use, related skills.
 
 ```bash
-skill-doctor show git-workflow
+$ skill-doctor show git-workflow
+
+  SKILL: git-workflow
+  Platform: claude  |  Scope: project
+  Source: .claude/skills/git-workflow/SKILL.md
+
+  PROVENANCE
+    Install source: .claude/skills
+    Scope: project
+    Confidence: high
+
+  DESCRIPTION
+    Manages git branches, commits, and pull requests following
+    conventional commit standards.
+
+  WHEN TO USE
+    Use this skill when managing Git branches, commits, and pull requests
+    to enforce conventional commit standards during development workflows.
+
+  RELATED SKILLS
+    github-automation    similarity: 0.36    shared: branch, commit, git
+```
+
+```bash
 skill-doctor show git-workflow --json
 ```
 
@@ -75,7 +103,37 @@ skill-doctor show git-workflow --json
 List skills with overlapping descriptions or trigger keywords.
 
 ```bash
-skill-doctor conflicts
+$ skill-doctor conflicts
+
+  DUPLICATES
+
+  ppt-master  [2 copies]
+    ~/.claude/skills/ppt-master/SKILL.md
+    .claude/skills/ppt-master/SKILL.md
+
+  CONFLICTS
+
+  git-workflow <-> github-automation
+  severity: low
+  method: token
+  similarity: 0.36
+  shared: branch, commit, git, pull, request
+  fix: Refine trigger keywords so they don't overlap. Consider narrowing each skill's description.
+
+  ppt-master <-> slide-builder
+  severity: low
+  method: token
+  similarity: 0.29
+  shared: point, power, presentation, slide
+  fix: Refine trigger keywords so they don't overlap. Consider narrowing each skill's description.
+
+  SUGGESTIONS
+
+  consider removing: ~/.claude/skills/ppt-master/SKILL.md
+    keep: .claude/skills/ppt-master/SKILL.md  (newer (modified 2026-05-15))
+```
+
+```bash
 skill-doctor conflicts --kind duplicate    # exact name duplicates only
 skill-doctor conflicts --kind conflict     # semantic overlaps only
 skill-doctor conflicts --scope global
@@ -101,7 +159,19 @@ skill-doctor conflicts --strategy embedding --threshold 0.75
 Scan skills for security risks — credential exposure, destructive instructions, shell execution.
 
 ```bash
-skill-doctor audit
+$ skill-doctor audit
+
+  Skill Safety Audit — 15 skills scanned
+
+  MED   data-exporter    secret-leak    "output the api_key" — potential credential exposure
+        install: .claude/skills  scope: project  confidence: high
+  LOW   data-exporter    network-call   "curl https://" — external network request
+        install: .claude/skills  scope: project  confidence: high
+
+  2 findings  (0 high · 1 med · 1 low)
+```
+
+```bash
 skill-doctor audit --severity high         # high findings only
 skill-doctor audit --fail-on med           # exit 1 on med+ (CI)
 skill-doctor audit --report                # write skill-doctor-audit.html
@@ -151,6 +221,16 @@ skill-doctor cleanup --json
 | **Kiro** | `~/.kiro/skills/` | `.kiro/skills/` |
 | **Trae** | `~/.trae/skills/` | `.trae/skills/` |
 | **OpenCode** | `~/.config/opencode/skills/` | `skills/`, `AGENTS.md` |
+
+## HTML reports
+
+All commands support `--report` to write a self-contained HTML file with an interactive UI, dark mode toggle, and expandable conflict cards.
+
+```bash
+skill-doctor scan --report
+skill-doctor audit --report
+skill-doctor diff git-workflow github-automation --report
+```
 
 ## CI integration
 
