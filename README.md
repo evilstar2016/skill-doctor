@@ -208,6 +208,26 @@ skill-doctor cleanup --execute             # interactive: pick which copy to del
 skill-doctor cleanup --json
 ```
 
+### `dashboard`
+
+Generate a unified Mission Control–style HTML dashboard combining all diagnostics — scan, conflicts, audit, and cleanup — in a single page.
+
+```bash
+skill-doctor dashboard                           # writes skill-doctor-dashboard.html
+skill-doctor dashboard --report ./out/dash.html  # custom output path
+skill-doctor dashboard --open                    # open in browser after generating
+skill-doctor dashboard --scope project           # project skills only
+```
+
+The dashboard shows:
+
+- **Health ring** — donut chart with the proportion of clean, conflicting, at-risk, and duplicate skills
+- **Platform distribution** — horizontal bar chart of skills per platform
+- **Skill inventory** — full table with status indicators (conflict / risk / duplicate / clean)
+- **Conflicts** — severity distribution bar and conflict pair cards with similarity scores
+- **Security audit** — 4-rule heatmap (shell-exec, destructive, secret-leak, network-call) and finding detail cards
+- **Cleanup suggestions** — duplicate skill pairs with keep/remove recommendations
+
 ## Platform coverage
 
 | Platform | Global path | Project path |
@@ -228,9 +248,10 @@ Additional directories can be added via `paths.extra` in config (see Configurati
 
 ## HTML reports
 
-All commands support `--report` to write a self-contained HTML file with an interactive UI, dark mode toggle, and expandable conflict cards.
+Several commands support `--report` to write a self-contained HTML file. `dashboard` always writes an HTML file (no flag needed).
 
 ```bash
+skill-doctor dashboard                             # unified Mission Control dashboard
 skill-doctor scan --report
 skill-doctor audit --report
 skill-doctor diff git-workflow github-automation --report
