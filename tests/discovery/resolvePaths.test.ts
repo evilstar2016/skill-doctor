@@ -373,4 +373,53 @@ describe('resolvePaths', () => {
     expect(customFiles).toHaveLength(1);
     expect(customFiles[0]?.filePath).toContain('tool-a');
   });
+
+  it('expands wildcard in extra paths and scans each match', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.openclaw', 'workspace-alpha', 'skills', 'deploy', 'SKILL.md'));
+    writeFile(join(homeDir, '.openclaw', 'workspace-beta', 'skills', 'monitor', 'SKILL.md'));
+    writeFile(join(homeDir, '.openclaw', 'config', 'skills', 'should-not-match', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir, extraPaths: ['~/.openclaw/workspace-*/skills'] });
+    const customFiles = result.filter((entry) => entry.platform === 'unknown');
+
+    expect(customFiles).toHaveLength(2);
+    expect(customFiles.some((f) => f.filePath.includes('deploy'))).toBe(true);
+    expect(customFiles.some((f) => f.filePath.includes('monitor'))).toBe(true);
+    expect(customFiles.some((f) => f.filePath.includes('should-not-match'))).toBe(false);
+  });
+
+  it('returns nothing for a glob that matches no directories', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    const result = resolvePaths(cwd, { homeDir, extraPaths: ['~/nonexistent-*/skills'] });
+    const customFiles = result.filter((entry) => entry.platform === 'unknown');
+
+    expect(customFiles).toHaveLength(0);
+  });
+
+  it('expands multiple wildcards in a single extra path', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, 'agents', 'agent-a', 'skills', 'task-x', 'SKILL.md'));
+    writeFile(join(homeDir, 'agents', 'agent-b', 'skills', 'task-y', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir, extraPaths: ['~/agents/*/skills'] });
+    const customFiles = result.filter((entry) => entry.platform === 'unknown');
+
+    expect(customFiles).toHaveLength(2);
+  });
 });
