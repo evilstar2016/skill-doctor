@@ -123,4 +123,32 @@ describe('loadUserConfig', () => {
     const result = loadUserConfig(homeDir);
     expect(result.config.ignore?.skillNames).toEqual(['valid']);
   });
+
+  it('loads paths.extra from the user config', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
+    const configPath = getDefaultUserConfigPath(homeDir);
+    mkdirSync(join(homeDir, '.skill-doctor'), { recursive: true });
+    writeFileSync(
+      configPath,
+      JSON.stringify({ paths: { extra: ['/custom/skills', '~/shared-skills'] } }),
+      'utf-8',
+    );
+
+    const result = loadUserConfig(homeDir);
+    expect(result.config.paths?.extra).toEqual(['/custom/skills', '~/shared-skills']);
+  });
+
+  it('ignores non-string and blank entries in paths.extra', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
+    const configPath = getDefaultUserConfigPath(homeDir);
+    mkdirSync(join(homeDir, '.skill-doctor'), { recursive: true });
+    writeFileSync(
+      configPath,
+      JSON.stringify({ paths: { extra: ['/valid', 42, null, '   '] } }),
+      'utf-8',
+    );
+
+    const result = loadUserConfig(homeDir);
+    expect(result.config.paths?.extra).toEqual(['/valid']);
+  });
 });
