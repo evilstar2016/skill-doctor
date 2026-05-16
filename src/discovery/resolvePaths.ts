@@ -153,7 +153,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
       extensions: ['.md'],
     };
     for (const expandedPath of expanded) {
-      collectPath(expandedPath, definition, { path: raw, mode: 'recursive-dir', layout: 'skill-dirs' }, 'global', results, seen);
+      collectPath(expandedPath, definition, { path: expandedPath, mode: 'recursive-dir', layout: 'skill-dirs' }, 'global', results, seen);
     }
   }
 
