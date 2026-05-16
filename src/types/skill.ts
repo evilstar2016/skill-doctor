@@ -8,6 +8,8 @@ export type Platform =
   | 'trae'
   | 'opencode'
   | 'kiro'
+  | 'openclaw'
+  | 'hermes'
   | 'unknown';
 
 export type Scope = 'global' | 'project';

@@ -221,6 +221,10 @@ skill-doctor cleanup --json
 | **Kiro** | `~/.kiro/skills/` | `.kiro/skills/` |
 | **Trae** | `~/.trae/skills/` | `.trae/skills/` |
 | **OpenCode** | `~/.config/opencode/skills/` | `skills/`, `AGENTS.md` |
+| **OpenClaw** | `~/.openclaw/skills/` | — |
+| **Hermes** | `~/.config/hermes/skills/` | — |
+
+Additional directories can be added via `paths.extra` in config (see Configuration).
 
 ## HTML reports
 
@@ -272,6 +276,9 @@ skill-doctor audit --json | jq '.findings[] | select(.severity == "high")'
   "ignore": {
     "skillNames": ["legacy-skill"],
     "conflictPairs": [["skill-a", "skill-b"]]
+  },
+  "paths": {
+    "extra": ["/team/shared-skills", "~/my-custom-skills"]
   }
 }
 ```
@@ -281,6 +288,8 @@ skill-doctor audit --json | jq '.findings[] | select(.severity == "high")'
 **`analysis`** — enables `--analyze` on `conflicts` and powers the `diff` command with LLM-generated summaries and fix suggestions. Any OpenAI-compatible model works.
 
 **`ignore`** — suppress known false positives. `skillNames` excludes a skill from all checks; `conflictPairs` suppresses a specific pair from conflict output.
+
+**`paths.extra`** — additional directories to scan, on top of the built-in platform paths. Each path is scanned as a skill-dirs layout (same structure as `~/.claude/skills/`). Supports `~` for home directory.
 
 ## Development
 

@@ -303,4 +303,74 @@ describe('resolvePaths', () => {
     // depth >= 2 with no direct .md → skipped entirely; no step sub-dirs should produce skills
     expect(claudeFiles).toHaveLength(0);
   });
+
+  it('finds openclaw global skills', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.openclaw', 'skills', 'git-automation', 'SKILL.md'));
+    writeFile(join(homeDir, '.openclaw', 'skills', 'code-review', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const clawFiles = result.filter((entry) => entry.platform === 'openclaw');
+
+    expect(clawFiles).toHaveLength(2);
+    expect(clawFiles.every((entry) => entry.scope === 'global')).toBe(true);
+    expect(clawFiles.every((entry) => entry.installSource === '~/.openclaw/skills')).toBe(true);
+  });
+
+  it('finds hermes global skills', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.config', 'hermes', 'skills', 'my-workflow', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const hermesFiles = result.filter((entry) => entry.platform === 'hermes');
+
+    expect(hermesFiles).toHaveLength(1);
+    expect(hermesFiles[0]?.scope).toBe('global');
+    expect(hermesFiles[0]?.installSource).toBe('~/.config/hermes/skills');
+  });
+
+  it('scans extra paths from config as unknown platform', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+    const customDir = join(tempRoot, 'my-custom-skills');
+
+    writeFile(join(customDir, 'super-tool', 'SKILL.md'));
+    writeFile(join(customDir, 'another-tool', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir, extraPaths: [customDir] });
+    const customFiles = result.filter((entry) => entry.platform === 'unknown');
+
+    expect(customFiles).toHaveLength(2);
+    expect(customFiles.every((entry) => entry.scope === 'global')).toBe(true);
+    expect(customFiles.every((entry) => entry.confidence === 'low')).toBe(true);
+  });
+
+  it('resolves tilde in extra paths', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, 'my-skills', 'tool-a', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir, extraPaths: ['~/my-skills'] });
+    const customFiles = result.filter((entry) => entry.platform === 'unknown');
+
+    expect(customFiles).toHaveLength(1);
+    expect(customFiles[0]?.filePath).toContain('tool-a');
+  });
 });

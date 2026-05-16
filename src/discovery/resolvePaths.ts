@@ -21,6 +21,7 @@ interface PathTarget {
 interface ResolvePathsOptions {
   homeDir?: string;
   appDataDir?: string;
+  extraPaths?: string[];
 }
 
 const PLATFORM_PATHS: PlatformPathDefinition[] = [
@@ -102,6 +103,20 @@ const PLATFORM_PATHS: PlatformPathDefinition[] = [
     project: [{ path: '.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     extensions: ['.md'],
   },
+  {
+    platform: 'openclaw',
+    confidence: 'high',
+    global: [{ path: '~/.openclaw/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [],
+    extensions: ['.md'],
+  },
+  {
+    platform: 'hermes',
+    confidence: 'high',
+    global: [{ path: '~/.config/hermes/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [],
+    extensions: ['.md'],
+  },
 ];
 
 export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): SkillFile[] {
@@ -125,6 +140,18 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
     for (const target of definition.project) {
       collectPath(join(cwd, target.path), definition, target, 'project', results, seen);
     }
+  }
+
+  for (const raw of options.extraPaths ?? []) {
+    const resolved = raw.startsWith('~') ? join(homeDir, raw.slice(2)) : raw;
+    const definition: PlatformPathDefinition = {
+      platform: 'unknown',
+      confidence: 'low',
+      global: [],
+      project: [],
+      extensions: ['.md'],
+    };
+    collectPath(resolved, definition, { path: raw, mode: 'recursive-dir', layout: 'skill-dirs' }, 'global', results, seen);
   }
 
   return results;

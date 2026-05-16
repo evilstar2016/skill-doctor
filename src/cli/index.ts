@@ -42,6 +42,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const [command, ...rest] = argv;
   const cwd = process.cwd();
   const jsonOutput = hasFlag(rest, '--json');
+  const extraPaths = loadUserConfig().config.paths?.extra;
 
   if (!command || command === '--help' || command === '-h') {
     process.stdout.write(getHelpText());
@@ -66,7 +67,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const llmOptions = readAnalysisLlmOptions();
 
     if (groupMode) {
-      const skills = filterSkillsByScope(await scanSkills(cwd), scope);
+      const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
       const labelCache = loadGroupLabelCache();
       const groupResult = await groupSkills(skills, { llmOptions: llmOptions ?? undefined, labelCache });
       saveGroupLabelCache(labelCache);
@@ -80,7 +81,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     const provenanceCache = loadProvenanceCache();
     const skills = filterSkillsByScope(
-      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache }),
+      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache, extraPaths }),
       scope,
     );
     if (llmOptions && provenanceCache.size > 0) {
@@ -125,7 +126,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     const llmOptions = readAnalysisLlmOptions();
     const provenanceCache = loadProvenanceCache();
-    const allSkills = await scanSkills(cwd, { provenanceCache });
+    const allSkills = await scanSkills(cwd, { provenanceCache, extraPaths });
     const skill = allSkills.find((entry) => entry.name === name);
 
     if (!skill) {
@@ -191,7 +192,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByScope(await scanSkills(cwd), scope);
+    const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
     const ignore = loadUserConfig().config.ignore ?? {};
     const conflicts = limitConflicts(
       sortConflicts(filterConflictsByKind(filterConflicts(await detectConflicts(skills, conflictOptions.options), ignore), kind)),
@@ -225,7 +226,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const llmOptions = readAnalysisLlmOptions();
     const provenanceCache = loadProvenanceCache();
     const skills = filterSkillsByScope(
-      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache }),
+      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache, extraPaths }),
       scope,
     );
     if (llmOptions && provenanceCache.size > 0) {
@@ -268,7 +269,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     const ignore = loadUserConfig().config.ignore ?? {};
-    const skills = filterSkillsByScope(await scanSkills(cwd), scope);
+    const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
     const conflicts = filterConflicts(await detectConflicts(skills), ignore);
     const duplicates = conflicts.filter((p) => p.kind === 'duplicate');
 

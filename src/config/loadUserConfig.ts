@@ -20,10 +20,15 @@ export interface IgnoreUserConfig {
   conflictPairs?: [string, string][];
 }
 
+export interface PathsUserConfig {
+  extra?: string[];
+}
+
 export interface SkillDoctorUserConfig {
   embedding?: EmbeddingUserConfig;
   analysis?: AnalysisUserConfig;
   ignore?: IgnoreUserConfig;
+  paths?: PathsUserConfig;
 }
 
 export interface LoadedUserConfig {
@@ -61,6 +66,7 @@ function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserCon
   const embedding = readObject(value.embedding);
   const analysis = readObject(value.analysis);
   const ignore = readObject(value.ignore);
+  const paths = readObject(value.paths);
 
   return {
     ...(embedding
@@ -83,6 +89,7 @@ function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserCon
         }
       : {}),
     ...(ignore ? { ignore: normalizeIgnoreConfig(ignore) } : {}),
+    ...(paths ? { paths: normalizePathsConfig(paths) } : {}),
   };
 }
 
@@ -101,6 +108,16 @@ function normalizeIgnoreConfig(value: Record<string, unknown>): IgnoreUserConfig
   return {
     ...(skillNames ? { skillNames } : {}),
     ...(conflictPairs ? { conflictPairs } : {}),
+  };
+}
+
+function normalizePathsConfig(value: Record<string, unknown>): PathsUserConfig {
+  const extra = Array.isArray(value.extra)
+    ? value.extra.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    : undefined;
+
+  return {
+    ...(extra ? { extra } : {}),
   };
 }
 
