@@ -23,6 +23,7 @@ import { renderAuditReport } from '../render/renderAuditReport';
 import { renderCleanup } from '../render/renderCleanup';
 import { renderConflicts } from '../render/renderConflicts';
 import { renderDiff } from '../render/renderDiff';
+import { renderDashboard } from '../render/renderDashboard';
 import { renderDiffReport } from '../render/renderDiffReport';
 import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
@@ -337,6 +338,46 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'dashboard') {
+    const scope = readScope(rest);
+    if (scope === 'invalid') {
+      process.stderr.write('Invalid scope. Use --scope project|global|all\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
+    const ignore = loadUserConfig().config.ignore ?? {};
+    const allConflicts = filterConflicts(await detectConflicts(skills), ignore);
+    const conflicts = allConflicts.filter((p) => p.kind === 'conflict');
+    const duplicates = allConflicts.filter((p) => p.kind === 'duplicate');
+    const suggestions = suggestCleanup(allConflicts);
+    const auditResult = runAudit(skills);
+    const filteredAudit = { ...auditResult, findings: filterFindings(auditResult.findings, ignore) };
+
+    const reportPath = readReport(rest);
+    const outPath = reportPath === true ? 'skill-doctor-dashboard.html'
+      : typeof reportPath === 'string' ? reportPath
+      : 'skill-doctor-dashboard.html';
+
+    writeFileSync(outPath, renderDashboard({
+      skills,
+      conflicts,
+      auditResult: filteredAudit,
+      duplicates,
+      suggestions,
+    }), 'utf-8');
+    process.stdout.write(`Dashboard written to: ${outPath}\n`);
+
+    if (hasFlag(rest, '--open')) {
+      const { exec } = await import('node:child_process');
+      const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+      exec(`${cmd} ${outPath}`);
+    }
+
+    return;
+  }
+
   process.stderr.write(`Unknown command: ${command}\n\n${getHelpText()}`);
   process.exitCode = 1;
 }
@@ -358,6 +399,7 @@ function getHelpText(): string {
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
+    '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor --version',
     '',
     'Embedding config file:',
