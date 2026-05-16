@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { basename, dirname, extname, join, normalize } from 'node:path';
+import { basename, dirname, extname, join, normalize, sep } from 'node:path';
 import { homedir } from 'node:os';
 
 import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
@@ -143,7 +143,8 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
   }
 
   for (const raw of options.extraPaths ?? []) {
-    const resolved = raw.startsWith('~') ? join(homeDir, raw.slice(2)) : raw;
+    const resolved = normalize(raw.startsWith('~') ? join(homeDir, raw.slice(2)) : raw);
+    const expanded = resolved.includes('*') ? expandGlob(resolved) : [resolved];
     const definition: PlatformPathDefinition = {
       platform: 'unknown',
       confidence: 'low',
@@ -151,7 +152,9 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
       project: [],
       extensions: ['.md'],
     };
-    collectPath(resolved, definition, { path: raw, mode: 'recursive-dir', layout: 'skill-dirs' }, 'global', results, seen);
+    for (const expandedPath of expanded) {
+      collectPath(expandedPath, definition, { path: raw, mode: 'recursive-dir', layout: 'skill-dirs' }, 'global', results, seen);
+    }
   }
 
   return results;
@@ -334,4 +337,42 @@ function isAllowedFile(targetPath: string, extensions: string[]): boolean {
   }
 
   return extensions.includes(extname(targetPath).toLowerCase());
+}
+
+function expandGlob(pattern: string): string[] {
+  const segments = pattern.split(sep);
+  const globIdx = segments.findIndex((s) => s.includes('*'));
+
+  if (globIdx === -1) return [pattern];
+
+  const base = segments.slice(0, globIdx).join(sep) || sep;
+  const globPart = segments[globIdx]!;
+  const tail = segments.slice(globIdx + 1);
+
+  if (!existsSync(base)) return [];
+
+  let entries: string[];
+  try {
+    entries = readdirSync(base);
+  } catch {
+    return [];
+  }
+
+  const regex = new RegExp(
+    '^' + globPart.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$',
+  );
+
+  const results: string[] = [];
+  for (const entry of entries) {
+    if (!regex.test(entry)) continue;
+    const matched = join(base, entry);
+    if (tail.length === 0) {
+      results.push(matched);
+    } else {
+      const next = join(matched, ...tail);
+      results.push(...(next.includes('*') ? expandGlob(next) : [next]));
+    }
+  }
+
+  return results;
 }
