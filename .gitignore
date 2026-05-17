@@ -3,6 +3,7 @@ dist/
 coverage/
 *.tsbuildinfo
 .serena/
+.claude/
 .vscode/
 .idea/
 .DS_Store
