@@ -12,3 +12,5 @@ skill-doctor-*.html
 doc/
 docs/
 skill-backup/
+.env
+.vscode/
