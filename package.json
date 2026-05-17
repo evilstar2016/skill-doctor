@@ -1,10 +1,22 @@
 {
-  "name": "skill-doctor",
-  "version": "0.3.0",
+  "name": "@evilstar2025/skill-doctor",
+  "version": "0.3.1",
   "description": "Local CLI for discovering AI agent skills and detecting conflicts.",
   "type": "module",
   "bin": {
     "skill-doctor": "dist/index.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evilstar2016/skill-doctor.git"
+  },
+  "homepage": "https://github.com/evilstar2016/skill-doctor#readme",
+  "bugs": {
+    "url": "https://github.com/evilstar2016/skill-doctor/issues"
   },
   "scripts": {
     "build": "tsup",
