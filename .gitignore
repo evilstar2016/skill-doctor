@@ -8,3 +8,6 @@ coverage/
 .DS_Store
 skill-doctor-*.html
 .superpowers/
+doc/
+docs/
+skill-backup/
