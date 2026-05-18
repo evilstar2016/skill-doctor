@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { dirname } from 'node:path';
 import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
@@ -18,6 +19,11 @@ import { parseSkill } from '../parsing/parseSkill';
 import { loadProvenanceCache, saveProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
 import { DiffError, runDiff } from '../diff/runDiff';
+import { detectPlatform } from '../install/detectPlatform.js';
+import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
+import { installSkill } from '../install/installSkill.js';
+import { uninstallSkill } from '../install/uninstallSkill.js';
+import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
 import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
 import { renderCleanup } from '../render/renderCleanup';
@@ -34,10 +40,15 @@ import type {
   ConflictDetectionOptions,
   ConflictDetectionStrategy,
   ConflictPair,
+  Platform,
   Scope,
   SkillFile,
   SkillRecord,
 } from '../types/skill';
+
+function getRegistryPath(): string {
+  return join(homedir(), '.skill-doctor', 'registry.json');
+}
 
 export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const [command, ...rest] = argv;
@@ -378,6 +389,153 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'install') {
+    const [source] = rest.filter((a) => !a.startsWith('-'));
+    const targetFlag = rest.find((a) => a.startsWith('--target='))?.split('=')[1]
+      ?? rest[rest.indexOf('--target') + 1];
+    const link = hasFlag(rest, '--link');
+
+    if (!source) {
+      process.stderr.write('Usage: skill-doctor install <path|slug> [--target <platform>] [--link]\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    let platform: Platform;
+    let globalDir: string;
+    let layout: 'skill-dirs' | 'files';
+
+    if (targetFlag) {
+      const { PLATFORM_PATHS } = await import('../discovery/resolvePaths.js');
+      const def = PLATFORM_PATHS.find((p) => p.platform === targetFlag);
+      if (!def) {
+        process.stderr.write(`Error: Unknown platform '${targetFlag}'\n`);
+        process.exitCode = 1;
+        return;
+      }
+      const globalTarget = def.global.find((t) => t.mode === 'recursive-dir' && t.layout);
+      if (!globalTarget || !globalTarget.layout) {
+        process.stderr.write(`Error: Platform '${targetFlag}' uses a single-file layout and does not support individual skill installs.\n`);
+        process.exitCode = 1;
+        return;
+      }
+      const { normalize } = await import('node:path');
+      globalDir = normalize(globalTarget.path.replace(/^~(?=[/\\]|$)/, homedir()));
+      platform = targetFlag as Platform;
+      layout = globalTarget.layout;
+    } else {
+      const detected = detectPlatform();
+      if (!detected) {
+        process.stderr.write('Error: Could not detect an active AI platform. Use --target to specify one.\n');
+        process.exitCode = 1;
+        return;
+      }
+      platform = detected.platform as Platform;
+      globalDir = detected.globalDir;
+      layout = detected.layout;
+    }
+
+    const isLocalPath = source.startsWith('/') || source.startsWith('./') || source.includes('/');
+
+    if (isLocalPath) {
+      const { statSync } = await import('node:fs');
+      const { join: pathJoin } = await import('node:path');
+      let sourcePath = source;
+      try {
+        const stat = statSync(sourcePath);
+        if (stat.isDirectory()) sourcePath = pathJoin(sourcePath, 'SKILL.md');
+      } catch {
+        process.stderr.write(`Error: Path not found: ${source}\n`);
+        process.exitCode = 1;
+        return;
+      }
+      try {
+        const result = await installSkill({
+          source: sourcePath,
+          platform,
+          globalDir,
+          layout,
+          registryPath: getRegistryPath(),
+          link,
+          sourceRef: sourcePath,
+          marketplaceSource: false,
+        });
+        process.stdout.write(renderInstallSuccess(result.name, platform, result.installedPath));
+      } catch (err) {
+        process.stderr.write(`Error: ${(err as Error).message}\n`);
+        process.exitCode = 1;
+      }
+    } else {
+      let skillContent: string;
+      try {
+        skillContent = await fetchMarketplaceSkill(source);
+      } catch (err) {
+        process.stderr.write(`Error: ${(err as Error).message}\n`);
+        process.exitCode = 1;
+        return;
+      }
+      const { mkdtempSync, writeFileSync: fsWriteFileSync, rmSync: fsRmSync } = await import('node:fs');
+      const { tmpdir } = await import('node:os');
+      const tempDir = mkdtempSync(join(tmpdir(), 'skill-doctor-install-'));
+      const tempFile = join(tempDir, 'SKILL.md');
+      try {
+        fsWriteFileSync(tempFile, skillContent, 'utf8');
+        const result = await installSkill({
+          source: tempFile,
+          platform,
+          globalDir,
+          layout,
+          registryPath: getRegistryPath(),
+          link: false,
+          sourceRef: source,
+          marketplaceSource: true,
+        });
+        process.stdout.write(renderInstallSuccess(result.name, platform, result.installedPath));
+      } catch (err) {
+        process.stderr.write(`Error: ${(err as Error).message}\n`);
+        process.exitCode = 1;
+      } finally {
+        fsRmSync(tempDir, { recursive: true, force: true });
+      }
+    }
+    return;
+  }
+
+  if (command === 'uninstall') {
+    const [name] = rest.filter((a) => !a.startsWith('-'));
+    const targetFlag = rest.find((a) => a.startsWith('--target='))?.split('=')[1]
+      ?? rest[rest.indexOf('--target') + 1];
+    const force = hasFlag(rest, '--force');
+
+    if (!name) {
+      process.stderr.write('Usage: skill-doctor uninstall <name> [--target <platform>] [--force]\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    let platform: Platform;
+    if (targetFlag) {
+      platform = targetFlag as Platform;
+    } else {
+      const detected = detectPlatform();
+      if (!detected) {
+        process.stderr.write('Error: Could not detect an active AI platform. Use --target to specify one.\n');
+        process.exitCode = 1;
+        return;
+      }
+      platform = detected.platform as Platform;
+    }
+
+    try {
+      await uninstallSkill({ name, platform, registryPath: getRegistryPath(), force });
+      process.stdout.write(renderUninstallSuccess(name, platform));
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+
   process.stderr.write(`Unknown command: ${command}\n\n${getHelpText()}`);
   process.exitCode = 1;
 }
@@ -400,6 +558,8 @@ function getHelpText(): string {
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
+    '  skill-doctor install <path|slug> [--target <platform>] [--link]',
+    '  skill-doctor uninstall <name> [--target <platform>] [--force]',
     '  skill-doctor --version',
     '',
     'Embedding config file:',

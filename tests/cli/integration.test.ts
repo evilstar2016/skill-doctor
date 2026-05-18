@@ -4,7 +4,9 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { main } from '../../src/cli/index';
 
 import { buildCli, cleanupTempRoots, createTempRoot, runCli, runCliAsync, writeFile } from '../helpers/cliHarness';
 
@@ -1458,5 +1460,26 @@ describe('CLI integration — cleanup', () => {
     expect(result.stdout).toContain('Skipped.');
     expect(existsSync(join(cwd, '.claude', 'skills', 'karpathy-guidelines'))).toBe(true);
     expect(existsSync(join(home, '.claude', 'skills', 'karpathy-guidelines'))).toBe(true);
+  });
+});
+
+describe('install / uninstall', () => {
+  beforeEach(() => {
+    process.exitCode = 0;
+  });
+
+  it('install errors on missing source argument', async () => {
+    await main(['install']);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('uninstall errors on missing name argument', async () => {
+    await main(['uninstall']);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('install errors on unknown platform', async () => {
+    await main(['install', './some-path', '--target', 'nonexistent-platform']);
+    expect(process.exitCode).toBe(1);
   });
 });
