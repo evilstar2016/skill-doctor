@@ -12,19 +12,21 @@ export interface DetectedPlatform {
 
 interface DetectOptions {
   homeDir?: string;
+  appDataDir?: string;
 }
 
-function resolveTemplate(template: string, homeDir: string): string {
+function resolveTemplate(template: string, homeDir: string, appDataDir: string): string {
   return normalize(
     template
       .replace(/^~(?=[/\\]|$)/, homeDir)
       .replace(/%USERPROFILE%/gi, homeDir)
-      .replace(/%APPDATA%/gi, homeDir),
+      .replace(/%APPDATA%/gi, appDataDir),
   );
 }
 
 export function detectPlatform(options: DetectOptions = {}): DetectedPlatform | undefined {
   const homeDir = options.homeDir ?? osHomedir();
+  const appDataDir = options.appDataDir ?? (process.env['APPDATA'] ?? homeDir);
 
   const sorted = [
     ...PLATFORM_PATHS.filter((p) => p.confidence === 'high'),
@@ -34,7 +36,7 @@ export function detectPlatform(options: DetectOptions = {}): DetectedPlatform | 
   for (const def of sorted) {
     for (const target of def.global) {
       if (target.mode !== 'recursive-dir' || !target.layout) continue;
-      const resolvedDir = resolveTemplate(target.path, homeDir);
+      const resolvedDir = resolveTemplate(target.path, homeDir, appDataDir);
       if (existsSync(resolvedDir)) {
         return { platform: def.platform, globalDir: resolvedDir, layout: target.layout };
       }

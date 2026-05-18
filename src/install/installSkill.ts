@@ -1,4 +1,4 @@
-import { copyFileSync, createReadStream, existsSync, mkdirSync, symlinkSync } from 'node:fs';
+import { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -36,9 +36,12 @@ function hashFile(filePath: string): Promise<string> {
 }
 
 export async function installSkill(options: InstallSkillOptions): Promise<{ name: string; installedPath: string }> {
-  const { readFileSync } = await import('node:fs');
   const content = readFileSync(options.source, 'utf8');
   const skillName = extractSkillName(content, options.source);
+
+  if (/[/\\]/.test(skillName) || skillName === '..' || skillName === '.') {
+    throw new Error(`Invalid skill name '${skillName}': must not contain path separators.`);
+  }
 
   const installedPath = resolveInstallPath(options.globalDir, options.layout, skillName);
 

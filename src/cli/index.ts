@@ -515,6 +515,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     let platform: Platform;
     if (targetFlag) {
+      const { PLATFORM_PATHS } = await import('../discovery/resolvePaths.js');
+      if (!PLATFORM_PATHS.some((p) => p.platform === targetFlag)) {
+        process.stderr.write(`Error: Unknown platform '${targetFlag}'\n`);
+        process.exitCode = 1;
+        return;
+      }
       platform = targetFlag as Platform;
     } else {
       const detected = detectPlatform();
