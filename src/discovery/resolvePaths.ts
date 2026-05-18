@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 
 import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
 
-interface PlatformPathDefinition {
+export interface PlatformPathDefinition {
   platform: Platform;
   confidence: Confidence;
   global: PathTarget[];
@@ -12,7 +12,7 @@ interface PlatformPathDefinition {
   extensions: string[];
 }
 
-interface PathTarget {
+export interface PathTarget {
   path: string;
   mode: 'recursive-dir' | 'single-file';
   layout?: 'files' | 'skill-dirs';
@@ -24,7 +24,7 @@ interface ResolvePathsOptions {
   extraPaths?: string[];
 }
 
-const PLATFORM_PATHS: PlatformPathDefinition[] = [
+export const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'claude',
     confidence: 'high',
