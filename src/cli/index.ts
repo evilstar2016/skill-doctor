@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import packageJson from '../../package.json';
 import { runAudit } from '../audit/runAudit';
+import { runAiAudit } from '../audit/ai-scanner';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
@@ -235,6 +236,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
+    const useAi = hasFlag(rest, '--ai');
+    const noCache = hasFlag(rest, '--no-cache');
     const llmOptions = readAnalysisLlmOptions();
     const provenanceCache = loadProvenanceCache();
     const skills = filterSkillsByScope(
@@ -248,7 +251,23 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const result = runAudit(skills);
     let findings = filterFindings(result.findings, ignore);
     if (minSeverity) findings = filterFindingsBySeverity(findings, minSeverity);
-    const filtered = { ...result, findings };
+
+    let aiFindings = result.aiFindings ?? [];
+    if (useAi) {
+      if (!llmOptions) {
+        process.stderr.write(
+          'skill-doctor: --ai requires config.analysis to be set in ~/.skill-doctor/config.json\n',
+        );
+        process.exitCode = 1;
+        return;
+      }
+      aiFindings = await runAiAudit(skills, {
+        llmOptions,
+        useCache: !noCache,
+      });
+    }
+
+    const filtered = { ...result, findings, aiFindings };
 
     const reportPath = readReport(rest);
     if (reportPath !== null) {
@@ -264,7 +283,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       process.stdout.write(`${renderAudit(filtered)}\n`);
     }
 
-    if (threshold && filtered.findings.some((f) => shouldFail(f.severity, threshold))) {
+    if (
+      threshold &&
+      (filtered.findings.some((f) => shouldFail(f.severity, threshold)) ||
+        aiFindings.some((f) => shouldFail(f.severity, threshold)))
+    ) {
       process.exitCode = 1;
     }
 
@@ -560,7 +583,7 @@ function getHelpText(): string {
     '  skill-doctor scan [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
-    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--json] [--report [path]]',
+    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
