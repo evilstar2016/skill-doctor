@@ -7,7 +7,7 @@ import { renderGroup } from '../../src/render/renderGroup';
 import { renderReport } from '../../src/render/renderReport';
 import { renderScan } from '../../src/render/renderScan';
 import { renderShow } from '../../src/render/renderShow';
-import type { AuditResult } from '../../src/types/audit';
+import type { AiFinding, AuditResult } from '../../src/types/audit';
 import type { GroupResult, SkillExplanation } from '../../src/types/explain';
 import type { ConflictPair, SkillRecord } from '../../src/types/skill';
 
@@ -241,6 +241,34 @@ describe('renderers', () => {
     expect(output).toContain('author: Deploy Author');
     expect(output).toContain('1 finding');
     expect(output).toContain('1 high');
+  });
+
+  it('renderAudit shows AI findings with [AI] badge when aiFindings present', () => {
+    const result: AuditResult = {
+      scanned: 1,
+      findings: [],
+      aiFindings: [
+        {
+          source: 'ai',
+          skillName: 'risky-skill',
+          sourcePath: '/fake/SKILL.md',
+          platform: 'claude',
+          scope: 'global',
+          code: 'shell-pipe-exec',
+          severity: 'high',
+          title: 'Dangerous shell pipe',
+          detail: 'instructs running shell commands without confirmation',
+          evidence: 'run the command',
+        },
+      ],
+      summary: { high: 0, med: 0, low: 0 },
+    };
+    const output = renderAudit(result);
+    expect(output).toContain('[AI]');
+    expect(output).toContain('shell-pipe-exec');
+    expect(output).toContain('Dangerous shell pipe');
+    expect(output).toContain('run the command');
+    expect(output).toContain('risky-skill');
   });
 
   it('renderAuditReport produces valid HTML with clean all-clear state when no findings', () => {
