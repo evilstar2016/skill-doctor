@@ -1,4 +1,4 @@
-import type { AuditFinding, AuditResult } from '../types/audit';
+import type { AiFinding, AuditFinding, AuditResult } from '../types/audit';
 import { esc, htmlPage, section } from './theme';
 
 export function renderAuditReport(result: AuditResult): string {
@@ -7,16 +7,23 @@ export function renderAuditReport(result: AuditResult): string {
   const brandSub = `Security Audit &middot; ${result.scanned} skill${result.scanned !== 1 ? 's' : ''} scanned &middot; ${date}`;
 
   const sortedFindings = [...result.findings].sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  const aiFindings = result.aiFindings ?? [];
 
-  const body = [
-    section('Overview', metricsRow(result.scanned, high, med, low)),
+  const sections = [
+    section('Overview', metricsRow(result.scanned, high, med, low, aiFindings.length)),
     section(`Findings&thinsp;(${result.findings.length})`, findingsSection(sortedFindings)),
-  ].join('\n');
+  ];
+
+  if (aiFindings.length > 0) {
+    sections.push(section(`AI Findings&thinsp;(${aiFindings.length})`, aiFindingsSection(aiFindings)));
+  }
+
+  const body = sections.join('\n');
 
   return htmlPage('Skill Doctor — Security Audit', brandSub, body);
 }
 
-function metricsRow(scanned: number, high: number, med: number, low: number): string {
+function metricsRow(scanned: number, high: number, med: number, low: number, ai: number): string {
   return `<div class="metrics">
   <div class="metric-card">
     <div class="metric-val">${scanned}</div>
@@ -34,6 +41,10 @@ function metricsRow(scanned: number, high: number, med: number, low: number): st
     <div class="metric-val">${low}</div>
     <div class="metric-label">Low</div>
   </div>
+  <div class="metric-card">
+    <div class="metric-val${ai > 0 ? ' warn' : ''}">${ai}</div>
+    <div class="metric-label">AI Findings</div>
+  </div>
 </div>`;
 }
 
@@ -48,6 +59,36 @@ function findingsSection(findings: AuditFinding[]): string {
 
   const cards = findings.map(findingCard).join('\n');
   return `<div class="conflict-list">\n${cards}\n</div>`;
+}
+
+function aiFindingsSection(findings: AiFinding[]): string {
+  const rows = findings
+    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))
+    .map(
+      (f) => `<tr>
+    <td>${esc(f.skillName)}</td>
+    <td><span class="sev-badge ${f.severity}">${f.severity.toUpperCase()}</span></td>
+    <td>${esc(f.code)}</td>
+    <td>${esc(f.title)}</td>
+    <td>${esc(f.detail)}</td>
+  </tr>`,
+    )
+    .join('\n');
+
+  return `<table class="findings-table">
+  <thead>
+    <tr>
+      <th>Skill</th>
+      <th>Severity</th>
+      <th>Code</th>
+      <th>Title</th>
+      <th>Detail</th>
+    </tr>
+  </thead>
+  <tbody>
+${rows}
+  </tbody>
+</table>`;
 }
 
 function findingCard(f: AuditFinding): string {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
 import type { AiFinding } from '../types/audit';
@@ -49,8 +50,10 @@ export async function runAiAudit(
     const raw = await callLlm(content, options.llmOptions);
     const findings = raw ? parseFindings(raw, skill) : [];
 
-    cache.set(hash, { cachedAt: Date.now(), model, findings });
-    cacheChanged = true;
+    if (useCache) {
+      cache.set(hash, { cachedAt: Date.now(), model, findings });
+      cacheChanged = true;
+    }
     results.push(...findings);
   }
 
@@ -62,16 +65,26 @@ export async function runAiAudit(
 }
 
 function buildContent(skill: SkillRecord): string {
-  return [
+  const header = [
     `Name: ${skill.name}`,
     `Platform: ${skill.platform}`,
     `Scope: ${skill.scope}`,
-    `Description: ${skill.description}`,
-    skill.triggers.length > 0 ? `Triggers: ${skill.triggers.join(', ')}` : '',
     skill.provenance ? `Source: ${skill.provenance.installSource}` : 'Source: (unknown)',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  ].join('\n');
+
+  let body = '';
+  try {
+    body = readFileSync(skill.sourcePath, 'utf-8');
+  } catch {
+    body = [
+      `Description: ${skill.description}`,
+      skill.triggers.length > 0 ? `Triggers: ${skill.triggers.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  return `${header}\n\n${body}`;
 }
 
 async function callLlm(content: string, options: LlmExplainOptions): Promise<RawResponse | null> {
