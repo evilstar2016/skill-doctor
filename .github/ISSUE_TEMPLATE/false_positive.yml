@@ -1,0 +1,38 @@
+name: False positive report
+description: Report a conflict, duplicate, or audit finding that should not be flagged.
+title: "[false positive]: "
+labels: ["false-positive", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please redact private paths, internal skill text, tokens, and customer data before posting.
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: Which command produced the finding?
+      placeholder: npx @evilstar2025/skill-doctor conflicts --json
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding
+      description: Paste the relevant redacted output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Why should this not be flagged?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: skill-doctor version
+      placeholder: "0.3.1"
+    validations:
+      required: false

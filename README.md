@@ -30,6 +30,7 @@ npx @evilstar2025/skill-doctor dashboard
 
 - [Roadmap](ROADMAP.md)
 - [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
 - [Launch kit](marketing/launch-kit.md)
 
 ## What it catches

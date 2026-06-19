@@ -1,0 +1,36 @@
+name: Audit rule request
+description: Suggest a new safety or quality rule for skill-doctor audit.
+title: "[rule]: "
+labels: ["audit-rule", "needs-triage"]
+body:
+  - type: textarea
+    id: pattern
+    attributes:
+      label: Pattern to detect
+      description: What should skill-doctor flag?
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Why it matters
+      description: Explain the user risk or failure mode.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suggested severity
+      options:
+        - high
+        - med
+        - low
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Redacted examples
+      description: Include safe, minimal examples only.
+    validations:
+      required: false

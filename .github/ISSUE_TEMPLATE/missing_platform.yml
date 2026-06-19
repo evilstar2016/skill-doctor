@@ -1,0 +1,36 @@
+name: Missing platform or path
+description: Request support for another agent platform, editor, or skill/rule path.
+title: "[platform]: "
+labels: ["platform", "needs-triage"]
+body:
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "Example: MyAgent CLI"
+    validations:
+      required: true
+  - type: textarea
+    id: paths
+    attributes:
+      label: Skill/rule/instruction paths
+      description: List global and project-local paths. Redact private usernames or organization names if needed.
+      placeholder: |
+        Global: ~/.myagent/skills/
+        Project: .myagent/rules/
+    validations:
+      required: true
+  - type: textarea
+    id: format
+    attributes:
+      label: File format
+      description: Describe the file layout or include a minimal redacted example.
+    validations:
+      required: false
+  - type: textarea
+    id: docs
+    attributes:
+      label: Public documentation
+      description: Link to official docs if available.
+    validations:
+      required: false
