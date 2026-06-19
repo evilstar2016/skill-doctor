@@ -26,6 +26,20 @@ npx @evilstar2025/skill-doctor dashboard
 
 `skill-doctor` does not upload your skills. It reads local skill/rule/instruction files and reports problems on your machine.
 
+## Try the safe demo project
+
+Want to see findings without scanning your own setup first?
+
+```bash
+git clone https://github.com/evilstar2016/skill-doctor.git
+cd skill-doctor/examples/conflicted-agent-project
+npx @evilstar2025/skill-doctor scan --scope project
+npx @evilstar2025/skill-doctor conflicts --scope project
+npx @evilstar2025/skill-doctor audit --scope project
+```
+
+The demo contains redacted test fixtures for overlapping GitHub Copilot instructions and risky export wording.
+
 ## Project status
 
 - [Roadmap](ROADMAP.md)
