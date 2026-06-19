@@ -1,6 +1,16 @@
 # skill-doctor
 
-Local CLI for diagnosing AI Agent skills — conflicts, security, duplicates, and drift.
+[![npm version](https://img.shields.io/npm/v/%40evilstar2025%2Fskill-doctor.svg)](https://www.npmjs.com/package/@evilstar2025/skill-doctor)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+
+Local CLI for diagnosing AI agent skills: conflicts, security risks, duplicates, and drift.
+
+Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other agent tooling starts behaving inconsistently because skills/rules/instructions overlap.
+
+```bash
+npx @evilstar2025/skill-doctor scan
+```
 
 ```
 $ skill-doctor scan
@@ -40,13 +50,13 @@ Agent Skill ecosystems grow fast. You install skills from GitHub, from colleague
 ## Installation
 
 ```bash
-npm install -g skill-doctor
+npm install -g @evilstar2025/skill-doctor
 ```
 
 Or run without installing:
 
 ```bash
-npx skill-doctor scan
+npx @evilstar2025/skill-doctor scan
 ```
 
 Requires Node.js 20+.
@@ -264,10 +274,10 @@ Use `--fail-on` to gate your pipeline on skill health:
 ```yaml
 # .github/workflows/skill-check.yml
 - name: Check skill conflicts
-  run: npx skill-doctor conflicts --fail-on high
+  run: npx @evilstar2025/skill-doctor conflicts --fail-on high
 
 - name: Security audit
-  run: npx skill-doctor audit --fail-on med
+  run: npx @evilstar2025/skill-doctor audit --fail-on med
 ```
 
 Use `--json` for custom reporting:

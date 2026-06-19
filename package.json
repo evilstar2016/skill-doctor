@@ -1,7 +1,7 @@
 {
   "name": "@evilstar2025/skill-doctor",
   "version": "0.3.1",
-  "description": "Local CLI for discovering AI agent skills and detecting conflicts.",
+  "description": "Local CLI for auditing AI agent skills, conflicts, duplicates, and safety risks.",
   "type": "module",
   "bin": {
     "skill-doctor": "dist/index.cjs"
