@@ -8,9 +8,30 @@ Local CLI for diagnosing AI agent skills: conflicts, security risks, duplicates,
 
 Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other agent tooling starts behaving inconsistently because skills/rules/instructions overlap.
 
+![skill-doctor terminal demo](assets/terminal-demo.svg)
+
+## Try it in 30 seconds
+
 ```bash
 npx @evilstar2025/skill-doctor scan
 ```
+
+Then run a deeper local check:
+
+```bash
+npx @evilstar2025/skill-doctor conflicts
+npx @evilstar2025/skill-doctor audit
+npx @evilstar2025/skill-doctor dashboard
+```
+
+`skill-doctor` does not upload your skills. It reads local skill/rule/instruction files and reports problems on your machine.
+
+## What it catches
+
+- Duplicate skills installed in multiple global/project paths
+- Overlapping skills that may compete for the same trigger
+- Suspicious instructions such as shell execution, destructive commands, credential exposure, or network upload patterns
+- Drift across agent ecosystems as your Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes setup grows
 
 ```
 $ skill-doctor scan
