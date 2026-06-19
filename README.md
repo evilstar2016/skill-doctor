@@ -26,6 +26,12 @@ npx @evilstar2025/skill-doctor dashboard
 
 `skill-doctor` does not upload your skills. It reads local skill/rule/instruction files and reports problems on your machine.
 
+## Project status
+
+- [Roadmap](ROADMAP.md)
+- [Changelog](CHANGELOG.md)
+- [Launch kit](marketing/launch-kit.md)
+
 ## What it catches
 
 - Duplicate skills installed in multiple global/project paths
