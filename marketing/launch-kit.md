@@ -10,13 +10,60 @@ npm:
 npx @evilstar2025/skill-doctor scan
 ```
 
+Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
+
+Safe demo:
+
+```bash
+git clone https://github.com/evilstar2016/skill-doctor.git
+cd skill-doctor/examples/conflicted-agent-project
+npx @evilstar2025/skill-doctor scan --scope project
+npx @evilstar2025/skill-doctor conflicts --scope project
+npx @evilstar2025/skill-doctor audit --scope project
+```
+
+## v0.3.2 launch sequence
+
+Use this sequence to get early signal without spamming identical posts.
+
+1. **Maintainer-owned channels**
+   - Pin or share the GitHub release link.
+   - Use the short post below and include the safe demo commands.
+   - Ask specifically for false positives, missing agent paths, and risky instruction examples.
+
+2. **Developer communities**
+   - Post once to a focused AI coding / developer tooling community.
+   - Lead with the problem: skill/rule/instruction sprawl across agents.
+   - Do not ask for stars directly; ask people to run the demo or scan their own setup.
+
+3. **Feedback conversion**
+   - Convert useful replies into GitHub issues.
+   - Label false positives with `false-positive`.
+   - Label missing platform/path requests with `platform`.
+   - Reply with the release link and exact command so readers do not need to hunt.
+
+4. **Second wave**
+   - After at least 3 pieces of real feedback, post a follow-up with what changed or what was learned.
+   - Use a different angle: local security audit, skill conflict debugging, or multi-agent drift.
+
+## Launch metrics to record
+
+Track these after each channel post:
+
+- GitHub stars, forks, watchers
+- npm version and weekly downloads
+- GitHub issues opened
+- false positives reported
+- missing platform/path requests
+- post URL and rough engagement
+
 ## One-line pitch
 
 `skill-doctor` is a local CLI that finds duplicate, conflicting, risky, and drifting AI agent skills across Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes.
 
-## Short post
+## Short post for v0.3.2
 
-I built `skill-doctor`: a local `npm audit`-style CLI for AI agent skills.
+I shipped `skill-doctor` v0.3.2: a local `npm audit`-style CLI for AI agent skills.
 
 If your Claude Code, Cursor, Copilot, Codex, or Gemini CLI setup has accumulated skills/rules/instructions from different sources, it can detect:
 
@@ -29,6 +76,16 @@ Try it:
 
 ```bash
 npx @evilstar2025/skill-doctor scan
+```
+
+Or run the safe demo first:
+
+```bash
+git clone https://github.com/evilstar2016/skill-doctor.git
+cd skill-doctor/examples/conflicted-agent-project
+npx @evilstar2025/skill-doctor scan --scope project
+npx @evilstar2025/skill-doctor conflicts --scope project
+npx @evilstar2025/skill-doctor audit --scope project
 ```
 
 It runs locally and does not upload your skill files.
@@ -47,7 +104,7 @@ I built `skill-doctor` to audit that mess locally:
 npx @evilstar2025/skill-doctor scan
 ```
 
-Find duplicates, conflicts, risky instructions, and drift.
+v0.3.2 adds a safe demo project, contribution templates, and a cleaner launch path.
 
 https://github.com/evilstar2016/skill-doctor
 
@@ -56,6 +113,8 @@ https://github.com/evilstar2016/skill-doctor
 If your coding agent behaves differently from one project to another, the problem may be your skill/rule/instruction layer.
 
 `skill-doctor` scans local agent skills across Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes.
+
+v0.3.2 includes a safe demo you can run before scanning your own setup.
 
 https://github.com/evilstar2016/skill-doctor
 
@@ -71,15 +130,30 @@ npx @evilstar2025/skill-doctor scan
 
 https://github.com/evilstar2016/skill-doctor
 
+### Option D
+
+New in `skill-doctor` v0.3.2: a runnable demo project.
+
+It shows:
+
+- 3 discovered agent instruction files
+- 1 trigger conflict
+- 2 audit findings
+
+No need to scan your real setup first.
+
+https://github.com/evilstar2016/skill-doctor
+
 ## Hacker News / Reddit title ideas
 
 - Show HN: skill-doctor, a local audit CLI for AI agent skills
 - I built a local CLI to find conflicts and risky instructions in AI agent skills
 - AI agent skills are becoming dependency trees, so I made an audit tool for them
+- A local audit CLI for Claude Code skills, Cursor rules, Copilot instructions, and Codex AGENTS.md
 
 ## Longer community post
 
-AI coding agents now have a growing configuration layer: skills, rules, instructions, project memory, global memory, and tool-specific conventions. After enough installs and copy-pasted guides, the agent can start acting inconsistently because two skills trigger on the same task, or because a risky instruction is buried in a file nobody reviewed.
+AI coding agents now have a growing configuration layer: skills, rules, instructions, project memory, global memory, and tool-specific conventions. After enough installs and copied guides, the agent can start acting inconsistently because two skills trigger on the same task, or because a risky instruction is buried in a file nobody reviewed.
 
 `skill-doctor` is a local CLI for diagnosing that layer. It scans common global and project paths for Claude Code, Cursor, GitHub Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes.
 
@@ -95,6 +169,16 @@ npx @evilstar2025/skill-doctor dashboard
 ```
 
 The safety boundary is simple: it reads local files and reports findings. It does not upload skills by default.
+
+If you do not want to scan your own setup first, v0.3.2 includes a safe demo:
+
+```bash
+git clone https://github.com/evilstar2016/skill-doctor.git
+cd skill-doctor/examples/conflicted-agent-project
+npx @evilstar2025/skill-doctor scan --scope project
+npx @evilstar2025/skill-doctor conflicts --scope project
+npx @evilstar2025/skill-doctor audit --scope project
+```
 
 Feedback I am looking for:
 
@@ -123,3 +207,4 @@ Description:
 - Mention local-only behavior clearly.
 - Ask for concrete feedback, especially false positives and missing platforms.
 - Avoid cross-posting identical text everywhere at once.
+- Record the post URL and metrics after each channel.
