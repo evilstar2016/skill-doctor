@@ -2,11 +2,13 @@
 
 All notable changes to `skill-doctor` are documented here.
 
-## Unreleased
+## 0.3.2 - 2026-06-20
 
 - Added README quickstart demo artwork and clearer 30-second trial path.
 - Updated GitHub repository metadata, topics, and project positioning.
 - Added launch and roadmap materials for contributors and early adopters.
+- Added contribution guide, issue templates, pull request template, release checklist, and starter issues.
+- Added a runnable safe demo project that shows scan, conflict, and audit findings without scanning a user's real setup.
 
 ## 0.3.1
 

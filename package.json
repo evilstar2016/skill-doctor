@@ -1,6 +1,6 @@
 {
   "name": "@evilstar2025/skill-doctor",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Local CLI for auditing AI agent skills, conflicts, duplicates, and safety risks.",
   "type": "module",
   "bin": {
@@ -8,11 +8,16 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "assets",
+    "examples",
+    "README.md",
+    "CHANGELOG.md",
+    "ROADMAP.md",
+    "CONTRIBUTING.md"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/evilstar2016/skill-doctor.git"
+    "url": "git+https://github.com/evilstar2016/skill-doctor.git"
   },
   "homepage": "https://github.com/evilstar2016/skill-doctor#readme",
   "bugs": {
