@@ -1,7 +1,19 @@
 {
   "name": "@evilstar2025/skill-doctor",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Local CLI for auditing AI agent skills, conflicts, duplicates, and safety risks.",
+  "keywords": [
+    "ai-agent",
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "cursor",
+    "github-copilot",
+    "developer-tools",
+    "cli",
+    "security",
+    "audit"
+  ],
   "type": "module",
   "bin": {
     "skill-doctor": "dist/index.cjs"

@@ -2,6 +2,11 @@
 
 All notable changes to `skill-doctor` are documented here.
 
+## 0.3.3 - 2026-06-21
+
+- Added npm package keywords for AI agent, CLI, developer tooling, and security audit discovery.
+- Kept this patch release focused on package metadata; no runtime behavior changed.
+
 ## 0.3.2 - 2026-06-20
 
 - Added README quickstart demo artwork and clearer 30-second trial path.
