@@ -8,6 +8,7 @@ Current public assets:
 - npm: https://www.npmjs.com/package/@evilstar2025/skill-doctor
 - Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+- Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 - Safe demo path: `examples/conflicted-agent-project`
 
 Current baseline before external posting:
@@ -70,6 +71,7 @@ npx @evilstar2025/skill-doctor audit --scope project
 The feedback I am trying to collect is narrow: false positives, missing agent paths, risky instruction patterns, and real cases where overlapping rules made an agent behave inconsistently.
 
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion for lightweight questions: https://github.com/evilstar2016/skill-doctor/discussions/6
 ```
 
 Post-log fields to fill:
@@ -117,7 +119,8 @@ npx @evilstar2025/skill-doctor audit --scope project
 It reads local files and does not upload your skill files by default.
 
 GitHub: https://github.com/evilstar2016/skill-doctor
-Feedback: https://github.com/evilstar2016/skill-doctor/issues/4
+Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 ```
 
 Post-log fields to fill:
@@ -156,6 +159,7 @@ The tool is skill-doctor. It runs locally and reports duplicates, overlapping tr
 
 Repo: https://github.com/evilstar2016/skill-doctor
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 I am especially looking for redacted examples of false positives, missing platform paths, or real drift cases.
 ```

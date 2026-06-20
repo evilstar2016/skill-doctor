@@ -44,6 +44,8 @@ The demo contains redacted test fixtures for overlapping GitHub Copilot instruct
 
 Found a false positive, missing agent path, or real skill/rule drift case? Please add a redacted report to [Feedback wanted: real AI agent skill/rule drift cases](https://github.com/evilstar2016/skill-doctor/issues/4).
 
+For lightweight questions and examples before filing an issue, use [GitHub Discussion #6](https://github.com/evilstar2016/skill-doctor/discussions/6).
+
 ## Project status
 
 - [Roadmap](ROADMAP.md)

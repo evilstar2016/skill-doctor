@@ -5,6 +5,7 @@ Use this when introducing `skill-doctor` to developer communities. Keep the tone
 Repository: https://github.com/evilstar2016/skill-doctor
 
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 npm:
 
@@ -95,6 +96,7 @@ It runs locally and does not upload your skill files.
 
 GitHub: https://github.com/evilstar2016/skill-doctor
 Feedback: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ## X / Twitter options
 
@@ -113,6 +115,7 @@ v0.3.2 adds a safe demo project, contribution templates, and a cleaner launch pa
 https://github.com/evilstar2016/skill-doctor
 
 Feedback thread: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ### Option B
 
@@ -125,6 +128,7 @@ v0.3.2 includes a safe demo you can run before scanning your own setup.
 https://github.com/evilstar2016/skill-doctor
 
 Feedback thread: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ### Option C
 
@@ -139,6 +143,7 @@ npx @evilstar2025/skill-doctor scan
 https://github.com/evilstar2016/skill-doctor
 
 Feedback thread: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ### Option D
 
@@ -155,6 +160,7 @@ No need to scan your real setup first.
 https://github.com/evilstar2016/skill-doctor
 
 Feedback thread: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ## Hacker News / Reddit title ideas
 
@@ -202,6 +208,7 @@ Feedback I am looking for:
 Repository: https://github.com/evilstar2016/skill-doctor
 
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ## Product Hunt / directory copy
 

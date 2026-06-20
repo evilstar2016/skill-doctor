@@ -17,6 +17,7 @@ Primary links:
 - Repository: https://github.com/evilstar2016/skill-doctor
 - Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+- Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 - v0.3.3 publish blocker: https://github.com/evilstar2016/skill-doctor/issues/5
 - Full distribution queue: `marketing/distribution/2026-06-21-first-wave-queue.md`
 
@@ -64,6 +65,7 @@ npx @evilstar2025/skill-doctor audit --scope project
 The feedback I am trying to collect is narrow: false positives, missing agent paths, risky instruction patterns, and real cases where overlapping rules made an agent behave inconsistently.
 
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion for lightweight questions: https://github.com/evilstar2016/skill-doctor/discussions/6
 ```
 
 6. Copy the final HN item URL.
@@ -99,7 +101,8 @@ npx @evilstar2025/skill-doctor audit --scope project
 It reads local files and does not upload your skill files by default.
 
 GitHub: https://github.com/evilstar2016/skill-doctor
-Feedback: https://github.com/evilstar2016/skill-doctor/issues/4
+Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 ```
 
 After posting:
@@ -107,7 +110,7 @@ After posting:
 1. Copy the post URL.
 2. Update `marketing/campaigns/2026-06-20-v0.3.2-first-wave.md`.
 3. Record the exact channel and posted time.
-4. Check stars, forks, watchers, open issues, and issue #4 comments at 1h, 6h, and 24h.
+4. Check stars, forks, watchers, open issues, issue #4 comments, and Discussion #6 comments at 1h, 6h, and 24h.
 5. Convert concrete reports into labeled GitHub issues.
 
 ## Metric Capture Template
@@ -123,6 +126,7 @@ Baseline forks:
 Baseline watchers:
 Baseline open issues:
 Baseline issue #4 comments:
+Baseline discussion #6 comments:
 1h check due:
 6h check due:
 24h check due:
@@ -138,6 +142,7 @@ Forks:
 Watchers:
 Open issues:
 Issue #4 comments:
+Discussion #6 comments:
 New feedback:
 Issues created:
 Next action:
