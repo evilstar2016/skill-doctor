@@ -17,7 +17,10 @@ Primary links:
 - Repository: https://github.com/evilstar2016/skill-doctor
 - Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
+- v0.3.3 publish blocker: https://github.com/evilstar2016/skill-doctor/issues/5
 - Full distribution queue: `marketing/distribution/2026-06-21-first-wave-queue.md`
+
+Version note: public posts should currently refer to `v0.3.2`, because `0.3.3` is prepared on `main` but not published to npm yet.
 
 ## Option A: Hacker News Show HN
 
