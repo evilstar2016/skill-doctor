@@ -27,6 +27,8 @@ npx @evilstar2025/skill-doctor audit --scope project
 
 Expected demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 
+Comparison page: https://github.com/evilstar2016/skill-doctor/blob/main/docs/comparisons/manual-agent-config-audit.md
+
 ## v0.3.2 launch sequence
 
 Use this sequence to get early signal without spamming identical posts.
@@ -211,6 +213,22 @@ Repository: https://github.com/evilstar2016/skill-doctor
 
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
+
+## Comparison angle
+
+Use this when the audience already audits prompts or agent rules manually.
+
+```text
+Manual review and grep still help when you know exactly which AI agent instruction file to inspect.
+
+The hard part is the inventory: Claude Code skills, Cursor rules, Copilot instructions, Codex AGENTS.md, Gemini CLI paths, Windsurf rules, and project/global copies can overlap.
+
+I wrote down where skill-doctor fits vs manual review, grep, and custom linting:
+
+https://github.com/evilstar2016/skill-doctor/blob/main/docs/comparisons/manual-agent-config-audit.md
+
+The short version: use skill-doctor for a local first-pass scan, then manually review anything risky or team-specific.
+```
 
 ## Product Hunt / directory copy
 

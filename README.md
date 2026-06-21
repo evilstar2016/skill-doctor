@@ -42,6 +42,8 @@ The demo contains redacted test fixtures for overlapping GitHub Copilot instruct
 
 See [Safe demo output](docs/demo-output.md) for the expected scan, conflicts, and audit results.
 
+Comparing approaches? See [skill-doctor vs manual AI agent config audits](docs/comparisons/manual-agent-config-audit.md).
+
 ## Feedback wanted
 
 Found a false positive, missing agent path, or real skill/rule drift case? Please add a redacted report to [Feedback wanted: real AI agent skill/rule drift cases](https://github.com/evilstar2016/skill-doctor/issues/4).
