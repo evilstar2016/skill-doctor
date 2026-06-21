@@ -25,6 +25,8 @@ npx @evilstar2025/skill-doctor conflicts --scope project
 npx @evilstar2025/skill-doctor audit --scope project
 ```
 
+Expected demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
+
 ## v0.3.2 launch sequence
 
 Use this sequence to get early signal without spamming identical posts.

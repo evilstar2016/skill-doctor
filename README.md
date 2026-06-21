@@ -40,6 +40,8 @@ npx @evilstar2025/skill-doctor audit --scope project
 
 The demo contains redacted test fixtures for overlapping GitHub Copilot instructions and risky export wording.
 
+See [Safe demo output](docs/demo-output.md) for the expected scan, conflicts, and audit results.
+
 ## Feedback wanted
 
 Found a false positive, missing agent path, or real skill/rule drift case? Please add a redacted report to [Feedback wanted: real AI agent skill/rule drift cases](https://github.com/evilstar2016/skill-doctor/issues/4).

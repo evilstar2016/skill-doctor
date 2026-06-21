@@ -16,6 +16,7 @@ Primary links:
 
 - Repository: https://github.com/evilstar2016/skill-doctor
 - Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
+- Demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 - v0.3.3 publish blocker: https://github.com/evilstar2016/skill-doctor/issues/5
@@ -25,9 +26,14 @@ Version note: public posts should currently refer to `v0.3.2`, because `0.3.3` i
 
 ## Option A: Hacker News Show HN
 
-Use when: an HN account owner approves a Show HN submission.
+Status: blocked as of 2026-06-21 13:24 CST.
+
+Reason: HN returned https://news.ycombinator.com/showlim after submission, indicating Show HN is temporarily restricted for accounts without enough community history.
+
+Use when: an HN account owner approves a Show HN submission and the account is no longer blocked by `showlim`.
 
 Do not ask for upvotes, comments, or stars. Do not repost if it gets little attention.
+Do not bypass the restriction by removing the `Show HN` prefix or disguising the post.
 
 1. Open https://news.ycombinator.com/submit
 2. If not logged in, stop and ask the account owner to log in.
@@ -66,6 +72,7 @@ The feedback I am trying to collect is narrow: false positives, missing agent pa
 
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 Discussion for lightweight questions: https://github.com/evilstar2016/skill-doctor/discussions/6
+Expected demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 ```
 
 6. Copy the final HN item URL.
@@ -101,6 +108,7 @@ npx @evilstar2025/skill-doctor audit --scope project
 It reads local files and does not upload your skill files by default.
 
 GitHub: https://github.com/evilstar2016/skill-doctor
+Demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 ```

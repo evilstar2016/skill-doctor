@@ -22,7 +22,9 @@ Current baseline before external posting:
 
 ## Channel 1: Hacker News Show HN
 
-Status: ready, requires a logged-in HN account.
+Status: blocked as of 2026-06-21 13:24 CST.
+
+Blocker: HN returned https://news.ycombinator.com/showlim after an authorized submission attempt. The account needs more normal community history before posting Show HN.
 
 Submission URL: https://news.ycombinator.com/submit
 
@@ -36,6 +38,7 @@ Risk notes:
 - Do not ask for stars, upvotes, comments, or shares.
 - Do not submit generated-looking marketing copy. Keep the body factual and written as a maintainer note.
 - Do not delete and repost if it gets little attention.
+- Do not bypass `showlim` by dropping the `Show HN` prefix or disguising the submission.
 
 Title:
 
@@ -175,7 +178,7 @@ Post-log fields to fill:
 
 ## Execution Order
 
-1. Post one account-authorized channel first, preferably HN Show HN or a maintainer-owned short post.
+1. Post one account-authorized channel first, preferably a maintainer-owned short post while HN Show HN is blocked.
 2. Record the post URL in `marketing/campaigns/2026-06-20-v0.3.2-first-wave.md`.
 3. Check stars, forks, watchers, open issues, and issue #4 comments at 1h, 6h, and 24h.
 4. Convert concrete feedback into labeled GitHub issues.
