@@ -29,6 +29,8 @@ Expected demo output: https://github.com/evilstar2016/skill-doctor/blob/main/doc
 
 Comparison page: https://github.com/evilstar2016/skill-doctor/blob/main/docs/comparisons/manual-agent-config-audit.md
 
+Channel angle matrix: https://github.com/evilstar2016/skill-doctor/blob/main/marketing/distribution/2026-06-21-channel-angle-matrix.md
+
 ## v0.3.2 launch sequence
 
 Use this sequence to get early signal without spamming identical posts.
@@ -229,6 +231,14 @@ https://github.com/evilstar2016/skill-doctor/blob/main/docs/comparisons/manual-a
 
 The short version: use skill-doctor for a local first-pass scan, then manually review anything risky or team-specific.
 ```
+
+## Channel angle matrix
+
+Use the channel angle matrix when choosing the first authorized post angle for a specific audience:
+
+https://github.com/evilstar2016/skill-doctor/blob/main/marketing/distribution/2026-06-21-channel-angle-matrix.md
+
+It includes ready-to-use variants for local security audit, multi-agent drift, manual audit alternative, demo-first, and feedback fixture requests.
 
 ## Product Hunt / directory copy
 

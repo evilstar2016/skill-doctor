@@ -21,6 +21,7 @@ Primary links:
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 - v0.3.3 publish blocker: https://github.com/evilstar2016/skill-doctor/issues/5
 - Full distribution queue: `marketing/distribution/2026-06-21-first-wave-queue.md`
+- Channel angle matrix: `marketing/distribution/2026-06-21-channel-angle-matrix.md`
 
 Version note: public posts should currently refer to `v0.3.2`, because `0.3.3` is prepared on `main` but not published to npm yet.
 
@@ -85,6 +86,14 @@ Use when: the maintainer approves posting from a personal/professional account s
 
 Do not cross-post identical text into multiple groups. Use one channel first and wait for a measurable result or 24h.
 
+Before posting, pick one audience angle from `marketing/distribution/2026-06-21-channel-angle-matrix.md`:
+
+- local security audit
+- multi-agent drift
+- manual audit alternative
+- demo-first
+- feedback fixture request
+
 Post:
 
 ```text
@@ -127,6 +136,7 @@ Use this template immediately after posting:
 
 ```text
 Channel:
+Angle:
 Post URL:
 Posted at:
 Baseline stars:
