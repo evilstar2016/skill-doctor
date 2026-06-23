@@ -10,9 +10,9 @@ Current baseline, checked 2026-06-21 21:50 Asia/Shanghai:
 - Open issues: 4
 - GitHub Discussions: enabled
 - Discussion #6 comments: 0
-- npm latest: 0.3.2
-- GitHub latest release: v0.3.2
-- Local `main` package version: 0.3.3, unpublished until npm auth is restored
+- npm latest: 0.3.3
+- GitHub latest release: v0.3.3
+- Local `main` package version: 0.3.3
 - HN Show HN: blocked by `showlim`; do not bypass HN rules
 
 Primary links:
@@ -24,7 +24,7 @@ Primary links:
 - Comparison: https://github.com/evilstar2016/skill-doctor/blob/main/docs/comparisons/manual-agent-config-audit.md
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
-- v0.3.3 blocker: https://github.com/evilstar2016/skill-doctor/issues/5
+- v0.3.3 release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3
 
 ## Angle 1: Local Security Audit
 
@@ -190,7 +190,7 @@ Best CTA: ask for one redacted fixture or path.
 - Do not cross-post identical copy to multiple communities.
 - Do not ask for stars, upvotes, comments, or shares.
 - Do not post where community rules disallow project announcements or AI tooling posts.
-- Keep public posts on `v0.3.2` until issue #5 is closed and npm latest is `0.3.3`.
+- Use `v0.3.3` in new public posts. Existing `v0.3.2` copy remains accurate because runtime behavior did not change.
 - Record the post URL, posted time, stars, open issues, issue #4 comments, and Discussion #6 comments in the campaign file.
 
 ## Tracking Fields

@@ -25,7 +25,7 @@ Interpretation:
 - The first X post created a real external URL, but it has not yet produced visible GitHub-side conversion.
 - Do not repost the same generic launch copy into other channels.
 - If using X again, reply to the original post or write a new short post with a narrower ask.
-- Keep public copy on `v0.3.2` until issue #5 is closed and npm latest is `0.3.3`.
+- Use `v0.3.3` in new follow-up copy. Existing `v0.3.2` wording remains accurate because runtime behavior did not change.
 
 ## 24h Follow-Up Draft
 

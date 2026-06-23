@@ -17,8 +17,8 @@ Current baseline before external posting:
 - Forks: 0
 - Watchers: 0
 - Open issues: 3
-- npm latest: 0.3.2
-- npm keywords: not returned yet; `0.3.3` metadata patch is prepared but unpublished.
+- npm latest: 0.3.3
+- npm keywords: published for AI agent, CLI, developer tooling, and security audit discovery.
 
 ## Channel 1: Hacker News Show HN
 
