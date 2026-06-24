@@ -12,17 +12,21 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other 
 
 ## Try it in 30 seconds
 
+Current release: [`v0.3.3`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3) on npm.
+
 ```bash
 npx @evilstar2025/skill-doctor scan
 ```
 
-Then run a deeper local check:
+If it finds skills, run the deeper local checks:
 
 ```bash
 npx @evilstar2025/skill-doctor conflicts
 npx @evilstar2025/skill-doctor audit
 npx @evilstar2025/skill-doctor dashboard
 ```
+
+If it reports `0` project skills, try the safe demo below first. That gives you known duplicate/conflict/audit findings before you scan private local setup.
 
 `skill-doctor` does not upload your skills. It reads local skill/rule/instruction files and reports problems on your machine.
 

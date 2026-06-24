@@ -13,7 +13,7 @@ npm:
 npx @evilstar2025/skill-doctor scan
 ```
 
-Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
+Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3
 
 Safe demo:
 
@@ -31,7 +31,7 @@ Comparison page: https://github.com/evilstar2016/skill-doctor/blob/main/docs/com
 
 Channel angle matrix: https://github.com/evilstar2016/skill-doctor/blob/main/marketing/distribution/2026-06-21-channel-angle-matrix.md
 
-## v0.3.2 launch sequence
+## v0.3.3 launch sequence
 
 Use this sequence to get early signal without spamming identical posts.
 
@@ -71,9 +71,9 @@ Track these after each channel post:
 
 `skill-doctor` is a local CLI that finds duplicate, conflicting, risky, and drifting AI agent skills across Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes.
 
-## Short post for v0.3.2
+## Short post for v0.3.3
 
-I shipped `skill-doctor` v0.3.2: a local `npm audit`-style CLI for AI agent skills.
+I shipped `skill-doctor` v0.3.3: a local `npm audit`-style CLI for AI agent skills.
 
 If your Claude Code, Cursor, Copilot, Codex, or Gemini CLI setup has accumulated skills/rules/instructions from different sources, it can detect:
 
@@ -116,7 +116,7 @@ I built `skill-doctor` to audit that mess locally:
 npx @evilstar2025/skill-doctor scan
 ```
 
-v0.3.2 adds a safe demo project, contribution templates, and a cleaner launch path.
+v0.3.3 is live on npm and keeps the safe demo project, contribution templates, and cleaner launch path.
 
 https://github.com/evilstar2016/skill-doctor
 
@@ -129,7 +129,7 @@ If your coding agent behaves differently from one project to another, the proble
 
 `skill-doctor` scans local agent skills across Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes.
 
-v0.3.2 includes a safe demo you can run before scanning your own setup.
+v0.3.3 includes a safe demo you can run before scanning your own setup.
 
 https://github.com/evilstar2016/skill-doctor
 
@@ -153,7 +153,7 @@ Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 
 ### Option D
 
-New in `skill-doctor` v0.3.2: a runnable demo project.
+In `skill-doctor` v0.3.3: a runnable demo project.
 
 It shows:
 
@@ -194,7 +194,7 @@ npx @evilstar2025/skill-doctor dashboard
 
 The safety boundary is simple: it reads local files and reports findings. It does not upload skills by default.
 
-If you do not want to scan your own setup first, v0.3.2 includes a safe demo:
+If you do not want to scan your own setup first, v0.3.3 includes a safe demo:
 
 ```bash
 git clone https://github.com/evilstar2016/skill-doctor.git

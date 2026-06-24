@@ -9,13 +9,14 @@ Current baseline:
 - Watchers: 0
 - Open issues: 3
 - Feedback issue #4 comments: 0
-- npm latest: 0.3.2
-- GitHub release: v0.3.2
+- Discussion #6 comments: 0
+- npm latest: 0.3.3
+- GitHub release: v0.3.3
 
 Primary links:
 
 - Repository: https://github.com/evilstar2016/skill-doctor
-- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
+- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3
 - Demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
@@ -23,7 +24,7 @@ Primary links:
 - Full distribution queue: `marketing/distribution/2026-06-21-first-wave-queue.md`
 - Channel angle matrix: `marketing/distribution/2026-06-21-channel-angle-matrix.md`
 
-Version note: npm latest is now `0.3.3`; use `v0.3.3` in new posts after the GitHub release is published. Existing `v0.3.2` copy remains usable because runtime behavior did not change.
+Version note: npm latest is `0.3.3`; use `v0.3.3` in new posts. Existing `v0.3.2` copy remains usable because runtime behavior did not change.
 
 ## Option A: Hacker News Show HN
 
@@ -97,7 +98,7 @@ Before posting, pick one audience angle from `marketing/distribution/2026-06-21-
 Post:
 
 ```text
-I shipped skill-doctor v0.3.2: a local CLI for auditing AI agent skills, rules, and instruction files.
+I shipped skill-doctor v0.3.3: a local CLI for auditing AI agent skills, rules, and instruction files.
 
 It scans Claude Code skills, Cursor rules, Copilot instructions, Codex AGENTS.md, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes paths for:
 
