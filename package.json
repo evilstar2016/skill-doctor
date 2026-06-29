@@ -1,6 +1,6 @@
 {
   "name": "@evilstar2025/skill-doctor",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Local CLI for auditing AI agent skills, conflicts, duplicates, and safety risks.",
   "keywords": [
     "ai-agent",

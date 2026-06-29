@@ -2,6 +2,11 @@
 
 All notable changes to `skill-doctor` are documented here.
 
+## 0.3.4 - 2026-06-29
+
+- Added `cost` / `context` commands to estimate per-turn context token tax, grade it against a token budget, and fail CI with `--fail-on-budget`.
+- Added JSON output and tests for context cost summaries, item-level estimates, and budget validation.
+
 ## 0.3.3 - 2026-06-21
 
 - Added npm package keywords for AI agent, CLI, developer tooling, and security audit discovery.

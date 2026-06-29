@@ -12,7 +12,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other 
 
 ## Try it in 30 seconds
 
-Current release: [`v0.3.3`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3) on npm.
+Current release: [`v0.3.4`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4) on npm.
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -23,6 +23,7 @@ If it finds skills, run the deeper local checks:
 ```bash
 npx @evilstar2025/skill-doctor conflicts
 npx @evilstar2025/skill-doctor audit
+npx @evilstar2025/skill-doctor cost
 npx @evilstar2025/skill-doctor dashboard
 ```
 
@@ -66,6 +67,7 @@ For lightweight questions and examples before filing an issue, use [GitHub Discu
 - Duplicate skills installed in multiple global/project paths
 - Overlapping skills that may compete for the same trigger
 - Suspicious instructions such as shell execution, destructive commands, credential exposure, or network upload patterns
+- Estimated context token tax from Claude skill descriptions and always-on instruction files
 - Drift across agent ecosystems as your Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes setup grows
 
 ```
@@ -252,6 +254,38 @@ skill-doctor audit --json
 | `destructive` | HIGH | Destructive operations (`rm -rf`, `DROP TABLE`, `wipe the database`) |
 | `secret-leak` | MED | Instructions that output credentials, API keys, or passwords |
 | `network-call` | LOW | Instructions that POST or upload to external URLs |
+
+### `cost` / `context`
+
+Estimate per-turn context token tax and grade it against a budget.
+
+```bash
+$ skill-doctor cost
+
+  CONTEXT COST REPORT
+  Estimated token tax: 1240 tokens/turn
+  Budget: 2000 tokens/turn
+  Grade: B (within budget)
+  Items scanned: 15
+
+  Highest cost items:
+  - AGENTS.md
+    tokens: 620  platform: codex  scope: project
+    kind: always-on-file
+    fix: Move rarely needed guidance into a skill or narrower rule.
+  - git-workflow
+    tokens: 180  platform: claude  scope: project
+    kind: claude-skill-description
+    fix: Shorten the Claude skill description; every turn pays for it.
+```
+
+```bash
+skill-doctor cost --scope project
+skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
+skill-doctor context --json
+```
+
+For Claude Code skills, `cost` estimates the always-injected name, description, and trigger metadata rather than the full skill body. For always-on files such as `AGENTS.md`, it estimates the local file content.
 
 ### `diff`
 

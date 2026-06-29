@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { renderAudit } from '../../src/render/renderAudit';
 import { renderAuditReport } from '../../src/render/renderAuditReport';
 import { renderConflicts } from '../../src/render/renderConflicts';
+import { renderContextCost } from '../../src/render/renderContextCost';
 import { renderGroup } from '../../src/render/renderGroup';
 import { renderReport } from '../../src/render/renderReport';
 import { renderScan } from '../../src/render/renderScan';
@@ -87,6 +88,36 @@ describe('renderers', () => {
     expect(output).toContain('cursor');
     expect(output).toContain('install source: .claude/skills');
     expect(output).toContain('repository: https://github.com/example/git-workflow.git');
+  });
+
+  it('renders context cost summary with grade and item recommendations', () => {
+    const output = renderContextCost({
+      summary: {
+        totalEstimatedTokens: 240,
+        budgetTokens: 2000,
+        grade: 'A',
+        overBudget: false,
+        scanned: 1,
+      },
+      items: [
+        {
+          name: 'git-workflow',
+          sourcePath: 'E:/skills/git-workflow/SKILL.md',
+          platform: 'claude',
+          scope: 'project',
+          kind: 'claude-skill-description',
+          estimatedTokens: 240,
+          estimatedChars: 960,
+          recommendation: 'Shorten the Claude skill description; every turn pays for it.',
+        },
+      ],
+    });
+
+    expect(output).toContain('CONTEXT COST REPORT');
+    expect(output).toContain('Estimated token tax: 240 tokens/turn');
+    expect(output).toContain('Grade: A');
+    expect(output).toContain('git-workflow');
+    expect(output).toContain('claude-skill-description');
   });
 
   it('renders a single skill detail card', () => {

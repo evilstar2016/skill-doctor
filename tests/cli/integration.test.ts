@@ -1463,6 +1463,73 @@ describe('CLI integration — cleanup', () => {
   });
 });
 
+describe('CLI integration — context cost', () => {
+  it('cost reports estimated token tax for Claude skills and always-on files', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'review-helper', 'SKILL.md'),
+      ['---', 'name: review-helper', 'description: Use for focused code review.', '---', '', '# Review Helper'].join('\n'),
+    );
+    writeFile(join(cwd, 'AGENTS.md'), 'Always follow this project instruction. '.repeat(40));
+
+    const result = runCli(['cost'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('CONTEXT COST REPORT');
+    expect(result.stdout).toContain('Estimated token tax:');
+    expect(result.stdout).toContain('review-helper');
+    expect(result.stdout).toContain('AGENTS.md');
+  });
+
+  it('context --json exposes grade, budget, and item kinds', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'review-helper', 'SKILL.md'),
+      ['---', 'name: review-helper', 'description: Use for focused code review.', '---', '', '# Review Helper'].join('\n'),
+    );
+
+    const result = runCli(['context', '--budget-tokens', '1000', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.budgetTokens).toBe(1000);
+    expect(payload.summary.grade).toMatch(/^[ABCDF]$/);
+    expect(payload.items[0].kind).toBe('claude-skill-description');
+  });
+
+  it('cost --fail-on-budget exits non-zero when the estimate exceeds the budget', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, 'AGENTS.md'), 'Always-on instruction. '.repeat(100));
+
+    const result = runCli(['cost', '--budget-tokens', '10', '--fail-on-budget'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('over budget');
+  });
+
+  it('cost validates budget input', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['cost', '--budget-tokens', '0'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid budget. Use --budget-tokens <positive integer>');
+  });
+});
+
 describe('install / uninstall', () => {
   beforeEach(() => {
     process.exitCode = 0;

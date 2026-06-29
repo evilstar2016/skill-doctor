@@ -11,6 +11,7 @@ import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
 import { detectConflicts } from '../conflicts/detectConflicts';
+import { estimateContextCost } from '../context/estimateContextCost';
 import { scanSkills } from '../discovery/scanSkills';
 import { buildExplanation } from '../explain/buildExplanation';
 import { groupSkills } from '../explain/groupSkills';
@@ -29,6 +30,7 @@ import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
 import { renderCleanup } from '../render/renderCleanup';
 import { renderConflicts } from '../render/renderConflicts';
+import { renderContextCost } from '../render/renderContextCost';
 import { renderDiff } from '../render/renderDiff';
 import { renderDashboard } from '../render/renderDashboard';
 import { renderDiffReport } from '../render/renderDiffReport';
@@ -343,6 +345,38 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'cost' || command === 'context') {
+    const scope = readScope(rest);
+    const budgetTokens = readBudgetTokens(rest);
+
+    if (scope === 'invalid') {
+      process.stderr.write('Invalid scope. Use --scope project|global|all\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    if (budgetTokens === 'invalid') {
+      process.stderr.write('Invalid budget. Use --budget-tokens <positive integer>\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
+    const result = estimateContextCost(skills, budgetTokens === null ? {} : { budgetTokens });
+
+    if (jsonOutput) {
+      process.stdout.write(`${toJson(result)}\n`);
+    } else {
+      process.stdout.write(`${renderContextCost(result)}\n`);
+    }
+
+    if (hasFlag(rest, '--fail-on-budget') && result.summary.overBudget) {
+      process.exitCode = 1;
+    }
+
+    return;
+  }
+
   if (command === 'diff') {
     const [nameA, nameB] = rest.filter((a) => !a.startsWith('-'));
     if (!nameA || !nameB) {
@@ -585,6 +619,8 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
+    '  skill-doctor cost [--scope project|global|all] [--budget-tokens N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [--scope project|global|all] [--budget-tokens N] [--fail-on-budget] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
@@ -858,6 +894,23 @@ function toJson(value: unknown): string {
 
 function readLimit(args: string[]): number | null | 'invalid' {
   const index = args.indexOf('--limit');
+
+  if (index === -1) {
+    return null;
+  }
+
+  const rawValue = args[index + 1];
+  const parsed = Number(rawValue);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return 'invalid';
+  }
+
+  return parsed;
+}
+
+function readBudgetTokens(args: string[]): number | null | 'invalid' {
+  const index = args.indexOf('--budget-tokens');
 
   if (index === -1) {
     return null;
