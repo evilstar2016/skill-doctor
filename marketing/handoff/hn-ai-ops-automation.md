@@ -26,18 +26,20 @@ Run one HN ops session:
 3. Read the selected thread and linked source before proposing interaction.
 4. Do not post generated or AI-edited comments.
 5. Do not mention skill-doctor unless directly relevant and explicitly user-authored.
-6. If a good interaction exists, produce:
+6. If a good interaction exists and no exact user-authored final comment text is supplied for this run, produce:
    - thread URL
    - source URL
    - short context summary
    - why it is worth interacting with
    - 2-4 talking points the user can write from
    - one concise question the user could ask in their own words
-7. If the user has already supplied exact final human-authored comment text, ask for action-time confirmation before posting it.
+7. If the user has supplied exact final human-authored comment text and explicitly confirmed posting for the exact destination thread, treat that as action-time authorization and post that exact text without rewriting it.
 8. If no good interaction exists, log a skip instead of forcing a comment.
 9. Append the result to `marketing/ops-log/YYYY-MM-DD.md`.
 
 Quality bar: curiosity-first, specific, kind, substantive, and non-promotional.
+
+Standing constraint: the user wants posting to happen when properly authorized, but this does not authorize generated, AI-edited, promotional, or unspecified future comments. When exact final user text is missing, prepare a handoff instead of posting.
 ```
 
 ## Operating Constraints
@@ -46,7 +48,7 @@ Quality bar: curiosity-first, specific, kind, substantive, and non-promotional.
 - Three forced comments per day are not acceptable.
 - A session may end with "no post" if all candidates are low-quality, promotional, flamebait, or outside the account's real knowledge.
 - Comments must be final human-authored text from the user.
-- Submitting a comment is an external side effect and requires action-time confirmation of the exact thread and exact text.
+- Submitting a comment is an external side effect. It may proceed only when the user has supplied exact final text and explicitly confirmed posting for the exact thread.
 - The workflow must not upvote, request upvotes, request comments, or coordinate engagement.
 - The workflow must not bypass HN `showlim`.
 

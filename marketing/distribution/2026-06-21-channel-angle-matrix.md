@@ -1,30 +1,31 @@
 # Channel Angle Matrix - 2026-06-21
 
-Goal: give the maintainer a small set of channel-specific angles for the first authorized `skill-doctor` v0.3.2 post. Use one angle per channel, record the post URL, and wait for signal before reposting elsewhere.
+Goal: give the maintainer a small set of channel-specific angles for an authorized `skill-doctor` v0.3.4 post. Use one angle per channel, record the post URL, and wait for signal before reposting elsewhere.
 
-Current baseline, checked 2026-06-21 21:50 Asia/Shanghai:
+Current baseline, checked 2026-06-30 07:33 Asia/Shanghai:
 
 - GitHub stars: 0
 - GitHub forks: 0
 - GitHub watchers/subscribers: 0
-- Open issues: 4
+- Open issues: 3
 - GitHub Discussions: enabled
 - Discussion #6 comments: 0
-- npm latest: 0.3.3
-- GitHub latest release: v0.3.3
-- Local `main` package version: 0.3.3
+- npm latest: 0.3.4
+- GitHub latest release: v0.3.4
+- Local `main` package version: 0.3.4
 - HN Show HN: blocked by `showlim`; do not bypass HN rules
 
 Primary links:
 
 - Repository: https://github.com/evilstar2016/skill-doctor
 - npm: https://www.npmjs.com/package/@evilstar2025/skill-doctor
-- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
+- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4
 - Demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 - Comparison: https://github.com/evilstar2016/skill-doctor/blob/main/docs/comparisons/manual-agent-config-audit.md
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 - v0.3.3 release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3
+- v0.3.4 release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4
 
 ## Angle 1: Local Security Audit
 
@@ -190,7 +191,7 @@ Best CTA: ask for one redacted fixture or path.
 - Do not cross-post identical copy to multiple communities.
 - Do not ask for stars, upvotes, comments, or shares.
 - Do not post where community rules disallow project announcements or AI tooling posts.
-- Use `v0.3.3` in new public posts. Existing `v0.3.2` copy remains accurate because runtime behavior did not change.
+- Use `v0.3.4` in new public posts. Existing `v0.3.3` copy remains accurate for scan/conflict/audit messaging, but it omits the new context-cost CTA.
 - Record the post URL, posted time, stars, open issues, issue #4 comments, and Discussion #6 comments in the campaign file.
 
 ## Tracking Fields

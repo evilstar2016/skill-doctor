@@ -1,12 +1,12 @@
 # First-Wave Distribution Queue - 2026-06-21
 
-Goal: create the first legitimate external exposure loop for `skill-doctor` v0.3.2 without asking for stars, buying attention, or cross-posting identical spam. Each post should ask for one concrete action: run the safe demo or report a redacted false positive / missing path in issue #4.
+Goal: create a legitimate external exposure loop for `skill-doctor` v0.3.4 without asking for stars, buying attention, or cross-posting identical spam. Each post should ask for one concrete action: run the safe demo, run `cost`, or report a redacted false positive / missing path in issue #4.
 
 Current public assets:
 
 - Repository: https://github.com/evilstar2016/skill-doctor
 - npm: https://www.npmjs.com/package/@evilstar2025/skill-doctor
-- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.2
+- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
 - Safe demo path: `examples/conflicted-agent-project`
@@ -17,7 +17,7 @@ Current baseline before external posting:
 - Forks: 0
 - Watchers: 0
 - Open issues: 3
-- npm latest: 0.3.3
+- npm latest: 0.3.4
 - npm keywords: published for AI agent, CLI, developer tooling, and security audit discovery.
 
 ## Channel 1: Hacker News Show HN

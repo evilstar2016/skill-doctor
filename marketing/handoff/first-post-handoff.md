@@ -10,21 +10,21 @@ Current baseline:
 - Open issues: 3
 - Feedback issue #4 comments: 0
 - Discussion #6 comments: 0
-- npm latest: 0.3.3
-- GitHub release: v0.3.3
+- npm latest: 0.3.4
+- GitHub release: v0.3.4
 
 Primary links:
 
 - Repository: https://github.com/evilstar2016/skill-doctor
-- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3
+- Release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4
 - Demo output: https://github.com/evilstar2016/skill-doctor/blob/main/docs/demo-output.md
 - Feedback issue: https://github.com/evilstar2016/skill-doctor/issues/4
 - Discussion: https://github.com/evilstar2016/skill-doctor/discussions/6
-- v0.3.3 release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.3
+- v0.3.4 release: https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4
 - Full distribution queue: `marketing/distribution/2026-06-21-first-wave-queue.md`
 - Channel angle matrix: `marketing/distribution/2026-06-21-channel-angle-matrix.md`
 
-Version note: npm latest is `0.3.3`; use `v0.3.3` in new posts. Existing `v0.3.2` copy remains usable because runtime behavior did not change.
+Version note: npm latest is `0.3.4`; use `v0.3.4` in new posts and include `cost` when the audience cares about prompt/context budgets. Existing `v0.3.3` copy remains usable for scan/conflict/audit messaging, but it omits the new context-cost CTA.
 
 ## Option A: Hacker News Show HN
 
@@ -98,13 +98,14 @@ Before posting, pick one audience angle from `marketing/distribution/2026-06-21-
 Post:
 
 ```text
-I shipped skill-doctor v0.3.3: a local CLI for auditing AI agent skills, rules, and instruction files.
+I shipped skill-doctor v0.3.4: a local CLI for auditing AI agent skills, rules, instruction files, and context cost.
 
 It scans Claude Code skills, Cursor rules, Copilot instructions, Codex AGENTS.md, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes paths for:
 
 - duplicate skills
 - overlapping triggers
 - risky wording like credential exposure or network upload instructions
+- estimated per-turn context token tax
 - cross-agent config drift
 
 Try the safe demo first:
@@ -114,6 +115,7 @@ cd skill-doctor/examples/conflicted-agent-project
 npx @evilstar2025/skill-doctor scan --scope project
 npx @evilstar2025/skill-doctor conflicts --scope project
 npx @evilstar2025/skill-doctor audit --scope project
+npx @evilstar2025/skill-doctor cost --scope project
 
 It reads local files and does not upload your skill files by default.
 
