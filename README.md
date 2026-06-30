@@ -68,7 +68,7 @@ For lightweight questions and examples before filing an issue, use [GitHub Discu
 - Duplicate skills installed in multiple global/project paths
 - Overlapping skills that may compete for the same trigger
 - Suspicious instructions such as shell execution, destructive commands, credential exposure, or network upload patterns
-- Estimated context token tax from Claude skill descriptions and always-on instruction files
+- Estimated context token tax across Claude, Cursor, Copilot, Codex, Gemini CLI, Windsurf, and other coding agent instruction modes
 - Drift across agent ecosystems as your Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes setup grows
 
 ```
@@ -264,10 +264,16 @@ Estimate per-turn context token tax and grade it against a budget.
 $ skill-doctor cost
 
   CONTEXT COST REPORT
+  Project: /path/to/project
   Estimated token tax: 1240 tokens/turn
   Budget: 2000 tokens/turn
   Grade: B (within budget)
   Items scanned: 15
+
+  By coding agent:
+  - codex: 620 tokens/turn (1 items)
+  - claude: 180 tokens/turn (1 items)
+  - cursor: 120 tokens/turn (1 items)
 
   Highest cost items:
   - AGENTS.md
@@ -281,12 +287,32 @@ $ skill-doctor cost
 ```
 
 ```bash
-skill-doctor cost --scope project
+skill-doctor cost                         # current project + global agent config
+skill-doctor cost ../other-project        # explicit project directory
+skill-doctor cost --platform codex        # Codex entries only
+skill-doctor cost --scope project         # project entries only
+skill-doctor cost --scope global          # global/system entries only
 skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
 skill-doctor context --json
 ```
 
-For Claude Code skills, `cost` estimates the always-injected name, description, and trigger metadata rather than the full skill body. For always-on files such as `AGENTS.md`, it estimates the local file content.
+When running through npm scripts, pass CLI flags after `--`:
+
+```bash
+npm run dev -- cost --platform codex
+```
+
+`cost` uses platform-aware modes:
+
+| Mode | Applies to | Estimate basis |
+|------|------------|----------------|
+| `claude-skill-description` | Claude Code `SKILL.md` files | Name, description, and trigger metadata |
+| `agent-skill-description` | Gemini, Windsurf, Kiro, Trae, OpenCode, OpenClaw, Hermes, and Copilot skill dirs | Name, description, and trigger metadata |
+| `cursor-rule-file` | Cursor `.cursor/rules/*.mdc` and rule files | Local rule file content |
+| `copilot-instruction-file` | GitHub Copilot `.github/instructions/*.instructions.md` | Local instruction file content |
+| `always-on-file` | `AGENTS.md`, `.codex/AGENTS.md`, `GEMINI.md`, `.windsurfrules`, `.cursorrules`, and similar always-on files | Local file content |
+
+This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
 
 ### `diff`
 

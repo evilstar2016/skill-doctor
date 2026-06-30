@@ -181,14 +181,41 @@ describe('resolvePaths', () => {
     const cwd = join(tempRoot, 'workspace');
 
     writeFile(join(homeDir, '.codex', 'AGENTS.md'));
+    writeFile(join(homeDir, '.codex', 'skills', 'review-pr', 'SKILL.md'));
+    writeFile(join(homeDir, '.agent', 'skills', 'agent-review', 'SKILL.md'));
     writeFile(join(homeDir, '.codex', 'notes', 'reference.md'));
     writeFile(join(homeDir, '.codex', 'examples', 'workflow.md'));
 
     const result = resolvePaths(cwd, { homeDir });
     const codexFiles = result.filter((entry) => entry.platform === 'codex');
 
-    expect(codexFiles).toHaveLength(1);
-    expect(codexFiles[0]?.filePath).toContain(join('.codex', 'AGENTS.md'));
+    expect(codexFiles).toHaveLength(3);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.codex', 'AGENTS.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.codex', 'skills', 'review-pr', 'SKILL.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.agent', 'skills', 'agent-review', 'SKILL.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.includes(join('.codex', 'notes')))).toBe(false);
+  });
+
+  it('finds project-local codex AGENTS and skills under .codex and .agent', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.codex', 'AGENTS.md'));
+    writeFile(join(cwd, '.codex', 'skills', 'review-pr', 'SKILL.md'));
+    writeFile(join(cwd, '.agent', 'skills', 'agent-review', 'SKILL.md'));
+    writeFile(join(cwd, '.codex', 'notes', 'reference.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const codexFiles = result.filter((entry) => entry.platform === 'codex' && entry.scope === 'project');
+
+    expect(codexFiles).toHaveLength(3);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.codex', 'AGENTS.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.codex', 'skills', 'review-pr', 'SKILL.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.agent', 'skills', 'agent-review', 'SKILL.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.includes(join('.codex', 'notes')))).toBe(false);
   });
 
   it('picks SKILL.md when a skill dir contains multiple md files', () => {

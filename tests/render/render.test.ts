@@ -98,6 +98,15 @@ describe('renderers', () => {
         grade: 'A',
         overBudget: false,
         scanned: 1,
+        projectPath: 'E:/project',
+        byPlatform: [
+          {
+            platform: 'claude',
+            items: 1,
+            estimatedTokens: 240,
+            estimatedChars: 960,
+          },
+        ],
       },
       items: [
         {
@@ -114,8 +123,11 @@ describe('renderers', () => {
     });
 
     expect(output).toContain('CONTEXT COST REPORT');
+    expect(output).toContain('Project: E:/project');
     expect(output).toContain('Estimated token tax: 240 tokens/turn');
     expect(output).toContain('Grade: A');
+    expect(output).toContain('By coding agent:');
+    expect(output).toContain('claude: 240 tokens/turn (1 items)');
     expect(output).toContain('git-workflow');
     expect(output).toContain('claude-skill-description');
   });

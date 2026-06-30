@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -85,6 +85,89 @@ describe('estimateContextCost', () => {
     ]);
 
     expect(result.items[0]?.kind).toBe('always-on-file');
+    expect(result.items[0]?.estimatedTokens).toBe(estimateTokens(content));
+    expect(result.summary.byPlatform).toEqual([
+      {
+        platform: 'codex',
+        items: 1,
+        estimatedTokens: estimateTokens(content),
+        estimatedChars: content.trim().length,
+      },
+    ]);
+  });
+
+  it('estimates non-Claude skill-dir agents from activation metadata', () => {
+    const root = tempRoot();
+    const skillPath = join(root, '.gemini', 'skills', 'large-body', 'SKILL.md');
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, 'Full Gemini body content. '.repeat(500), 'utf8');
+
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'large-body',
+        sourcePath: skillPath,
+        platform: 'gemini',
+        description: 'Use for Gemini code review.',
+        triggers: ['review code'],
+      }),
+    ]);
+
+    expect(result.items[0]?.kind).toBe('agent-skill-description');
+    expect(result.items[0]?.estimatedTokens).toBeLessThan(50);
+  });
+
+  it('estimates Cursor rule files from raw rule content', () => {
+    const root = tempRoot();
+    const rulePath = join(root, '.cursor', 'rules', 'review.mdc');
+    const content = [
+      '---',
+      'description: Cursor review rule',
+      'globs: ["**/*.ts"]',
+      '---',
+      '',
+      'Follow this Cursor rule. '.repeat(60),
+    ].join('\n');
+    mkdirSync(dirname(rulePath), { recursive: true });
+    writeFileSync(rulePath, content, 'utf8');
+
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'review',
+        sourcePath: rulePath,
+        platform: 'cursor',
+        description: 'Cursor review rule',
+        triggers: ['**/*.ts'],
+      }),
+    ]);
+
+    expect(result.items[0]?.kind).toBe('cursor-rule-file');
+    expect(result.items[0]?.estimatedTokens).toBe(estimateTokens(content));
+  });
+
+  it('estimates Copilot instruction files from raw instruction content', () => {
+    const root = tempRoot();
+    const instructionPath = join(root, '.github', 'instructions', 'security.instructions.md');
+    const content = [
+      '---',
+      'applyTo: "**/*.ts"',
+      '---',
+      '',
+      'Follow this Copilot security instruction. '.repeat(50),
+    ].join('\n');
+    mkdirSync(dirname(instructionPath), { recursive: true });
+    writeFileSync(instructionPath, content, 'utf8');
+
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'security',
+        sourcePath: instructionPath,
+        platform: 'copilot',
+        description: 'Copilot security instruction',
+        triggers: ['**/*.ts'],
+      }),
+    ]);
+
+    expect(result.items[0]?.kind).toBe('copilot-instruction-file');
     expect(result.items[0]?.estimatedTokens).toBe(estimateTokens(content));
   });
 

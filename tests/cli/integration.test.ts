@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, realpathSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
@@ -1500,7 +1500,203 @@ describe('CLI integration — context cost', () => {
     expect(result.status).toBe(0);
     expect(payload.summary.budgetTokens).toBe(1000);
     expect(payload.summary.grade).toMatch(/^[ABCDF]$/);
+    expect(payload.summary.projectPath).toBe(realpathSync(cwd));
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'claude', items: 1 }),
+    ]);
     expect(payload.items[0].kind).toBe('claude-skill-description');
+  });
+
+  it('cost defaults to current project plus global agent scope', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper.', '---', '', '# Project Review'].join('\n'),
+    );
+    writeFile(
+      join(home, '.claude', 'skills', 'global-review', 'SKILL.md'),
+      ['---', 'name: global-review', 'description: Global review helper.', '---', '', '# Global Review'].join('\n'),
+    );
+
+    const result = runCli(['cost', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.items.map((item: { name: string }) => item.name).sort()).toEqual(['global-review', 'project-review']);
+    expect(payload.summary.projectPath).toBe(realpathSync(cwd));
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'claude', items: 2 }),
+    ]);
+  });
+
+  it('cost accepts an explicit project directory argument', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const target = join(root, 'target-project');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(target, '.claude', 'skills', 'target-review', 'SKILL.md'),
+      ['---', 'name: target-review', 'description: Target review helper.', '---', '', '# Target Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'cwd-review', 'SKILL.md'),
+      ['---', 'name: cwd-review', 'description: CWD review helper.', '---', '', '# CWD Review'].join('\n'),
+    );
+
+    const result = runCli(['cost', target, '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.projectPath).toBe(target);
+    expect(payload.items.map((item: { name: string }) => item.name)).toEqual(['target-review']);
+  });
+
+  it('cost --json classifies other coding agent cost modes', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.cursor', 'rules', 'review.mdc'),
+      ['---', 'description: Cursor review rule', 'globs: ["**/*.ts"]', '---', '', 'Follow Cursor review guidance.'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.github', 'instructions', 'security.instructions.md'),
+      ['---', 'applyTo: "**/*.ts"', '---', '', 'Follow Copilot security guidance.'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.gemini', 'skills', 'review-helper', 'SKILL.md'),
+      ['---', 'name: review-helper', 'description: Use for Gemini code review.', '---', '', '# Review Helper'].join('\n'),
+    );
+    writeFile(join(cwd, '.windsurfrules'), 'Always follow Windsurf project guidance.');
+
+    const result = runCli(['cost', '--scope', 'project', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+    const kindsByPlatform = Object.fromEntries(
+      payload.items.map((item: { platform: string; kind: string }) => [item.platform, item.kind]),
+    );
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.byPlatform).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'cursor' }),
+      expect.objectContaining({ platform: 'copilot' }),
+      expect.objectContaining({ platform: 'gemini' }),
+      expect.objectContaining({ platform: 'windsurf' }),
+    ]));
+    expect(kindsByPlatform.cursor).toBe('cursor-rule-file');
+    expect(kindsByPlatform.copilot).toBe('copilot-instruction-file');
+    expect(kindsByPlatform.gemini).toBe('agent-skill-description');
+    expect(kindsByPlatform.windsurf).toBe('always-on-file');
+  });
+
+  it('cost covers codex project and global skill paths', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.codex', 'AGENTS.md'), 'Project-local Codex instructions.');
+    writeFile(
+      join(cwd, '.codex', 'skills', 'review-helper', 'SKILL.md'),
+      ['---', 'name: review-helper', 'description: Codex skill metadata.', '---', '', '# Review Helper'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.agent', 'skills', 'project-agent-helper', 'SKILL.md'),
+      ['---', 'name: project-agent-helper', 'description: Project agent skill metadata.', '---', '', '# Project Agent Helper'].join('\n'),
+    );
+    writeFile(
+      join(home, '.codex', 'skills', 'global-codex-helper', 'SKILL.md'),
+      ['---', 'name: global-codex-helper', 'description: Global Codex skill metadata.', '---', '', '# Global Codex Helper'].join('\n'),
+    );
+    writeFile(
+      join(home, '.agent', 'skills', 'global-agent-helper', 'SKILL.md'),
+      ['---', 'name: global-agent-helper', 'description: Global agent skill metadata.', '---', '', '# Global Agent Helper'].join('\n'),
+    );
+
+    const result = runCli(['cost', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+    const kindsByName = Object.fromEntries(
+      payload.items.map((item: { name: string; kind: string }) => [item.name, item.kind]),
+    );
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'codex', items: 5 }),
+    ]);
+    expect(kindsByName['AGENTS.md']).toBe('always-on-file');
+    expect(kindsByName['review-helper']).toBe('agent-skill-description');
+    expect(kindsByName['project-agent-helper']).toBe('agent-skill-description');
+    expect(kindsByName['global-codex-helper']).toBe('agent-skill-description');
+    expect(kindsByName['global-agent-helper']).toBe('agent-skill-description');
+  });
+
+  it('cost --platform returns only the selected coding agent', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper.', '---', '', '# Project Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md'),
+      ['---', 'name: codex-review', 'description: Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+    writeFile(join(cwd, '.cursor', 'rules', 'review.mdc'), 'Cursor review guidance.');
+
+    const result = runCli(['cost', '--platform', 'codex', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'codex', items: 1 }),
+    ]);
+    expect(payload.items).toHaveLength(1);
+    expect(payload.items[0]).toEqual(expect.objectContaining({ platform: 'codex', name: 'codex-review' }));
+  });
+
+  it('cost treats a lone platform positional as a platform filter for npm-run compatibility', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper.', '---', '', '# Project Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md'),
+      ['---', 'name: codex-review', 'description: Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+
+    const result = runCli(['cost', 'codex', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.projectPath).toBe(realpathSync(cwd));
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'codex', items: 1 }),
+    ]);
+    expect(payload.items.map((item: { platform: string; name: string }) => `${item.platform}:${item.name}`)).toEqual([
+      'codex:codex-review',
+    ]);
+  });
+
+  it('cost validates platform input', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['cost', '--platform', 'not-an-agent'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid platform. Use --platform');
   });
 
   it('cost --fail-on-budget exits non-zero when the estimate exceeds the budget', () => {

@@ -2,9 +2,12 @@
 
 All notable changes to `skill-doctor` are documented here.
 
-## 0.3.4 - 2026-06-29
+## 0.3.4 - 2026-06-30
 
 - Added `cost` / `context` commands to estimate per-turn context token tax, grade it against a token budget, and fail CI with `--fail-on-budget`.
+- Added platform-aware cost modes for Cursor rules, GitHub Copilot instruction files, and non-Claude skill-dir agents.
+- Added per-coding-agent cost summaries, explicit `cost [project-dir]` support, default project+global cost accounting, and project/global `.codex` plus `.agent` skill discovery.
+- Added `cost --platform <agent>` filtering for target-agent cost reports.
 - Added JSON output and tests for context cost summaries, item-level estimates, and budget validation.
 
 ## 0.3.3 - 2026-06-21

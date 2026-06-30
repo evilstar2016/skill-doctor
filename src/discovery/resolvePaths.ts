@@ -55,8 +55,17 @@ export const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'codex',
     confidence: 'high',
-    global: [{ path: '~/.codex/AGENTS.md', mode: 'single-file' }],
-    project: [{ path: 'AGENTS.md', mode: 'single-file' }],
+    global: [
+      { path: '~/.codex/AGENTS.md', mode: 'single-file' },
+      { path: '~/.codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.agent/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: 'AGENTS.md', mode: 'single-file' },
+      { path: '.codex/AGENTS.md', mode: 'single-file' },
+      { path: '.codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.agent/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
     extensions: ['.md'],
   },
   {
@@ -271,6 +280,7 @@ function resolveGlobalPath(pathTemplate: string, homeDir: string, appDataDir: st
 function getEntryFileName(platform: Platform): string | null {
   switch (platform) {
     case 'claude':
+    case 'codex':
     case 'copilot':
     case 'gemini':
     case 'kiro':
