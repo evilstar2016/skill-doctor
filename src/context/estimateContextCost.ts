@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 import type { ContextCostGrade, ContextCostItem, ContextCostResult } from '../types/context';
+import type { McpServerRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
 
 const DEFAULT_BUDGET_TOKENS = 2000;
@@ -12,12 +13,12 @@ interface EstimateContextCostOptions {
 }
 
 export function estimateContextCost(
-  skills: SkillRecord[],
+  entries: Array<SkillRecord | McpServerRecord>,
   options: EstimateContextCostOptions = {},
 ): ContextCostResult {
   const budgetTokens = options.budgetTokens ?? DEFAULT_BUDGET_TOKENS;
-  const items = skills
-    .map((skill) => estimateSkillCost(skill))
+  const items = entries
+    .map((entry) => isMcpServerRecord(entry) ? estimateMcpServerCost(entry) : estimateSkillCost(entry))
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -33,7 +34,7 @@ export function estimateContextCost(
       budgetTokens,
       grade: gradeCost(totalEstimatedTokens, budgetTokens),
       overBudget: totalEstimatedTokens > budgetTokens,
-      scanned: skills.length,
+      scanned: entries.length,
       ...(options.projectPath ? { projectPath: options.projectPath } : {}),
       byPlatform,
     },
@@ -56,11 +57,33 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
     sourcePath: skill.sourcePath,
     platform: skill.platform,
     scope: skill.scope,
+    source: 'skill',
     kind: context.kind,
     estimatedTokens,
     estimatedChars: context.text.replace(/\s+/g, ' ').trim().length,
     recommendation: getRecommendation(skill, context.kind, estimatedTokens),
   };
+}
+
+function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
+  const text = buildMcpConfigText(server);
+  const estimatedTokens = estimateTokens(text);
+
+  return {
+    name: server.name,
+    sourcePath: server.sourcePath,
+    platform: server.platform,
+    scope: server.scope,
+    source: 'mcp',
+    kind: 'mcp-server-config',
+    estimatedTokens,
+    estimatedChars: text.replace(/\s+/g, ' ').trim().length,
+    recommendation: getMcpRecommendation(server, estimatedTokens),
+  };
+}
+
+function isMcpServerRecord(entry: SkillRecord | McpServerRecord): entry is McpServerRecord {
+  return 'source' in entry && entry.source === 'mcp';
 }
 
 function buildInjectedContext(skill: SkillRecord): { kind: ContextCostItem['kind']; text: string } {
@@ -175,6 +198,26 @@ function buildMetadataText(skill: SkillRecord): string {
   ].filter(Boolean).join('\n');
 }
 
+export function buildMcpConfigText(server: McpServerRecord): string {
+  return [
+    `MCP server: ${server.name}`,
+    `Platform: ${server.platform}`,
+    `Scope: ${server.scope}`,
+    server.transport ? `Transport: ${server.transport}` : '',
+    server.command ? `Command: ${server.command}` : '',
+    server.args.length > 0 ? `Args: ${server.args.join(' ')}` : '',
+    server.url ? `URL: ${server.url}` : '',
+    server.envKeys.length > 0 ? `Env keys: ${server.envKeys.map((key) => `${key}=<masked>`).join(', ')}` : '',
+    server.headerKeys.length > 0 ? `Header keys: ${server.headerKeys.map((key) => `${key}=<masked>`).join(', ')}` : '',
+    server.toolAllowlist.length > 0 ? `Allowed tools: ${server.toolAllowlist.join(', ')}` : '',
+    server.toolDenylist.length > 0 ? `Denied tools: ${server.toolDenylist.join(', ')}` : '',
+    server.approvalMode ? `Approval mode: ${server.approvalMode}` : '',
+    typeof server.trusted === 'boolean' ? `Trusted: ${server.trusted}` : '',
+    typeof server.timeoutMs === 'number' ? `Timeout ms: ${server.timeoutMs}` : '',
+    `Source path: ${server.sourcePath}`,
+  ].filter(Boolean).join('\n');
+}
+
 function summarizeByPlatform(items: ContextCostItem[]): ContextCostResult['summary']['byPlatform'] {
   const summaries = new Map<Platform, { items: number; estimatedTokens: number; estimatedChars: number }>();
 
@@ -231,7 +274,23 @@ function getRecommendation(
     return 'Move rarely needed guidance into a skill or narrower rule.';
   }
 
+  if (kind === 'mcp-server-config') {
+    return 'Narrow exposed MCP tools or move rarely used servers out of the active config.';
+  }
+
   return 'Compress metadata and keep only activation-critical wording.';
+}
+
+function getMcpRecommendation(server: McpServerRecord, estimatedTokens: number): string {
+  if (estimatedTokens <= 120) {
+    return 'OK';
+  }
+
+  if (server.toolAllowlist.length === 0) {
+    return 'Add an MCP tool allowlist so only needed tools contribute to agent context.';
+  }
+
+  return 'Narrow exposed MCP tools or move rarely used servers out of the active config.';
 }
 
 function gradeCost(totalTokens: number, budgetTokens: number): ContextCostGrade {

@@ -1724,6 +1724,148 @@ describe('CLI integration — context cost', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Invalid budget. Use --budget-tokens <positive integer>');
   });
+
+  it('cost --source mcp --platform codex reports Codex MCP config only', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.codex', 'config.toml'),
+      [
+        '[mcp_servers.github]',
+        'command = "npx"',
+        'args = ["-y", "@modelcontextprotocol/server-github"]',
+        'allowed_tools = ["search_repositories"]',
+        '',
+        '[mcp_servers.github.env]',
+        'GITHUB_TOKEN = "super-secret"',
+      ].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper.', '---', '', '# Project Review'].join('\n'),
+    );
+
+    const result = runCli(['cost', '--source', 'mcp', '--platform', 'codex', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'codex', items: 1 }),
+    ]);
+    expect(payload.items).toHaveLength(1);
+    expect(payload.items[0]).toEqual(expect.objectContaining({
+      name: 'github',
+      platform: 'codex',
+      source: 'mcp',
+      kind: 'mcp-server-config',
+    }));
+    expect(JSON.stringify(payload)).not.toContain('super-secret');
+  });
+
+  it('cost accepts claudecode as a Claude platform alias', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper.', '---', '', '# Project Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          local: { command: 'node', args: ['server.js'] },
+        },
+      }),
+    );
+    writeFile(
+      join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md'),
+      ['---', 'name: codex-review', 'description: Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+
+    const result = runCli(['cost', 'claudecode', '--source', 'all', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'claude', items: 2 }),
+    ]);
+    expect(payload.items.map((item: { platform: string; source: string }) => `${item.platform}:${item.source}`).sort()).toEqual([
+      'claude:mcp',
+      'claude:skill',
+    ]);
+  });
+
+  it('cost --source skill preserves skill-only behavior', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper.', '---', '', '# Project Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          local: { command: 'node', args: ['server.js'] },
+        },
+      }),
+    );
+
+    const result = runCli(['cost', '--source', 'skill', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.items).toHaveLength(1);
+    expect(payload.items[0]).toEqual(expect.objectContaining({
+      name: 'project-review',
+      source: 'skill',
+      kind: 'claude-skill-description',
+    }));
+  });
+
+  it('cost --source mcp --fail-on-budget exits non-zero when MCP estimate exceeds budget', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          broad: {
+            command: 'node',
+            args: Array.from({ length: 20 }, (_, index) => `very-long-argument-${index}`),
+            allowedTools: Array.from({ length: 20 }, (_, index) => `tool_${index}`),
+          },
+        },
+      }),
+    );
+
+    const result = runCli(['cost', '--source', 'mcp', '--budget-tokens', '10', '--fail-on-budget'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('over budget');
+    expect(result.stdout).toContain('broad');
+  });
+
+  it('cost validates source input', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['cost', '--source', 'everything'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid source. Use --source skill|mcp|all');
+  });
 });
 
 describe('install / uninstall', () => {

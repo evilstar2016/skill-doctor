@@ -290,8 +290,11 @@ $ skill-doctor cost
 skill-doctor cost                         # current project + global agent config
 skill-doctor cost ../other-project        # explicit project directory
 skill-doctor cost --platform codex        # Codex entries only
+skill-doctor cost claudecode              # Claude Code entries only (alias for claude)
 skill-doctor cost --scope project         # project entries only
 skill-doctor cost --scope global          # global/system entries only
+skill-doctor cost --source skill          # skills/rules/instruction files only
+skill-doctor cost --source mcp            # MCP server config only
 skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
 skill-doctor context --json
 ```
@@ -311,8 +314,11 @@ npm run dev -- cost --platform codex
 | `cursor-rule-file` | Cursor `.cursor/rules/*.mdc` and rule files | Local rule file content |
 | `copilot-instruction-file` | GitHub Copilot `.github/instructions/*.instructions.md` | Local instruction file content |
 | `always-on-file` | `AGENTS.md`, `.codex/AGENTS.md`, `GEMINI.md`, `.windsurfrules`, `.cursorrules`, and similar always-on files | Local file content |
+| `mcp-server-config` | Static MCP server config for Codex, Claude Code, Gemini CLI, and Cursor | Sanitized local config metadata; env/header values are masked |
 
 This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
+
+MCP cost mode is static-only: it reads local config files and does not start MCP servers, connect to configured URLs, or call tool discovery APIs.
 
 ### `diff`
 

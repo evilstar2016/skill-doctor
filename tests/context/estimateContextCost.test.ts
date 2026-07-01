@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { estimateContextCost, estimateTokens } from '../../src/context/estimateContextCost';
+import { buildMcpConfigText, estimateContextCost, estimateTokens } from '../../src/context/estimateContextCost';
+import type { McpServerRecord } from '../../src/types/mcp';
 import type { SkillRecord } from '../../src/types/skill';
 
 const tempRoots: string[] = [];
@@ -34,6 +35,23 @@ function makeSkill(overrides: Partial<SkillRecord> = {}): SkillRecord {
       installSource: '.claude/skills',
       confidence: 'high',
     },
+    ...overrides,
+  };
+}
+
+function makeMcpServer(overrides: Partial<McpServerRecord> = {}): McpServerRecord {
+  return {
+    source: 'mcp',
+    name: 'github',
+    sourcePath: '/fake/.codex/config.toml',
+    platform: 'codex',
+    scope: 'project',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-github'],
+    envKeys: ['GITHUB_TOKEN'],
+    headerKeys: ['Authorization'],
+    toolAllowlist: ['search_repositories'],
+    toolDenylist: [],
     ...overrides,
   };
 }
@@ -184,5 +202,30 @@ describe('estimateContextCost', () => {
 
     expect(result.summary.overBudget).toBe(true);
     expect(result.summary.grade).toBe('F');
+  });
+
+  it('estimates MCP server config token cost from sanitized metadata', () => {
+    const server = makeMcpServer();
+    const result = estimateContextCost([server]);
+
+    expect(result.items[0]).toEqual(expect.objectContaining({
+      name: 'github',
+      platform: 'codex',
+      scope: 'project',
+      source: 'mcp',
+      kind: 'mcp-server-config',
+      estimatedTokens: estimateTokens(buildMcpConfigText(server)),
+    }));
+    expect(result.summary.byPlatform).toEqual([
+      expect.objectContaining({ platform: 'codex', items: 1 }),
+    ]);
+  });
+
+  it('masks MCP env and header values in the estimated text', () => {
+    const text = buildMcpConfigText(makeMcpServer());
+
+    expect(text).toContain('GITHUB_TOKEN=<masked>');
+    expect(text).toContain('Authorization=<masked>');
+    expect(text).not.toContain('super-secret');
   });
 });

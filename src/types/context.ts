@@ -1,6 +1,7 @@
 import type { Platform, Scope } from './skill';
 
 export type ContextCostGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+export type ContextCostSource = 'skill' | 'mcp';
 
 export type ContextInjectionKind =
   | 'claude-skill-description'
@@ -8,6 +9,7 @@ export type ContextInjectionKind =
   | 'cursor-rule-file'
   | 'copilot-instruction-file'
   | 'always-on-file'
+  | 'mcp-server-config'
   | 'skill-metadata';
 
 export interface ContextCostItem {
@@ -15,6 +17,7 @@ export interface ContextCostItem {
   sourcePath: string;
   platform: Platform;
   scope: Scope;
+  source?: ContextCostSource;
   kind: ContextInjectionKind;
   estimatedTokens: number;
   estimatedChars: number;

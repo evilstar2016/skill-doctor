@@ -14,7 +14,7 @@ export function renderContextCost(result: ContextCostResult): string {
       ? ['- none']
       : items.flatMap((item) => [
           `- ${item.name}`,
-          `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}`,
+          `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}${item.source ? `  source: ${item.source}` : ''}`,
           `  kind: ${item.kind}`,
           `  path: ${item.sourcePath}`,
           `  fix: ${item.recommendation}`,
