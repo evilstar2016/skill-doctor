@@ -136,11 +136,17 @@ skill-doctor audit --json
 
 ```bash
 skill-doctor cost
+skill-doctor cost --platform codex
+skill-doctor cost claudecode
+skill-doctor cost --source skill
+skill-doctor cost --source mcp
 skill-doctor cost --budget-tokens 2000 --fail-on-budget
 skill-doctor context --json
 ```
 
 对 Claude Code skills，`cost` 估算始终注入的 name、description、trigger 元数据，而不是完整 skill 正文。对 `AGENTS.md` 这类 always-on 文件，它会估算本地文件内容。
+
+`--source skill|mcp|all` 可以选择只统计 skills/rules/instruction files、只统计 MCP 配置，或两者都统计。MCP 模式只静态读取本地配置文件，不会启动 MCP server、连接 URL 或调用工具发现接口；env/header 的值会被屏蔽，只保留 key 名用于预算估算。
 
 ### `dashboard`
 

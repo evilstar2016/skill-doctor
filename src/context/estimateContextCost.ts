@@ -10,6 +10,7 @@ import type {
   ContextCostResult,
   ContextInjectionKind,
 } from '../types/context';
+import type { McpServerRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
 
 const DEFAULT_BUDGET_TOKENS = 2000;
@@ -59,13 +60,13 @@ const PLATFORM_POLICIES: Partial<Record<Platform, PlatformCostPolicy>> = {
 };
 
 export function estimateContextCost(
-  skills: SkillRecord[],
+  entries: Array<SkillRecord | McpServerRecord>,
   options: EstimateContextCostOptions = {},
 ): ContextCostResult {
   const budgetTokens = options.budgetTokens ?? DEFAULT_BUDGET_TOKENS;
   const platformBudgets = options.platformBudgets ?? {};
-  const items = skills
-    .map((skill) => estimateSkillCost(skill))
+  const items = entries
+    .map((entry) => isMcpServerRecord(entry) ? estimateMcpServerCost(entry) : estimateSkillCost(entry))
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -84,7 +85,7 @@ export function estimateContextCost(
       budgetTokens,
       grade: gradeCost(totalEstimatedTokens, budgetTokens),
       overBudget: totalEstimatedTokens > budgetTokens || byPlatform.some((entry) => entry.overBudget),
-      scanned: skills.length,
+      scanned: entries.length,
       ...(options.projectPath ? { projectPath: options.projectPath } : {}),
       byPlatform,
     },
@@ -112,6 +113,7 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
     sourcePath: skill.sourcePath,
     platform: skill.platform,
     scope: skill.scope,
+    source: 'skill',
     kind: profile.kind,
     estimatedTokens,
     estimatedChars: normalizeForEstimate(budgetText).length,
@@ -123,6 +125,32 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
     ...(profile.officialLimit ? { officialLimit: profile.officialLimit } : {}),
     recommendation: getRecommendation(skill, profile, estimatedTokens, activationEstimatedTokens),
   };
+}
+
+function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
+  const text = buildMcpConfigText(server);
+  const estimatedTokens = estimateTokens(text);
+
+  return {
+    name: server.name,
+    sourcePath: server.sourcePath,
+    platform: server.platform,
+    scope: server.scope,
+    source: 'mcp',
+    kind: 'mcp-server-config',
+    estimatedTokens,
+    estimatedChars: normalizeForEstimate(text).length,
+    activationEstimatedTokens: estimatedTokens,
+    activationEstimatedChars: normalizeForEstimate(text).length,
+    activation: 'startup',
+    budgetScope: 'startup-selection',
+    confidence: 'low',
+    recommendation: getMcpRecommendation(server, estimatedTokens),
+  };
+}
+
+function isMcpServerRecord(entry: SkillRecord | McpServerRecord): entry is McpServerRecord {
+  return 'source' in entry && entry.source === 'mcp';
 }
 
 const DEFAULT_SKILL_POLICY: PlatformCostPolicy = {
@@ -382,6 +410,26 @@ function buildMetadataText(skill: SkillRecord, options: { includePath?: boolean 
   ].filter(Boolean).join('\n');
 }
 
+export function buildMcpConfigText(server: McpServerRecord): string {
+  return [
+    `MCP server: ${server.name}`,
+    `Platform: ${server.platform}`,
+    `Scope: ${server.scope}`,
+    server.transport ? `Transport: ${server.transport}` : '',
+    server.command ? `Command: ${server.command}` : '',
+    server.args.length > 0 ? `Args: ${server.args.join(' ')}` : '',
+    server.url ? `URL: ${server.url}` : '',
+    server.envKeys.length > 0 ? `Env keys: ${server.envKeys.map((key) => `${key}=<masked>`).join(', ')}` : '',
+    server.headerKeys.length > 0 ? `Header keys: ${server.headerKeys.map((key) => `${key}=<masked>`).join(', ')}` : '',
+    server.toolAllowlist.length > 0 ? `Allowed tools: ${server.toolAllowlist.join(', ')}` : '',
+    server.toolDenylist.length > 0 ? `Denied tools: ${server.toolDenylist.join(', ')}` : '',
+    server.approvalMode ? `Approval mode: ${server.approvalMode}` : '',
+    typeof server.trusted === 'boolean' ? `Trusted: ${server.trusted}` : '',
+    typeof server.timeoutMs === 'number' ? `Timeout ms: ${server.timeoutMs}` : '',
+    `Source path: ${server.sourcePath}`,
+  ].filter(Boolean).join('\n');
+}
+
 function applyOfficialBudgetLimit(text: string, limit: ContextCostOfficialLimit | undefined): string {
   if (!limit || limit.kind !== 'chars' || text.length <= limit.value) return text;
   return text.slice(0, limit.value);
@@ -497,6 +545,18 @@ function getRecommendation(
   }
 
   return 'Compress metadata and keep only activation-critical wording.';
+}
+
+function getMcpRecommendation(server: McpServerRecord, estimatedTokens: number): string {
+  if (estimatedTokens <= 120) {
+    return 'OK';
+  }
+
+  if (server.toolAllowlist.length === 0) {
+    return 'Add an MCP tool allowlist so only needed tools contribute to agent context.';
+  }
+
+  return 'Narrow exposed MCP tools or move rarely used servers out of the active config.';
 }
 
 function gradeCost(totalTokens: number, budgetTokens: number): ContextCostGrade {

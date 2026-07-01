@@ -25,6 +25,7 @@ import { detectPlatform } from '../install/detectPlatform.js';
 import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
 import { installSkill } from '../install/installSkill.js';
 import { uninstallSkill } from '../install/uninstallSkill.js';
+import { scanMcpServers } from '../mcp/scanMcpServers';
 import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
 import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
@@ -48,6 +49,8 @@ import type {
   SkillFile,
   SkillRecord,
 } from '../types/skill';
+
+type CostSourceFilter = 'skill' | 'mcp' | 'all';
 
 function getRegistryPath(): string {
   return join(homedir(), '.skill-doctor', 'registry.json');
@@ -350,6 +353,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const explicitPlatform = readPlatform(rest);
     const implicitPlatform = explicitPlatform === null ? readImplicitCostPlatform(rest, cwd) : null;
     const platform = explicitPlatform === null ? implicitPlatform : explicitPlatform;
+    const source = readCostSource(rest);
     const budgetTokens = readBudgetTokens(rest);
     const platformBudgets = readPlatformBudgets(rest);
     const projectDir = readCostProjectDir(rest, cwd, implicitPlatform);
@@ -361,7 +365,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     if (platform === 'invalid') {
-      process.stderr.write('Invalid platform. Use --platform claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|unknown\n');
+      process.stderr.write('Invalid platform. Use --platform claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|unknown (aliases: claudecode, claude-code)\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    if (source === 'invalid') {
+      process.stderr.write('Invalid source. Use --source skill|mcp|all\n');
       process.exitCode = 1;
       return;
     }
@@ -379,7 +389,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     if (projectDir === 'invalid') {
-      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
+      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--source skill|mcp|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
       process.exitCode = 1;
       return;
     }
@@ -390,11 +400,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByPlatform(
-      filterSkillsByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
-      platform,
-    );
-    const result = estimateContextCost(skills, {
+    const skills = source === 'mcp'
+      ? []
+      : filterEntriesByPlatform(
+          filterEntriesByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
+          platform,
+        );
+    const mcpServers = source === 'skill'
+      ? []
+      : filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform);
+    const result = estimateContextCost([...skills, ...mcpServers], {
       ...(budgetTokens === null ? {} : { budgetTokens }),
       ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
       projectPath: projectDir,
@@ -655,8 +670,8 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
-    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
@@ -837,10 +852,10 @@ function readScope(args: string[], defaultScope: Scope | 'all' = 'all'): Scope |
 
 function readCostProjectDir(args: string[], cwd: string, implicitPlatform: Platform | null = null): string | 'invalid' {
   const positionals: string[] = [];
-  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget']);
+  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source']);
 
   for (const arg of readPositionals(args, valueFlags)) {
-    if (implicitPlatform !== null && arg === implicitPlatform) {
+    if (implicitPlatform !== null && normalizePlatformInput(arg) === implicitPlatform && !existsSync(resolve(cwd, arg))) {
       continue;
     }
     positionals.push(arg);
@@ -882,14 +897,15 @@ function readPlatform(args: string[]): Platform | null | 'invalid' {
   }
 
   const value = args[index + 1];
-  return isPlatform(value) ? value : 'invalid';
+  return normalizePlatformInput(value) ?? 'invalid';
 }
 
 function readImplicitCostPlatform(args: string[], cwd: string): Platform | null {
-  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget']));
+  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source']));
   const candidate = positionals[0];
+  const platform = normalizePlatformInput(candidate);
 
-  if (positionals.length === 0 || !isPlatform(candidate)) {
+  if (positionals.length === 0 || !platform) {
     return null;
   }
 
@@ -897,11 +913,13 @@ function readImplicitCostPlatform(args: string[], cwd: string): Platform | null 
     return null;
   }
 
-  return candidate;
+  return platform;
 }
 
-function isPlatform(value: string | undefined): value is Platform {
-  return value === 'claude'
+function normalizePlatformInput(value: string | undefined): Platform | null {
+  if (value === 'claudecode' || value === 'claude-code') return 'claude';
+
+  if (value === 'claude'
     || value === 'cursor'
     || value === 'copilot'
     || value === 'codex'
@@ -912,7 +930,22 @@ function isPlatform(value: string | undefined): value is Platform {
     || value === 'kiro'
     || value === 'openclaw'
     || value === 'hermes'
-    || value === 'unknown';
+    || value === 'unknown') {
+    return value;
+  }
+
+  return null;
+}
+
+function readCostSource(args: string[]): CostSourceFilter | 'invalid' {
+  const index = args.indexOf('--source');
+
+  if (index === -1) {
+    return 'all';
+  }
+
+  const value = args[index + 1];
+  return value === 'skill' || value === 'mcp' || value === 'all' ? value : 'invalid';
 }
 
 function readKind(args: string[]): ConflictPair['kind'] | 'all' | 'invalid' {
@@ -955,6 +988,22 @@ function filterSkillsByPlatform(skills: SkillRecord[], platform: Platform | null
   }
 
   return skills.filter((skill) => skill.platform === platform);
+}
+
+function filterEntriesByScope<T extends { scope: Scope }>(entries: T[], scope: Scope | 'all'): T[] {
+  if (scope === 'all') {
+    return entries;
+  }
+
+  return entries.filter((entry) => entry.scope === scope);
+}
+
+function filterEntriesByPlatform<T extends { platform: Platform }>(entries: T[], platform: Platform | null): T[] {
+  if (platform === null) {
+    return entries;
+  }
+
+  return entries.filter((entry) => entry.platform === platform);
 }
 
 function buildScanPayload(skills: SkillRecord[], conflicts: ConflictPair[]) {
@@ -1066,11 +1115,11 @@ function readPlatformBudgets(args: string[]): Partial<Record<Platform, number>> 
       return 'invalid';
     }
 
-    const platform = rawValue.slice(0, separatorIndex);
+    const platform = normalizePlatformInput(rawValue.slice(0, separatorIndex));
     const rawBudget = rawValue.slice(separatorIndex + 1);
     const parsed = Number(rawBudget);
 
-    if (!isPlatform(platform) || !Number.isInteger(parsed) || parsed <= 0) {
+    if (!platform || !Number.isInteger(parsed) || parsed <= 0) {
       return 'invalid';
     }
 
