@@ -1501,9 +1501,10 @@ describe('CLI integration — context cost', () => {
     expect(payload.summary.budgetTokens).toBe(1000);
     expect(payload.summary.grade).toMatch(/^[ABCDF]$/);
     expect(payload.summary.projectPath).toBe(realpathSync(cwd));
-    expect(payload.summary.byPlatform).toEqual([
+    expect(payload.summary.byPlatform).toEqual(expect.arrayContaining([
       expect.objectContaining({ platform: 'claude', items: 1 }),
-    ]);
+      expect.objectContaining({ platform: 'copilot', items: 1 }),
+    ]));
     expect(payload.items[0].kind).toBe('claude-skill-description');
   });
 
@@ -1525,11 +1526,16 @@ describe('CLI integration — context cost', () => {
     const payload = JSON.parse(result.stdout);
 
     expect(result.status).toBe(0);
-    expect(payload.items.map((item: { name: string }) => item.name).sort()).toEqual(['global-review', 'project-review']);
-    expect(payload.summary.projectPath).toBe(realpathSync(cwd));
-    expect(payload.summary.byPlatform).toEqual([
-      expect.objectContaining({ platform: 'claude', items: 2 }),
+    expect(payload.items.map((item: { platform: string; name: string }) => `${item.platform}:${item.name}`).sort()).toEqual([
+      'claude:global-review',
+      'claude:project-review',
+      'copilot:project-review',
     ]);
+    expect(payload.summary.projectPath).toBe(realpathSync(cwd));
+    expect(payload.summary.byPlatform).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'claude', items: 2 }),
+      expect.objectContaining({ platform: 'copilot', items: 1 }),
+    ]));
   });
 
   it('cost accepts an explicit project directory argument', () => {
@@ -1552,7 +1558,10 @@ describe('CLI integration — context cost', () => {
 
     expect(result.status).toBe(0);
     expect(payload.summary.projectPath).toBe(target);
-    expect(payload.items.map((item: { name: string }) => item.name)).toEqual(['target-review']);
+    expect(payload.items.map((item: { platform: string; name: string }) => `${item.platform}:${item.name}`).sort()).toEqual([
+      'claude:target-review',
+      'copilot:target-review',
+    ]);
   });
 
   it('cost --json classifies other coding agent cost modes', () => {
@@ -1712,6 +1721,34 @@ describe('CLI integration — context cost', () => {
     expect(result.stdout).toContain('over budget');
   });
 
+  it('cost applies per-platform budgets and fails when a selected platform exceeds its budget', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'project-review', 'SKILL.md'),
+      ['---', 'name: project-review', 'description: Project review helper. '.repeat(40), '---', '', '# Project Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md'),
+      ['---', 'name: codex-review', 'description: Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+
+    const result = runCli(
+      ['cost', '--platform-budget', 'claude=10', '--platform-budget', 'codex=2000', '--fail-on-budget', '--json'],
+      cwd,
+      home,
+    );
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(1);
+    expect(payload.summary.byPlatform).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'claude', budgetTokens: 10, overBudget: true }),
+      expect.objectContaining({ platform: 'codex', budgetTokens: 2000, overBudget: false }),
+    ]));
+  });
+
   it('cost validates budget input', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -1723,6 +1760,19 @@ describe('CLI integration — context cost', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Invalid budget. Use --budget-tokens <positive integer>');
+  });
+
+  it('cost validates platform budget input', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['cost', '--platform-budget', 'codex=0'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid platform budget. Use --platform-budget <platform=positive-integer>');
   });
 });
 

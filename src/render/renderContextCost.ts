@@ -7,7 +7,11 @@ export function renderContextCost(result: ContextCostResult): string {
     summary.byPlatform.length === 0
       ? ['- none']
       : summary.byPlatform.map(
-          (entry) => `- ${entry.platform}: ${entry.estimatedTokens} tokens/turn (${entry.items} items)`,
+          (entry) => [
+            `- ${entry.platform}: ${entry.estimatedTokens} tokens/turn (${entry.items} items)`,
+            `  budget: ${entry.budgetTokens}  grade: ${entry.grade} (${entry.overBudget ? 'over budget' : 'within budget'})`,
+            `  startup: ${entry.startupSelectionTokens}  always-on: ${entry.alwaysOnTokens}  activation risk: ${entry.activationTokens}`,
+          ].join('\n'),
         );
   const itemLines =
     items.length === 0
@@ -15,7 +19,8 @@ export function renderContextCost(result: ContextCostResult): string {
       : items.flatMap((item) => [
           `- ${item.name}`,
           `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}`,
-          `  kind: ${item.kind}`,
+          `  kind: ${item.kind}  activation: ${item.activation}  budget: ${item.budgetScope}`,
+          `  activation tokens: ${item.activationEstimatedTokens}  confidence: ${item.confidence}`,
           `  path: ${item.sourcePath}`,
           `  fix: ${item.recommendation}`,
         ]);

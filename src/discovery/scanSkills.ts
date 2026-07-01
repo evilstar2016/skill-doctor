@@ -8,12 +8,16 @@ interface ScanSkillsOptions {
   llmOptions?: LlmExplainOptions;
   provenanceCache?: ProvenanceCache;
   extraPaths?: string[];
+  includeCostPaths?: boolean;
 }
 
 export async function scanSkills(cwd: string, options: ScanSkillsOptions = {}): Promise<SkillRecord[]> {
   const skills: SkillRecord[] = [];
 
-  for (const file of resolvePaths(cwd, { extraPaths: options.extraPaths })) {
+  for (const file of resolvePaths(cwd, {
+    extraPaths: options.extraPaths,
+    includeCostPaths: options.includeCostPaths,
+  })) {
     const skill = await parseSkill(file, {
       llmOptions: options.llmOptions,
       provenanceCache: options.provenanceCache,

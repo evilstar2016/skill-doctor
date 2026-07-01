@@ -351,6 +351,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const implicitPlatform = explicitPlatform === null ? readImplicitCostPlatform(rest, cwd) : null;
     const platform = explicitPlatform === null ? implicitPlatform : explicitPlatform;
     const budgetTokens = readBudgetTokens(rest);
+    const platformBudgets = readPlatformBudgets(rest);
     const projectDir = readCostProjectDir(rest, cwd, implicitPlatform);
 
     if (scope === 'invalid') {
@@ -371,8 +372,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
+    if (platformBudgets === 'invalid') {
+      process.stderr.write('Invalid platform budget. Use --platform-budget <platform=positive-integer>\n');
+      process.exitCode = 1;
+      return;
+    }
+
     if (projectDir === 'invalid') {
-      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--budget-tokens N] [--fail-on-budget] [--json]\n');
+      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
       process.exitCode = 1;
       return;
     }
@@ -384,11 +391,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     const skills = filterSkillsByPlatform(
-      filterSkillsByScope(await scanSkills(projectDir, { extraPaths }), scope),
+      filterSkillsByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
       platform,
     );
     const result = estimateContextCost(skills, {
       ...(budgetTokens === null ? {} : { budgetTokens }),
+      ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
       projectPath: projectDir,
     });
 
@@ -647,8 +655,8 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--budget-tokens N] [--fail-on-budget] [--json]',
-    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--budget-tokens N] [--fail-on-budget] [--json]',
+    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
@@ -829,7 +837,7 @@ function readScope(args: string[], defaultScope: Scope | 'all' = 'all'): Scope |
 
 function readCostProjectDir(args: string[], cwd: string, implicitPlatform: Platform | null = null): string | 'invalid' {
   const positionals: string[] = [];
-  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform']);
+  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget']);
 
   for (const arg of readPositionals(args, valueFlags)) {
     if (implicitPlatform !== null && arg === implicitPlatform) {
@@ -878,7 +886,7 @@ function readPlatform(args: string[]): Platform | null | 'invalid' {
 }
 
 function readImplicitCostPlatform(args: string[], cwd: string): Platform | null {
-  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform']));
+  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget']));
   const candidate = positionals[0];
 
   if (positionals.length === 0 || !isPlatform(candidate)) {
@@ -1040,6 +1048,37 @@ function readBudgetTokens(args: string[]): number | null | 'invalid' {
   }
 
   return parsed;
+}
+
+function readPlatformBudgets(args: string[]): Partial<Record<Platform, number>> | 'invalid' {
+  const budgets: Partial<Record<Platform, number>> = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== '--platform-budget') continue;
+
+    const rawValue = args[index + 1];
+    if (!rawValue || rawValue.startsWith('-')) {
+      return 'invalid';
+    }
+
+    const separatorIndex = rawValue.indexOf('=');
+    if (separatorIndex === -1) {
+      return 'invalid';
+    }
+
+    const platform = rawValue.slice(0, separatorIndex);
+    const rawBudget = rawValue.slice(separatorIndex + 1);
+    const parsed = Number(rawBudget);
+
+    if (!isPlatform(platform) || !Number.isInteger(parsed) || parsed <= 0) {
+      return 'invalid';
+    }
+
+    budgets[platform] = parsed;
+    index += 1;
+  }
+
+  return budgets;
 }
 
 function sortConflicts(conflicts: ConflictPair[]): ConflictPair[] {

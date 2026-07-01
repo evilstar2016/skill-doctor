@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, extname, join, normalize, sep } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -16,20 +16,31 @@ export interface PathTarget {
   path: string;
   mode: 'recursive-dir' | 'single-file';
   layout?: 'files' | 'skill-dirs';
+  includeFileNames?: string[];
+  costOnly?: boolean;
 }
 
 interface ResolvePathsOptions {
   homeDir?: string;
   appDataDir?: string;
   extraPaths?: string[];
+  includeCostPaths?: boolean;
 }
 
 export const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'claude',
     confidence: 'high',
-    global: [{ path: '~/.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
-    project: [{ path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    global: [
+      { path: '~/.claude/CLAUDE.md', mode: 'single-file' },
+      { path: '~/.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: 'CLAUDE.md', mode: 'single-file' },
+      { path: '.claude/CLAUDE.md', mode: 'single-file' },
+      { path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.claude/commands', mode: 'recursive-dir', layout: 'files' },
+    ],
     extensions: ['.md'],
   },
   {
@@ -45,10 +56,19 @@ export const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'copilot',
     confidence: 'high',
-    global: [{ path: '~/.copilot/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    global: [
+      { path: '~/.copilot/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
     project: [
       { path: '.github/copilot-instructions.md', mode: 'single-file' },
       { path: '.github/instructions', mode: 'recursive-dir', layout: 'files' },
+      { path: '.github/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs', costOnly: true },
+      { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: 'AGENTS.md', mode: 'single-file', costOnly: true },
+      { path: 'CLAUDE.md', mode: 'single-file', costOnly: true },
+      { path: 'GEMINI.md', mode: 'single-file', costOnly: true },
     ],
     extensions: ['.md'],
   },
@@ -56,22 +76,31 @@ export const PLATFORM_PATHS: PlatformPathDefinition[] = [
     platform: 'codex',
     confidence: 'high',
     global: [
+      { path: '~/.codex/AGENTS.override.md', mode: 'single-file' },
       { path: '~/.codex/AGENTS.md', mode: 'single-file' },
       { path: '~/.codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
       { path: '~/.agent/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '/etc/codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
     ],
     project: [
+      { path: 'AGENTS.override.md', mode: 'single-file' },
       { path: 'AGENTS.md', mode: 'single-file' },
+      { path: '.codex/AGENTS.override.md', mode: 'single-file' },
       { path: '.codex/AGENTS.md', mode: 'single-file' },
       { path: '.codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
       { path: '.agent/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
     ],
     extensions: ['.md'],
   },
   {
     platform: 'gemini',
     confidence: 'high',
-    global: [{ path: '~/.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    global: [
+      { path: '~/.gemini/GEMINI.md', mode: 'single-file' },
+      { path: '~/.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
     project: [
       { path: '.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
       { path: 'GEMINI.md', mode: 'single-file' },
@@ -81,8 +110,19 @@ export const PLATFORM_PATHS: PlatformPathDefinition[] = [
   {
     platform: 'windsurf',
     confidence: 'high',
-    global: [{ path: '~/.codeium/windsurf/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
-    project: [{ path: '.windsurfrules', mode: 'single-file' }],
+    global: [
+      { path: '~/.codeium/windsurf/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.codeium/windsurf/memories/global_rules.md', mode: 'single-file' },
+      { path: '~/.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: '.windsurfrules', mode: 'single-file' },
+      { path: 'AGENTS.md', mode: 'single-file', costOnly: true },
+      { path: '.windsurf/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.devin/rules', mode: 'recursive-dir', layout: 'files' },
+      { path: '.windsurf/rules', mode: 'recursive-dir', layout: 'files' },
+    ],
     extensions: ['.md'],
   },
   {
@@ -136,6 +176,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
 
   for (const definition of PLATFORM_PATHS) {
     for (const target of definition.global) {
+      if (target.costOnly && !options.includeCostPaths) continue;
       collectPath(
         resolveGlobalPath(target.path, homeDir, appDataDir),
         definition,
@@ -147,8 +188,13 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
     }
 
     for (const target of definition.project) {
+      if (target.costOnly && !options.includeCostPaths) continue;
       collectPath(join(cwd, target.path), definition, target, 'project', results, seen);
     }
+  }
+
+  if (options.includeCostPaths) {
+    collectGeminiConfiguredContextFiles(cwd, homeDir, results, seen);
   }
 
   for (const raw of options.extraPaths ?? []) {
@@ -166,7 +212,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
     }
   }
 
-  return results;
+  return applyAgentOverridePrecedence(results);
 }
 
 function collectPath(
@@ -204,7 +250,7 @@ function collectPath(
       }
       if (childStats.isDirectory()) {
         subdirs.push(childPath);
-      } else if (isAllowedFile(childPath, definition.extensions)) {
+      } else if (isAllowedFile(childPath, definition.extensions, target.includeFileNames)) {
         matchingFiles.push(childPath);
       }
     }
@@ -239,7 +285,7 @@ function collectPath(
     return;
   }
 
-  if (!isAllowedFile(targetPath, definition.extensions)) {
+  if (!isAllowedFile(targetPath, definition.extensions, target.includeFileNames)) {
     return;
   }
 
@@ -340,13 +386,75 @@ export function getParentDir(filePath: string): string {
   return dirname(filePath);
 }
 
-function isAllowedFile(targetPath: string, extensions: string[]): boolean {
+function isAllowedFile(targetPath: string, extensions: string[], includeFileNames?: string[]): boolean {
   const name = basename(targetPath);
+  if (includeFileNames && !includeFileNames.includes(name)) {
+    return false;
+  }
+
   if (name === '.cursorrules' || name === '.windsurfrules') {
     return true;
   }
 
   return extensions.includes(extname(targetPath).toLowerCase());
+}
+
+function collectGeminiConfiguredContextFiles(
+  cwd: string,
+  homeDir: string,
+  results: SkillFile[],
+  seen: Set<string>,
+): void {
+  const contextFileNames = readGeminiContextFileNames(cwd, homeDir).filter((name) => name !== 'GEMINI.md');
+  if (contextFileNames.length === 0) return;
+
+  const definition: PlatformPathDefinition = {
+    platform: 'gemini',
+    confidence: 'high',
+    global: [],
+    project: [],
+    extensions: ['.md'],
+  };
+
+  for (const name of contextFileNames) {
+    collectPath(join(homeDir, '.gemini', name), definition, { path: `~/.gemini/${name}`, mode: 'single-file' }, 'global', results, seen);
+    collectPath(join(cwd, name), definition, { path: name, mode: 'single-file' }, 'project', results, seen);
+  }
+}
+
+function readGeminiContextFileNames(cwd: string, homeDir: string): string[] {
+  const names = new Set<string>(['GEMINI.md']);
+  for (const settingsPath of [join(homeDir, '.gemini', 'settings.json'), join(cwd, '.gemini', 'settings.json')]) {
+    if (!existsSync(settingsPath)) continue;
+    try {
+      const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as { contextFileName?: string | string[] };
+      const configured = settings.contextFileName;
+      if (typeof configured === 'string' && configured.trim()) {
+        names.add(configured.trim());
+      } else if (Array.isArray(configured)) {
+        for (const name of configured) {
+          if (typeof name === 'string' && name.trim()) names.add(name.trim());
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return [...names];
+}
+
+function applyAgentOverridePrecedence(results: SkillFile[]): SkillFile[] {
+  const overrideDirs = new Set(
+    results
+      .filter((entry) => entry.platform === 'codex' && basename(entry.filePath).toLowerCase() === 'agents.override.md')
+      .map((entry) => `${entry.platform}|${entry.scope}|${dirname(entry.filePath)}`),
+  );
+
+  return results.filter((entry) => {
+    if (entry.platform !== 'codex') return true;
+    if (basename(entry.filePath).toLowerCase() !== 'agents.md') return true;
+    return !overrideDirs.has(`${entry.platform}|${entry.scope}|${dirname(entry.filePath)}`);
+  });
 }
 
 function expandGlob(pattern: string): string[] {

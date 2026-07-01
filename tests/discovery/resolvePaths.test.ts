@@ -54,7 +54,7 @@ describe('resolvePaths', () => {
     writeFile(join(cwd, '.cursor', 'rules', 'reviews', 'pull-request.mdc'));
     writeFile(join(cwd, '.cursorrules'));
 
-    const result = resolvePaths(cwd, { homeDir });
+    const result = resolvePaths(cwd, { homeDir, includeCostPaths: true });
     const cursorFiles = result.filter((entry) => entry.platform === 'cursor');
 
     expect(cursorFiles).toHaveLength(3);
@@ -82,7 +82,7 @@ describe('resolvePaths', () => {
 
     writeFile(join(homeDir, '.copilot', 'skills', 'review-pr', 'SKILL.md'));
 
-    const result = resolvePaths(cwd, { homeDir });
+    const result = resolvePaths(cwd, { homeDir, includeCostPaths: true });
     const copilotFiles = result.filter((entry) => entry.platform === 'copilot' && entry.scope === 'global');
 
     expect(copilotFiles).toHaveLength(1);
@@ -124,7 +124,7 @@ describe('resolvePaths', () => {
     expect(windsurfFiles[0]?.filePath).toContain('.windsurfrules');
   });
 
-  it('returns AGENTS.md once for codex and once for opencode', () => {
+  it('returns AGENTS.md once for codex and once for opencode by default', () => {
     const tempRoot = createTempRoot();
     tempRoots.push(tempRoot);
 
@@ -138,6 +138,42 @@ describe('resolvePaths', () => {
 
     expect(agentsEntries).toHaveLength(2);
     expect(agentsEntries.map((entry) => entry.platform).sort()).toEqual(['codex', 'opencode']);
+  });
+
+  it('includes AGENTS.md for Copilot and Windsurf in cost discovery mode', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, 'AGENTS.md'));
+
+    const result = resolvePaths(cwd, { homeDir, includeCostPaths: true });
+    const agentsEntries = result.filter((entry) => entry.filePath.endsWith('AGENTS.md'));
+
+    expect(agentsEntries.map((entry) => entry.platform).sort()).toEqual(['codex', 'copilot', 'opencode', 'windsurf']);
+  });
+
+  it('prefers Codex AGENTS.override.md over AGENTS.md in the same directory', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, 'AGENTS.md'));
+    writeFile(join(cwd, 'AGENTS.override.md'));
+    writeFile(join(homeDir, '.codex', 'AGENTS.md'));
+    writeFile(join(homeDir, '.codex', 'AGENTS.override.md'));
+
+    const result = resolvePaths(cwd, { homeDir, includeCostPaths: true });
+    const codexFiles = result.filter((entry) => entry.platform === 'codex');
+
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join(cwd, 'AGENTS.md')))).toBe(false);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join(cwd, 'AGENTS.override.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join(homeDir, '.codex', 'AGENTS.md')))).toBe(false);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join(homeDir, '.codex', 'AGENTS.override.md')))).toBe(true);
   });
 
   it('ignores direct markdown files at the root of skill-dir platforms', () => {
@@ -206,16 +242,74 @@ describe('resolvePaths', () => {
     writeFile(join(cwd, '.codex', 'AGENTS.md'));
     writeFile(join(cwd, '.codex', 'skills', 'review-pr', 'SKILL.md'));
     writeFile(join(cwd, '.agent', 'skills', 'agent-review', 'SKILL.md'));
+    writeFile(join(cwd, '.agents', 'skills', 'agents-review', 'SKILL.md'));
     writeFile(join(cwd, '.codex', 'notes', 'reference.md'));
 
     const result = resolvePaths(cwd, { homeDir });
     const codexFiles = result.filter((entry) => entry.platform === 'codex' && entry.scope === 'project');
 
-    expect(codexFiles).toHaveLength(3);
+    expect(codexFiles).toHaveLength(4);
     expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.codex', 'AGENTS.md')))).toBe(true);
     expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.codex', 'skills', 'review-pr', 'SKILL.md')))).toBe(true);
     expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.agent', 'skills', 'agent-review', 'SKILL.md')))).toBe(true);
+    expect(codexFiles.some((entry) => entry.filePath.endsWith(join('.agents', 'skills', 'agents-review', 'SKILL.md')))).toBe(true);
     expect(codexFiles.some((entry) => entry.filePath.includes(join('.codex', 'notes')))).toBe(false);
+  });
+
+  it('finds mainstream Copilot skill locations', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.github', 'skills', 'project-copilot', 'SKILL.md'));
+    writeFile(join(cwd, '.agents', 'skills', 'project-agent', 'SKILL.md'));
+    writeFile(join(homeDir, '.agents', 'skills', 'global-agent', 'SKILL.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const copilotFiles = result.filter((entry) => entry.platform === 'copilot');
+
+    expect(copilotFiles.some((entry) => entry.filePath.endsWith(join('.github', 'skills', 'project-copilot', 'SKILL.md')))).toBe(true);
+    expect(copilotFiles.some((entry) => entry.filePath.endsWith(join('.agents', 'skills', 'project-agent', 'SKILL.md')))).toBe(true);
+    expect(copilotFiles.some((entry) => entry.filePath.endsWith(join('.agents', 'skills', 'global-agent', 'SKILL.md')))).toBe(true);
+  });
+
+  it('finds Windsurf skills and rule files', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.windsurf', 'skills', 'workspace-skill', 'SKILL.md'));
+    writeFile(join(cwd, '.devin', 'rules', 'tests.md'));
+    writeFile(join(cwd, '.windsurf', 'rules', 'legacy.md'));
+    writeFile(join(homeDir, '.codeium', 'windsurf', 'memories', 'global_rules.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const windsurfFiles = result.filter((entry) => entry.platform === 'windsurf');
+
+    expect(windsurfFiles.some((entry) => entry.filePath.endsWith(join('.windsurf', 'skills', 'workspace-skill', 'SKILL.md')))).toBe(true);
+    expect(windsurfFiles.some((entry) => entry.filePath.endsWith(join('.devin', 'rules', 'tests.md')))).toBe(true);
+    expect(windsurfFiles.some((entry) => entry.filePath.endsWith(join('.windsurf', 'rules', 'legacy.md')))).toBe(true);
+    expect(windsurfFiles.some((entry) => entry.filePath.endsWith(join('.codeium', 'windsurf', 'memories', 'global_rules.md')))).toBe(true);
+  });
+
+  it('honors Gemini contextFileName settings', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.gemini', 'settings.json'), JSON.stringify({ contextFileName: ['GEMINI.md', 'AGENTS.md'] }));
+    writeFile(join(cwd, 'AGENTS.md'));
+
+    const result = resolvePaths(cwd, { homeDir, includeCostPaths: true });
+    const geminiFiles = result.filter((entry) => entry.platform === 'gemini');
+
+    expect(geminiFiles.some((entry) => entry.filePath.endsWith(join(cwd, 'AGENTS.md')))).toBe(true);
   });
 
   it('picks SKILL.md when a skill dir contains multiple md files', () => {

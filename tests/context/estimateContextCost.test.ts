@@ -87,12 +87,16 @@ describe('estimateContextCost', () => {
     expect(result.items[0]?.kind).toBe('always-on-file');
     expect(result.items[0]?.estimatedTokens).toBe(estimateTokens(content));
     expect(result.summary.byPlatform).toEqual([
-      {
+      expect.objectContaining({
         platform: 'codex',
         items: 1,
         estimatedTokens: estimateTokens(content),
         estimatedChars: content.trim().length,
-      },
+        alwaysOnTokens: estimateTokens(content),
+        startupSelectionTokens: 0,
+        budgetTokens: 2000,
+        overBudget: false,
+      }),
     ]);
   });
 
@@ -141,7 +145,10 @@ describe('estimateContextCost', () => {
     ]);
 
     expect(result.items[0]?.kind).toBe('cursor-rule-file');
-    expect(result.items[0]?.estimatedTokens).toBe(estimateTokens(content));
+    expect(result.items[0]?.estimatedTokens).toBe(0);
+    expect(result.items[0]?.activationEstimatedTokens).toBe(estimateTokens(content));
+    expect(result.items[0]?.activation).toBe('file-scoped');
+    expect(result.items[0]?.budgetScope).toBe('activation');
   });
 
   it('estimates Copilot instruction files from raw instruction content', () => {
@@ -168,7 +175,10 @@ describe('estimateContextCost', () => {
     ]);
 
     expect(result.items[0]?.kind).toBe('copilot-instruction-file');
-    expect(result.items[0]?.estimatedTokens).toBe(estimateTokens(content));
+    expect(result.items[0]?.estimatedTokens).toBe(0);
+    expect(result.items[0]?.activationEstimatedTokens).toBe(estimateTokens(content));
+    expect(result.items[0]?.activation).toBe('file-scoped');
+    expect(result.items[0]?.budgetScope).toBe('activation');
   });
 
   it('grades against the supplied budget and marks over-budget results', () => {
@@ -184,5 +194,66 @@ describe('estimateContextCost', () => {
 
     expect(result.summary.overBudget).toBe(true);
     expect(result.summary.grade).toBe('F');
+  });
+
+  it('applies per-platform budgets independently from the total budget', () => {
+    const result = estimateContextCost(
+      [
+        makeSkill({
+          sourcePath: '/fake/AGENTS.md',
+          platform: 'codex',
+          name: 'AGENTS.md',
+          description: 'Codex instructions',
+          triggers: [],
+        }),
+        makeSkill({
+          description: 'A long description. '.repeat(100),
+          triggers: [],
+        }),
+      ],
+      { budgetTokens: 10000, platformBudgets: { claude: 50 } },
+    );
+
+    const claudeSummary = result.summary.byPlatform.find((entry) => entry.platform === 'claude');
+    expect(claudeSummary).toEqual(expect.objectContaining({
+      budgetTokens: 50,
+      overBudget: true,
+      grade: 'F',
+    }));
+    expect(result.summary.overBudget).toBe(true);
+  });
+
+  it('does not count Claude manual-only skills in startup budget', () => {
+    const root = tempRoot();
+    const skillPath = join(root, '.claude', 'skills', 'deploy', 'SKILL.md');
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(
+      skillPath,
+      [
+        '---',
+        'name: deploy',
+        'description: Deploy the app.',
+        'disable-model-invocation: true',
+        '---',
+        '',
+        'Deploy steps. '.repeat(100),
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'deploy',
+        sourcePath: skillPath,
+        description: 'Deploy the app.',
+      }),
+    ]);
+
+    expect(result.items[0]).toEqual(expect.objectContaining({
+      estimatedTokens: 0,
+      activation: 'manual',
+      budgetScope: 'none',
+    }));
+    expect(result.items[0]?.activationEstimatedTokens).toBeGreaterThan(0);
   });
 });

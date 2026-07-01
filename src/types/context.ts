@@ -10,6 +10,25 @@ export type ContextInjectionKind =
   | 'always-on-file'
   | 'skill-metadata';
 
+export type ContextActivation =
+  | 'startup'
+  | 'always-on'
+  | 'on-demand'
+  | 'file-scoped'
+  | 'manual';
+
+export type ContextBudgetScope =
+  | 'startup-selection'
+  | 'always-on'
+  | 'activation'
+  | 'none';
+
+export interface ContextCostOfficialLimit {
+  kind: 'chars' | 'tokens';
+  value: number;
+  appliesTo: string;
+}
+
 export interface ContextCostItem {
   name: string;
   sourcePath: string;
@@ -18,6 +37,12 @@ export interface ContextCostItem {
   kind: ContextInjectionKind;
   estimatedTokens: number;
   estimatedChars: number;
+  activationEstimatedTokens: number;
+  activationEstimatedChars: number;
+  activation: ContextActivation;
+  budgetScope: ContextBudgetScope;
+  confidence: 'high' | 'low';
+  officialLimit?: ContextCostOfficialLimit;
   recommendation: string;
 }
 
@@ -36,6 +61,12 @@ export interface ContextCostPlatformSummary {
   items: number;
   estimatedTokens: number;
   estimatedChars: number;
+  startupSelectionTokens: number;
+  alwaysOnTokens: number;
+  activationTokens: number;
+  budgetTokens: number;
+  grade: ContextCostGrade;
+  overBudget: boolean;
 }
 
 export interface ContextCostResult {

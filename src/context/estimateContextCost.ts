@@ -1,38 +1,89 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, dirname, sep } from 'node:path';
 
-import type { ContextCostGrade, ContextCostItem, ContextCostResult } from '../types/context';
+import type {
+  ContextActivation,
+  ContextBudgetScope,
+  ContextCostGrade,
+  ContextCostItem,
+  ContextCostOfficialLimit,
+  ContextCostResult,
+  ContextInjectionKind,
+} from '../types/context';
 import type { Platform, SkillRecord } from '../types/skill';
 
 const DEFAULT_BUDGET_TOKENS = 2000;
+const CODEX_AGENTS_LIMIT_CHARS = 32 * 1024;
+const CODEX_SKILL_LIST_LIMIT_CHARS = 8000;
+const CLAUDE_SKILL_LIST_LIMIT_CHARS = 1536;
+const AGENT_SKILL_DESCRIPTION_LIMIT_CHARS = 1024;
 
 interface EstimateContextCostOptions {
   budgetTokens?: number;
+  platformBudgets?: Partial<Record<Platform, number>>;
   projectPath?: string;
 }
+
+interface CostProfile {
+  kind: ContextInjectionKind;
+  activation: ContextActivation;
+  budgetScope: ContextBudgetScope;
+  budgetText: string;
+  activationText: string;
+  officialLimit?: ContextCostOfficialLimit;
+}
+
+interface PlatformCostPolicy {
+  classify(skill: SkillRecord, raw: string | null, frontmatter: Record<string, string>): CostProfile;
+}
+
+const PLATFORM_POLICIES: Partial<Record<Platform, PlatformCostPolicy>> = {
+  claude: {
+    classify: classifyClaude,
+  },
+  codex: {
+    classify: classifyCodex,
+  },
+  copilot: {
+    classify: classifyCopilot,
+  },
+  cursor: {
+    classify: classifyCursor,
+  },
+  gemini: {
+    classify: classifyGemini,
+  },
+  windsurf: {
+    classify: classifyWindsurf,
+  },
+};
 
 export function estimateContextCost(
   skills: SkillRecord[],
   options: EstimateContextCostOptions = {},
 ): ContextCostResult {
   const budgetTokens = options.budgetTokens ?? DEFAULT_BUDGET_TOKENS;
+  const platformBudgets = options.platformBudgets ?? {};
   const items = skills
     .map((skill) => estimateSkillCost(skill))
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
       }
+      if (right.activationEstimatedTokens !== left.activationEstimatedTokens) {
+        return right.activationEstimatedTokens - left.activationEstimatedTokens;
+      }
       return left.name.localeCompare(right.name);
     });
   const totalEstimatedTokens = items.reduce((sum, item) => sum + item.estimatedTokens, 0);
-  const byPlatform = summarizeByPlatform(items);
+  const byPlatform = summarizeByPlatform(items, budgetTokens, platformBudgets);
 
   return {
     summary: {
       totalEstimatedTokens,
       budgetTokens,
       grade: gradeCost(totalEstimatedTokens, budgetTokens),
-      overBudget: totalEstimatedTokens > budgetTokens,
+      overBudget: totalEstimatedTokens > budgetTokens || byPlatform.some((entry) => entry.overBudget),
       scanned: skills.length,
       ...(options.projectPath ? { projectPath: options.projectPath } : {}),
       byPlatform,
@@ -42,75 +93,217 @@ export function estimateContextCost(
 }
 
 export function estimateTokens(text: string): number {
-  const normalized = text.replace(/\s+/g, ' ').trim();
+  const normalized = normalizeForEstimate(text);
   if (!normalized) return 0;
   return Math.max(1, Math.ceil(normalized.length / 4));
 }
 
 function estimateSkillCost(skill: SkillRecord): ContextCostItem {
-  const context = buildInjectedContext(skill);
-  const estimatedTokens = estimateTokens(context.text);
+  const raw = readRawFile(skill.sourcePath);
+  const frontmatter = parseFrontmatter(raw ?? '');
+  const policy = PLATFORM_POLICIES[skill.platform] ?? DEFAULT_SKILL_POLICY;
+  const profile = policy.classify(skill, raw, frontmatter);
+  const budgetText = applyOfficialBudgetLimit(profile.budgetText, profile.officialLimit);
+  const estimatedTokens = estimateTokens(budgetText);
+  const activationEstimatedTokens = estimateTokens(profile.activationText);
 
   return {
     name: skill.name,
     sourcePath: skill.sourcePath,
     platform: skill.platform,
     scope: skill.scope,
-    kind: context.kind,
+    kind: profile.kind,
     estimatedTokens,
-    estimatedChars: context.text.replace(/\s+/g, ' ').trim().length,
-    recommendation: getRecommendation(skill, context.kind, estimatedTokens),
+    estimatedChars: normalizeForEstimate(budgetText).length,
+    activationEstimatedTokens,
+    activationEstimatedChars: normalizeForEstimate(profile.activationText).length,
+    activation: profile.activation,
+    budgetScope: profile.budgetScope,
+    confidence: skill.provenance?.confidence ?? 'low',
+    ...(profile.officialLimit ? { officialLimit: profile.officialLimit } : {}),
+    recommendation: getRecommendation(skill, profile, estimatedTokens, activationEstimatedTokens),
   };
 }
 
-function buildInjectedContext(skill: SkillRecord): { kind: ContextCostItem['kind']; text: string } {
+const DEFAULT_SKILL_POLICY: PlatformCostPolicy = {
+  classify(skill, raw) {
+    if (isSkillEntryFile(skill)) {
+      return skillMetadataProfile(skill, raw, 'agent-skill-description');
+    }
+
+    return alwaysOnProfile(skill, raw, 'always-on-file');
+  },
+};
+
+function classifyClaude(skill: SkillRecord, raw: string | null, frontmatter: Record<string, string>): CostProfile {
+  if (isClaudeCommandFile(skill)) {
+    return skillMetadataProfile(skill, raw, 'claude-skill-description', {
+      officialLimit: {
+        kind: 'chars',
+        value: CLAUDE_SKILL_LIST_LIMIT_CHARS,
+        appliesTo: 'combined description and when_to_use skill listing',
+      },
+    });
+  }
+
   if (isSkillEntryFile(skill)) {
-    if (skill.platform === 'claude') {
-      return {
-        kind: 'claude-skill-description',
-        text: buildMetadataText(skill),
-      };
+    if (isTruthy(frontmatter['disable-model-invocation'])) {
+      return manualProfile(skill, raw, 'claude-skill-description');
     }
 
-    if (isAgentSkillPlatform(skill.platform)) {
-      return {
-        kind: 'agent-skill-description',
-        text: buildMetadataText(skill),
-      };
-    }
+    return skillMetadataProfile(skill, raw, 'claude-skill-description', {
+      officialLimit: {
+        kind: 'chars',
+        value: CLAUDE_SKILL_LIST_LIMIT_CHARS,
+        appliesTo: 'combined description and when_to_use skill listing',
+      },
+    });
   }
 
-  if (isAlwaysOnInstructionFile(skill)) {
-    return {
-      kind: 'always-on-file',
-      text: readRawFile(skill.sourcePath) ?? buildMetadataText(skill),
-    };
+  return alwaysOnProfile(skill, raw, 'always-on-file');
+}
+
+function classifyCodex(skill: SkillRecord, raw: string | null): CostProfile {
+  if (isSkillEntryFile(skill)) {
+    return skillMetadataProfile(skill, raw, 'agent-skill-description', {
+      includePath: true,
+      officialLimit: {
+        kind: 'chars',
+        value: CODEX_SKILL_LIST_LIMIT_CHARS,
+        appliesTo: 'initial skill list when context window is unknown',
+      },
+    });
   }
 
-  if (isCursorRuleFile(skill)) {
-    return {
-      kind: 'cursor-rule-file',
-      text: readRawFile(skill.sourcePath) ?? buildMetadataText(skill),
-    };
+  return alwaysOnProfile(skill, raw, 'always-on-file', {
+    officialLimit: {
+      kind: 'chars',
+      value: CODEX_AGENTS_LIMIT_CHARS,
+      appliesTo: 'combined AGENTS.md instruction chain',
+    },
+  });
+}
+
+function classifyCopilot(skill: SkillRecord, raw: string | null): CostProfile {
+  if (isSkillEntryFile(skill)) {
+    return skillMetadataProfile(skill, raw, 'agent-skill-description');
   }
 
-  if (isCopilotInstructionFile(skill)) {
-    return {
-      kind: 'copilot-instruction-file',
-      text: readRawFile(skill.sourcePath) ?? buildMetadataText(skill),
-    };
+  const fileName = basename(skill.sourcePath).toLowerCase();
+  if (fileName.endsWith('.instructions.md') && fileName !== 'copilot-instructions.md') {
+    return fileScopedProfile(skill, raw, 'copilot-instruction-file');
   }
 
-  if (isAlwaysOnFile(skill)) {
-    return {
-      kind: 'always-on-file',
-      text: readRawFile(skill.sourcePath) ?? buildMetadataText(skill),
-    };
+  return alwaysOnProfile(skill, raw, 'copilot-instruction-file');
+}
+
+function classifyCursor(skill: SkillRecord, raw: string | null, frontmatter: Record<string, string>): CostProfile {
+  if (basename(skill.sourcePath).toLowerCase() === '.cursorrules') {
+    return alwaysOnProfile(skill, raw, 'always-on-file');
   }
 
+  if (isTruthy(frontmatter.alwaysApply)) {
+    return alwaysOnProfile(skill, raw, 'cursor-rule-file');
+  }
+
+  if (frontmatter.globs) {
+    return fileScopedProfile(skill, raw, 'cursor-rule-file');
+  }
+
+  if (frontmatter.description) {
+    return skillMetadataProfile(skill, raw, 'cursor-rule-file');
+  }
+
+  return manualProfile(skill, raw, 'cursor-rule-file');
+}
+
+function classifyGemini(skill: SkillRecord, raw: string | null): CostProfile {
+  if (isSkillEntryFile(skill)) {
+    return skillMetadataProfile(skill, raw, 'agent-skill-description');
+  }
+
+  return alwaysOnProfile(skill, raw, 'always-on-file');
+}
+
+function classifyWindsurf(skill: SkillRecord, raw: string | null, frontmatter: Record<string, string>): CostProfile {
+  if (isSkillEntryFile(skill)) {
+    return skillMetadataProfile(skill, raw, 'agent-skill-description');
+  }
+
+  const fileName = basename(skill.sourcePath).toLowerCase();
+  if (fileName === 'global_rules.md' || fileName === '.windsurfrules' || fileName === 'agents.md') {
+    return alwaysOnProfile(skill, raw, 'always-on-file');
+  }
+
+  if (frontmatter.trigger === 'always_on') {
+    return alwaysOnProfile(skill, raw, 'always-on-file');
+  }
+
+  if (frontmatter.trigger === 'model_decision') {
+    return skillMetadataProfile(skill, raw, 'always-on-file');
+  }
+
+  if (frontmatter.trigger === 'glob') {
+    return fileScopedProfile(skill, raw, 'always-on-file');
+  }
+
+  if (frontmatter.trigger === 'manual') {
+    return manualProfile(skill, raw, 'always-on-file');
+  }
+
+  return alwaysOnProfile(skill, raw, 'always-on-file');
+}
+
+function skillMetadataProfile(
+  skill: SkillRecord,
+  raw: string | null,
+  kind: ContextInjectionKind,
+  options: { includePath?: boolean; officialLimit?: ContextCostOfficialLimit } = {},
+): CostProfile {
   return {
-    kind: 'skill-metadata',
-    text: buildMetadataText(skill),
+    kind,
+    activation: 'startup',
+    budgetScope: 'startup-selection',
+    budgetText: buildMetadataText(skill, { includePath: options.includePath }),
+    activationText: raw ?? buildMetadataText(skill, { includePath: options.includePath }),
+    ...(options.officialLimit ? { officialLimit: options.officialLimit } : {}),
+  };
+}
+
+function alwaysOnProfile(
+  skill: SkillRecord,
+  raw: string | null,
+  kind: ContextInjectionKind,
+  options: { officialLimit?: ContextCostOfficialLimit } = {},
+): CostProfile {
+  const text = raw ?? buildMetadataText(skill);
+  return {
+    kind,
+    activation: 'always-on',
+    budgetScope: 'always-on',
+    budgetText: text,
+    activationText: text,
+    ...(options.officialLimit ? { officialLimit: options.officialLimit } : {}),
+  };
+}
+
+function fileScopedProfile(skill: SkillRecord, raw: string | null, kind: ContextInjectionKind): CostProfile {
+  return {
+    kind,
+    activation: 'file-scoped',
+    budgetScope: 'activation',
+    budgetText: '',
+    activationText: raw ?? buildMetadataText(skill),
+  };
+}
+
+function manualProfile(skill: SkillRecord, raw: string | null, kind: ContextInjectionKind): CostProfile {
+  return {
+    kind,
+    activation: 'manual',
+    budgetScope: 'none',
+    budgetText: '',
+    activationText: raw ?? buildMetadataText(skill),
   };
 }
 
@@ -118,44 +311,9 @@ function isSkillEntryFile(skill: SkillRecord): boolean {
   return basename(skill.sourcePath).toLowerCase() === 'skill.md';
 }
 
-function isAgentSkillPlatform(platform: Platform): boolean {
-  return [
-    'codex',
-    'copilot',
-    'gemini',
-    'windsurf',
-    'trae',
-    'opencode',
-    'kiro',
-    'openclaw',
-    'hermes',
-  ].includes(platform);
-}
-
-function isCursorRuleFile(skill: SkillRecord): boolean {
-  return skill.platform === 'cursor';
-}
-
-function isCopilotInstructionFile(skill: SkillRecord): boolean {
-  const fileName = basename(skill.sourcePath).toLowerCase();
-  return skill.platform === 'copilot' && fileName.endsWith('.instructions.md');
-}
-
-function isAlwaysOnInstructionFile(skill: SkillRecord): boolean {
-  const fileName = basename(skill.sourcePath).toLowerCase();
-
-  if (skill.platform === 'codex' && fileName === 'agents.md') return true;
-  if (skill.platform === 'opencode' && fileName === 'agents.md') return true;
-  if (skill.platform === 'gemini' && fileName === 'gemini.md') return true;
-  if (skill.platform === 'windsurf' && fileName === '.windsurfrules') return true;
-  if (skill.platform === 'cursor' && fileName === '.cursorrules') return true;
-  if (skill.platform === 'copilot' && fileName === 'copilot-instructions.md') return true;
-
-  return false;
-}
-
-function isAlwaysOnFile(skill: SkillRecord): boolean {
-  return basename(skill.sourcePath).toLowerCase() !== 'skill.md';
+function isClaudeCommandFile(skill: SkillRecord): boolean {
+  const normalized = skill.sourcePath.split(sep).join('/');
+  return skill.platform === 'claude' && normalized.includes('/.claude/commands/');
 }
 
 function readRawFile(filePath: string): string | null {
@@ -167,27 +325,122 @@ function readRawFile(filePath: string): string | null {
   }
 }
 
-function buildMetadataText(skill: SkillRecord): string {
+function parseFrontmatter(content: string): Record<string, string> {
+  if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) {
+    return {};
+  }
+
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return {};
+
+  const result: Record<string, string> = {};
+  const lines = match[1].split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('- ')) continue;
+
+    const separatorIndex = trimmed.indexOf(':');
+    if (separatorIndex === -1) continue;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1).trim();
+
+    if (rawValue === '') {
+      const listValues: string[] = [];
+      for (let listIndex = index + 1; listIndex < lines.length; listIndex += 1) {
+        const listLine = lines[listIndex].trim();
+        if (!listLine.startsWith('- ')) break;
+        listValues.push(stripQuotes(listLine.slice(2).trim()));
+        index = listIndex;
+      }
+      if (listValues.length > 0) result[key] = listValues.join(', ');
+      continue;
+    }
+
+    result[key] = stripQuotes(rawValue);
+  }
+
+  return result;
+}
+
+function stripQuotes(value: string): string {
+  return value.replace(/^['"]|['"]$/g, '');
+}
+
+function isTruthy(value: string | undefined): boolean {
+  return value === 'true' || value === 'yes' || value === '1';
+}
+
+function buildMetadataText(skill: SkillRecord, options: { includePath?: boolean } = {}): string {
   return [
     `Skill: ${skill.name}`,
     `Description: ${skill.description}`,
     skill.triggers.length > 0 ? `Triggers: ${skill.triggers.join('; ')}` : '',
+    options.includePath ? `Path: ${skill.sourcePath}` : '',
   ].filter(Boolean).join('\n');
 }
 
-function summarizeByPlatform(items: ContextCostItem[]): ContextCostResult['summary']['byPlatform'] {
-  const summaries = new Map<Platform, { items: number; estimatedTokens: number; estimatedChars: number }>();
+function applyOfficialBudgetLimit(text: string, limit: ContextCostOfficialLimit | undefined): string {
+  if (!limit || limit.kind !== 'chars' || text.length <= limit.value) return text;
+  return text.slice(0, limit.value);
+}
+
+function normalizeForEstimate(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function summarizeByPlatform(
+  items: ContextCostItem[],
+  defaultBudgetTokens: number,
+  platformBudgets: Partial<Record<Platform, number>>,
+): ContextCostResult['summary']['byPlatform'] {
+  const summaries = new Map<
+    Platform,
+    {
+      items: number;
+      estimatedTokens: number;
+      estimatedChars: number;
+      startupSelectionTokens: number;
+      alwaysOnTokens: number;
+      activationTokens: number;
+    }
+  >();
 
   for (const item of items) {
-    const current = summaries.get(item.platform) ?? { items: 0, estimatedTokens: 0, estimatedChars: 0 };
+    const current = summaries.get(item.platform) ?? {
+      items: 0,
+      estimatedTokens: 0,
+      estimatedChars: 0,
+      startupSelectionTokens: 0,
+      alwaysOnTokens: 0,
+      activationTokens: 0,
+    };
     current.items += 1;
     current.estimatedTokens += item.estimatedTokens;
     current.estimatedChars += item.estimatedChars;
+    current.activationTokens += item.activationEstimatedTokens;
+    if (item.budgetScope === 'startup-selection') {
+      current.startupSelectionTokens += item.estimatedTokens;
+    }
+    if (item.budgetScope === 'always-on') {
+      current.alwaysOnTokens += item.estimatedTokens;
+    }
     summaries.set(item.platform, current);
   }
 
   return [...summaries.entries()]
-    .map(([platform, summary]) => ({ platform, ...summary }))
+    .map(([platform, summary]) => {
+      const budgetTokens = platformBudgets[platform] ?? defaultBudgetTokens;
+      return {
+        platform,
+        ...summary,
+        budgetTokens,
+        grade: gradeCost(summary.estimatedTokens, budgetTokens),
+        overBudget: summary.estimatedTokens > budgetTokens,
+      };
+    })
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -198,36 +451,48 @@ function summarizeByPlatform(items: ContextCostItem[]): ContextCostResult['summa
 
 function getRecommendation(
   skill: SkillRecord,
-  kind: ContextCostItem['kind'],
+  profile: CostProfile,
   estimatedTokens: number,
+  activationEstimatedTokens: number,
 ): string {
-  if (estimatedTokens <= 120) {
+  if (profile.budgetScope === 'none') {
+    return 'Manual-only; does not add startup token tax.';
+  }
+
+  if (profile.budgetScope === 'activation') {
+    return 'Conditional; keep the full instructions concise for when it activates.';
+  }
+
+  if (estimatedTokens <= 120 && activationEstimatedTokens <= 1200) {
     return 'OK';
   }
 
-  if (kind === 'claude-skill-description') {
+  if (profile.kind === 'claude-skill-description') {
     if (skill.description.length > 280) {
-      return 'Shorten the Claude skill description; every turn pays for it.';
+      return 'Shorten the Claude skill description; every session sees it.';
     }
     return 'Trim triggers or split broad activation language.';
   }
 
-  if (kind === 'agent-skill-description') {
+  if (profile.kind === 'agent-skill-description') {
     if (skill.description.length > 280) {
       return `Shorten the ${skill.platform} skill description metadata.`;
+    }
+    if (activationEstimatedTokens > 5000) {
+      return 'Move detailed skill instructions into referenced files loaded on demand.';
     }
     return 'Keep activation metadata narrow and specific.';
   }
 
-  if (kind === 'cursor-rule-file') {
-    return 'Narrow rule globs or convert broad guidance into a manual rule.';
+  if (profile.kind === 'cursor-rule-file') {
+    return 'Use globs or description-based activation unless this rule must always apply.';
   }
 
-  if (kind === 'copilot-instruction-file') {
-    return 'Narrow applyTo globs or split broad guidance into smaller instruction files.';
+  if (profile.kind === 'copilot-instruction-file') {
+    return 'Keep repository-wide instructions short; move specialized guidance into path-specific files or skills.';
   }
 
-  if (kind === 'always-on-file') {
+  if (profile.kind === 'always-on-file') {
     return 'Move rarely needed guidance into a skill or narrower rule.';
   }
 
