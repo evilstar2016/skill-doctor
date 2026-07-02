@@ -294,7 +294,7 @@ skill-doctor cost claudecode              # Claude Code entries only (alias for 
 skill-doctor cost --scope project         # project entries only
 skill-doctor cost --scope global          # global/system entries only
 skill-doctor cost --source skill          # skills/rules/instruction files only
-skill-doctor cost --source mcp            # MCP server config only
+skill-doctor cost --source mcp            # MCP tools/list budget only
 skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
 skill-doctor context --json
 ```
@@ -314,11 +314,11 @@ npm run dev -- cost --platform codex
 | `cursor-rule-file` | Cursor `.cursor/rules/*.mdc` and rule files | Local rule file content |
 | `copilot-instruction-file` | GitHub Copilot `.github/instructions/*.instructions.md` | Local instruction file content |
 | `always-on-file` | `AGENTS.md`, `.codex/AGENTS.md`, `GEMINI.md`, `.windsurfrules`, `.cursorrules`, and similar always-on files | Local file content |
-| `mcp-server-config` | Static MCP server config for Codex, Claude Code, Gemini CLI, and Cursor | Sanitized local config metadata; env/header values are masked |
+| `mcp-tool-list` | MCP servers for Codex, Claude Code, Gemini CLI, and Cursor | Live `tools/list` names, descriptions, and schemas when the server can be reached |
 
 This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
 
-MCP cost mode is static-only: it reads local config files and does not start MCP servers, connect to configured URLs, or call tool discovery APIs.
+MCP cost mode reads local config files, then tries to inspect each configured MCP server. HTTP servers are contacted through their configured URL; stdio servers are started with their configured command and queried with `tools/list`. If a server cannot be reached or started, the report keeps a zero-token MCP item with a fix message explaining the failure.
 
 ### `diff`
 

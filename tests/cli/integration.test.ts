@@ -1779,13 +1779,30 @@ describe('CLI integration — context cost', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
+    const mcpScript = join(root, 'codex-mcp.js');
+
+    writeFile(
+      mcpScript,
+      [
+        'const readline = require("node:readline");',
+        'const rl = readline.createInterface({ input: process.stdin });',
+        'rl.on("line", (line) => {',
+        '  const msg = JSON.parse(line);',
+        '  if (msg.method === "initialize") {',
+        '    console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "codex-test", version: "1.0.0" } } }));',
+        '  } else if (msg.method === "tools/list") {',
+        '    console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { tools: [{ name: "search_repositories", description: "Search GitHub repositories.", inputSchema: { type: "object", properties: { query: { type: "string" } } } }] } }));',
+        '  }',
+        '});',
+      ].join('\n'),
+    );
 
     writeFile(
       join(cwd, '.codex', 'config.toml'),
       [
         '[mcp_servers.github]',
-        'command = "npx"',
-        'args = ["-y", "@modelcontextprotocol/server-github"]',
+        `command = ${JSON.stringify(process.execPath)}`,
+        `args = [${JSON.stringify(mcpScript)}]`,
         'allowed_tools = ["search_repositories"]',
         '',
         '[mcp_servers.github.env]',
@@ -1809,8 +1826,10 @@ describe('CLI integration — context cost', () => {
       name: 'github',
       platform: 'codex',
       source: 'mcp',
-      kind: 'mcp-server-config',
+      kind: 'mcp-tool-list',
+      estimatedTokens: expect.any(Number),
     }));
+    expect(payload.items[0].estimatedTokens).toBeGreaterThan(0);
     expect(JSON.stringify(payload)).not.toContain('super-secret');
   });
 
@@ -1827,7 +1846,7 @@ describe('CLI integration — context cost', () => {
       join(cwd, '.mcp.json'),
       JSON.stringify({
         mcpServers: {
-          local: { command: 'node', args: ['server.js'] },
+          local: { url: 'http://127.0.0.1:9/mcp', timeoutMs: 100 },
         },
       }),
     );
@@ -1885,15 +1904,32 @@ describe('CLI integration — context cost', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
+    const mcpScript = join(root, 'broad-mcp.js');
+
+    writeFile(
+      mcpScript,
+      [
+        'const readline = require("node:readline");',
+        'const tools = Array.from({ length: 20 }, (_, index) => ({ name: `tool_${index}`, description: "Very detailed tool description ".repeat(20), inputSchema: { type: "object", properties: { input: { type: "string", description: "Long input description ".repeat(10) } } } }));',
+        'const rl = readline.createInterface({ input: process.stdin });',
+        'rl.on("line", (line) => {',
+        '  const msg = JSON.parse(line);',
+        '  if (msg.method === "initialize") {',
+        '    console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "broad-test", version: "1.0.0" } } }));',
+        '  } else if (msg.method === "tools/list") {',
+        '    console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { tools } }));',
+        '  }',
+        '});',
+      ].join('\n'),
+    );
 
     writeFile(
       join(cwd, '.mcp.json'),
       JSON.stringify({
         mcpServers: {
           broad: {
-            command: 'node',
-            args: Array.from({ length: 20 }, (_, index) => `very-long-argument-${index}`),
-            allowedTools: Array.from({ length: 20 }, (_, index) => `tool_${index}`),
+            command: process.execPath,
+            args: [mcpScript],
           },
         },
       }),

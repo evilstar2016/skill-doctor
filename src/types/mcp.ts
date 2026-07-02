@@ -17,4 +17,16 @@ export interface McpServerRecord {
   approvalMode?: string;
   trusted?: boolean;
   timeoutMs?: number;
+  toolDiscoveryStatus?: 'ok' | 'failed';
+  toolDiscoveryError?: string;
+  tools?: McpToolRecord[];
+}
+
+export interface McpToolRecord {
+  name: string;
+  title?: string;
+  description?: string;
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  annotations?: unknown;
 }

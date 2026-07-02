@@ -10,6 +10,9 @@ interface ScanMcpServersOptions {
 }
 
 type JsonObject = Record<string, unknown>;
+type PrivateMcpConfig = { env: Record<string, string>; headers: Record<string, string> };
+
+const PRIVATE_CONFIG = new WeakMap<McpServerRecord, PrivateMcpConfig>();
 
 export interface McpConfigFile {
   platform: Platform;
@@ -153,7 +156,7 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     config.excluded,
   );
 
-  return {
+  const record: McpServerRecord = {
     source: 'mcp',
     name,
     sourcePath: file.path,
@@ -171,6 +174,15 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     ...(typeof config.trusted === 'boolean' ? { trusted: config.trusted } : {}),
     ...(numberValue(config.timeout ?? config.timeoutMs ?? config.timeout_ms) ? { timeoutMs: numberValue(config.timeout ?? config.timeoutMs ?? config.timeout_ms) } : {}),
   };
+  PRIVATE_CONFIG.set(record, {
+    env: stringRecord(env),
+    headers: stringRecord(headers),
+  });
+  return record;
+}
+
+export function getMcpPrivateConfig(server: McpServerRecord): PrivateMcpConfig {
+  return PRIVATE_CONFIG.get(server) ?? { env: {}, headers: {} };
 }
 
 function mergeMcpConfig(config: JsonObject, baseConfig?: JsonObject): JsonObject {
@@ -223,6 +235,15 @@ function stringArray(value: unknown): string[] {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function stringRecord(value: JsonObject): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    const resolved = stringValue(raw);
+    if (resolved) result[key] = resolved;
+  }
+  return result;
 }
 
 function numberValue(value: unknown): number | undefined {

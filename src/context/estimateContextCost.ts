@@ -10,7 +10,7 @@ import type {
   ContextCostResult,
   ContextInjectionKind,
 } from '../types/context';
-import type { McpServerRecord } from '../types/mcp';
+import type { McpServerRecord, McpToolRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
 
 const DEFAULT_BUDGET_TOKENS = 2000;
@@ -128,8 +128,9 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
 }
 
 function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
-  const text = buildMcpConfigText(server);
+  const text = buildMcpToolListText(server);
   const estimatedTokens = estimateTokens(text);
+  const normalizedLength = normalizeForEstimate(text).length;
 
   return {
     name: server.name,
@@ -137,11 +138,11 @@ function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
     platform: server.platform,
     scope: server.scope,
     source: 'mcp',
-    kind: 'mcp-server-config',
+    kind: 'mcp-tool-list',
     estimatedTokens,
-    estimatedChars: normalizeForEstimate(text).length,
+    estimatedChars: normalizedLength,
     activationEstimatedTokens: estimatedTokens,
-    activationEstimatedChars: normalizeForEstimate(text).length,
+    activationEstimatedChars: normalizedLength,
     activation: 'startup',
     budgetScope: 'startup-selection',
     confidence: 'low',
@@ -411,6 +412,24 @@ function buildMetadataText(skill: SkillRecord, options: { includePath?: boolean 
 }
 
 export function buildMcpConfigText(server: McpServerRecord): string {
+  return buildMcpToolListText(server);
+}
+
+function buildMcpToolListText(server: McpServerRecord): string {
+  if (server.toolDiscoveryStatus === 'failed') {
+    return '';
+  }
+
+  const tools = server.tools ?? [];
+  if (tools.length > 0) {
+    return [
+      `MCP server: ${server.name}`,
+      `Platform: ${server.platform}`,
+      `Scope: ${server.scope}`,
+      ...tools.flatMap((tool) => buildMcpToolText(tool)),
+    ].join('\n');
+  }
+
   return [
     `MCP server: ${server.name}`,
     `Platform: ${server.platform}`,
@@ -428,6 +447,21 @@ export function buildMcpConfigText(server: McpServerRecord): string {
     typeof server.timeoutMs === 'number' ? `Timeout ms: ${server.timeoutMs}` : '',
     `Source path: ${server.sourcePath}`,
   ].filter(Boolean).join('\n');
+}
+
+function buildMcpToolText(tool: McpToolRecord): string[] {
+  return [
+    `Tool: ${tool.name}`,
+    tool.title ? `Title: ${tool.title}` : '',
+    tool.description ? `Description: ${tool.description}` : '',
+    tool.inputSchema ? `Input schema: ${stableJson(tool.inputSchema)}` : '',
+    tool.outputSchema ? `Output schema: ${stableJson(tool.outputSchema)}` : '',
+    tool.annotations ? `Annotations: ${stableJson(tool.annotations)}` : '',
+  ].filter(Boolean);
+}
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(value);
 }
 
 function applyOfficialBudgetLimit(text: string, limit: ContextCostOfficialLimit | undefined): string {
@@ -548,6 +582,10 @@ function getRecommendation(
 }
 
 function getMcpRecommendation(server: McpServerRecord, estimatedTokens: number): string {
+  if (server.toolDiscoveryStatus === 'failed') {
+    return `Unable to inspect MCP tools: ${server.toolDiscoveryError ?? 'server did not respond'}`;
+  }
+
   if (estimatedTokens <= 120) {
     return 'OK';
   }

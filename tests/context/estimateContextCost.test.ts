@@ -275,8 +275,15 @@ describe('estimateContextCost', () => {
     expect(result.items[0]?.activationEstimatedTokens).toBeGreaterThan(0);
   });
 
-  it('estimates MCP server config token cost from sanitized metadata', () => {
-    const server = makeMcpServer();
+  it('estimates MCP server token cost from discovered tools', () => {
+    const server = makeMcpServer({
+      toolDiscoveryStatus: 'ok',
+      tools: [{
+        name: 'search_repositories',
+        description: 'Search GitHub repositories.',
+        inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+      }],
+    });
     const result = estimateContextCost([server]);
 
     expect(result.items[0]).toEqual(expect.objectContaining({
@@ -284,7 +291,7 @@ describe('estimateContextCost', () => {
       platform: 'codex',
       scope: 'project',
       source: 'mcp',
-      kind: 'mcp-server-config',
+      kind: 'mcp-tool-list',
       estimatedTokens: estimateTokens(buildMcpConfigText(server)),
     }));
     expect(result.summary.byPlatform).toEqual([
@@ -292,11 +299,17 @@ describe('estimateContextCost', () => {
     ]);
   });
 
-  it('masks MCP env and header values in the estimated text', () => {
-    const text = buildMcpConfigText(makeMcpServer());
+  it('reports inaccessible MCP servers without counting config tokens', () => {
+    const result = estimateContextCost([
+      makeMcpServer({
+        toolDiscoveryStatus: 'failed',
+        toolDiscoveryError: 'connection refused',
+      }),
+    ]);
 
-    expect(text).toContain('GITHUB_TOKEN=<masked>');
-    expect(text).toContain('Authorization=<masked>');
-    expect(text).not.toContain('super-secret');
+    expect(result.items[0]).toEqual(expect.objectContaining({
+      estimatedTokens: 0,
+      recommendation: 'Unable to inspect MCP tools: connection refused',
+    }));
   });
 });

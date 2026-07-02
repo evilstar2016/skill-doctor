@@ -25,6 +25,7 @@ import { detectPlatform } from '../install/detectPlatform.js';
 import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
 import { installSkill } from '../install/installSkill.js';
 import { uninstallSkill } from '../install/uninstallSkill.js';
+import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
 import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
 import { renderAudit } from '../render/renderAudit';
@@ -408,7 +409,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         );
     const mcpServers = source === 'skill'
       ? []
-      : filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform);
+      : await discoverMcpToolsForServers(
+          filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
+        );
     const result = estimateContextCost([...skills, ...mcpServers], {
       ...(budgetTokens === null ? {} : { budgetTokens }),
       ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),

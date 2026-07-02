@@ -19,10 +19,10 @@
 
 以下为本分支计划的待办项，当前均已完成：
 
-- [x] 增加静态 MCP 配置发现，不启动 MCP server，不连接远程 URL。
+- [x] 增加 MCP 配置发现，并在 `cost --source mcp` 中实际调用 MCP `tools/list`。
 - [x] 增加 Codex TOML MCP 配置解析。
 - [x] 增加 Claude Code、Gemini、Cursor JSON MCP 配置解析。
-- [x] 增加 `mcp-server-config` 成本类型。
+- [x] 增加 `mcp-tool-list` 成本类型。
 - [x] 增加 `--source skill|mcp|all`，默认 `all`。
 - [x] 增加 `claudecode` / `claude-code` 平台别名，输出仍使用 canonical `claude`。
 - [x] 对 MCP env/header 只保留 key 名，屏蔽实际 secret 值。

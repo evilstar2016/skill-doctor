@@ -10,6 +10,7 @@ export type ContextInjectionKind =
   | 'copilot-instruction-file'
   | 'always-on-file'
   | 'mcp-server-config'
+  | 'mcp-tool-list'
   | 'skill-metadata';
 
 export type ContextActivation =
