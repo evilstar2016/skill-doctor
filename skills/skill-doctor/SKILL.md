@@ -5,11 +5,25 @@ description: Diagnose local AI agent skills, rules, instructions, MCP tool-list 
 
 # Skill Doctor
 
-Use the local CLI. Prefer concise terminal output; use `--json` only when automation or exact fields are needed.
+Use the installed `skill-doctor` CLI. Prefer concise terminal output; use `--json` only when automation or exact fields are needed.
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs <command>
+skill-doctor <command>
 ```
+
+If `skill-doctor` is not available, guide the user to install it first:
+
+```bash
+npm install -g @evilstar2025/skill-doctor
+```
+
+For one-off use without installing:
+
+```bash
+npx @evilstar2025/skill-doctor@latest <command>
+```
+
+Do not use a repository-local `dist/index.cjs` path unless the user is developing the `skill-doctor` repo itself.
 
 ## Token-saving defaults
 
@@ -41,7 +55,7 @@ node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs <command>
 Scan:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs scan
+skill-doctor scan
 ```
 
 Report total skills, platform/scope breakdown, duplicates, conflicts, and notable paths.
@@ -49,7 +63,7 @@ Report total skills, platform/scope breakdown, duplicates, conflicts, and notabl
 Conflicts:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs conflicts --limit 10
+skill-doctor conflicts --limit 10
 ```
 
 Report highest severity pairs first, with shared tokens/overlap and suggested fix. Use `--kind duplicate` for duplicate-only checks.
@@ -57,7 +71,7 @@ Report highest severity pairs first, with shared tokens/overlap and suggested fi
 Audit:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs audit --severity high
+skill-doctor audit --severity high
 ```
 
 Lead with HIGH findings. Then summarize MED/LOW counts if needed. `--ai` requires `~/.skill-doctor/config.json` analysis config.
@@ -65,7 +79,7 @@ Lead with HIGH findings. Then summarize MED/LOW counts if needed. `--ai` require
 Context cost:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs cost --budget-tokens 2000
+skill-doctor cost --budget-tokens 2000
 ```
 
 Report grade, total tokens/turn, over-budget status, top costly items, and fixes. Use `--platform codex`, `--scope project`, or `--source mcp` to narrow.
@@ -73,7 +87,7 @@ Report grade, total tokens/turn, over-budget status, top costly items, and fixes
 Dashboard:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs dashboard --report skill-doctor-dashboard.html
+skill-doctor dashboard --report skill-doctor-dashboard.html
 ```
 
 Use for "full health check" or visual overview. Tell the user the output path. Avoid `--open` unless the user asks to open it.
@@ -81,8 +95,8 @@ Use for "full health check" or visual overview. Tell the user the output path. A
 Show/diff:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs show <name>
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs diff <a> <b>
+skill-doctor show <name>
+skill-doctor diff <a> <b>
 ```
 
 Use `show` for one skill's description, triggers, provenance, when-to-use, and related skills. Use `diff` for choosing between two similar skills.
@@ -90,7 +104,7 @@ Use `show` for one skill's description, triggers, provenance, when-to-use, and r
 Cleanup/install safety:
 
 ```bash
-node /Users/evilstar/GitHub/skill-doctor/dist/index.cjs cleanup
+skill-doctor cleanup
 ```
 
 `cleanup --execute`, `install`, and `uninstall` modify local files. Only run them when the user explicitly asks to change installs.
