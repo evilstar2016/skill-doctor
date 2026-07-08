@@ -10,16 +10,6 @@ coverage/
 skill-doctor-*.html
 .superpowers/
 doc/
-!doc/
-doc/*
-!doc/specs/
-doc/specs/*
-!doc/specs/cost-mcp-budget-plan.md
-!doc/specs/cost-mcp-budget-test-report.md
-!doc/scenarios/
-doc/scenarios/*
-!doc/scenarios/cost-mcp-budget/
-!doc/scenarios/cost-mcp-budget/**
 docs/
 skill-backup/
 .env
