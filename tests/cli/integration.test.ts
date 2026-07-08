@@ -1602,6 +1602,40 @@ describe('CLI integration — context cost', () => {
     expect(kindsByPlatform.windsurf).toBe('always-on-file');
   });
 
+  it('cost covers Copilot instructions, prompt files, skills, and nested agent instructions', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.github', 'instructions', 'security.instructions.md'),
+      ['---', 'applyTo: "**/*.ts"', '---', '', 'Follow Copilot security guidance.'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.github', 'prompts', 'review.prompt.md'),
+      'Review this change and summarize correctness risks.',
+    );
+    writeFile(
+      join(cwd, '.github', 'skills', 'review-helper', 'SKILL.md'),
+      ['---', 'name: review-helper', 'description: Use for Copilot code review.', '---', '', '# Review Helper'].join('\n'),
+    );
+    writeFile(join(cwd, 'packages', 'api', 'AGENTS.md'), 'Use API package conventions.');
+
+    const result = runCli(['cost', '--scope', 'project', '--source', 'skill', '--platform', 'copilot', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+    const kinds = payload.items.map((item: { kind: string }) => item.kind).sort();
+    const paths = payload.items.map((item: { sourcePath: string }) => item.sourcePath);
+
+    expect(result.status).toBe(0);
+    expect(kinds).toEqual([
+      'agent-skill-description',
+      'always-on-file',
+      'copilot-instruction-file',
+      'copilot-prompt-file',
+    ]);
+    expect(paths.some((path: string) => path.endsWith(join('packages', 'api', 'AGENTS.md')))).toBe(true);
+  });
+
   it('cost covers codex project and global skill paths', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

@@ -17,6 +17,7 @@ export interface PathTarget {
   mode: 'recursive-dir' | 'single-file';
   layout?: 'files' | 'skill-dirs';
   includeFileNames?: string[];
+  includeFileNameSuffixes?: string[];
   costOnly?: boolean;
 }
 
@@ -63,6 +64,7 @@ export const PLATFORM_PATHS: PlatformPathDefinition[] = [
     project: [
       { path: '.github/copilot-instructions.md', mode: 'single-file' },
       { path: '.github/instructions', mode: 'recursive-dir', layout: 'files' },
+      { path: '.github/prompts', mode: 'recursive-dir', layout: 'files', includeFileNameSuffixes: ['.prompt.md'] },
       { path: '.github/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
       { path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs', costOnly: true },
       { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
@@ -195,6 +197,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
 
   if (options.includeCostPaths) {
     collectGeminiConfiguredContextFiles(cwd, homeDir, results, seen);
+    collectNestedCopilotAgentInstructions(cwd, results, seen);
   }
 
   for (const raw of options.extraPaths ?? []) {
@@ -250,7 +253,7 @@ function collectPath(
       }
       if (childStats.isDirectory()) {
         subdirs.push(childPath);
-      } else if (isAllowedFile(childPath, definition.extensions, target.includeFileNames)) {
+      } else if (isAllowedFile(childPath, definition.extensions, target.includeFileNames, target.includeFileNameSuffixes)) {
         matchingFiles.push(childPath);
       }
     }
@@ -262,6 +265,16 @@ function collectPath(
         }
       }
 
+      for (const subdir of subdirs) {
+        collectPath(subdir, definition, target, scope, results, seen, depth + 1);
+      }
+      return;
+    }
+
+    if (target.layout !== 'skill-dirs') {
+      for (const filePath of matchingFiles) {
+        pushResult(filePath, target.path, definition, scope, results, seen);
+      }
       for (const subdir of subdirs) {
         collectPath(subdir, definition, target, scope, results, seen, depth + 1);
       }
@@ -285,7 +298,7 @@ function collectPath(
     return;
   }
 
-  if (!isAllowedFile(targetPath, definition.extensions, target.includeFileNames)) {
+  if (!isAllowedFile(targetPath, definition.extensions, target.includeFileNames, target.includeFileNameSuffixes)) {
     return;
   }
 
@@ -386,9 +399,17 @@ export function getParentDir(filePath: string): string {
   return dirname(filePath);
 }
 
-function isAllowedFile(targetPath: string, extensions: string[], includeFileNames?: string[]): boolean {
+function isAllowedFile(
+  targetPath: string,
+  extensions: string[],
+  includeFileNames?: string[],
+  includeFileNameSuffixes?: string[],
+): boolean {
   const name = basename(targetPath);
   if (includeFileNames && !includeFileNames.includes(name)) {
+    return false;
+  }
+  if (includeFileNameSuffixes && !includeFileNameSuffixes.some((suffix) => name.endsWith(suffix))) {
     return false;
   }
 
@@ -397,6 +418,64 @@ function isAllowedFile(targetPath: string, extensions: string[], includeFileName
   }
 
   return extensions.includes(extname(targetPath).toLowerCase());
+}
+
+function collectNestedCopilotAgentInstructions(cwd: string, results: SkillFile[], seen: Set<string>): void {
+  const definition: PlatformPathDefinition = {
+    platform: 'copilot',
+    confidence: 'high',
+    global: [],
+    project: [],
+    extensions: ['.md'],
+  };
+
+  for (const filePath of findNamedFiles(cwd, 'AGENTS.md')) {
+    pushResult(filePath, 'AGENTS.md', definition, 'project', results, seen);
+  }
+}
+
+const IGNORED_RECURSIVE_DIRS = new Set([
+  '.git',
+  '.hg',
+  '.svn',
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'coverage',
+]);
+
+function findNamedFiles(root: string, fileName: string): string[] {
+  if (!existsSync(root)) return [];
+
+  const results: string[] = [];
+  const visit = (dir: string) => {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (entry.startsWith('.') || IGNORED_RECURSIVE_DIRS.has(entry)) continue;
+      const entryPath = join(dir, entry);
+      let stats;
+      try {
+        stats = statSync(entryPath);
+      } catch {
+        continue;
+      }
+      if (stats.isDirectory()) {
+        visit(entryPath);
+      } else if (entry === fileName) {
+        results.push(entryPath);
+      }
+    }
+  };
+
+  visit(root);
+  return results;
 }
 
 function collectGeminiConfiguredContextFiles(

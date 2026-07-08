@@ -32,6 +32,8 @@ export function scanMcpServers(projectDir: string, options: ScanMcpServersOption
     { platform: 'gemini', scope: 'project', path: join(projectDir, '.gemini', 'settings.json'), format: 'json' },
     { platform: 'cursor', scope: 'global', path: join(homeDir, '.cursor', 'mcp.json'), format: 'json' },
     { platform: 'cursor', scope: 'project', path: join(projectDir, '.cursor', 'mcp.json'), format: 'json' },
+    { platform: 'copilot', scope: 'project', path: join(projectDir, '.vscode', 'mcp.json'), format: 'json' },
+    { platform: 'copilot', scope: 'project', path: join(projectDir, '.github', 'mcp.json'), format: 'json' },
   ];
 
   return files.flatMap((file) => readConfigFile(file, projectDir));
@@ -142,6 +144,7 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     config.tool_allowlist,
     config.includeTools,
     config.include_tools,
+    config.tools,
     config.allowed,
   );
   const denylist = firstStringArray(

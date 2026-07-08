@@ -199,6 +199,30 @@ describe('estimateContextCost', () => {
     expect(result.items[0]?.budgetScope).toBe('activation');
   });
 
+  it('estimates Copilot prompt files as manual activation context', () => {
+    const root = tempRoot();
+    const promptPath = join(root, '.github', 'prompts', 'review.prompt.md');
+    const content = 'Review this change with #file:src/index.ts and summarize risks. '.repeat(20);
+    mkdirSync(dirname(promptPath), { recursive: true });
+    writeFileSync(promptPath, content, 'utf8');
+
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'review.prompt',
+        sourcePath: promptPath,
+        platform: 'copilot',
+        description: 'Reusable review prompt',
+        triggers: [],
+      }),
+    ]);
+
+    expect(result.items[0]?.kind).toBe('copilot-prompt-file');
+    expect(result.items[0]?.estimatedTokens).toBe(0);
+    expect(result.items[0]?.activationEstimatedTokens).toBe(estimateTokens(content));
+    expect(result.items[0]?.activation).toBe('manual');
+    expect(result.items[0]?.budgetScope).toBe('none');
+  });
+
   it('grades against the supplied budget and marks over-budget results', () => {
     const result = estimateContextCost(
       [

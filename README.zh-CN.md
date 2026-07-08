@@ -14,7 +14,7 @@
 
 ## 30 秒试用
 
-当前版本：npm 上的 [`v0.3.4`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4)。
+当前版本：npm 上的 [`v0.3.5`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.5)。
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -146,7 +146,7 @@ skill-doctor context --json
 
 对 Claude Code skills，`cost` 估算始终注入的 name、description、trigger 元数据，而不是完整 skill 正文。对 `AGENTS.md` 这类 always-on 文件，它会估算本地文件内容。
 
-`--source skill|mcp|all` 可以选择只统计 skills/rules/instruction files、只统计 MCP 工具列表，或两者都统计。MCP 模式会先读取本地配置，再尝试访问每个 MCP server：HTTP 服务会通过配置 URL 调用，stdio 服务会按配置命令启动，并调用 `tools/list` 读取工具名称、说明和 schema 后估算 token。如果服务不可访问或无法启动，报告会保留一个 0 token 的 MCP 项，并在修复建议里提示失败原因。
+`--source skill|mcp|all` 可以选择只统计 skills/rules/instruction/prompt files、只统计 MCP 工具列表，或两者都统计。Copilot 模式会覆盖 `.github/copilot-instructions.md`、`.github/instructions/**/*.instructions.md`、`.github/prompts/**/*.prompt.md`、Copilot skills、`AGENTS.md` 以及 `.vscode/mcp.json`/`.github/mcp.json` 中的 MCP。MCP 模式会先读取本地配置，再尝试访问每个 MCP server：HTTP 服务会通过配置 URL 调用，stdio 服务会按配置命令启动，并调用 `tools/list` 读取工具名称、说明和 schema 后估算 token。如果服务不可访问或无法启动，报告会保留一个 0 token 的 MCP 项，并在修复建议里提示失败原因。
 
 ### `dashboard`
 

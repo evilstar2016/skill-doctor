@@ -2,6 +2,12 @@
 
 All notable changes to `skill-doctor` are documented here.
 
+## 0.3.5 - 2026-07-08
+
+- Fixed GitHub Copilot context cost accounting to include prompt files, nested `AGENTS.md` agent instructions, and multiple nested `.github/instructions/**/*.instructions.md` files.
+- Added Copilot MCP config discovery for `.vscode/mcp.json` and `.github/mcp.json`, including `tools` allowlists.
+- Documented Copilot instructions, prompts, skills, and MCP coverage in the cost report docs.
+
 ## 0.3.4 - 2026-06-30
 
 - Added `cost` / `context` commands to estimate per-turn context token tax, grade it against a token budget, and fail CI with `--fail-on-budget`.

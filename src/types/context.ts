@@ -8,6 +8,7 @@ export type ContextInjectionKind =
   | 'agent-skill-description'
   | 'cursor-rule-file'
   | 'copilot-instruction-file'
+  | 'copilot-prompt-file'
   | 'always-on-file'
   | 'mcp-server-config'
   | 'mcp-tool-list'

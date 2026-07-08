@@ -133,6 +133,58 @@ describe('scanMcpServers', () => {
     expect(JSON.stringify(result)).not.toContain('hidden');
   });
 
+  it('parses Copilot MCP repository config shapes and tools allowlists', () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.vscode', 'mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          github: {
+            type: 'http',
+            url: 'https://api.githubcopilot.com/mcp/readonly',
+            tools: ['repos.list', 'issues.search'],
+            headers: { Authorization: 'Bearer hidden' },
+          },
+        },
+      }),
+    );
+    writeFile(
+      join(cwd, '.github', 'mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          playwright: {
+            command: 'npx',
+            args: ['@playwright/mcp'],
+            tools: ['browser_snapshot'],
+          },
+        },
+      }),
+    );
+
+    const result = scanMcpServers(cwd, { homeDir: home });
+    const byName = Object.fromEntries(result.map((server) => [server.name, server]));
+
+    expect(byName.github).toEqual(expect.objectContaining({
+      platform: 'copilot',
+      scope: 'project',
+      transport: 'http',
+      url: 'https://api.githubcopilot.com/mcp/readonly',
+      toolAllowlist: ['repos.list', 'issues.search'],
+      headerKeys: ['Authorization'],
+    }));
+    expect(byName.playwright).toEqual(expect.objectContaining({
+      platform: 'copilot',
+      scope: 'project',
+      command: 'npx',
+      args: ['@playwright/mcp'],
+      toolAllowlist: ['browser_snapshot'],
+    }));
+    expect(JSON.stringify(result)).not.toContain('hidden');
+  });
+
   it('marks matching Claude user project entries as project scope', () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');

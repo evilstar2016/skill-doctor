@@ -209,6 +209,55 @@ describe('resolvePaths', () => {
     expect(copilotFiles[0]?.filePath).toContain(join('reviews', 'pull-request.instructions.md'));
   });
 
+  it('finds every Copilot instruction and prompt file in nested collection dirs', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.github', 'instructions', 'reviews', 'pull-request.instructions.md'));
+    writeFile(join(cwd, '.github', 'instructions', 'reviews', 'security.instructions.md'));
+    writeFile(join(cwd, '.github', 'instructions', 'reviews', 'nested', 'api.instructions.md'));
+    writeFile(join(cwd, '.github', 'prompts', 'review.prompt.md'));
+    writeFile(join(cwd, '.github', 'prompts', 'docs', 'readme.prompt.md'));
+    writeFile(join(cwd, '.github', 'prompts', 'docs', 'notes.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const relativeCopilotFiles = result
+      .filter((entry) => entry.platform === 'copilot' && entry.scope === 'project')
+      .map((entry) => entry.filePath.slice(cwd.length + 1).split('/').join('/'))
+      .sort();
+
+    expect(relativeCopilotFiles).toEqual([
+      '.github/instructions/reviews/nested/api.instructions.md',
+      '.github/instructions/reviews/pull-request.instructions.md',
+      '.github/instructions/reviews/security.instructions.md',
+      '.github/prompts/docs/readme.prompt.md',
+      '.github/prompts/review.prompt.md',
+    ]);
+  });
+
+  it('finds nested Copilot AGENTS.md files in cost discovery mode', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, 'AGENTS.md'));
+    writeFile(join(cwd, 'packages', 'api', 'AGENTS.md'));
+    writeFile(join(cwd, 'node_modules', 'dependency', 'AGENTS.md'));
+
+    const result = resolvePaths(cwd, { homeDir, includeCostPaths: true });
+    const copilotAgentsFiles = result
+      .filter((entry) => entry.platform === 'copilot' && entry.filePath.endsWith('AGENTS.md'))
+      .map((entry) => entry.filePath.slice(cwd.length + 1).split('/').join('/'))
+      .sort();
+
+    expect(copilotAgentsFiles).toEqual(['AGENTS.md', 'packages/api/AGENTS.md']);
+  });
+
   it('does not recursively ingest arbitrary markdown from the codex home directory', () => {
     const tempRoot = createTempRoot();
     tempRoots.push(tempRoot);

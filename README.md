@@ -14,7 +14,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other 
 
 ## Try it in 30 seconds
 
-Current release: [`v0.3.4`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.4) on npm.
+Current release: [`v0.3.5`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.5) on npm.
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -312,9 +312,10 @@ npm run dev -- cost --platform codex
 | `claude-skill-description` | Claude Code `SKILL.md` files | Name, description, and trigger metadata |
 | `agent-skill-description` | Gemini, Windsurf, Kiro, Trae, OpenCode, OpenClaw, Hermes, and Copilot skill dirs | Name, description, and trigger metadata |
 | `cursor-rule-file` | Cursor `.cursor/rules/*.mdc` and rule files | Local rule file content |
-| `copilot-instruction-file` | GitHub Copilot `.github/instructions/*.instructions.md` | Local instruction file content |
+| `copilot-instruction-file` | GitHub Copilot `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` | Local instruction file content |
+| `copilot-prompt-file` | GitHub Copilot `.github/prompts/**/*.prompt.md` | Prompt file content, counted as manual activation context |
 | `always-on-file` | `AGENTS.md`, `.codex/AGENTS.md`, `GEMINI.md`, `.windsurfrules`, `.cursorrules`, and similar always-on files | Local file content |
-| `mcp-tool-list` | MCP servers for Codex, Claude Code, Gemini CLI, and Cursor | Live `tools/list` names, descriptions, and schemas when the server can be reached |
+| `mcp-tool-list` | MCP servers for Copilot, Codex, Claude Code, Gemini CLI, and Cursor | Live `tools/list` names, descriptions, and schemas when the server can be reached |
 
 This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
 
@@ -367,7 +368,7 @@ The dashboard shows:
 |----------|-------------|--------------|
 | **Claude Code** | `~/.claude/skills/` | `.claude/skills/` |
 | **Cursor** | `~/.cursor/rules/` | `.cursor/rules/`, `.cursorrules` |
-| **GitHub Copilot** | `~/.copilot/skills/` | `.github/copilot-instructions.md`, `.github/instructions/` |
+| **GitHub Copilot** | `~/.copilot/skills/` | `.github/copilot-instructions.md`, `.github/instructions/`, `.github/prompts/`, `.github/skills/`, `.vscode/mcp.json` |
 | **Codex** | `~/.codex/AGENTS.md` | `AGENTS.md` |
 | **Gemini CLI** | `~/.gemini/skills/` | `.gemini/skills/`, `GEMINI.md` |
 | **Windsurf** | `~/.codeium/windsurf/skills/` | `.windsurfrules` |

@@ -219,8 +219,16 @@ function classifyCopilot(skill: SkillRecord, raw: string | null): CostProfile {
   }
 
   const fileName = basename(skill.sourcePath).toLowerCase();
+  if (fileName.endsWith('.prompt.md')) {
+    return manualProfile(skill, raw, 'copilot-prompt-file');
+  }
+
   if (fileName.endsWith('.instructions.md') && fileName !== 'copilot-instructions.md') {
     return fileScopedProfile(skill, raw, 'copilot-instruction-file');
+  }
+
+  if (fileName === 'agents.md' || fileName === 'claude.md' || fileName === 'gemini.md') {
+    return alwaysOnProfile(skill, raw, 'always-on-file');
   }
 
   return alwaysOnProfile(skill, raw, 'copilot-instruction-file');

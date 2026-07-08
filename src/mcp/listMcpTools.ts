@@ -287,7 +287,7 @@ function buildInitializeParams(): JsonObject {
     capabilities: {},
     clientInfo: {
       name: 'skill-doctor',
-      version: '0.3.4',
+      version: '0.3.5',
     },
   };
 }
