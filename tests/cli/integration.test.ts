@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, realpathSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
@@ -2008,5 +2008,26 @@ describe('install / uninstall', () => {
   it('install errors on unknown platform', async () => {
     await main(['install', './some-path', '--target', 'nonexistent-platform']);
     expect(process.exitCode).toBe(1);
+  });
+
+  it('install accepts platform target aliases through the registry', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const source = join(root, 'alias-source', 'SKILL.md');
+
+    writeFile(join(cwd, '.keep'), '');
+    writeFile(
+      source,
+      ['---', 'name: alias-skill', 'description: target alias test', '---', '', '# Alias Skill'].join('\n'),
+    );
+
+    const result = runCli(['install', source, '--target', 'claudecode'], cwd, home);
+    const installed = join(home, '.claude', 'skills', 'alias-skill', 'SKILL.md');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Installed 'alias-skill' to claude");
+    expect(existsSync(installed)).toBe(true);
+    expect(readFileSync(installed, 'utf8')).toContain('name: alias-skill');
   });
 });

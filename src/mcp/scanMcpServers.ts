@@ -2,11 +2,13 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 
+import { getPlatformAdapters, resolvePlatformPathTemplate } from '../platforms/registry';
 import type { McpServerRecord } from '../types/mcp';
 import type { Platform, Scope } from '../types/skill';
 
 interface ScanMcpServersOptions {
   homeDir?: string;
+  appDataDir?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -23,20 +25,23 @@ export interface McpConfigFile {
 
 export function scanMcpServers(projectDir: string, options: ScanMcpServersOptions = {}): McpServerRecord[] {
   const homeDir = options.homeDir ?? homedir();
-  const files: McpConfigFile[] = [
-    { platform: 'codex', scope: 'global', path: join(homeDir, '.codex', 'config.toml'), format: 'toml' },
-    { platform: 'codex', scope: 'project', path: join(projectDir, '.codex', 'config.toml'), format: 'toml' },
-    { platform: 'claude', scope: 'global', path: join(homeDir, '.claude.json'), format: 'json' },
-    { platform: 'claude', scope: 'project', path: join(projectDir, '.mcp.json'), format: 'json' },
-    { platform: 'gemini', scope: 'global', path: join(homeDir, '.gemini', 'settings.json'), format: 'json' },
-    { platform: 'gemini', scope: 'project', path: join(projectDir, '.gemini', 'settings.json'), format: 'json' },
-    { platform: 'cursor', scope: 'global', path: join(homeDir, '.cursor', 'mcp.json'), format: 'json' },
-    { platform: 'cursor', scope: 'project', path: join(projectDir, '.cursor', 'mcp.json'), format: 'json' },
-    { platform: 'copilot', scope: 'project', path: join(projectDir, '.vscode', 'mcp.json'), format: 'json' },
-    { platform: 'copilot', scope: 'project', path: join(projectDir, '.github', 'mcp.json'), format: 'json' },
-  ];
+  const appDataDir = options.appDataDir ?? (process.env['APPDATA'] ?? join(homeDir, 'AppData', 'Roaming'));
+  const files = resolveMcpConfigFiles(projectDir, homeDir, appDataDir);
 
   return files.flatMap((file) => readConfigFile(file, projectDir));
+}
+
+function resolveMcpConfigFiles(projectDir: string, homeDir: string, appDataDir: string): McpConfigFile[] {
+  return getPlatformAdapters().flatMap((adapter) =>
+    adapter.mcpConfigFiles.map((source) => ({
+      platform: adapter.platform,
+      scope: source.scope,
+      path: source.scope === 'global'
+        ? resolvePlatformPathTemplate(source.path, homeDir, appDataDir)
+        : join(projectDir, source.path),
+      format: source.format,
+    })),
+  );
 }
 
 function readConfigFile(file: McpConfigFile, projectDir: string): McpServerRecord[] {

@@ -1,0 +1,505 @@
+import { join, normalize } from 'node:path';
+
+import type { ContextCostOfficialLimit, ContextInjectionKind } from '../types/context';
+import type { Confidence, Platform } from '../types/skill';
+
+export interface PlatformPathTarget {
+  path: string;
+  mode: 'recursive-dir' | 'single-file';
+  layout?: 'files' | 'skill-dirs';
+  includeFileNames?: string[];
+  includeFileNameSuffixes?: string[];
+  costOnly?: boolean;
+}
+
+export interface PlatformInstallTarget {
+  path: string;
+  layout: 'files' | 'skill-dirs';
+}
+
+export interface PlatformMcpConfigSource {
+  scope: 'global' | 'project';
+  path: string;
+  format: 'json' | 'toml';
+}
+
+export interface PlatformAdapter {
+  platform: Platform;
+  displayName: string;
+  aliases: string[];
+  confidence: Confidence;
+  global: PlatformPathTarget[];
+  project: PlatformPathTarget[];
+  extensions: string[];
+  installTargets: PlatformInstallTarget[];
+  mcpConfigFiles: PlatformMcpConfigSource[];
+  costPolicy: PlatformCostPolicy;
+}
+
+export type PlatformPathDefinition = PlatformAdapter;
+export type PathTarget = PlatformPathTarget;
+
+export type PlatformCostProfileMode = 'metadata' | 'always-on' | 'file-scoped' | 'manual';
+
+export interface PlatformCostPolicyProfile {
+  mode: PlatformCostProfileMode;
+  kind: ContextInjectionKind;
+  includePath?: boolean;
+  officialLimit?: ContextCostOfficialLimit;
+}
+
+export interface PlatformCostPolicyMatch {
+  entryFile?: boolean;
+  fileName?: string;
+  fileNameIn?: string[];
+  fileNameSuffix?: string;
+  pathIncludes?: string;
+  frontmatterTruthy?: string;
+  frontmatterExists?: string;
+  frontmatterEquals?: Record<string, string>;
+}
+
+export interface PlatformCostPolicyRule {
+  match: PlatformCostPolicyMatch;
+  profile: PlatformCostPolicyProfile;
+}
+
+export interface PlatformCostPolicy {
+  rules: PlatformCostPolicyRule[];
+  defaultProfile: PlatformCostPolicyProfile;
+}
+
+const CODEX_AGENTS_LIMIT_CHARS = 32 * 1024;
+const CODEX_SKILL_LIST_LIMIT_CHARS = 8000;
+const CLAUDE_SKILL_LIST_LIMIT_CHARS = 1536;
+
+const DEFAULT_SKILL_COST_POLICY: PlatformCostPolicy = {
+  rules: [
+    {
+      match: { entryFile: true },
+      profile: { mode: 'metadata', kind: 'agent-skill-description' },
+    },
+  ],
+  defaultProfile: { mode: 'always-on', kind: 'always-on-file' },
+};
+
+export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
+  {
+    platform: 'claude',
+    displayName: 'Claude Code',
+    aliases: ['claudecode', 'claude-code'],
+    confidence: 'high',
+    global: [
+      { path: '~/.claude/CLAUDE.md', mode: 'single-file' },
+      { path: '~/.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: 'CLAUDE.md', mode: 'single-file' },
+      { path: '.claude/CLAUDE.md', mode: 'single-file' },
+      { path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.claude/commands', mode: 'recursive-dir', layout: 'files' },
+    ],
+    extensions: ['.md'],
+    installTargets: [{ path: '~/.claude/skills', layout: 'skill-dirs' }],
+    mcpConfigFiles: [
+      { scope: 'global', path: '~/.claude.json', format: 'json' },
+      { scope: 'project', path: '.mcp.json', format: 'json' },
+    ],
+    costPolicy: {
+      rules: [
+        {
+          match: { pathIncludes: '/.claude/commands/' },
+          profile: {
+            mode: 'metadata',
+            kind: 'claude-skill-description',
+            officialLimit: {
+              kind: 'chars',
+              value: CLAUDE_SKILL_LIST_LIMIT_CHARS,
+              appliesTo: 'combined description and when_to_use skill listing',
+            },
+          },
+        },
+        {
+          match: { entryFile: true, frontmatterTruthy: 'disable-model-invocation' },
+          profile: { mode: 'manual', kind: 'claude-skill-description' },
+        },
+        {
+          match: { entryFile: true },
+          profile: {
+            mode: 'metadata',
+            kind: 'claude-skill-description',
+            officialLimit: {
+              kind: 'chars',
+              value: CLAUDE_SKILL_LIST_LIMIT_CHARS,
+              appliesTo: 'combined description and when_to_use skill listing',
+            },
+          },
+        },
+      ],
+      defaultProfile: { mode: 'always-on', kind: 'always-on-file' },
+    },
+  },
+  {
+    platform: 'cursor',
+    displayName: 'Cursor',
+    aliases: [],
+    confidence: 'high',
+    global: [{ path: '~/.cursor/rules', mode: 'recursive-dir', layout: 'files' }],
+    project: [
+      { path: '.cursor/rules', mode: 'recursive-dir', layout: 'files' },
+      { path: '.cursorrules', mode: 'single-file' },
+    ],
+    extensions: ['.md', '.mdc'],
+    installTargets: [{ path: '~/.cursor/rules', layout: 'files' }],
+    mcpConfigFiles: [
+      { scope: 'global', path: '~/.cursor/mcp.json', format: 'json' },
+      { scope: 'project', path: '.cursor/mcp.json', format: 'json' },
+    ],
+    costPolicy: {
+      rules: [
+        {
+          match: { fileName: '.cursorrules' },
+          profile: { mode: 'always-on', kind: 'always-on-file' },
+        },
+        {
+          match: { frontmatterTruthy: 'alwaysApply' },
+          profile: { mode: 'always-on', kind: 'cursor-rule-file' },
+        },
+        {
+          match: { frontmatterExists: 'globs' },
+          profile: { mode: 'file-scoped', kind: 'cursor-rule-file' },
+        },
+        {
+          match: { frontmatterExists: 'description' },
+          profile: { mode: 'metadata', kind: 'cursor-rule-file' },
+        },
+      ],
+      defaultProfile: { mode: 'manual', kind: 'cursor-rule-file' },
+    },
+  },
+  {
+    platform: 'copilot',
+    displayName: 'GitHub Copilot',
+    aliases: [],
+    confidence: 'high',
+    global: [
+      { path: '~/.copilot/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: '.github/copilot-instructions.md', mode: 'single-file' },
+      { path: '.github/instructions', mode: 'recursive-dir', layout: 'files' },
+      { path: '.github/prompts', mode: 'recursive-dir', layout: 'files', includeFileNameSuffixes: ['.prompt.md'] },
+      { path: '.github/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs', costOnly: true },
+      { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: 'AGENTS.md', mode: 'single-file', costOnly: true },
+      { path: 'CLAUDE.md', mode: 'single-file', costOnly: true },
+      { path: 'GEMINI.md', mode: 'single-file', costOnly: true },
+    ],
+    extensions: ['.md'],
+    installTargets: [
+      { path: '~/.copilot/skills', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', layout: 'skill-dirs' },
+    ],
+    mcpConfigFiles: [
+      { scope: 'project', path: '.vscode/mcp.json', format: 'json' },
+      { scope: 'project', path: '.github/mcp.json', format: 'json' },
+    ],
+    costPolicy: {
+      rules: [
+        {
+          match: { entryFile: true },
+          profile: { mode: 'metadata', kind: 'agent-skill-description' },
+        },
+        {
+          match: { fileNameSuffix: '.prompt.md' },
+          profile: { mode: 'manual', kind: 'copilot-prompt-file' },
+        },
+        {
+          match: { fileNameSuffix: '.instructions.md' },
+          profile: { mode: 'file-scoped', kind: 'copilot-instruction-file' },
+        },
+        {
+          match: { fileNameIn: ['agents.md', 'claude.md', 'gemini.md'] },
+          profile: { mode: 'always-on', kind: 'always-on-file' },
+        },
+      ],
+      defaultProfile: { mode: 'always-on', kind: 'copilot-instruction-file' },
+    },
+  },
+  {
+    platform: 'codex',
+    displayName: 'Codex',
+    aliases: [],
+    confidence: 'high',
+    global: [
+      { path: '~/.codex/AGENTS.override.md', mode: 'single-file' },
+      { path: '~/.codex/AGENTS.md', mode: 'single-file' },
+      { path: '~/.codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.agent/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '/etc/codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: 'AGENTS.override.md', mode: 'single-file' },
+      { path: 'AGENTS.md', mode: 'single-file' },
+      { path: '.codex/AGENTS.override.md', mode: 'single-file' },
+      { path: '.codex/AGENTS.md', mode: 'single-file' },
+      { path: '.codex/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.agent/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    extensions: ['.md'],
+    installTargets: [
+      { path: '~/.codex/skills', layout: 'skill-dirs' },
+      { path: '~/.agent/skills', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', layout: 'skill-dirs' },
+      { path: '/etc/codex/skills', layout: 'skill-dirs' },
+    ],
+    mcpConfigFiles: [
+      { scope: 'global', path: '~/.codex/config.toml', format: 'toml' },
+      { scope: 'project', path: '.codex/config.toml', format: 'toml' },
+    ],
+    costPolicy: {
+      rules: [
+        {
+          match: { entryFile: true },
+          profile: {
+            mode: 'metadata',
+            kind: 'agent-skill-description',
+            includePath: true,
+            officialLimit: {
+              kind: 'chars',
+              value: CODEX_SKILL_LIST_LIMIT_CHARS,
+              appliesTo: 'initial skill list when context window is unknown',
+            },
+          },
+        },
+      ],
+      defaultProfile: {
+        mode: 'always-on',
+        kind: 'always-on-file',
+        officialLimit: {
+          kind: 'chars',
+          value: CODEX_AGENTS_LIMIT_CHARS,
+          appliesTo: 'combined AGENTS.md instruction chain',
+        },
+      },
+    },
+  },
+  {
+    platform: 'gemini',
+    displayName: 'Gemini CLI',
+    aliases: [],
+    confidence: 'high',
+    global: [
+      { path: '~/.gemini/GEMINI.md', mode: 'single-file' },
+      { path: '~/.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: '.gemini/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: 'GEMINI.md', mode: 'single-file' },
+    ],
+    extensions: ['.md'],
+    installTargets: [{ path: '~/.gemini/skills', layout: 'skill-dirs' }],
+    mcpConfigFiles: [
+      { scope: 'global', path: '~/.gemini/settings.json', format: 'json' },
+      { scope: 'project', path: '.gemini/settings.json', format: 'json' },
+    ],
+    costPolicy: DEFAULT_SKILL_COST_POLICY,
+  },
+  {
+    platform: 'windsurf',
+    displayName: 'Windsurf',
+    aliases: [],
+    confidence: 'high',
+    global: [
+      { path: '~/.codeium/windsurf/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '~/.codeium/windsurf/memories/global_rules.md', mode: 'single-file' },
+      { path: '~/.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: '.windsurfrules', mode: 'single-file' },
+      { path: 'AGENTS.md', mode: 'single-file', costOnly: true },
+      { path: '.windsurf/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.agents/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '.devin/rules', mode: 'recursive-dir', layout: 'files' },
+      { path: '.windsurf/rules', mode: 'recursive-dir', layout: 'files' },
+    ],
+    extensions: ['.md'],
+    installTargets: [
+      { path: '~/.codeium/windsurf/skills', layout: 'skill-dirs' },
+      { path: '~/.agents/skills', layout: 'skill-dirs' },
+    ],
+    mcpConfigFiles: [],
+    costPolicy: {
+      rules: [
+        {
+          match: { entryFile: true },
+          profile: { mode: 'metadata', kind: 'agent-skill-description' },
+        },
+        {
+          match: { fileNameIn: ['global_rules.md', '.windsurfrules', 'agents.md'] },
+          profile: { mode: 'always-on', kind: 'always-on-file' },
+        },
+        {
+          match: { frontmatterEquals: { trigger: 'always_on' } },
+          profile: { mode: 'always-on', kind: 'always-on-file' },
+        },
+        {
+          match: { frontmatterEquals: { trigger: 'model_decision' } },
+          profile: { mode: 'metadata', kind: 'always-on-file' },
+        },
+        {
+          match: { frontmatterEquals: { trigger: 'glob' } },
+          profile: { mode: 'file-scoped', kind: 'always-on-file' },
+        },
+        {
+          match: { frontmatterEquals: { trigger: 'manual' } },
+          profile: { mode: 'manual', kind: 'always-on-file' },
+        },
+      ],
+      defaultProfile: { mode: 'always-on', kind: 'always-on-file' },
+    },
+  },
+  {
+    platform: 'trae',
+    displayName: 'Trae',
+    aliases: [],
+    confidence: 'low',
+    global: [{ path: '~/.trae/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [{ path: '.trae/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    extensions: ['.md'],
+    installTargets: [{ path: '~/.trae/skills', layout: 'skill-dirs' }],
+    mcpConfigFiles: [],
+    costPolicy: DEFAULT_SKILL_COST_POLICY,
+  },
+  {
+    platform: 'opencode',
+    displayName: 'OpenCode',
+    aliases: [],
+    confidence: 'low',
+    global: [
+      { path: '~/.config/opencode/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { path: '%APPDATA%/opencode/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    project: [
+      { path: 'AGENTS.md', mode: 'single-file' },
+      { path: 'skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    ],
+    extensions: ['.md'],
+    installTargets: [
+      { path: '~/.config/opencode/skills', layout: 'skill-dirs' },
+      { path: '%APPDATA%/opencode/skills', layout: 'skill-dirs' },
+    ],
+    mcpConfigFiles: [],
+    costPolicy: DEFAULT_SKILL_COST_POLICY,
+  },
+  {
+    platform: 'kiro',
+    displayName: 'Kiro',
+    aliases: [],
+    confidence: 'high',
+    global: [{ path: '~/.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [{ path: '.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    extensions: ['.md'],
+    installTargets: [{ path: '~/.kiro/skills', layout: 'skill-dirs' }],
+    mcpConfigFiles: [],
+    costPolicy: DEFAULT_SKILL_COST_POLICY,
+  },
+  {
+    platform: 'openclaw',
+    displayName: 'OpenClaw',
+    aliases: [],
+    confidence: 'high',
+    global: [{ path: '~/.openclaw/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [],
+    extensions: ['.md'],
+    installTargets: [{ path: '~/.openclaw/skills', layout: 'skill-dirs' }],
+    mcpConfigFiles: [],
+    costPolicy: DEFAULT_SKILL_COST_POLICY,
+  },
+  {
+    platform: 'hermes',
+    displayName: 'Hermes',
+    aliases: [],
+    confidence: 'high',
+    global: [{ path: '~/.config/hermes/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
+    project: [],
+    extensions: ['.md'],
+    installTargets: [{ path: '~/.config/hermes/skills', layout: 'skill-dirs' }],
+    mcpConfigFiles: [],
+    costPolicy: DEFAULT_SKILL_COST_POLICY,
+  },
+];
+
+export const UNKNOWN_PLATFORM_ADAPTER: PlatformAdapter = {
+  platform: 'unknown',
+  displayName: 'Unknown/custom paths',
+  aliases: [],
+  confidence: 'low',
+  global: [],
+  project: [],
+  extensions: ['.md'],
+  installTargets: [],
+  mcpConfigFiles: [],
+  costPolicy: DEFAULT_SKILL_COST_POLICY,
+};
+
+export const PLATFORM_PATHS: PlatformPathDefinition[] = PLATFORM_ADAPTERS;
+
+export function getPlatformAdapters(): PlatformAdapter[] {
+  return [...PLATFORM_ADAPTERS];
+}
+
+export function getAllPlatformAdapters(): PlatformAdapter[] {
+  return [...PLATFORM_ADAPTERS, UNKNOWN_PLATFORM_ADAPTER];
+}
+
+export function getPlatformAdapter(value: string | undefined): PlatformAdapter | undefined {
+  const platform = normalizePlatformName(value);
+  if (!platform) return undefined;
+  return getAllPlatformAdapters().find((adapter) => adapter.platform === platform);
+}
+
+export function getCanonicalPlatformAdapter(value: string | undefined): PlatformAdapter | undefined {
+  if (!value) return undefined;
+  return PLATFORM_ADAPTERS.find((adapter) => adapter.platform === value);
+}
+
+export function normalizePlatformName(value: string | undefined): Platform | null {
+  if (!value) return null;
+  const normalized = value.toLowerCase();
+
+  for (const adapter of getAllPlatformAdapters()) {
+    if (adapter.platform === normalized || adapter.aliases.includes(normalized)) {
+      return adapter.platform;
+    }
+  }
+
+  return null;
+}
+
+export function getDefaultInstallTarget(adapter: PlatformAdapter): PlatformPathTarget | undefined {
+  return adapter.installTargets[0]
+    ? {
+        path: adapter.installTargets[0].path,
+        mode: 'recursive-dir',
+        layout: adapter.installTargets[0].layout,
+      }
+    : undefined;
+}
+
+export function resolvePlatformPathTemplate(template: string, homeDir: string, appDataDir: string): string {
+  return normalize(
+    template
+      .replace(/^~(?=[/\\]|$)/, homeDir)
+      .replace(/%USERPROFILE%/gi, homeDir)
+      .replace(/%APPDATA%/gi, appDataDir),
+  );
+}
+
+export function resolveCustomPath(rawPath: string, homeDir: string): string {
+  return normalize(rawPath.startsWith('~') ? join(homeDir, rawPath.slice(2)) : rawPath);
+}

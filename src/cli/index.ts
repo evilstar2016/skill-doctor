@@ -24,9 +24,11 @@ import { DiffError, runDiff } from '../diff/runDiff';
 import { detectPlatform } from '../install/detectPlatform.js';
 import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
 import { installSkill } from '../install/installSkill.js';
+import { InstallTargetError, resolveInstallTarget } from '../install/resolveInstallPath.js';
 import { uninstallSkill } from '../install/uninstallSkill.js';
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
+import { normalizePlatformName } from '../platforms/registry';
 import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
 import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
@@ -517,23 +519,19 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     let layout: 'skill-dirs' | 'files';
 
     if (targetFlag) {
-      const { PLATFORM_PATHS } = await import('../discovery/resolvePaths.js');
-      const def = PLATFORM_PATHS.find((p) => p.platform === targetFlag);
-      if (!def) {
-        process.stderr.write(`Error: Unknown platform '${targetFlag}'\n`);
-        process.exitCode = 1;
-        return;
+      try {
+        const target = resolveInstallTarget(targetFlag);
+        platform = target.platform;
+        globalDir = target.globalDir;
+        layout = target.layout;
+      } catch (err) {
+        if (err instanceof InstallTargetError) {
+          process.stderr.write(`Error: ${err.message}\n`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
       }
-      const globalTarget = def.global.find((t) => t.mode === 'recursive-dir' && t.layout);
-      if (!globalTarget || !globalTarget.layout) {
-        process.stderr.write(`Error: Platform '${targetFlag}' uses a single-file layout and does not support individual skill installs.\n`);
-        process.exitCode = 1;
-        return;
-      }
-      const { normalize } = await import('node:path');
-      globalDir = normalize(globalTarget.path.replace(/^~(?=[/\\]|$)/, homedir()));
-      platform = targetFlag as Platform;
-      layout = globalTarget.layout;
     } else {
       const detected = detectPlatform();
       if (!detected) {
@@ -626,13 +624,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     let platform: Platform;
     if (targetFlag) {
-      const { PLATFORM_PATHS } = await import('../discovery/resolvePaths.js');
-      if (!PLATFORM_PATHS.some((p) => p.platform === targetFlag)) {
-        process.stderr.write(`Error: Unknown platform '${targetFlag}'\n`);
-        process.exitCode = 1;
-        return;
+      try {
+        platform = resolveInstallTarget(targetFlag).platform;
+      } catch (err) {
+        if (err instanceof InstallTargetError) {
+          process.stderr.write(`Error: ${err.message}\n`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
       }
-      platform = targetFlag as Platform;
     } else {
       const detected = detectPlatform();
       if (!detected) {
@@ -920,24 +921,7 @@ function readImplicitCostPlatform(args: string[], cwd: string): Platform | null 
 }
 
 function normalizePlatformInput(value: string | undefined): Platform | null {
-  if (value === 'claudecode' || value === 'claude-code') return 'claude';
-
-  if (value === 'claude'
-    || value === 'cursor'
-    || value === 'copilot'
-    || value === 'codex'
-    || value === 'gemini'
-    || value === 'windsurf'
-    || value === 'trae'
-    || value === 'opencode'
-    || value === 'kiro'
-    || value === 'openclaw'
-    || value === 'hermes'
-    || value === 'unknown') {
-    return value;
-  }
-
-  return null;
+  return normalizePlatformName(value);
 }
 
 function readCostSource(args: string[]): CostSourceFilter | 'invalid' {

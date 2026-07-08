@@ -84,6 +84,11 @@ describe('estimateContextCost', () => {
 
     expect(result.items[0]?.kind).toBe('claude-skill-description');
     expect(result.items[0]?.estimatedTokens).toBeLessThan(50);
+    expect(result.items[0]?.officialLimit).toEqual({
+      kind: 'chars',
+      value: 1536,
+      appliesTo: 'combined description and when_to_use skill listing',
+    });
   });
 
   it('estimates always-on single-file rules from raw file content', () => {
@@ -116,6 +121,35 @@ describe('estimateContextCost', () => {
         overBudget: false,
       }),
     ]);
+  });
+
+  it('estimates Codex skill entries from path-aware metadata with the official skill list limit', () => {
+    const skillPath = '/fake/.codex/skills/review-helper/SKILL.md';
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'review-helper',
+        sourcePath: skillPath,
+        platform: 'codex',
+        description: 'Use for Codex code review.',
+        triggers: ['review code'],
+      }),
+    ]);
+
+    const metadataText = [
+      'Skill: review-helper',
+      'Description: Use for Codex code review.',
+      'Triggers: review code',
+      `Path: ${skillPath}`,
+    ].join('\n');
+    expect(result.items[0]).toEqual(expect.objectContaining({
+      kind: 'agent-skill-description',
+      estimatedTokens: estimateTokens(metadataText),
+      officialLimit: {
+        kind: 'chars',
+        value: 8000,
+        appliesTo: 'initial skill list when context window is unknown',
+      },
+    }));
   });
 
   it('estimates non-Claude skill-dir agents from activation metadata', () => {
@@ -221,6 +255,110 @@ describe('estimateContextCost', () => {
     expect(result.items[0]?.activationEstimatedTokens).toBe(estimateTokens(content));
     expect(result.items[0]?.activation).toBe('manual');
     expect(result.items[0]?.budgetScope).toBe('none');
+  });
+
+  it('applies Windsurf rule trigger activation and budget semantics', () => {
+    const root = tempRoot();
+    const cases = [
+      {
+        fileName: 'model.md',
+        trigger: 'model_decision',
+        activation: 'startup',
+        budgetScope: 'startup-selection',
+        estimatedTokens: () => estimateTokens('Skill: model\nDescription: Windsurf model_decision rule'),
+        activationEstimatedTokens: (content: string) => estimateTokens(content),
+      },
+      {
+        fileName: 'glob.md',
+        trigger: 'glob',
+        activation: 'file-scoped',
+        budgetScope: 'activation',
+        estimatedTokens: () => 0,
+        activationEstimatedTokens: (content: string) => estimateTokens(content),
+      },
+      {
+        fileName: 'manual.md',
+        trigger: 'manual',
+        activation: 'manual',
+        budgetScope: 'none',
+        estimatedTokens: () => 0,
+        activationEstimatedTokens: (content: string) => estimateTokens(content),
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const rulePath = join(root, '.windsurf', 'rules', testCase.fileName);
+      const content = [
+        '---',
+        `trigger: ${testCase.trigger}`,
+        '---',
+        '',
+        `Follow this Windsurf ${testCase.trigger} rule. `.repeat(30),
+      ].join('\n');
+      mkdirSync(dirname(rulePath), { recursive: true });
+      writeFileSync(rulePath, content, 'utf8');
+
+      const result = estimateContextCost([
+        makeSkill({
+          name: testCase.fileName.replace('.md', ''),
+          sourcePath: rulePath,
+          platform: 'windsurf',
+          description: `Windsurf ${testCase.trigger} rule`,
+          triggers: [],
+        }),
+      ]);
+
+      expect(result.items[0]).toEqual(expect.objectContaining({
+        kind: 'always-on-file',
+        activation: testCase.activation,
+        budgetScope: testCase.budgetScope,
+        estimatedTokens: testCase.estimatedTokens(content),
+        activationEstimatedTokens: testCase.activationEstimatedTokens(content),
+      }));
+    }
+  });
+
+  it('uses the default cost policy for unknown custom platforms', () => {
+    const root = tempRoot();
+    const skillPath = join(root, 'custom', 'skills', 'helper', 'SKILL.md');
+    const rulePath = join(root, 'custom', 'ALWAYS.md');
+    const alwaysOnContent = 'Custom platform always-on guidance. '.repeat(20);
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, 'Custom skill body. '.repeat(100), 'utf8');
+    writeFileSync(rulePath, alwaysOnContent, 'utf8');
+
+    const result = estimateContextCost([
+      makeSkill({
+        name: 'helper',
+        sourcePath: skillPath,
+        platform: 'unknown',
+        description: 'Custom helper metadata.',
+        triggers: ['custom trigger'],
+      }),
+      makeSkill({
+        name: 'ALWAYS.md',
+        sourcePath: rulePath,
+        platform: 'unknown',
+        description: 'Custom always-on rule.',
+        triggers: [],
+      }),
+    ]);
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        name: 'ALWAYS.md',
+        kind: 'always-on-file',
+        activation: 'always-on',
+        budgetScope: 'always-on',
+        estimatedTokens: estimateTokens(alwaysOnContent),
+      }),
+      expect.objectContaining({
+        name: 'helper',
+        kind: 'agent-skill-description',
+        activation: 'startup',
+        budgetScope: 'startup-selection',
+      }),
+    ]);
   });
 
   it('grades against the supplied budget and marks over-budget results', () => {

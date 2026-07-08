@@ -44,6 +44,33 @@ describe('detectPlatform', () => {
     expect(result?.platform).toBe('claude');
   });
 
+  it('detects secondary adapter install targets', () => {
+    const homeDir = makeTempDir();
+    mkdirSync(join(homeDir, '.agents', 'skills'), { recursive: true });
+
+    const result = detectPlatform({ homeDir });
+
+    expect(result).toEqual({
+      platform: 'copilot',
+      globalDir: join(homeDir, '.agents', 'skills'),
+      layout: 'skill-dirs',
+    });
+  });
+
+  it('resolves APPDATA install targets while detecting platforms', () => {
+    const homeDir = makeTempDir();
+    const appDataDir = join(homeDir, 'AppData', 'Roaming');
+    mkdirSync(join(appDataDir, 'opencode', 'skills'), { recursive: true });
+
+    const result = detectPlatform({ homeDir, appDataDir });
+
+    expect(result).toEqual({
+      platform: 'opencode',
+      globalDir: join(appDataDir, 'opencode', 'skills'),
+      layout: 'skill-dirs',
+    });
+  });
+
   it('returns undefined when no platform is detected', () => {
     const homeDir = makeTempDir();
     const result = detectPlatform({ homeDir });
