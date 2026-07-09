@@ -11,6 +11,7 @@ import type {
   ContextCostOfficialLimit,
   ContextCostResult,
   ContextInjectionKind,
+  ContextResourceRecord,
 } from '../types/context';
 import type { McpServerRecord, McpToolRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
@@ -33,13 +34,16 @@ interface CostProfile {
 }
 
 export function estimateContextCost(
-  entries: Array<SkillRecord | McpServerRecord>,
+  entries: Array<SkillRecord | McpServerRecord | ContextResourceRecord>,
   options: EstimateContextCostOptions = {},
 ): ContextCostResult {
   const budgetTokens = options.budgetTokens ?? DEFAULT_BUDGET_TOKENS;
   const platformBudgets = options.platformBudgets ?? {};
   const items = entries
-    .map((entry) => isMcpServerRecord(entry) ? estimateMcpServerCost(entry) : estimateSkillCost(entry))
+    .map((entry) => {
+      if (isContextResourceRecord(entry)) return estimateContextResourceCost(entry);
+      return isMcpServerRecord(entry) ? estimateMcpServerCost(entry) : estimateSkillCost(entry);
+    })
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -49,12 +53,14 @@ export function estimateContextCost(
       }
       return left.name.localeCompare(right.name);
     });
-  const totalEstimatedTokens = items.reduce((sum, item) => sum + item.estimatedTokens, 0);
+  const totalEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum : sum + item.estimatedTokens, 0);
+  const disabledEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum + item.estimatedTokens : sum, 0);
   const byPlatform = summarizeByPlatform(items, budgetTokens, platformBudgets);
 
   return {
     summary: {
       totalEstimatedTokens,
+      ...(disabledEstimatedTokens > 0 ? { disabledEstimatedTokens } : {}),
       budgetTokens,
       grade: gradeCost(totalEstimatedTokens, budgetTokens),
       overBudget: totalEstimatedTokens > budgetTokens || byPlatform.some((entry) => entry.overBudget),
@@ -81,11 +87,14 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
   const activationEstimatedTokens = estimateTokens(profile.activationText);
 
   return {
+    ...(skill.id ? { id: skill.id } : {}),
     name: skill.name,
     sourcePath: skill.sourcePath,
     platform: skill.platform,
     scope: skill.scope,
-    source: 'skill',
+    source: skill.context?.resource === 'agents' ? 'agents' : skill.context?.resource === 'plugin' ? 'plugin' : 'skill',
+    ...(skill.context?.resource ? { resource: skill.context.resource } : {}),
+    ...(skill.context?.configSource ? { configSource: skill.context.configSource } : {}),
     kind: profile.kind,
     estimatedTokens,
     estimatedChars: normalizeForEstimate(budgetText).length,
@@ -94,6 +103,11 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
     activation: profile.activation,
     budgetScope: profile.budgetScope,
     confidence: skill.provenance?.confidence ?? 'low',
+    ...(typeof skill.context?.enabled === 'boolean' ? { enabled: skill.context.enabled } : {}),
+    ...(typeof skill.context?.controllable === 'boolean' ? { controllable: skill.context.controllable } : {}),
+    ...(skill.context?.controlPath ? { controlPath: skill.context.controlPath } : {}),
+    ...(skill.context?.controlMethod ? { controlMethod: skill.context.controlMethod } : {}),
+    ...(skill.context?.estimateStatus ? { estimateStatus: skill.context.estimateStatus } : {}),
     ...(profile.officialLimit ? { officialLimit: profile.officialLimit } : {}),
     recommendation: getRecommendation(skill, profile, estimatedTokens, activationEstimatedTokens),
   };
@@ -105,11 +119,14 @@ function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
   const normalizedLength = normalizeForEstimate(text).length;
 
   return {
+    ...(server.id ? { id: server.id } : {}),
     name: server.name,
     sourcePath: server.sourcePath,
     platform: server.platform,
     scope: server.scope,
     source: 'mcp',
+    resource: server.context?.resource ?? 'mcp',
+    ...(server.context?.configSource ? { configSource: server.context.configSource } : {}),
     kind: 'mcp-tool-list',
     estimatedTokens,
     estimatedChars: normalizedLength,
@@ -118,12 +135,56 @@ function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
     activation: 'startup',
     budgetScope: 'startup-selection',
     confidence: 'low',
+    ...(typeof server.context?.enabled === 'boolean' ? { enabled: server.context.enabled } : typeof server.enabled === 'boolean' ? { enabled: server.enabled } : {}),
+    ...(typeof server.context?.controllable === 'boolean' ? { controllable: server.context.controllable } : {}),
+    ...(server.context?.controlPath ? { controlPath: server.context.controlPath } : {}),
+    ...(server.context?.controlMethod ? { controlMethod: server.context.controlMethod } : {}),
+    ...(server.context?.estimateStatus ? { estimateStatus: server.context.estimateStatus } : {}),
     recommendation: getMcpRecommendation(server, estimatedTokens),
   };
 }
 
-function isMcpServerRecord(entry: SkillRecord | McpServerRecord): entry is McpServerRecord {
+function estimateContextResourceCost(entry: ContextResourceRecord): ContextCostItem {
+  const budgetText = applyOfficialBudgetLimit(entry.text, entry.officialLimit);
+  const activationText = entry.activationText ?? entry.text;
+  const estimatedTokens = entry.estimateStatus === 'unknown' ? 0 : estimateTokens(budgetText);
+  const estimatedChars = entry.estimateStatus === 'unknown' ? 0 : normalizeForEstimate(budgetText).length;
+  const activationEstimatedTokens = entry.estimateStatus === 'unknown' ? 0 : estimateTokens(activationText);
+  const activationEstimatedChars = entry.estimateStatus === 'unknown' ? 0 : normalizeForEstimate(activationText).length;
+
+  return {
+    id: entry.id,
+    name: entry.name,
+    sourcePath: entry.sourcePath,
+    platform: entry.platform,
+    scope: entry.scope,
+    source: entry.source,
+    resource: entry.resource,
+    kind: entry.kind,
+    estimatedTokens,
+    estimatedChars,
+    activationEstimatedTokens,
+    activationEstimatedChars,
+    activation: entry.activation,
+    budgetScope: entry.budgetScope,
+    confidence: entry.confidence,
+    ...(typeof entry.enabled === 'boolean' ? { enabled: entry.enabled } : {}),
+    ...(entry.configSource ? { configSource: entry.configSource } : {}),
+    ...(typeof entry.controllable === 'boolean' ? { controllable: entry.controllable } : {}),
+    ...(entry.controlPath ? { controlPath: entry.controlPath } : {}),
+    ...(entry.controlMethod ? { controlMethod: entry.controlMethod } : {}),
+    ...(entry.estimateStatus ? { estimateStatus: entry.estimateStatus } : {}),
+    ...(entry.officialLimit ? { officialLimit: entry.officialLimit } : {}),
+    recommendation: entry.recommendation,
+  };
+}
+
+function isMcpServerRecord(entry: SkillRecord | McpServerRecord | ContextResourceRecord): entry is McpServerRecord {
   return 'source' in entry && entry.source === 'mcp';
+}
+
+function isContextResourceRecord(entry: SkillRecord | McpServerRecord | ContextResourceRecord): entry is ContextResourceRecord {
+  return 'text' in entry && 'resource' in entry;
 }
 
 function classifySkillCost(skill: SkillRecord, raw: string | null, frontmatter: Record<string, string>): CostProfile {
@@ -336,14 +397,16 @@ function buildMcpToolListText(server: McpServerRecord): string {
       `MCP server: ${server.name}`,
       `Platform: ${server.platform}`,
       `Scope: ${server.scope}`,
+      server.instructions ? `Instructions: ${server.instructions}` : '',
       ...tools.flatMap((tool) => buildMcpToolText(tool)),
-    ].join('\n');
+    ].filter(Boolean).join('\n');
   }
 
   return [
     `MCP server: ${server.name}`,
     `Platform: ${server.platform}`,
     `Scope: ${server.scope}`,
+    server.instructions ? `Instructions: ${server.instructions}` : '',
     server.transport ? `Transport: ${server.transport}` : '',
     server.command ? `Command: ${server.command}` : '',
     server.args.length > 0 ? `Args: ${server.args.join(' ')}` : '',
@@ -401,6 +464,7 @@ function summarizeByPlatform(
   >();
 
   for (const item of items) {
+    if (item.enabled === false) continue;
     const current = summaries.get(item.platform) ?? {
       items: 0,
       estimatedTokens: 0,

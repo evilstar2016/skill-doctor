@@ -9,6 +9,8 @@ import type { Platform, Scope } from '../types/skill';
 interface ScanMcpServersOptions {
   homeDir?: string;
   appDataDir?: string;
+  files?: McpConfigFile[];
+  includeDisabled?: boolean;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -26,9 +28,9 @@ export interface McpConfigFile {
 export function scanMcpServers(projectDir: string, options: ScanMcpServersOptions = {}): McpServerRecord[] {
   const homeDir = options.homeDir ?? homedir();
   const appDataDir = options.appDataDir ?? (process.env['APPDATA'] ?? join(homeDir, 'AppData', 'Roaming'));
-  const files = resolveMcpConfigFiles(projectDir, homeDir, appDataDir);
+  const files = options.files ?? resolveMcpConfigFiles(projectDir, homeDir, appDataDir);
 
-  return files.flatMap((file) => readConfigFile(file, projectDir));
+  return files.flatMap((file) => readConfigFile(file, projectDir, { includeDisabled: options.includeDisabled ?? false }));
 }
 
 function resolveMcpConfigFiles(projectDir: string, homeDir: string, appDataDir: string): McpConfigFile[] {
@@ -44,7 +46,7 @@ function resolveMcpConfigFiles(projectDir: string, homeDir: string, appDataDir: 
   );
 }
 
-function readConfigFile(file: McpConfigFile, projectDir: string): McpServerRecord[] {
+function readConfigFile(file: McpConfigFile, projectDir: string, options: { includeDisabled: boolean }): McpServerRecord[] {
   if (!existsSync(file.path)) return [];
 
   let raw: string;
@@ -56,17 +58,17 @@ function readConfigFile(file: McpConfigFile, projectDir: string): McpServerRecor
 
   try {
     if (file.format === 'toml') {
-      return parseCodexToml(raw, file);
+      return parseCodexToml(raw, file, options);
     }
 
     const parsed = JSON.parse(raw) as unknown;
-    return parseJsonMcpConfig(parsed, file, projectDir);
+    return parseJsonMcpConfig(parsed, file, projectDir, options);
   } catch {
     return [];
   }
 }
 
-export function parseCodexToml(raw: string, file: McpConfigFile): McpServerRecord[] {
+export function parseCodexToml(raw: string, file: McpConfigFile, options: { includeDisabled?: boolean } = {}): McpServerRecord[] {
   const servers = new Map<string, JsonObject>();
   let currentServer: string | null = null;
   let currentSubtable: string | null = null;
@@ -109,11 +111,16 @@ export function parseCodexToml(raw: string, file: McpConfigFile): McpServerRecor
   }
 
   return [...servers.entries()]
-    .filter(([, config]) => !isDisabled(config))
+    .filter(([, config]) => options.includeDisabled || !isDisabled(config))
     .map(([name, config]) => normalizeMcpServer(name, config, file));
 }
 
-function parseJsonMcpConfig(parsed: unknown, file: McpConfigFile, projectDir: string): McpServerRecord[] {
+function parseJsonMcpConfig(
+  parsed: unknown,
+  file: McpConfigFile,
+  projectDir: string,
+  options: { includeDisabled: boolean },
+): McpServerRecord[] {
   if (!isObject(parsed)) return [];
 
   const configs: Array<{ servers: unknown; baseConfig?: JsonObject; scope: Scope }> = [];
@@ -134,7 +141,7 @@ function parseJsonMcpConfig(parsed: unknown, file: McpConfigFile, projectDir: st
   return configs.flatMap(({ servers, baseConfig, scope }) => {
     if (!isObject(servers)) return [];
     return Object.entries(servers)
-      .filter(([, config]) => isObject(config) && !isDisabled(config))
+      .filter(([, config]) => isObject(config) && (options.includeDisabled || !isDisabled(config)))
       .map(([name, config]) => normalizeMcpServer(name, mergeMcpConfig(config as JsonObject, baseConfig), { ...file, scope }));
   });
 }
@@ -145,6 +152,8 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
   const allowlist = firstStringArray(
     config.allowedTools,
     config.allowed_tools,
+    config.enabledTools,
+    config.enabled_tools,
     config.toolAllowlist,
     config.tool_allowlist,
     config.includeTools,
@@ -170,6 +179,8 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     sourcePath: file.path,
     platform: file.platform,
     scope: file.scope,
+    enabled: !isDisabled(config),
+    ...(stringValue(config.instructions) ? { instructions: stringValue(config.instructions) } : {}),
     ...(stringValue(config.transport ?? config.type) ? { transport: stringValue(config.transport ?? config.type) } : {}),
     ...(stringValue(config.command) ? { command: stringValue(config.command) } : {}),
     args: firstStringArray(config.args, config.arguments),
@@ -178,9 +189,9 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     headerKeys: Object.keys(headers).sort(),
     toolAllowlist: allowlist,
     toolDenylist: denylist,
-    ...(stringValue(config.approvalMode ?? config.approval_mode) ? { approvalMode: stringValue(config.approvalMode ?? config.approval_mode) } : {}),
+    ...(stringValue(config.approvalMode ?? config.approval_mode ?? config.default_tools_approval_mode) ? { approvalMode: stringValue(config.approvalMode ?? config.approval_mode ?? config.default_tools_approval_mode) } : {}),
     ...(typeof config.trusted === 'boolean' ? { trusted: config.trusted } : {}),
-    ...(numberValue(config.timeout ?? config.timeoutMs ?? config.timeout_ms) ? { timeoutMs: numberValue(config.timeout ?? config.timeoutMs ?? config.timeout_ms) } : {}),
+    ...(numberValue(config.timeout ?? config.timeoutMs ?? config.timeout_ms ?? config.tool_timeout_sec ?? config.startup_timeout_sec) ? { timeoutMs: numberValue(config.timeout ?? config.timeoutMs ?? config.timeout_ms ?? config.tool_timeout_sec ?? config.startup_timeout_sec) } : {}),
   };
   PRIVATE_CONFIG.set(record, {
     env: stringRecord(env),

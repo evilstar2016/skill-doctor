@@ -18,17 +18,20 @@ export function renderContextCost(result: ContextCostResult): string {
       ? ['- none']
       : items.flatMap((item) => [
           `- ${item.name}`,
-          `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}${item.source ? `  source: ${item.source}` : ''}`,
+          `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}${item.source ? `  source: ${item.source}` : ''}${item.resource ? `  resource: ${item.resource}` : ''}`,
           `  kind: ${item.kind}  activation: ${item.activation}  budget: ${item.budgetScope}`,
-          `  activation tokens: ${item.activationEstimatedTokens}  confidence: ${item.confidence}`,
+          `  activation tokens: ${item.activationEstimatedTokens}  confidence: ${item.confidence}${item.enabled === false ? '  disabled' : ''}`,
+          item.id ? `  id: ${item.id}` : '',
+          item.controllable !== undefined ? `  controllable: ${item.controllable}${item.controlMethod ? `  method: ${item.controlMethod}` : ''}` : '',
           `  path: ${item.sourcePath}`,
           `  fix: ${item.recommendation}`,
-        ]);
+        ].filter(Boolean));
 
   return [
     'CONTEXT COST REPORT',
     ...(summary.projectPath ? [`Project: ${summary.projectPath}`] : []),
     `Estimated token tax: ${summary.totalEstimatedTokens} tokens/turn`,
+    ...(summary.disabledEstimatedTokens ? [`Disabled token tax (not counted): ${summary.disabledEstimatedTokens} tokens/turn`] : []),
     `Budget: ${summary.budgetTokens} tokens/turn`,
     `Grade: ${summary.grade} (${status})`,
     `Items scanned: ${summary.scanned}`,

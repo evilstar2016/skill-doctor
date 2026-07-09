@@ -140,6 +140,9 @@ skill-doctor cost --platform codex
 skill-doctor cost claudecode
 skill-doctor cost --source skill
 skill-doctor cost --source mcp
+skill-doctor cost --platform codex --resource plugin --include-disabled
+skill-doctor cost --platform codex --codex-config ./codex-config.json
+skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
 skill-doctor cost --budget-tokens 2000 --fail-on-budget
 skill-doctor context --json
 ```
@@ -147,6 +150,10 @@ skill-doctor context --json
 对 Claude Code skills，`cost` 估算始终注入的 name、description、trigger 元数据，而不是完整 skill 正文。对 `AGENTS.md` 这类 always-on 文件，它会估算本地文件内容。
 
 `--source skill|mcp|all` 可以选择只统计 skills/rules/instruction/prompt files、只统计 MCP 工具列表，或两者都统计。Copilot 模式会覆盖 `.github/copilot-instructions.md`、`.github/instructions/**/*.instructions.md`、`.github/prompts/**/*.prompt.md`、Copilot skills、`AGENTS.md` 以及 `.vscode/mcp.json`/`.github/mcp.json` 中的 MCP。MCP 模式会先读取本地配置，再尝试访问每个 MCP server：HTTP 服务会通过配置 URL 调用，stdio 服务会按配置命令启动，并调用 `tools/list` 读取工具名称、说明和 schema 后估算 token。如果服务不可访问或无法启动，报告会保留一个 0 token 的 MCP 项，并在修复建议里提示失败原因。
+
+Codex 模式使用独立配置驱动。内置默认值在 `src/platforms/codex-config.json`，覆盖当前 Codex 的 `AGENTS.md`、skills、plugins、MCP 配置和 memories 位置。高级用户可以用 `~/.skill-doctor/codex-config.json` 追加或覆盖路径，也可以临时传 `--codex-config <path>`。数组按 `id` 合并：同 id 覆盖内置项，新 id 追加，`enabled: false` 禁用该扫描源。
+
+Codex 可用 `--resource all|agents|skill|mcp|plugin|memory` 过滤资源。`context enable|disable` 只写项目 `.codex/config.toml`，支持 skill、MCP server 和 plugin。`AGENTS.md` 与 memories 在 v1 只报告成本和建议，不自动禁用。
 
 ### `dashboard`
 

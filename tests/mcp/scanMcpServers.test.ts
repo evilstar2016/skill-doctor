@@ -39,7 +39,10 @@ describe('scanMcpServers', () => {
         'command = "npx"',
         'args = ["-y", "@modelcontextprotocol/server-github"]',
         'transport = "stdio"',
-        'allowed_tools = ["search_repositories"]',
+        'instructions = "Use GitHub tools only when repository context is needed."',
+        'enabled_tools = ["search_repositories"]',
+        'disabled_tools = ["delete_repository"]',
+        'default_tools_approval_mode = "prompt"',
         'timeout = 30000',
         '',
         '[mcp_servers.github.env]',
@@ -60,11 +63,38 @@ describe('scanMcpServers', () => {
       scope: 'project',
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-github'],
+      instructions: 'Use GitHub tools only when repository context is needed.',
       envKeys: ['GITHUB_TOKEN'],
       toolAllowlist: ['search_repositories'],
+      toolDenylist: ['delete_repository'],
+      approvalMode: 'prompt',
       timeoutMs: 30000,
     }));
     expect(JSON.stringify(result)).not.toContain('super-secret');
+  });
+
+  it('can include disabled Codex MCP servers for context auditing', () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.codex', 'config.toml'),
+      [
+        '[mcp_servers.disabled_server]',
+        'command = "node"',
+        'enabled = false',
+      ].join('\n'),
+    );
+
+    const result = scanMcpServers(cwd, { homeDir: home, includeDisabled: true });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        name: 'disabled_server',
+        enabled: false,
+      }),
+    ]);
   });
 
   it('parses Claude, Gemini, and Cursor JSON MCP config shapes', () => {

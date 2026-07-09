@@ -1,11 +1,14 @@
 import type { Platform, Scope } from './skill';
 
 export interface McpServerRecord {
+  id?: string;
   source: 'mcp';
   name: string;
   sourcePath: string;
   platform: Platform;
   scope: Scope;
+  enabled?: boolean;
+  instructions?: string;
   transport?: string;
   command?: string;
   args: string[];
@@ -20,6 +23,15 @@ export interface McpServerRecord {
   toolDiscoveryStatus?: 'ok' | 'failed';
   toolDiscoveryError?: string;
   tools?: McpToolRecord[];
+  context?: {
+    resource?: 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
+    configSource?: string;
+    enabled?: boolean;
+    controllable?: boolean;
+    controlPath?: string;
+    controlMethod?: string;
+    estimateStatus?: 'estimated' | 'unknown' | 'unsupported';
+  };
 }
 
 export interface McpToolRecord {

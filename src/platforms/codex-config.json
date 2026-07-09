@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "officialLimits": {
+    "projectDocMaxBytes": 32768,
+    "skillListMaxCharsWhenUnknown": 8000
+  },
+  "agentsFiles": [
+    { "id": "global-agents-override", "scope": "global", "path": "~/.codex/AGENTS.override.md", "priority": 10, "enabled": true },
+    { "id": "global-agents", "scope": "global", "path": "~/.codex/AGENTS.md", "priority": 5, "enabled": true },
+    { "id": "project-root-agents-override", "scope": "project", "path": "AGENTS.override.md", "priority": 10, "enabled": true },
+    { "id": "project-root-agents", "scope": "project", "path": "AGENTS.md", "priority": 5, "enabled": true },
+    { "id": "project-codex-agents-override", "scope": "project", "path": ".codex/AGENTS.override.md", "priority": 10, "enabled": true },
+    { "id": "project-codex-agents", "scope": "project", "path": ".codex/AGENTS.md", "priority": 5, "enabled": true }
+  ],
+  "skillDirs": [
+    { "id": "global-codex-skills", "scope": "global", "path": "~/.codex/skills", "enabled": true },
+    { "id": "global-agent-skills", "scope": "global", "path": "~/.agent/skills", "enabled": true },
+    { "id": "global-agents-skills", "scope": "global", "path": "~/.agents/skills", "enabled": true },
+    { "id": "project-codex-skills", "scope": "project", "path": ".codex/skills", "enabled": true },
+    { "id": "project-agent-skills", "scope": "project", "path": ".agent/skills", "enabled": true },
+    { "id": "project-agents-skills", "scope": "project", "path": ".agents/skills", "enabled": true }
+  ],
+  "pluginDirs": [
+    {
+      "id": "global-codex-plugins",
+      "scope": "global",
+      "manifestGlob": "~/.codex/plugins/*/.codex-plugin/plugin.json",
+      "skillsField": "skills",
+      "defaultSkillsDir": "skills",
+      "enabled": true
+    }
+  ],
+  "mcpConfigFiles": [
+    { "id": "global-codex-mcp", "scope": "global", "path": "~/.codex/config.toml", "format": "toml", "enabled": true },
+    { "id": "project-codex-mcp", "scope": "project", "path": ".codex/config.toml", "format": "toml", "enabled": true }
+  ],
+  "memoryLocations": [
+    { "id": "global-codex-memory-dir", "scope": "global", "path": "~/.codex/memories", "enabled": true },
+    { "id": "global-codex-memory-sqlite", "scope": "global", "path": "~/.codex/memories_*.sqlite", "enabled": true }
+  ],
+  "controls": {
+    "projectConfigPath": ".codex/config.toml",
+    "skills": { "method": "skills.config" },
+    "mcp": { "method": "mcp_servers.<id>.enabled" },
+    "plugin": { "method": "plugins.<id>.enabled" }
+  }
+}

@@ -11,7 +11,10 @@ import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
 import { detectConflicts } from '../conflicts/detectConflicts';
+import { toggleCodexResource } from '../context/codexControls';
+import type { CodexResourceFilter } from '../context/codexContextConfig';
 import { estimateContextCost } from '../context/estimateContextCost';
+import { scanCodexContextEntries } from '../context/scanCodexContext';
 import { scanSkills } from '../discovery/scanSkills';
 import { buildExplanation } from '../explain/buildExplanation';
 import { groupSkills } from '../explain/groupSkills';
@@ -352,14 +355,52 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   }
 
   if (command === 'cost' || command === 'context') {
+    if (command === 'context' && (rest[0] === 'enable' || rest[0] === 'disable')) {
+      const action = rest[0];
+      const id = readFlagValue(rest, '--id');
+      const explicitPlatform = readPlatform(rest);
+      const platform = explicitPlatform ?? 'codex';
+      const codexConfigPath = readFlagValue(rest, '--codex-config');
+
+      if (platform === 'invalid' || platform !== 'codex') {
+        process.stderr.write('context enable/disable currently supports --platform codex only\n');
+        process.exitCode = 1;
+        return;
+      }
+
+      if (!id || id.startsWith('-')) {
+        process.stderr.write('Usage: skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path]\n');
+        process.exitCode = 1;
+        return;
+      }
+
+      try {
+        const result = await toggleCodexResource(cwd, id, action === 'enable', {
+          ...(codexConfigPath ? { configPath: codexConfigPath } : {}),
+        });
+        if (jsonOutput) {
+          process.stdout.write(`${toJson(result)}\n`);
+        } else {
+          process.stdout.write(`Codex resource ${action}d: ${result.name}\nConfig updated: ${result.configPath}\n`);
+        }
+      } catch (error) {
+        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+
     const scope = readScope(rest);
     const explicitPlatform = readPlatform(rest);
     const implicitPlatform = explicitPlatform === null ? readImplicitCostPlatform(rest, cwd) : null;
     const platform = explicitPlatform === null ? implicitPlatform : explicitPlatform;
     const source = readCostSource(rest);
+    const resource = readCodexResource(rest);
     const budgetTokens = readBudgetTokens(rest);
     const platformBudgets = readPlatformBudgets(rest);
     const projectDir = readCostProjectDir(rest, cwd, implicitPlatform);
+    const codexConfigPath = readFlagValue(rest, '--codex-config');
+    const includeDisabled = hasFlag(rest, '--include-disabled');
 
     if (scope === 'invalid') {
       process.stderr.write('Invalid scope. Use --scope project|global|all\n');
@@ -375,6 +416,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     if (source === 'invalid') {
       process.stderr.write('Invalid source. Use --source skill|mcp|all\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    if (resource === 'invalid') {
+      process.stderr.write('Invalid resource. Use --resource all|agents|skill|mcp|plugin|memory\n');
       process.exitCode = 1;
       return;
     }
@@ -403,18 +450,26 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = source === 'mcp'
-      ? []
-      : filterEntriesByPlatform(
-          filterEntriesByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
-          platform,
-        );
-    const mcpServers = source === 'skill'
-      ? []
-      : await discoverMcpToolsForServers(
-          filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
-        );
-    const result = estimateContextCost([...skills, ...mcpServers], {
+    const entries = platform === 'codex'
+      ? filterCodexEntriesBySource(filterEntriesByScope(await scanCodexContextEntries(projectDir, {
+          ...(codexConfigPath ? { configPath: codexConfigPath } : {}),
+          resource: resource ?? 'all',
+          includeDisabled,
+        }), scope), source)
+      : [
+          ...(source === 'mcp'
+            ? []
+            : filterEntriesByPlatform(
+                filterEntriesByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
+                platform,
+              )),
+          ...(source === 'skill'
+            ? []
+            : await discoverMcpToolsForServers(
+                filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
+              )),
+        ];
+    const result = estimateContextCost(entries, {
       ...(budgetTokens === null ? {} : { budgetTokens }),
       ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
       projectPath: projectDir,
@@ -674,8 +729,9 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
-    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
@@ -870,7 +926,7 @@ function readScope(args: string[], defaultScope: Scope | 'all' = 'all'): Scope |
 
 function readCostProjectDir(args: string[], cwd: string, implicitPlatform: Platform | null = null): string | 'invalid' {
   const positionals: string[] = [];
-  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source']);
+  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source', '--resource', '--codex-config', '--id']);
 
   for (const arg of readPositionals(args, valueFlags)) {
     if (implicitPlatform !== null && normalizePlatformInput(arg) === implicitPlatform && !existsSync(resolve(cwd, arg))) {
@@ -919,7 +975,7 @@ function readPlatform(args: string[]): Platform | null | 'invalid' {
 }
 
 function readImplicitCostPlatform(args: string[], cwd: string): Platform | null {
-  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source']));
+  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source', '--resource', '--codex-config', '--id']));
   const candidate = positionals[0];
   const platform = normalizePlatformInput(candidate);
 
@@ -947,6 +1003,36 @@ function readCostSource(args: string[]): CostSourceFilter | 'invalid' {
 
   const value = args[index + 1];
   return value === 'skill' || value === 'mcp' || value === 'all' ? value : 'invalid';
+}
+
+function readCodexResource(args: string[]): CodexResourceFilter | null | 'invalid' {
+  const index = args.indexOf('--resource');
+
+  if (index === -1) {
+    return null;
+  }
+
+  const value = args[index + 1];
+  return value === 'all' || value === 'agents' || value === 'skill' || value === 'mcp' || value === 'plugin' || value === 'memory'
+    ? value
+    : 'invalid';
+}
+
+function readFlagValue(args: string[], flag: string): string | null {
+  const equals = args.find((arg) => arg.startsWith(`${flag}=`));
+  if (equals) return equals.slice(flag.length + 1);
+  const index = args.indexOf(flag);
+  if (index === -1) return null;
+  return args[index + 1] ?? null;
+}
+
+function filterCodexEntriesBySource<T extends { source?: string; context?: { resource?: string }; resource?: string }>(
+  entries: T[],
+  source: CostSourceFilter,
+): T[] {
+  if (source === 'all') return entries;
+  if (source === 'mcp') return entries.filter((entry) => (entry.context?.resource ?? entry.resource ?? entry.source) === 'mcp');
+  return entries.filter((entry) => (entry.context?.resource ?? entry.resource ?? entry.source) !== 'mcp');
 }
 
 function readKind(args: string[]): ConflictPair['kind'] | 'all' | 'invalid' {

@@ -40,12 +40,22 @@ export interface SkillFile {
 }
 
 export interface SkillRecord {
+  id?: string;
   name: string;
   sourcePath: string;
   platform: Platform;
   scope: Scope;
   description: string;
   triggers: string[];
+  context?: {
+    resource?: 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
+    configSource?: string;
+    enabled?: boolean;
+    controllable?: boolean;
+    controlPath?: string;
+    controlMethod?: string;
+    estimateStatus?: 'estimated' | 'unknown' | 'unsupported';
+  };
   provenance?: SkillProvenance;
 }
 

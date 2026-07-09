@@ -296,6 +296,9 @@ skill-doctor cost --scope project         # project entries only
 skill-doctor cost --scope global          # global/system entries only
 skill-doctor cost --source skill          # skills/rules/instruction files only
 skill-doctor cost --source mcp            # MCP tools/list budget only
+skill-doctor cost --platform codex --resource plugin --include-disabled
+skill-doctor cost --platform codex --codex-config ./codex-config.json
+skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
 skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
 skill-doctor context --json
 ```
@@ -321,6 +324,20 @@ npm run dev -- cost --platform codex
 This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
 
 MCP cost mode reads local config files, then tries to inspect each configured MCP server. HTTP servers are contacted through their configured URL; stdio servers are started with their configured command and queried with `tools/list`. If a server cannot be reached or started, the report keeps a zero-token MCP item with a fix message explaining the failure.
+
+Codex cost mode is configuration-driven. The built-in defaults live in `src/platforms/codex-config.json` and cover current Codex locations for `AGENTS.md`, skills, plugins, MCP config, and memories. Advanced users can add or override paths with `~/.skill-doctor/codex-config.json`, or pass a one-off file with `--codex-config <path>`. Arrays merge by `id`: matching ids override built-ins, new ids append, and `enabled: false` disables a scan source.
+
+Codex resource filters:
+
+```bash
+skill-doctor cost --platform codex --resource agents
+skill-doctor cost --platform codex --resource skill
+skill-doctor cost --platform codex --resource mcp
+skill-doctor cost --platform codex --resource plugin
+skill-doctor cost --platform codex --resource memory
+```
+
+`context enable|disable` writes only project-local `.codex/config.toml`. It supports skills (`[[skills.config]]`), MCP servers (`[mcp_servers.<name>] enabled`), and plugins (`[plugins."<id>"] enabled`). `AGENTS.md` and memories are reported but not automatically disabled in v1; the report marks them as not controllable and suggests manual cleanup or Codex settings changes.
 
 ### `diff`
 

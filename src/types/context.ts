@@ -1,7 +1,9 @@
 import type { Platform, Scope } from './skill';
 
 export type ContextCostGrade = 'A' | 'B' | 'C' | 'D' | 'F';
-export type ContextCostSource = 'skill' | 'mcp';
+export type ContextCostSource = 'skill' | 'mcp' | 'agents' | 'plugin' | 'memory';
+export type ContextResource = 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
+export type ContextEstimateStatus = 'estimated' | 'unknown' | 'unsupported';
 
 export type ContextInjectionKind =
   | 'claude-skill-description'
@@ -10,8 +12,14 @@ export type ContextInjectionKind =
   | 'copilot-instruction-file'
   | 'copilot-prompt-file'
   | 'always-on-file'
+  | 'agents-chain'
+  | 'codex-skill-list'
   | 'mcp-server-config'
+  | 'mcp-instructions'
   | 'mcp-tool-list'
+  | 'plugin-skill-list'
+  | 'plugin-mcp-tool-list'
+  | 'memory-context-unknown'
   | 'skill-metadata';
 
 export type ContextActivation =
@@ -34,11 +42,14 @@ export interface ContextCostOfficialLimit {
 }
 
 export interface ContextCostItem {
+  id?: string;
   name: string;
   sourcePath: string;
   platform: Platform;
   scope: Scope;
   source?: ContextCostSource;
+  resource?: ContextResource;
+  configSource?: string;
   kind: ContextInjectionKind;
   estimatedTokens: number;
   estimatedChars: number;
@@ -47,12 +58,18 @@ export interface ContextCostItem {
   activation: ContextActivation;
   budgetScope: ContextBudgetScope;
   confidence: 'high' | 'low';
+  enabled?: boolean;
+  controllable?: boolean;
+  controlPath?: string;
+  controlMethod?: string;
+  estimateStatus?: ContextEstimateStatus;
   officialLimit?: ContextCostOfficialLimit;
   recommendation: string;
 }
 
 export interface ContextCostSummary {
   totalEstimatedTokens: number;
+  disabledEstimatedTokens?: number;
   budgetTokens: number;
   grade: ContextCostGrade;
   overBudget: boolean;
@@ -77,4 +94,28 @@ export interface ContextCostPlatformSummary {
 export interface ContextCostResult {
   summary: ContextCostSummary;
   items: ContextCostItem[];
+}
+
+export interface ContextResourceRecord {
+  source: ContextCostSource;
+  id: string;
+  name: string;
+  sourcePath: string;
+  platform: Platform;
+  scope: Scope;
+  resource: ContextResource;
+  kind: ContextInjectionKind;
+  text: string;
+  activationText?: string;
+  activation: ContextActivation;
+  budgetScope: ContextBudgetScope;
+  confidence: 'high' | 'low';
+  enabled?: boolean;
+  configSource?: string;
+  controllable?: boolean;
+  controlPath?: string;
+  controlMethod?: string;
+  estimateStatus?: ContextEstimateStatus;
+  recommendation: string;
+  officialLimit?: ContextCostOfficialLimit;
 }

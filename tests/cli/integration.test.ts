@@ -1721,6 +1721,93 @@ describe('CLI integration — context cost', () => {
     expect(payload.items[0]).toEqual(expect.objectContaining({ platform: 'codex', name: 'codex-review' }));
   });
 
+  it('cost --platform codex uses codex-config overrides and resource filters', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const configPath = join(root, 'codex-config.json');
+
+    writeFile(
+      join(cwd, '.custom-codex', 'skills', 'codex-review', 'SKILL.md'),
+      ['---', 'name: codex-review', 'description: Custom Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+    writeFile(
+      configPath,
+      JSON.stringify({
+        skillDirs: [
+          { id: 'custom-codex-skills', scope: 'project', path: '.custom-codex/skills', enabled: true },
+        ],
+      }),
+    );
+
+    const result = runCli(['cost', '--platform', 'codex', '--resource', 'skill', '--codex-config', configPath, '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+    const realCwd = realpathSync(cwd);
+
+    expect(result.status).toBe(0);
+    expect(payload.items).toHaveLength(1);
+    expect(payload.items[0]).toEqual(expect.objectContaining({
+      id: `codex:skill:${join(realCwd, '.custom-codex', 'skills', 'codex-review', 'SKILL.md')}`,
+      resource: 'skill',
+      configSource: configPath,
+    }));
+  });
+
+  it('cost --resource plugin reports plugin-contributed skills and disabled tax separately', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', '.codex-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'notes', skills: './skills/' }),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', 'skills', 'note-helper', 'SKILL.md'),
+      ['---', 'name: note-helper', 'description: Help with notes.', '---', '', '# Note Helper'].join('\n'),
+    );
+    writeFile(join(home, '.codex', 'config.toml'), ['[plugins."notes@example"]', 'enabled = false'].join('\n'));
+
+    const result = runCli(['cost', '--platform', 'codex', '--resource', 'plugin', '--include-disabled', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.totalEstimatedTokens).toBe(0);
+    expect(payload.summary.disabledEstimatedTokens).toBeGreaterThan(0);
+    expect(payload.items[0]).toEqual(expect.objectContaining({
+      id: 'codex:plugin:notes@example:skill:note-helper',
+      resource: 'plugin',
+      enabled: false,
+    }));
+  });
+
+  it('context disable writes project Codex config for a skill resource id', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const skillPath = join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md');
+
+    writeFile(
+      skillPath,
+      ['---', 'name: codex-review', 'description: Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+
+    const realSkillPath = join(realpathSync(cwd), '.codex', 'skills', 'codex-review', 'SKILL.md');
+    const result = runCli(['context', 'disable', '--id', `codex:skill:${realSkillPath}`, '--platform', 'codex', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+    const config = readFileSync(join(cwd, '.codex', 'config.toml'), 'utf8');
+
+    expect(result.status).toBe(0);
+    expect(payload).toEqual(expect.objectContaining({
+      id: `codex:skill:${realSkillPath}`,
+      enabled: false,
+    }));
+    expect(config).toContain('[[skills.config]]');
+    expect(config).toContain(`path = "${realSkillPath}"`);
+    expect(config).toContain('enabled = false');
+  });
+
   it('cost treats a lone platform positional as a platform filter for npm-run compatibility', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
