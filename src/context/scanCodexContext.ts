@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers, type McpConfigFile } from '../mcp/scanMcpServers';
@@ -75,12 +75,8 @@ async function scanAgentEntries(
   config: CodexContextConfig,
   controlPath: string,
 ): Promise<ContextResourceRecord[]> {
-  const candidates = config.agentsFiles
+  const candidates = expandAgentsCandidates(projectDir, homeDir, config)
     .filter((entry) => entry.enabled !== false)
-    .map((entry) => ({
-      ...entry,
-      resolvedPath: resolveCodexPath(entry.path, projectDir, homeDir),
-    }))
     .filter((entry) => existsSync(entry.resolvedPath));
 
   const selected = applyAgentsOverridePrecedence(candidates);
@@ -268,7 +264,58 @@ function scanMemoryEntries(
     })));
 }
 
-function applyAgentsOverridePrecedence<T extends { resolvedPath: string; priority?: number; scope: Scope }>(entries: T[]): T[] {
+function expandAgentsCandidates(
+  projectDir: string,
+  homeDir: string,
+  config: CodexContextConfig,
+): Array<CodexContextConfig['agentsFiles'][number] & { resolvedPath: string; chainOrder: number }> {
+  const projectChain = buildProjectDirectoryChain(projectDir, homeDir);
+  const candidates: Array<CodexContextConfig['agentsFiles'][number] & { resolvedPath: string; chainOrder: number }> = [];
+
+  for (const entry of config.agentsFiles) {
+    if (entry.scope !== 'project') {
+      candidates.push({ ...entry, resolvedPath: resolveCodexPath(entry.path, projectDir, homeDir), chainOrder: -1 });
+      continue;
+    }
+
+    const basePath = resolveCodexPath(entry.path, projectDir, homeDir);
+    const relativePath = relative(projectDir, basePath);
+    if (!relativePath || relativePath.startsWith('..') || isAbsolute(relativePath)) {
+      candidates.push({ ...entry, resolvedPath: basePath, chainOrder: projectChain.length });
+      continue;
+    }
+
+    projectChain.forEach((dir, chainOrder) => {
+      candidates.push({
+        ...entry,
+        id: chainOrder === projectChain.length - 1 ? entry.id : `${entry.id}:${relative(dir, projectDir) || basename(dir)}`,
+        resolvedPath: resolve(dir, relativePath),
+        chainOrder,
+      });
+    });
+  }
+
+  return candidates;
+}
+
+function buildProjectDirectoryChain(projectDir: string, homeDir: string): string[] {
+  const resolvedProject = resolve(projectDir);
+  const resolvedHome = homeDir ? resolve(homeDir) : '';
+  const root = parse(resolvedProject).root;
+  const chain: string[] = [];
+  let current = resolvedProject;
+
+  while (current && current !== root && current !== resolvedHome) {
+    chain.unshift(current);
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return chain.length > 0 ? chain : [resolvedProject];
+}
+
+function applyAgentsOverridePrecedence<T extends { resolvedPath: string; priority?: number; scope: Scope; chainOrder?: number }>(entries: T[]): T[] {
   const byDir = new Map<string, T>();
   for (const entry of [...entries].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))) {
     const key = `${entry.scope}:${dirname(entry.resolvedPath)}`;
@@ -276,6 +323,7 @@ function applyAgentsOverridePrecedence<T extends { resolvedPath: string; priorit
   }
   return [...byDir.values()].sort((left, right) => {
     if (left.scope !== right.scope) return left.scope === 'global' ? -1 : 1;
+    if ((left.chainOrder ?? 0) !== (right.chainOrder ?? 0)) return (left.chainOrder ?? 0) - (right.chainOrder ?? 0);
     return left.resolvedPath.localeCompare(right.resolvedPath);
   });
 }
@@ -323,7 +371,7 @@ function toSkillFile(filePath: string, scope: Scope, installSource: string): Ski
 
 function readDisabledSkillSelectors(projectDir: string, homeDir: string): Array<{ path?: string; name?: string }> {
   const selectors: Array<{ path?: string; name?: string }> = [];
-  for (const path of [resolveCodexPath('~/.codex/config.toml', projectDir, homeDir), resolveCodexPath('.codex/config.toml', projectDir, homeDir)]) {
+  for (const path of codexStateConfigPaths(projectDir, homeDir)) {
     const raw = readText(path);
     if (!raw) continue;
     const blocks = raw.split(/(?=^\[\[skills\.config\]\])/gm).filter((block) => block.startsWith('[[skills.config]]'));
@@ -349,7 +397,7 @@ function matchesDisabledSkill(skill: SkillRecord, skillPath: string, selectors: 
 
 function readPluginEnabledStates(projectDir: string, homeDir: string): Map<string, boolean> {
   const states = new Map<string, boolean>();
-  for (const path of [resolveCodexPath('~/.codex/config.toml', projectDir, homeDir), resolveCodexPath('.codex/config.toml', projectDir, homeDir)]) {
+  for (const path of codexStateConfigPaths(projectDir, homeDir)) {
     const raw = readText(path);
     if (!raw) continue;
     for (const match of raw.matchAll(/^\[plugins\.(?:"([^"]+)"|([^\]]+))\]\s*$(?<body>[\s\S]*?)(?=^\[|$(?![\s\S]))/gm)) {
@@ -364,7 +412,7 @@ function readPluginEnabledStates(projectDir: string, homeDir: string): Map<strin
 
 function readMemoryEnabledState(projectDir: string, homeDir: string): boolean | undefined {
   let state: boolean | undefined;
-  for (const path of [resolveCodexPath('~/.codex/config.toml', projectDir, homeDir), resolveCodexPath('.codex/config.toml', projectDir, homeDir)]) {
+  for (const path of codexStateConfigPaths(projectDir, homeDir)) {
     const raw = readText(path);
     if (!raw) continue;
     const features = readTomlTable(raw, 'features');
@@ -375,6 +423,15 @@ function readMemoryEnabledState(projectDir: string, homeDir: string): boolean | 
     if (useMemories) state = useMemories === 'true';
   }
   return state;
+}
+
+function codexStateConfigPaths(projectDir: string, homeDir: string): string[] {
+  return [
+    '~/.codex/config.toml',
+    '~/.agent/config.toml',
+    '~/.agents/config.toml',
+    '.codex/config.toml',
+  ].map((path) => resolveCodexPath(path, projectDir, homeDir));
 }
 
 function readTomlTable(raw: string, name: string): string {

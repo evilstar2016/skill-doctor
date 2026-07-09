@@ -141,7 +141,8 @@ describe('estimateContextCost', () => {
       'Triggers: review code',
       `Path: ${skillPath}`,
     ].join('\n');
-    expect(result.items[0]).toEqual(expect.objectContaining({
+    const item = result.items.find((entry) => entry.name === 'review-helper');
+    expect(item).toEqual(expect.objectContaining({
       kind: 'agent-skill-description',
       estimatedTokens: estimateTokens(metadataText),
       officialLimit: {
@@ -150,6 +151,82 @@ describe('estimateContextCost', () => {
         appliesTo: 'initial skill list when context window is unknown',
       },
     }));
+  });
+
+  it('adds capped Codex skill-list aggregate while preserving per-skill metadata items', () => {
+    const skills = Array.from({ length: 24 }, (_, index) => makeSkill({
+      name: `codex-helper-${index}`,
+      sourcePath: `/fake/.codex/skills/codex-helper-${index}/SKILL.md`,
+      platform: 'codex',
+      description: `Use for Codex task ${index}. ${'Detailed metadata. '.repeat(80)}`,
+      triggers: [`task-${index}`],
+      context: {
+        resource: 'skill',
+        enabled: true,
+        controllable: true,
+        controlPath: '/fake/.codex/config.toml',
+        controlMethod: 'skills.config',
+        estimateStatus: 'estimated',
+      },
+    }));
+
+    const result = estimateContextCost(skills, { projectPath: '/fake' });
+    const aggregate = result.items.find((item) => item.kind === 'codex-skill-list');
+    const members = result.items.filter((item) => item.kind === 'agent-skill-description');
+
+    expect(members).toHaveLength(24);
+    expect(members[0]).toEqual(expect.objectContaining({
+      resource: 'skill',
+      enabled: true,
+      controllable: true,
+      controlPath: '/fake/.codex/config.toml',
+      controlMethod: 'skills.config',
+      estimateStatus: 'estimated',
+    }));
+    expect(aggregate).toEqual(expect.objectContaining({
+      id: 'codex:skill-list:enabled',
+      kind: 'codex-skill-list',
+      resource: 'skill',
+      estimatedTokens: estimateTokens('x'.repeat(8000)),
+      estimatedChars: 8000,
+      officialLimit: {
+        kind: 'chars',
+        value: 8000,
+        appliesTo: 'combined Codex skill list, capped at 2% of context or 8000 chars when context window is unknown',
+      },
+    }));
+    expect(result.summary.totalEstimatedTokens).toBe(aggregate?.estimatedTokens);
+  });
+
+  it('keeps disabled Codex resources out of active totals and reports disabled aggregate tax', () => {
+    const enabledSkill = makeSkill({
+      name: 'enabled-codex',
+      sourcePath: '/fake/.codex/skills/enabled-codex/SKILL.md',
+      platform: 'codex',
+      description: 'Enabled Codex skill.',
+      triggers: [],
+      context: { resource: 'skill', enabled: true, estimateStatus: 'estimated' },
+    });
+    const disabledSkill = makeSkill({
+      name: 'disabled-codex',
+      sourcePath: '/fake/.codex/skills/disabled-codex/SKILL.md',
+      platform: 'codex',
+      description: 'Disabled Codex skill.',
+      triggers: [],
+      context: { resource: 'skill', enabled: false, estimateStatus: 'estimated' },
+    });
+
+    const result = estimateContextCost([enabledSkill, disabledSkill], { projectPath: '/fake' });
+    const enabledAggregate = result.items.find((item) => item.id === 'codex:skill-list:enabled');
+    const disabledAggregate = result.items.find((item) => item.id === 'codex:skill-list:disabled');
+
+    expect(enabledAggregate?.estimatedTokens).toBeGreaterThan(0);
+    expect(disabledAggregate).toEqual(expect.objectContaining({
+      enabled: false,
+      kind: 'codex-skill-list',
+    }));
+    expect(result.summary.totalEstimatedTokens).toBe(enabledAggregate?.estimatedTokens);
+    expect(result.summary.disabledEstimatedTokens).toBe(disabledAggregate?.estimatedTokens);
   });
 
   it('estimates non-Claude skill-dir agents from activation metadata', () => {

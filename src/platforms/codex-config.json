@@ -7,6 +7,10 @@
   "agentsFiles": [
     { "id": "global-agents-override", "scope": "global", "path": "~/.codex/AGENTS.override.md", "priority": 10, "enabled": true },
     { "id": "global-agents", "scope": "global", "path": "~/.codex/AGENTS.md", "priority": 5, "enabled": true },
+    { "id": "global-agent-agents-override", "scope": "global", "path": "~/.agent/AGENTS.override.md", "priority": 10, "enabled": true },
+    { "id": "global-agent-agents", "scope": "global", "path": "~/.agent/AGENTS.md", "priority": 5, "enabled": true },
+    { "id": "global-agents-dir-agents-override", "scope": "global", "path": "~/.agents/AGENTS.override.md", "priority": 10, "enabled": true },
+    { "id": "global-agents-dir-agents", "scope": "global", "path": "~/.agents/AGENTS.md", "priority": 5, "enabled": true },
     { "id": "project-root-agents-override", "scope": "project", "path": "AGENTS.override.md", "priority": 10, "enabled": true },
     { "id": "project-root-agents", "scope": "project", "path": "AGENTS.md", "priority": 5, "enabled": true },
     { "id": "project-codex-agents-override", "scope": "project", "path": ".codex/AGENTS.override.md", "priority": 10, "enabled": true },
@@ -32,6 +36,8 @@
   ],
   "mcpConfigFiles": [
     { "id": "global-codex-mcp", "scope": "global", "path": "~/.codex/config.toml", "format": "toml", "enabled": true },
+    { "id": "global-agent-mcp", "scope": "global", "path": "~/.agent/config.toml", "format": "toml", "enabled": true },
+    { "id": "global-agents-mcp", "scope": "global", "path": "~/.agents/config.toml", "format": "toml", "enabled": true },
     { "id": "project-codex-mcp", "scope": "project", "path": ".codex/config.toml", "format": "toml", "enabled": true }
   ],
   "memoryLocations": [

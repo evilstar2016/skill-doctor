@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, sep } from 'node:path';
+import { basename, dirname, sep } from 'node:path';
 
 import { getPlatformAdapter } from '../platforms/registry';
 import type { PlatformCostPolicyMatch, PlatformCostPolicyProfile } from '../platforms/registry';
@@ -17,6 +17,7 @@ import type { McpServerRecord, McpToolRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
 
 const DEFAULT_BUDGET_TOKENS = 2000;
+const CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS = 8000;
 
 interface EstimateContextCostOptions {
   budgetTokens?: number;
@@ -39,11 +40,12 @@ export function estimateContextCost(
 ): ContextCostResult {
   const budgetTokens = options.budgetTokens ?? DEFAULT_BUDGET_TOKENS;
   const platformBudgets = options.platformBudgets ?? {};
-  const items = entries
+  const estimatedEntries = entries
     .map((entry) => {
       if (isContextResourceRecord(entry)) return estimateContextResourceCost(entry);
       return isMcpServerRecord(entry) ? estimateMcpServerCost(entry) : estimateSkillCost(entry);
-    })
+    });
+  const items = appendCodexSkillListAggregates(estimatedEntries, options.projectPath)
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -53,8 +55,8 @@ export function estimateContextCost(
       }
       return left.name.localeCompare(right.name);
     });
-  const totalEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum : sum + item.estimatedTokens, 0);
-  const disabledEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum + item.estimatedTokens : sum, 0);
+  const totalEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum : sum + chargeableEstimatedTokens(item), 0);
+  const disabledEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum + chargeableEstimatedTokens(item) : sum, 0);
   const byPlatform = summarizeByPlatform(items, budgetTokens, platformBudgets);
 
   return {
@@ -69,6 +71,77 @@ export function estimateContextCost(
       byPlatform,
     },
     items,
+  };
+}
+
+function appendCodexSkillListAggregates(items: ContextCostItem[], projectPath: string | undefined): ContextCostItem[] {
+  const aggregateItems: ContextCostItem[] = [];
+  const groups = new Map<string, ContextCostItem[]>();
+
+  for (const item of items) {
+    if (!isCodexSkillListMember(item)) continue;
+    const enabledKey = item.enabled === false ? 'disabled' : 'enabled';
+    const resource = item.resource === 'plugin' ? 'plugin' : 'skill';
+    groups.set(`${resource}:${enabledKey}`, [...(groups.get(`${resource}:${enabledKey}`) ?? []), item]);
+  }
+
+  for (const [key, groupItems] of groups) {
+    const [resource, enabledKey] = key.split(':') as ['skill' | 'plugin', 'enabled' | 'disabled'];
+    if (groupItems.length === 0) continue;
+    const estimatedChars = Math.min(
+      groupItems.reduce((sum, item) => sum + item.estimatedChars, 0),
+      CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS,
+    );
+    const estimatedTokens = estimateTokens('x'.repeat(estimatedChars));
+    const sourcePath = projectPath ?? commonParentPath(groupItems.map((item) => item.sourcePath));
+
+    aggregateItems.push({
+      id: `codex:${resource}-list:${enabledKey}`,
+      name: resource === 'plugin' ? 'Codex plugin skill list' : 'Codex skill list',
+      sourcePath,
+      platform: 'codex',
+      scope: groupItems.some((item) => item.scope === 'project') ? 'project' : 'global',
+      source: resource,
+      resource,
+      kind: resource === 'plugin' ? 'plugin-skill-list' : 'codex-skill-list',
+      estimatedTokens,
+      estimatedChars,
+      activationEstimatedTokens: estimatedTokens,
+      activationEstimatedChars: estimatedChars,
+      activation: 'startup',
+      budgetScope: 'startup-selection',
+      confidence: 'high',
+      enabled: enabledKey === 'enabled',
+      controllable: resource === 'skill' ? true : groupItems.every((item) => item.controllable !== false),
+      controlPath: firstDefined(groupItems.map((item) => item.controlPath)),
+      controlMethod: resource === 'skill' ? 'skills.config' : 'plugins.<id>.enabled',
+      estimateStatus: 'estimated',
+      officialLimit: codexSkillListOfficialLimit(),
+      recommendation: estimatedChars >= CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS
+        ? 'Codex skill list metadata reaches the unknown-window cap; disable or shorten low-value skills.'
+        : 'OK',
+    });
+  }
+
+  return [...items, ...aggregateItems];
+}
+
+function isCodexSkillListMember(item: ContextCostItem): boolean {
+  return item.platform === 'codex'
+    && item.kind === 'agent-skill-description'
+    && (item.resource === 'skill' || item.resource === 'plugin');
+}
+
+function chargeableEstimatedTokens(item: ContextCostItem): number {
+  if (isCodexSkillListMember(item)) return 0;
+  return item.estimatedTokens;
+}
+
+function codexSkillListOfficialLimit(): ContextCostOfficialLimit {
+  return {
+    kind: 'chars',
+    value: CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS,
+    appliesTo: 'combined Codex skill list, capped at 2% of context or 8000 chars when context window is unknown',
   };
 }
 
@@ -474,14 +547,15 @@ function summarizeByPlatform(
       activationTokens: 0,
     };
     current.items += 1;
-    current.estimatedTokens += item.estimatedTokens;
-    current.estimatedChars += item.estimatedChars;
+    const chargeableTokens = chargeableEstimatedTokens(item);
+    current.estimatedTokens += chargeableTokens;
+    current.estimatedChars += chargeableTokens === 0 ? 0 : item.estimatedChars;
     current.activationTokens += item.activationEstimatedTokens;
     if (item.budgetScope === 'startup-selection') {
-      current.startupSelectionTokens += item.estimatedTokens;
+      current.startupSelectionTokens += chargeableTokens;
     }
     if (item.budgetScope === 'always-on') {
-      current.alwaysOnTokens += item.estimatedTokens;
+      current.alwaysOnTokens += chargeableTokens;
     }
     summaries.set(item.platform, current);
   }
@@ -503,6 +577,22 @@ function summarizeByPlatform(
       }
       return left.platform.localeCompare(right.platform);
     });
+}
+
+function firstDefined(values: Array<string | undefined>): string | undefined {
+  return values.find((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
+function commonParentPath(paths: string[]): string {
+  if (paths.length === 0) return '';
+  let current = dirname(paths[0]);
+  while (current && current !== dirname(current)) {
+    if (paths.every((path) => path === current || path.startsWith(`${current}${sep}`))) {
+      return current;
+    }
+    current = dirname(current);
+  }
+  return dirname(paths[0]);
 }
 
 function getRecommendation(

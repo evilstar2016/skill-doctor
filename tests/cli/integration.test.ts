@@ -1715,10 +1715,12 @@ describe('CLI integration — context cost', () => {
 
     expect(result.status).toBe(0);
     expect(payload.summary.byPlatform).toEqual([
-      expect.objectContaining({ platform: 'codex', items: 1 }),
+      expect.objectContaining({ platform: 'codex', items: 2 }),
     ]);
-    expect(payload.items).toHaveLength(1);
-    expect(payload.items[0]).toEqual(expect.objectContaining({ platform: 'codex', name: 'codex-review' }));
+    expect(payload.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'codex', name: 'codex-review' }),
+      expect.objectContaining({ platform: 'codex', kind: 'codex-skill-list' }),
+    ]));
   });
 
   it('cost --platform codex uses codex-config overrides and resource filters', () => {
@@ -1745,12 +1747,19 @@ describe('CLI integration — context cost', () => {
     const realCwd = realpathSync(cwd);
 
     expect(result.status).toBe(0);
-    expect(payload.items).toHaveLength(1);
-    expect(payload.items[0]).toEqual(expect.objectContaining({
-      id: `codex:skill:${join(realCwd, '.custom-codex', 'skills', 'codex-review', 'SKILL.md')}`,
-      resource: 'skill',
-      configSource: configPath,
-    }));
+    expect(payload.items).toHaveLength(2);
+    expect(payload.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: `codex:skill:${join(realCwd, '.custom-codex', 'skills', 'codex-review', 'SKILL.md')}`,
+        resource: 'skill',
+        configSource: configPath,
+      }),
+      expect.objectContaining({
+        id: 'codex:skill-list:enabled',
+        resource: 'skill',
+        kind: 'codex-skill-list',
+      }),
+    ]));
   });
 
   it('cost --resource plugin reports plugin-contributed skills and disabled tax separately', () => {
@@ -1775,11 +1784,19 @@ describe('CLI integration — context cost', () => {
     expect(result.status).toBe(0);
     expect(payload.summary.totalEstimatedTokens).toBe(0);
     expect(payload.summary.disabledEstimatedTokens).toBeGreaterThan(0);
-    expect(payload.items[0]).toEqual(expect.objectContaining({
-      id: 'codex:plugin:notes@example:skill:note-helper',
-      resource: 'plugin',
-      enabled: false,
-    }));
+    expect(payload.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'codex:plugin:notes@example:skill:note-helper',
+        resource: 'plugin',
+        enabled: false,
+      }),
+      expect.objectContaining({
+        id: 'codex:plugin-list:disabled',
+        resource: 'plugin',
+        kind: 'plugin-skill-list',
+        enabled: false,
+      }),
+    ]));
   });
 
   it('context disable writes project Codex config for a skill resource id', () => {
@@ -1828,11 +1845,12 @@ describe('CLI integration — context cost', () => {
     expect(result.status).toBe(0);
     expect(payload.summary.projectPath).toBe(realpathSync(cwd));
     expect(payload.summary.byPlatform).toEqual([
-      expect.objectContaining({ platform: 'codex', items: 1 }),
+      expect.objectContaining({ platform: 'codex', items: 2 }),
     ]);
-    expect(payload.items.map((item: { platform: string; name: string }) => `${item.platform}:${item.name}`)).toEqual([
+    expect(payload.items.map((item: { platform: string; name: string }) => `${item.platform}:${item.name}`)).toEqual(expect.arrayContaining([
       'codex:codex-review',
-    ]);
+      'codex:Codex skill list',
+    ]));
   });
 
   it('cost validates platform input', () => {
