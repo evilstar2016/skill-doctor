@@ -46,6 +46,7 @@ import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
 import type { AuditFinding } from '../types/audit';
+import type { ContextCostItem, ContextCostResult, ContextResource } from '../types/context';
 import type {
   ConflictDetectionOptions,
   ConflictDetectionStrategy,
@@ -473,11 +474,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
                 filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
               )),
         ];
-    const result = estimateContextCost(entries, {
+    const result = addCodexResourceGroups(estimateContextCost(entries, {
       ...(budgetTokens === null ? {} : { budgetTokens }),
       ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
       projectPath: projectDir,
-    });
+    }));
 
     if (jsonOutput) {
       process.stdout.write(`${toJson(result)}\n`);
@@ -1037,6 +1038,25 @@ function filterCodexEntriesBySource<T extends { source?: string; context?: { res
   if (source === 'all') return entries;
   if (source === 'mcp') return entries.filter((entry) => entry.source === 'mcp' || (entry.context?.resource ?? entry.resource) === 'mcp');
   return entries.filter((entry) => entry.source !== 'mcp' && (entry.context?.resource ?? entry.resource) !== 'mcp');
+}
+
+function addCodexResourceGroups(result: ContextCostResult): ContextCostResult {
+  const codexItems = result.items.filter((item) => item.platform === 'codex' && item.resource);
+  if (codexItems.length === 0) return result;
+
+  const resources: Record<ContextResource, ContextCostItem[]> = {
+    agents: [],
+    skill: [],
+    mcp: [],
+    plugin: [],
+    memory: [],
+  };
+
+  for (const item of codexItems) {
+    if (item.resource) resources[item.resource].push(item);
+  }
+
+  return { ...result, resources };
 }
 
 function readKind(args: string[]): ConflictPair['kind'] | 'all' | 'invalid' {

@@ -94,6 +94,7 @@ export interface ContextCostPlatformSummary {
 export interface ContextCostResult {
   summary: ContextCostSummary;
   items: ContextCostItem[];
+  resources?: Record<ContextResource, ContextCostItem[]>;
 }
 
 export interface ContextResourceRecord {

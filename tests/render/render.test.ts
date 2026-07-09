@@ -132,6 +132,86 @@ describe('renderers', () => {
     expect(output).toContain('claude-skill-description');
   });
 
+  it('renders Codex resource summaries when resource metadata is present', () => {
+    const output = renderContextCost({
+      summary: {
+        totalEstimatedTokens: 120,
+        disabledEstimatedTokens: 40,
+        budgetTokens: 2000,
+        grade: 'A',
+        overBudget: false,
+        scanned: 2,
+        byPlatform: [
+          {
+            platform: 'codex',
+            items: 1,
+            estimatedTokens: 120,
+            estimatedChars: 480,
+            startupSelectionTokens: 120,
+            alwaysOnTokens: 0,
+            activationTokens: 120,
+            budgetTokens: 2000,
+            grade: 'A',
+            overBudget: false,
+          },
+        ],
+      },
+      items: [
+        {
+          id: 'codex:skill-list:enabled',
+          name: 'Codex skill list',
+          sourcePath: 'E:/project/.codex/skills',
+          platform: 'codex',
+          scope: 'project',
+          source: 'skill',
+          resource: 'skill',
+          kind: 'codex-skill-list',
+          estimatedTokens: 120,
+          estimatedChars: 480,
+          activationEstimatedTokens: 120,
+          activationEstimatedChars: 480,
+          activation: 'startup',
+          budgetScope: 'startup-selection',
+          confidence: 'high',
+          enabled: true,
+          controllable: true,
+          controlPath: 'E:/project/.codex/config.toml',
+          controlMethod: 'skills.config',
+          estimateStatus: 'estimated',
+          recommendation: 'OK',
+        },
+        {
+          id: 'codex:plugin-list:disabled',
+          name: 'Codex plugin skill list',
+          sourcePath: 'E:/project/.codex/plugins',
+          platform: 'codex',
+          scope: 'global',
+          source: 'plugin',
+          resource: 'plugin',
+          kind: 'plugin-skill-list',
+          estimatedTokens: 40,
+          estimatedChars: 160,
+          activationEstimatedTokens: 40,
+          activationEstimatedChars: 160,
+          activation: 'startup',
+          budgetScope: 'startup-selection',
+          confidence: 'high',
+          enabled: false,
+          controllable: true,
+          controlPath: 'E:/project/.codex/config.toml',
+          controlMethod: 'plugins.notes.enabled',
+          estimateStatus: 'estimated',
+          recommendation: 'OK',
+        },
+      ],
+    });
+
+    expect(output).toContain('By Codex resource:');
+    expect(output).toContain('skill: 120 tokens/turn (1 active)');
+    expect(output).toContain('plugin: 0 tokens/turn (0 active)  disabled: 1 (40 tokens)');
+    expect(output).toContain('Disabled token tax (not counted): 40 tokens/turn');
+  });
+
   it('renders a single skill detail card', () => {
     const output = renderShow(sampleSkill);
 

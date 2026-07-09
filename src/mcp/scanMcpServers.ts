@@ -78,6 +78,13 @@ export function parseCodexToml(raw: string, file: McpConfigFile, options: { incl
     const line = stripTomlComment(rawLine).trim();
     if (!line) continue;
 
+    const arrayTable = line.match(/^\[\[([^\]]+)\]\]$/);
+    if (arrayTable) {
+      currentServer = null;
+      currentSubtable = null;
+      continue;
+    }
+
     const table = line.match(/^\[([^\]]+)\]$/);
     if (table) {
       const parts = splitTomlPath(table[1]);

@@ -13,6 +13,7 @@ export function renderContextCost(result: ContextCostResult): string {
             `  startup: ${entry.startupSelectionTokens}  always-on: ${entry.alwaysOnTokens}  activation risk: ${entry.activationTokens}`,
           ].join('\n'),
         );
+  const codexResourceLines = buildCodexResourceLines(items);
   const itemLines =
     items.length === 0
       ? ['- none']
@@ -38,8 +39,42 @@ export function renderContextCost(result: ContextCostResult): string {
     '',
     'By coding agent:',
     ...platformLines,
+    ...(codexResourceLines.length > 0 ? ['', 'By Codex resource:', ...codexResourceLines] : []),
     '',
     'Highest cost items:',
     ...itemLines,
   ].join('\n');
+}
+
+function buildCodexResourceLines(items: ContextCostResult['items']): string[] {
+  const counts = new Map<string, { active: number; disabled: number; tokens: number; disabledTokens: number }>();
+
+  for (const item of items) {
+    if (item.platform !== 'codex' || !item.resource) continue;
+    const current = counts.get(item.resource) ?? { active: 0, disabled: 0, tokens: 0, disabledTokens: 0 };
+    const tokens = chargeableCodexResourceTokens(item);
+    if (item.enabled === false) {
+      current.disabled += 1;
+      current.disabledTokens += tokens;
+    } else {
+      current.active += 1;
+      current.tokens += tokens;
+    }
+    counts.set(item.resource, current);
+  }
+
+  return ['agents', 'skill', 'mcp', 'plugin', 'memory']
+    .filter((resource) => counts.has(resource))
+    .map((resource) => {
+      const entry = counts.get(resource)!;
+      const disabled = entry.disabled > 0 ? `  disabled: ${entry.disabled} (${entry.disabledTokens} tokens)` : '';
+      return `- ${resource}: ${entry.tokens} tokens/turn (${entry.active} active)${disabled}`;
+    });
+}
+
+function chargeableCodexResourceTokens(item: ContextCostResult['items'][number]): number {
+  if (item.kind === 'agent-skill-description' && (item.resource === 'skill' || item.resource === 'plugin')) {
+    return 0;
+  }
+  return item.estimatedTokens;
 }

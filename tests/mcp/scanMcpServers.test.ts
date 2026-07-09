@@ -97,6 +97,34 @@ describe('scanMcpServers', () => {
     ]);
   });
 
+  it('does not apply skills.config enablement to the previous Codex MCP table', () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.codex', 'config.toml'),
+      [
+        '[mcp_servers.github]',
+        'command = "node"',
+        'args = ["server.js"]',
+        '',
+        '[[skills.config]]',
+        'path = "/project/.codex/skills/review/SKILL.md"',
+        'enabled = false',
+      ].join('\n'),
+    );
+
+    const result = scanMcpServers(cwd, { homeDir: home });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        name: 'github',
+        enabled: true,
+      }),
+    ]);
+  });
+
   it('parses quoted Codex TOML MCP ids with official enablement fields', () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');

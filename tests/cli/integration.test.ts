@@ -1799,6 +1799,123 @@ describe('CLI integration — context cost', () => {
     ]));
   });
 
+  it('cost --platform codex --json groups all Codex resource types with control metadata', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, 'AGENTS.md'), 'Project Codex guidance.');
+    writeFile(
+      join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md'),
+      ['---', 'name: codex-review', 'description: Codex review helper.', '---', '', '# Codex Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.codex', 'config.toml'),
+      ['[mcp_servers.github]', 'instructions = "Use GitHub metadata when repository context is needed."'].join('\n'),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', '.codex-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'notes', skills: './skills/' }),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', 'skills', 'note-helper', 'SKILL.md'),
+      ['---', 'name: note-helper', 'description: Help with notes.', '---', '', '# Note Helper'].join('\n'),
+    );
+    writeFile(join(home, '.codex', 'memories'), 'Remember user preference.');
+
+    const result = runCli(['cost', '--platform', 'codex', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(Object.keys(payload.resources).sort()).toEqual(['agents', 'mcp', 'memory', 'plugin', 'skill']);
+    for (const resource of ['agents', 'mcp', 'memory', 'plugin', 'skill']) {
+      expect(payload.resources[resource].length).toBeGreaterThan(0);
+      expect(payload.resources[resource][0]).toEqual(expect.objectContaining({
+        id: expect.any(String),
+        resource,
+        enabled: expect.any(Boolean),
+        controllable: expect.any(Boolean),
+        controlPath: expect.any(String),
+        controlMethod: expect.any(String),
+        estimateStatus: expect.any(String),
+      }));
+    }
+    expect(payload.resources.agents[0]).toEqual(expect.objectContaining({
+      controllable: false,
+      controlMethod: 'unsupported',
+    }));
+    expect(payload.resources.memory[0]).toEqual(expect.objectContaining({
+      controllable: false,
+      controlMethod: 'unsupported',
+      estimateStatus: 'unknown',
+    }));
+  });
+
+  it('context disable makes subsequent Codex cost runs lower for skills, MCP, and plugins', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const mcpScript = join(root, 'codex-mcp.js');
+    const skillPath = join(cwd, '.codex', 'skills', 'codex-review', 'SKILL.md');
+
+    writeFile(
+      mcpScript,
+      [
+        'const readline = require("node:readline");',
+        'const rl = readline.createInterface({ input: process.stdin });',
+        'rl.on("line", (line) => {',
+        '  const msg = JSON.parse(line);',
+        '  if (msg.method === "initialize") {',
+        '    console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "codex-test", version: "1.0.0" } } }));',
+        '  } else if (msg.method === "tools/list") {',
+        '    console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { tools: [{ name: "search_repositories", description: "Search GitHub repositories with detailed metadata.", inputSchema: { type: "object", properties: { query: { type: "string", description: "Repository query." } } } }] } }));',
+        '  }',
+        '});',
+      ].join('\n'),
+    );
+    writeFile(
+      skillPath,
+      ['---', 'name: codex-review', 'description: Codex review helper. '.repeat(20), '---', '', '# Codex Review'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.codex', 'config.toml'),
+      [
+        '[mcp_servers.github]',
+        `command = ${JSON.stringify(process.execPath)}`,
+        `args = [${JSON.stringify(mcpScript)}]`,
+      ].join('\n'),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', '.codex-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'notes', skills: './skills/' }),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', 'skills', 'note-helper', 'SKILL.md'),
+      ['---', 'name: note-helper', 'description: Help with notes. '.repeat(20), '---', '', '# Note Helper'].join('\n'),
+    );
+
+    const before = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
+    const skillId = `codex:skill:${join(realpathSync(cwd), '.codex', 'skills', 'codex-review', 'SKILL.md')}`;
+    const pluginId = 'codex:plugin:notes:skill:note-helper';
+
+    expect(before.summary.totalEstimatedTokens).toBeGreaterThan(0);
+    expect(runCli(['context', 'disable', '--platform', 'codex', '--id', skillId, '--json'], cwd, home).status).toBe(0);
+    const afterSkill = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
+    expect(afterSkill.summary.totalEstimatedTokens).toBeLessThan(before.summary.totalEstimatedTokens);
+
+    expect(runCli(['context', 'disable', '--platform', 'codex', '--id', 'codex:mcp:github', '--json'], cwd, home).status).toBe(0);
+    const afterMcp = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
+    expect(afterMcp.summary.totalEstimatedTokens).toBeLessThan(afterSkill.summary.totalEstimatedTokens);
+
+    expect(runCli(['context', 'disable', '--platform', 'codex', '--id', pluginId, '--json'], cwd, home).status).toBe(0);
+    const afterPlugin = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
+    expect(afterPlugin.summary.totalEstimatedTokens).toBeLessThan(afterMcp.summary.totalEstimatedTokens);
+
+    const withDisabled = JSON.parse(runCli(['cost', '--platform', 'codex', '--include-disabled', '--json'], cwd, home).stdout);
+    expect(withDisabled.summary.totalEstimatedTokens).toBe(0);
+    expect(withDisabled.summary.disabledEstimatedTokens).toBeGreaterThan(0);
+  });
+
   it('context disable writes project Codex config for a skill resource id', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -1825,6 +1942,26 @@ describe('CLI integration — context cost', () => {
     expect(config).toContain('[[skills.config]]');
     expect(config).toContain(`path = "${realSkillPath}"`);
     expect(config).toContain('enabled = false');
+  });
+
+  it('context disable reports AGENTS resources as unsupported without writing config', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, 'AGENTS.md'), 'Project guidance.');
+
+    const result = runCli(['context', 'disable', '--id', 'codex:agents:project-root-agents', '--platform', 'codex', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload).toEqual(expect.objectContaining({
+      supported: false,
+      changed: false,
+      resource: 'agents',
+      message: expect.stringContaining('cannot be toggled automatically'),
+    }));
+    expect(existsSync(join(cwd, '.codex', 'config.toml'))).toBe(false);
   });
 
   it('cost treats a lone platform positional as a platform filter for npm-run compatibility', () => {

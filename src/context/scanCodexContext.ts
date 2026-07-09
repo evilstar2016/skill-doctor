@@ -60,7 +60,7 @@ export async function scanCodexContextEntries(
   }
 
   if (matchesResource(resource, 'memory')) {
-    entries.push(...scanMemoryEntries(projectDir, resolvedHome, config, includeDisabled));
+    entries.push(...scanMemoryEntries(projectDir, resolvedHome, config, controlPath, includeDisabled));
   }
 
   return entries.filter((entry) => includeDisabled || getEntryEnabled(entry) !== false);
@@ -267,6 +267,7 @@ function scanMemoryEntries(
   projectDir: string,
   homeDir: string,
   config: CodexContextConfig,
+  controlPath: string,
   includeDisabled: boolean,
 ): ContextResourceRecord[] {
   const configState = readMemoryEnabledState(projectDir, homeDir);
@@ -291,6 +292,8 @@ function scanMemoryEntries(
       enabled,
       configSource: entry.configSource,
       controllable: false,
+      controlPath,
+      controlMethod: 'unsupported',
       estimateStatus: 'unknown' as const,
       recommendation: 'Codex memories can affect future sessions; disable memories in Codex settings/config if this context is not wanted.',
     })));
