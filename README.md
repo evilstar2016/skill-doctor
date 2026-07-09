@@ -62,6 +62,7 @@ For lightweight questions and examples before filing an issue, use [GitHub Discu
 - [Roadmap](ROADMAP.md)
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
+- [Adding a platform adapter](docs/adding-platform.md)
 
 ## What it catches
 
@@ -380,6 +381,8 @@ The dashboard shows:
 
 Additional directories can be added via `paths.extra` in config (see Configuration).
 
+Platform discovery paths, aliases, install targets, MCP config files, and context-cost policies are defined by adapter records. To add or change platform support, see [Adding a platform adapter](docs/adding-platform.md).
+
 ## HTML reports
 
 Several commands support `--report` to write a self-contained HTML file. `dashboard` always writes an HTML file (no flag needed).
@@ -453,6 +456,8 @@ npm install
 npm run build
 npm test
 ```
+
+Platform contributors should start with [Adding a platform adapter](docs/adding-platform.md) before changing discovery, install, MCP, or cost behavior.
 
 ## License
 

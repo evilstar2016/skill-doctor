@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getDefaultInstallTarget,
+  getPlatformAliasMappings,
   getPlatformAdapter,
   getPlatformAdapters,
+  getPlatformCliValues,
   normalizePlatformName,
 } from '../../src/platforms/registry';
 
@@ -32,6 +34,27 @@ describe('platform registry', () => {
     expect(normalizePlatformName('claudecode')).toBe('claude');
     expect(normalizePlatformName('claude-code')).toBe('claude');
     expect(normalizePlatformName('nonexistent')).toBeNull();
+  });
+
+  it('exposes CLI platform values and aliases from the registry', () => {
+    expect(getPlatformCliValues({ includeUnknown: true })).toEqual([
+      'claude',
+      'cursor',
+      'copilot',
+      'codex',
+      'gemini',
+      'windsurf',
+      'trae',
+      'opencode',
+      'kiro',
+      'openclaw',
+      'hermes',
+      'unknown',
+    ]);
+    expect(getPlatformAliasMappings()).toEqual([
+      { alias: 'claudecode', platform: 'claude' },
+      { alias: 'claude-code', platform: 'claude' },
+    ]);
   });
 
   it('exposes the default install target from adapter definitions', () => {

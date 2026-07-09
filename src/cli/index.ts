@@ -28,7 +28,7 @@ import { InstallTargetError, resolveInstallTarget } from '../install/resolveInst
 import { uninstallSkill } from '../install/uninstallSkill.js';
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
-import { normalizePlatformName } from '../platforms/registry';
+import { getPlatformAliasMappings, getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
 import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
 import { renderAudit } from '../render/renderAudit';
 import { renderAuditReport } from '../render/renderAuditReport';
@@ -368,7 +368,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     if (platform === 'invalid') {
-      process.stderr.write('Invalid platform. Use --platform claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|unknown (aliases: claudecode, claude-code)\n');
+      process.stderr.write(`Invalid platform. Use --platform ${formatPlatformUsage()}\n`);
       process.exitCode = 1;
       return;
     }
@@ -386,7 +386,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     if (platformBudgets === 'invalid') {
-      process.stderr.write('Invalid platform budget. Use --platform-budget <platform=positive-integer>\n');
+      process.stderr.write(`Invalid platform budget. Use --platform-budget <platform=positive-integer> where platform is ${formatPlatformUsage()}\n`);
       process.exitCode = 1;
       return;
     }
@@ -685,7 +685,21 @@ function getHelpText(): string {
     'Embedding config file:',
     '  ~/.skill-doctor/config.json',
     '  { "embedding": { "baseUrl": "http://host/v1", "model": "bge-m3", "apiKey": "..." } }',
+    '',
+    'Platforms:',
+    `  --platform values: ${formatPlatformUsage()}`,
   ].join('\n');
+}
+
+function formatPlatformUsage(): string {
+  const values = getPlatformCliValues({ includeUnknown: true }).join('|');
+  const aliases = getPlatformAliasMappings({ includeUnknown: true });
+
+  if (aliases.length === 0) {
+    return values;
+  }
+
+  return `${values} (aliases: ${aliases.map((entry) => `${entry.alias}->${entry.platform}`).join(', ')})`;
 }
 
 function hasFlag(args: string[], flag: string): boolean {
@@ -967,14 +981,6 @@ function filterSkillsByScope(skills: SkillRecord[], scope: Scope | 'all'): Skill
   }
 
   return skills.filter((skill) => skill.scope === scope);
-}
-
-function filterSkillsByPlatform(skills: SkillRecord[], platform: Platform | null): SkillRecord[] {
-  if (platform === null) {
-    return skills;
-  }
-
-  return skills.filter((skill) => skill.platform === platform);
 }
 
 function filterEntriesByScope<T extends { scope: Scope }>(entries: T[], scope: Scope | 'all'): T[] {

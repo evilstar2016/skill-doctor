@@ -447,14 +447,22 @@ export const UNKNOWN_PLATFORM_ADAPTER: PlatformAdapter = {
   costPolicy: DEFAULT_SKILL_COST_POLICY,
 };
 
-export const PLATFORM_PATHS: PlatformPathDefinition[] = PLATFORM_ADAPTERS;
-
 export function getPlatformAdapters(): PlatformAdapter[] {
   return [...PLATFORM_ADAPTERS];
 }
 
 export function getAllPlatformAdapters(): PlatformAdapter[] {
   return [...PLATFORM_ADAPTERS, UNKNOWN_PLATFORM_ADAPTER];
+}
+
+export function getPlatformCliValues(options: { includeUnknown?: boolean } = {}): Platform[] {
+  const adapters = options.includeUnknown ? getAllPlatformAdapters() : getPlatformAdapters();
+  return adapters.map((adapter) => adapter.platform);
+}
+
+export function getPlatformAliasMappings(options: { includeUnknown?: boolean } = {}): { alias: string; platform: Platform }[] {
+  const adapters = options.includeUnknown ? getAllPlatformAdapters() : getPlatformAdapters();
+  return adapters.flatMap((adapter) => adapter.aliases.map((alias) => ({ alias, platform: adapter.platform })));
 }
 
 export function getPlatformAdapter(value: string | undefined): PlatformAdapter | undefined {

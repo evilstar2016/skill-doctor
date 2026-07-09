@@ -9,8 +9,14 @@ coverage/
 .DS_Store
 skill-doctor-*.html
 .superpowers/
-doc/
-docs/
+doc/*
+!doc/architecture-index.md
+!doc/scenarios/
+doc/scenarios/*
+!doc/scenarios/platform-adapter-regression/
+!doc/scenarios/platform-adapter-regression/**
+docs/*
+!docs/adding-platform.md
 skill-backup/
 .env
 .vscode/

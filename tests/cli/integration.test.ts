@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { main } from '../../src/cli/index';
+import { getPlatformAliasMappings, getPlatformCliValues } from '../../src/platforms/registry';
 
 import { buildCli, cleanupTempRoots, createTempRoot, runCli, runCliAsync, writeFile } from '../helpers/cliHarness';
 
@@ -1464,6 +1465,24 @@ describe('CLI integration — cleanup', () => {
 });
 
 describe('CLI integration — context cost', () => {
+  it('help lists platform values and aliases from the registry', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const values = getPlatformCliValues({ includeUnknown: true }).join('|');
+    const aliases = getPlatformAliasMappings()
+      .map((entry) => `${entry.alias}->${entry.platform}`)
+      .join(', ');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['--help'], cwd, home);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(`--platform values: ${values}`);
+    expect(result.stdout).toContain(`aliases: ${aliases}`);
+  });
+
   it('cost reports estimated token tax for Claude skills and always-on files', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -1739,7 +1758,8 @@ describe('CLI integration — context cost', () => {
     const result = runCli(['cost', '--platform', 'not-an-agent'], cwd, home);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Invalid platform. Use --platform');
+    expect(result.stderr).toContain(`Invalid platform. Use --platform ${getPlatformCliValues({ includeUnknown: true }).join('|')}`);
+    expect(result.stderr).toContain('claudecode->claude');
   });
 
   it('cost --fail-on-budget exits non-zero when the estimate exceeds the budget', () => {
@@ -1806,7 +1826,8 @@ describe('CLI integration — context cost', () => {
     const result = runCli(['cost', '--platform-budget', 'codex=0'], cwd, home);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Invalid platform budget. Use --platform-budget <platform=positive-integer>');
+    expect(result.stderr).toContain('Invalid platform budget. Use --platform-budget <platform=positive-integer> where platform is');
+    expect(result.stderr).toContain('claudecode->claude');
   });
 
   it('cost --source mcp --platform codex reports Codex MCP config only', () => {

@@ -4,16 +4,16 @@ import { homedir } from 'node:os';
 
 import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
 import {
-  PLATFORM_PATHS,
   UNKNOWN_PLATFORM_ADAPTER,
   getPlatformAdapter,
+  getPlatformAdapters,
   resolveCustomPath,
   resolvePlatformPathTemplate,
   type PathTarget,
   type PlatformPathDefinition,
 } from '../platforms/registry';
 
-export { PLATFORM_PATHS, type PathTarget, type PlatformPathDefinition } from '../platforms/registry';
+export type { PathTarget, PlatformPathDefinition } from '../platforms/registry';
 
 interface ResolvePathsOptions {
   homeDir?: string;
@@ -28,7 +28,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
   const results: SkillFile[] = [];
   const seen = new Set<string>();
 
-  for (const definition of PLATFORM_PATHS) {
+  for (const definition of getPlatformAdapters()) {
     for (const target of definition.global) {
       if (target.costOnly && !options.includeCostPaths) continue;
       collectPath(
