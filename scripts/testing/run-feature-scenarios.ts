@@ -2,7 +2,14 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { getRepoRoot, loadFeatureManifest, resolveRepoPath, type FeatureScenarioEntry } from './featureManifest';
+import {
+  getRepoRoot,
+  listFeatureManifestPaths,
+  loadFeatureManifest,
+  resolveRepoPath,
+  type FeatureScenarioEntry,
+  type FeatureScenarioManifest,
+} from './featureManifest';
 
 interface CliOptions {
   features: string[];
@@ -32,10 +39,6 @@ function parseArgs(argv: string[]): CliOptions {
     }
 
     throw new Error(`Unknown argument: ${arg}`);
-  }
-
-  if (features.length === 0) {
-    throw new Error('At least one --feature value is required');
   }
 
   return {
@@ -82,7 +85,7 @@ function recordLatestEvidence(
 
 function main(): number {
   const options = parseArgs(process.argv.slice(2));
-  const manifests = options.features.map((feature) => loadFeatureManifest(feature));
+  const manifests = loadRequestedManifests(options.features);
   const scenarioSets = manifests.map((manifest) => ({
     manifest,
     scenarios: manifest.scenarios.filter((scenario) => scenario.test),
@@ -127,6 +130,22 @@ function main(): number {
   }
 
   return 0;
+}
+
+function loadRequestedManifests(features: string[]): FeatureScenarioManifest[] {
+  if (features.length > 0) {
+    return features.map((feature) => loadFeatureManifest(feature));
+  }
+
+  const manifests = listFeatureManifestPaths().map((filePath) =>
+    JSON.parse(readFileSync(filePath, 'utf8')) as FeatureScenarioManifest,
+  );
+
+  if (manifests.length === 0) {
+    throw new Error('No feature scenario manifests found.');
+  }
+
+  return manifests;
 }
 
 try {

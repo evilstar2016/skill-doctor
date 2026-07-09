@@ -1,0 +1,14 @@
+{
+  "feature": "platform-adapter-regression",
+  "spec": "docs/adding-platform.md",
+  "tasks": "doc/architecture-index.md",
+  "evidenceDir": "doc/scenarios/platform-adapter-regression/evidence",
+  "scenarios": [
+    {
+      "id": "it-multi-platform-regression",
+      "stage": "it",
+      "doc": "doc/scenarios/platform-adapter-regression/it/multi-platform-regression.md",
+      "test": "tests/scenarios/platform-adapter-regression/multi-platform-regression.scenario.ts"
+    }
+  ]
+}

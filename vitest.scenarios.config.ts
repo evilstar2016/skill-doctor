@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.scenario.ts'],
     environment: 'node',
+    fileParallelism: false,
   },
 });
