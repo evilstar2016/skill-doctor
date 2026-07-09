@@ -1819,6 +1819,8 @@ describe('CLI integration — context cost', () => {
     expect(payload).toEqual(expect.objectContaining({
       id: `codex:skill:${realSkillPath}`,
       enabled: false,
+      requiresNewSession: true,
+      message: expect.stringContaining('Start a new Codex session or restart Codex'),
     }));
     expect(config).toContain('[[skills.config]]');
     expect(config).toContain(`path = "${realSkillPath}"`);

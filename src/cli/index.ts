@@ -381,7 +381,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         if (jsonOutput) {
           process.stdout.write(`${toJson(result)}\n`);
         } else {
-          process.stdout.write(`Codex resource ${action}d: ${result.name}\nConfig updated: ${result.configPath}\n`);
+          if (!result.supported) {
+            process.stdout.write(`${result.message}\n${result.recommendation ? `Recommendation: ${result.recommendation}\n` : ''}`);
+          } else {
+            process.stdout.write(`Codex resource ${action}d: ${result.name}\nConfig updated: ${result.configPath}\n${result.message}\n`);
+          }
         }
       } catch (error) {
         process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

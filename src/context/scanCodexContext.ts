@@ -116,7 +116,7 @@ async function scanAgentEntries(
         value: config.officialLimits.projectDocMaxBytes,
         appliesTo: 'combined AGENTS.md instruction chain',
       },
-      recommendation: 'AGENTS.md cannot be safely toggled by project config in v1; shorten it or move rare guidance into a skill.',
+      recommendation: 'AGENTS.md cannot be safely toggled by project config in v1; simplify it, move rare guidance into a skill, or manually rename the file.',
     });
   }
 
