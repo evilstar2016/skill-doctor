@@ -97,6 +97,40 @@ describe('scanMcpServers', () => {
     ]);
   });
 
+  it('parses quoted Codex TOML MCP ids with official enablement fields', () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.codex', 'config.toml'),
+      [
+        '[mcp_servers."github.com/openai"]',
+        'url = "https://api.example.test/mcp"',
+        'enabled = true',
+        'instructions = "Prefer read-only tools."',
+        'enabled_tools = ["repos.search"]',
+        'disabled_tools = ["repos.delete"]',
+        'default_tools_approval_mode = "never"',
+        'timeout = 12000',
+      ].join('\n'),
+    );
+
+    const result = scanMcpServers(cwd, { homeDir: home });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        name: 'github.com/openai',
+        enabled: true,
+        instructions: 'Prefer read-only tools.',
+        toolAllowlist: ['repos.search'],
+        toolDenylist: ['repos.delete'],
+        approvalMode: 'never',
+        timeoutMs: 12000,
+      }),
+    ]);
+  });
+
   it('parses Claude, Gemini, and Cursor JSON MCP config shapes', () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');

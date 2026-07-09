@@ -140,4 +140,66 @@ describe('scanCodexContextEntries', () => {
       }),
     }));
   });
+
+  it('discovers plugin MCP servers from manifests and reports them with plugin metadata', async () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    writeFile(
+      join(home, '.codex', 'plugins', 'github', '.codex-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'github', skills: './skills/', mcpServers: './.mcp.json' }),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'github', 'skills', 'triage', 'SKILL.md'),
+      ['---', 'name: triage', 'description: Triage GitHub issues.', '---'].join('\n'),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'github', '.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          github: {
+            type: 'http',
+            url: 'https://api.githubcopilot.com/mcp/',
+            bearer_token_env_var: 'GITHUB_PAT_TOKEN',
+            tools: ['issues.search'],
+          },
+        },
+      }),
+    );
+    writeFile(join(home, '.codex', 'config.toml'), ['[plugins."github@openai-curated"]', 'enabled = false'].join('\n'));
+
+    const hidden = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'plugin', discoverMcpTools: false });
+    const visible = await scanCodexContextEntries(cwd, {
+      homeDir: home,
+      resource: 'plugin',
+      includeDisabled: true,
+      discoverMcpTools: false,
+    });
+
+    expect(hidden).toHaveLength(0);
+    expect(visible).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'codex:plugin:github@openai-curated:skill:triage',
+        context: expect.objectContaining({
+          resource: 'plugin',
+          enabled: false,
+          controlMethod: 'plugins.github@openai-curated.enabled',
+        }),
+      }),
+      expect.objectContaining({
+        id: 'codex:plugin:github@openai-curated:mcp:github',
+        source: 'mcp',
+        name: 'github',
+        url: 'https://api.githubcopilot.com/mcp/',
+        envKeys: ['GITHUB_PAT_TOKEN'],
+        toolAllowlist: ['issues.search'],
+        context: expect.objectContaining({
+          resource: 'plugin',
+          enabled: false,
+          configSource: join(home, '.codex', 'plugins', 'github', '.codex-plugin', 'plugin.json'),
+          controlMethod: 'plugins.github@openai-curated.enabled',
+        }),
+      }),
+    ]));
+  });
 });

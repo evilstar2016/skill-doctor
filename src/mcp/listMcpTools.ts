@@ -51,6 +51,7 @@ async function listToolsOverStdio(server: McpServerRecord): Promise<McpToolRecor
   const privateConfig = getMcpPrivateConfig(server);
   const child = spawn(server.command, server.args, {
     env: { ...process.env, ...privateConfig.env },
+    ...(privateConfig.cwd ? { cwd: privateConfig.cwd } : {}),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const stderrChunks: string[] = [];

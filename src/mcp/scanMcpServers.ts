@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 
 import { getPlatformAdapters, resolvePlatformPathTemplate } from '../platforms/registry';
 import type { McpServerRecord } from '../types/mcp';
@@ -14,7 +14,7 @@ interface ScanMcpServersOptions {
 }
 
 type JsonObject = Record<string, unknown>;
-type PrivateMcpConfig = { env: Record<string, string>; headers: Record<string, string> };
+type PrivateMcpConfig = { env: Record<string, string>; headers: Record<string, string>; cwd?: string };
 
 const PRIVATE_CONFIG = new WeakMap<McpServerRecord, PrivateMcpConfig>();
 
@@ -23,6 +23,7 @@ export interface McpConfigFile {
   scope: Scope;
   path: string;
   format: 'json' | 'toml';
+  baseDir?: string;
 }
 
 export function scanMcpServers(projectDir: string, options: ScanMcpServersOptions = {}): McpServerRecord[] {
@@ -79,7 +80,7 @@ export function parseCodexToml(raw: string, file: McpConfigFile, options: { incl
 
     const table = line.match(/^\[([^\]]+)\]$/);
     if (table) {
-      const parts = table[1].split('.');
+      const parts = splitTomlPath(table[1]);
       if (parts[0] === 'mcp_servers' && parts[1]) {
         currentServer = unquoteTomlKey(parts[1]);
         currentSubtable = parts[2] ? unquoteTomlKey(parts[2]) : null;
@@ -149,6 +150,8 @@ function parseJsonMcpConfig(
 function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFile): McpServerRecord {
   const headers = firstObject(config.headers, config.header, config.requestHeaders);
   const env = firstObject(config.env, config.environment);
+  const bearerTokenEnvVar = stringValue(config.bearer_token_env_var ?? config.bearerTokenEnvVar);
+  const cwd = resolveWorkingDir(stringValue(config.cwd ?? config.workingDirectory ?? config.working_dir), file);
   const allowlist = firstStringArray(
     config.allowedTools,
     config.allowed_tools,
@@ -185,7 +188,7 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     ...(stringValue(config.command) ? { command: stringValue(config.command) } : {}),
     args: firstStringArray(config.args, config.arguments),
     ...(stringValue(config.url ?? config.endpoint) ? { url: stringValue(config.url ?? config.endpoint) } : {}),
-    envKeys: Object.keys(env).sort(),
+    envKeys: [...new Set([...Object.keys(env), ...(bearerTokenEnvVar ? [bearerTokenEnvVar] : [])])].sort(),
     headerKeys: Object.keys(headers).sort(),
     toolAllowlist: allowlist,
     toolDenylist: denylist,
@@ -196,12 +199,19 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
   PRIVATE_CONFIG.set(record, {
     env: stringRecord(env),
     headers: stringRecord(headers),
+    ...(cwd ? { cwd } : {}),
   });
   return record;
 }
 
 export function getMcpPrivateConfig(server: McpServerRecord): PrivateMcpConfig {
   return PRIVATE_CONFIG.get(server) ?? { env: {}, headers: {} };
+}
+
+function resolveWorkingDir(cwd: string | undefined, file: McpConfigFile): string | undefined {
+  if (!cwd) return undefined;
+  if (isAbsolute(cwd)) return cwd;
+  return resolve(file.baseDir ?? dirname(file.path), cwd);
 }
 
 function mergeMcpConfig(config: JsonObject, baseConfig?: JsonObject): JsonObject {
@@ -351,4 +361,35 @@ function stripTomlString(raw: string): string {
 
 function unquoteTomlKey(key: string): string {
   return stripTomlString(key.trim());
+}
+
+function splitTomlPath(raw: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let inString = false;
+  let quote = '';
+
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw[index];
+    if ((char === '"' || char === "'") && raw[index - 1] !== '\\') {
+      if (!inString) {
+        inString = true;
+        quote = char;
+      } else if (quote === char) {
+        inString = false;
+        quote = '';
+      }
+    }
+
+    if (char === '.' && !inString) {
+      parts.push(unquoteTomlKey(current));
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current) parts.push(unquoteTomlKey(current));
+  return parts;
 }

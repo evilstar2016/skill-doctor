@@ -1031,8 +1031,8 @@ function filterCodexEntriesBySource<T extends { source?: string; context?: { res
   source: CostSourceFilter,
 ): T[] {
   if (source === 'all') return entries;
-  if (source === 'mcp') return entries.filter((entry) => (entry.context?.resource ?? entry.resource ?? entry.source) === 'mcp');
-  return entries.filter((entry) => (entry.context?.resource ?? entry.resource ?? entry.source) !== 'mcp');
+  if (source === 'mcp') return entries.filter((entry) => entry.source === 'mcp' || (entry.context?.resource ?? entry.resource) === 'mcp');
+  return entries.filter((entry) => entry.source !== 'mcp' && (entry.context?.resource ?? entry.resource) !== 'mcp');
 }
 
 function readKind(args: string[]): ConflictPair['kind'] | 'all' | 'invalid' {

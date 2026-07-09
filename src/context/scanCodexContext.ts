@@ -50,7 +50,8 @@ export async function scanCodexContextEntries(
   }
 
   if (matchesResource(resource, 'plugin')) {
-    entries.push(...await scanPluginEntries(projectDir, resolvedHome, config, controlPath, includeDisabled));
+    const pluginEntries = await scanPluginEntries(projectDir, resolvedHome, config, controlPath, includeDisabled);
+    entries.push(...(options.discoverMcpTools === false ? pluginEntries : await discoverMcpToolsForMixedEntries(pluginEntries)));
   }
 
   if (matchesResource(resource, 'mcp')) {
@@ -164,9 +165,9 @@ async function scanPluginEntries(
   config: CodexContextConfig,
   controlPath: string,
   includeDisabled: boolean,
-): Promise<SkillRecord[]> {
+): Promise<Array<SkillRecord | McpServerRecord>> {
   const pluginStates = readPluginEnabledStates(projectDir, homeDir);
-  const results: SkillRecord[] = [];
+  const results: Array<SkillRecord | McpServerRecord> = [];
 
   for (const dirEntry of config.pluginDirs.filter((entry) => entry.enabled !== false)) {
     for (const manifestPath of expandCodexGlob(dirEntry.manifestGlob, projectDir, homeDir)) {
@@ -193,6 +194,37 @@ async function scanPluginEntries(
             estimateStatus: 'estimated',
           },
         });
+      }
+
+      const mcpConfigPath = resolvePluginMcpConfigPath(manifestPath, manifest);
+      if (mcpConfigPath) {
+        const pluginRoot = dirname(dirname(manifestPath));
+        const mcpServers = scanMcpServers(projectDir, {
+          files: [{
+            platform: 'codex',
+            scope: dirEntry.scope,
+            path: mcpConfigPath,
+            format: 'json',
+            baseDir: pluginRoot,
+          }],
+          includeDisabled,
+        });
+
+        for (const server of mcpServers) {
+          results.push({
+            ...server,
+            id: `codex:plugin:${pluginId}:mcp:${server.name}`,
+            context: {
+              resource: 'plugin',
+              configSource: manifestPath,
+              enabled: enabled && server.enabled !== false,
+              controllable: true,
+              controlPath,
+              controlMethod: `plugins.${pluginId}.enabled`,
+              estimateStatus: server.toolDiscoveryStatus === 'failed' ? 'unknown' : 'estimated',
+            },
+          });
+        }
       }
     }
   }
@@ -453,6 +485,32 @@ function resolvePluginSkillsDir(
   const pluginRoot = dirname(dirname(manifestPath));
   const rawSkillsDir = stringValue(manifest?.[skillsField]) ?? defaultSkillsDir;
   return join(pluginRoot, rawSkillsDir);
+}
+
+function resolvePluginMcpConfigPath(
+  manifestPath: string,
+  manifest: Record<string, unknown> | null,
+): string | null {
+  const pluginRoot = dirname(dirname(manifestPath));
+  const rawMcpServers = manifest?.mcpServers ?? manifest?.mcp_servers;
+  const mcpConfigPath = stringValue(rawMcpServers);
+  if (!mcpConfigPath) return null;
+  return resolve(pluginRoot, mcpConfigPath);
+}
+
+async function discoverMcpToolsForMixedEntries<T extends SkillRecord | McpServerRecord>(entries: T[]): Promise<T[]> {
+  const discovered = await discoverMcpToolsForServers(
+    entries.filter((entry): entry is Extract<T, McpServerRecord> => isMcpServerRecord(entry) && entry.context?.enabled !== false),
+  );
+  const byIdOrName = new Map(discovered.map((server) => [server.id ?? server.name, server]));
+  return entries.map((entry) => {
+    if (!isMcpServerRecord(entry)) return entry;
+    return (byIdOrName.get(entry.id ?? entry.name) ?? entry) as T;
+  });
+}
+
+function isMcpServerRecord(entry: SkillRecord | McpServerRecord): entry is McpServerRecord {
+  return 'source' in entry && entry.source === 'mcp';
 }
 
 function getEntryEnabled(entry: CodexContextEntry): boolean | undefined {

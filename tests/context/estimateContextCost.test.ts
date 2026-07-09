@@ -551,4 +551,53 @@ describe('estimateContextCost', () => {
       recommendation: 'Unable to inspect MCP tools: connection refused',
     }));
   });
+
+  it('estimates plugin MCP tools separately and keeps disabled plugin MCP out of totals', () => {
+    const enabledPluginMcp = makeMcpServer({
+      id: 'codex:plugin:github@openai-curated:mcp:github',
+      name: 'github',
+      sourcePath: '/fake/.codex/plugins/github/.mcp.json',
+      toolDiscoveryStatus: 'ok',
+      tools: [{
+        name: 'issues.search',
+        description: 'Search GitHub issues.',
+      }],
+      context: {
+        resource: 'plugin',
+        configSource: '/fake/.codex/plugins/github/.codex-plugin/plugin.json',
+        enabled: true,
+        controllable: true,
+        controlPath: '/fake/.codex/config.toml',
+        controlMethod: 'plugins.github@openai-curated.enabled',
+        estimateStatus: 'estimated',
+      },
+    });
+    const disabledPluginMcp = makeMcpServer({
+      ...enabledPluginMcp,
+      id: 'codex:plugin:github@openai-curated:mcp:disabled-github',
+      name: 'disabled-github',
+      context: {
+        ...enabledPluginMcp.context!,
+        enabled: false,
+      },
+    });
+
+    const result = estimateContextCost([enabledPluginMcp, disabledPluginMcp]);
+    const enabled = result.items.find((item) => item.id === enabledPluginMcp.id);
+    const disabled = result.items.find((item) => item.id === disabledPluginMcp.id);
+
+    expect(enabled).toEqual(expect.objectContaining({
+      source: 'plugin',
+      resource: 'plugin',
+      kind: 'plugin-mcp-tool-list',
+      enabled: true,
+      configSource: '/fake/.codex/plugins/github/.codex-plugin/plugin.json',
+    }));
+    expect(disabled).toEqual(expect.objectContaining({
+      kind: 'plugin-mcp-tool-list',
+      enabled: false,
+    }));
+    expect(result.summary.totalEstimatedTokens).toBe(enabled?.estimatedTokens);
+    expect(result.summary.disabledEstimatedTokens).toBe(disabled?.estimatedTokens);
+  });
 });
