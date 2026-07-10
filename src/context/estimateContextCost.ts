@@ -17,7 +17,7 @@ import type {
   ContextResourceRecord,
 } from '../types/context';
 import type { McpServerRecord, McpToolRecord } from '../types/mcp';
-import type { Platform, SkillRecord } from '../types/skill';
+import type { Platform, Scope, SkillRecord } from '../types/skill';
 
 const DEFAULT_BUDGET_TOKENS = 2000;
 const CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS = 8000;
@@ -26,6 +26,7 @@ interface EstimateContextCostOptions {
   budgetTokens?: number;
   platformBudgets?: Partial<Record<Platform, number>>;
   projectPath?: string;
+  scope?: Scope | 'all';
   tokenizer?: ContextTokenizerMode;
   tokenizerModel?: string;
 }
@@ -73,6 +74,7 @@ export function estimateContextCost(
       totalEstimatedTokens,
       ...(disabledEstimatedTokens > 0 ? { disabledEstimatedTokens } : {}),
       budgetTokens,
+      ...(options.scope ? { scope: options.scope } : {}),
       grade: gradeCost(totalEstimatedTokens, budgetTokens),
       overBudget: totalEstimatedTokens > budgetTokens || byPlatform.some((entry) => entry.overBudget),
       scanned: entries.length,

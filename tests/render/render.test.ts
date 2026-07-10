@@ -99,6 +99,7 @@ describe('renderers', () => {
         overBudget: false,
         scanned: 1,
         projectPath: 'E:/project',
+        scope: 'all',
         tokenizer: { mode: 'approx' },
         byPlatform: [
           {
@@ -125,6 +126,7 @@ describe('renderers', () => {
 
     expect(output).toContain('CONTEXT COST REPORT');
     expect(output).toContain('Project: E:/project');
+    expect(output).toContain('Scope: all (project + global; use --scope project to exclude user-level resources)');
     expect(output).toContain('Estimated token tax: 240 tokens/turn');
     expect(output).toContain('Tokenizer: approx');
     expect(output).toContain('Grade: A');

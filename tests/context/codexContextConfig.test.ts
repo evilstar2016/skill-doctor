@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { loadCodexContextConfig } from '../../src/context/codexContextConfig';
+import { loadCodexContextConfig, resolveCodexPath } from '../../src/context/codexContextConfig';
 
 const roots: string[] = [];
 
@@ -61,5 +61,18 @@ describe('loadCodexContextConfig', () => {
       path: '.custom/skills',
       enabled: true,
     }));
+  });
+
+  it('resolves default Codex paths through CODEX_HOME when set', () => {
+    const previous = process.env.CODEX_HOME;
+    const codexHome = join(tempRoot(), 'alternate-codex-home');
+    process.env.CODEX_HOME = codexHome;
+
+    try {
+      expect(resolveCodexPath('~/.codex/config.toml', '/project', '/home/user')).toBe(join(codexHome, 'config.toml'));
+    } finally {
+      if (previous === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = previous;
+    }
   });
 });

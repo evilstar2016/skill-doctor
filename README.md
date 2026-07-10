@@ -345,6 +345,8 @@ skill-doctor cost --platform codex --resource memory
 skill-doctor cost --platform codex --include-disabled   # show disabled tax separately
 ```
 
+Without `--scope`, `cost` uses `all`: current-project resources plus enabled user/global resources. For example, an enabled skill from a plugin under `~/.codex/plugins/` is reported as `scope: global` because it can affect every Codex project; `[[skills.config]]` selectors still disable individual plugin skills. Use `--scope project` to inspect only files configured in the current project.
+
 The Codex report includes active context in `Estimated token tax`. When `--include-disabled` is set, disabled resources are shown in the item list and summarized as `Disabled token tax (not counted)`, but they do not increase the active total.
 
 Codex controls:

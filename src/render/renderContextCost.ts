@@ -31,6 +31,7 @@ export function renderContextCost(result: ContextCostResult): string {
   return [
     'CONTEXT COST REPORT',
     ...(summary.projectPath ? [`Project: ${summary.projectPath}`] : []),
+    ...(summary.scope ? [`Scope: ${formatScope(summary.scope)}`] : []),
     `Estimated token tax: ${summary.totalEstimatedTokens} tokens/turn`,
     `Tokenizer: ${formatTokenizer(summary.tokenizer)}`,
     ...(summary.disabledEstimatedTokens ? [`Disabled token tax (not counted): ${summary.disabledEstimatedTokens} tokens/turn`] : []),
@@ -45,6 +46,17 @@ export function renderContextCost(result: ContextCostResult): string {
     'Highest cost items:',
     ...itemLines,
   ].join('\n');
+}
+
+function formatScope(scope: NonNullable<ContextCostResult['summary']['scope']>): string {
+  switch (scope) {
+    case 'project':
+      return 'project (current project only)';
+    case 'global':
+      return 'global (user/global configuration only)';
+    default:
+      return 'all (project + global; use --scope project to exclude user-level resources)';
+  }
 }
 
 function formatTokenizer(tokenizer: ContextCostResult['summary']['tokenizer']): string {

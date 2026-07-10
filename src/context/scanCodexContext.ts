@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
-import { scanMcpServers, type McpConfigFile } from '../mcp/scanMcpServers';
+import { applyMcpServerOverride, scanMcpServers, type McpConfigFile } from '../mcp/scanMcpServers';
 import { parseSkill } from '../parsing/parseSkill';
 import type { ContextResourceRecord } from '../types/context';
 import type { McpServerRecord } from '../types/mcp';
@@ -28,6 +28,18 @@ export type CodexContextEntry = SkillRecord | McpServerRecord | ContextResourceR
 
 const IGNORED_SKILL_DIRS = new Set(['.git', 'node_modules', 'vendor', 'dist', 'build', 'coverage']);
 
+interface CodexSkillSelector {
+  path?: string;
+  name?: string;
+  enabled: boolean;
+}
+
+interface CodexEffectiveState {
+  skillSelectors: CodexSkillSelector[];
+  pluginEnabled: Map<string, boolean>;
+  memoriesEnabled?: boolean;
+}
+
 export async function scanCodexContextEntries(
   projectDir: string,
   options: ScanCodexContextOptions = {},
@@ -39,6 +51,7 @@ export async function scanCodexContextEntries(
   const resource = options.resource ?? 'all';
   const includeDisabled = options.includeDisabled ?? false;
   const controlPath = getCodexProjectConfigPath(projectDir, config);
+  const effectiveState = loadCodexEffectiveState(projectDir, resolvedHome);
   const entries: CodexContextEntry[] = [];
 
   if (matchesResource(resource, 'agents')) {
@@ -46,21 +59,21 @@ export async function scanCodexContextEntries(
   }
 
   if (matchesResource(resource, 'skill')) {
-    entries.push(...await scanSkillEntries(projectDir, resolvedHome, config, controlPath, includeDisabled));
+    entries.push(...await scanSkillEntries(projectDir, resolvedHome, config, controlPath, effectiveState));
   }
 
   if (matchesResource(resource, 'plugin')) {
-    const pluginEntries = await scanPluginEntries(projectDir, resolvedHome, config, controlPath, includeDisabled);
+    const pluginEntries = await scanPluginEntries(projectDir, resolvedHome, config, controlPath, effectiveState, includeDisabled);
     entries.push(...(options.discoverMcpTools === false ? pluginEntries : await discoverMcpToolsForMixedEntries(pluginEntries)));
   }
 
   if (matchesResource(resource, 'mcp')) {
     const mcpEntries = scanMcpEntries(projectDir, resolvedHome, config, controlPath, includeDisabled);
-    entries.push(...(options.discoverMcpTools === false ? mcpEntries : await discoverMcpToolsForServers(mcpEntries)));
+    entries.push(...(options.discoverMcpTools === false ? mcpEntries : await discoverMcpToolsForMixedEntries(mcpEntries)));
   }
 
   if (matchesResource(resource, 'memory')) {
-    entries.push(...scanMemoryEntries(projectDir, resolvedHome, config, controlPath, includeDisabled));
+    entries.push(...scanMemoryEntries(projectDir, resolvedHome, config, controlPath, includeDisabled, effectiveState));
   }
 
   return entries.filter((entry) => includeDisabled || getEntryEnabled(entry) !== false);
@@ -128,19 +141,22 @@ async function scanSkillEntries(
   homeDir: string,
   config: CodexContextConfig,
   controlPath: string,
-  includeDisabled: boolean,
+  effectiveState: CodexEffectiveState,
 ): Promise<SkillRecord[]> {
-  const disabledSkills = readDisabledSkillSelectors(projectDir, homeDir);
-  const results: SkillRecord[] = [];
+  const candidates: Array<{ skill: SkillRecord; skillPath: string; dirEntry: CodexContextConfig['skillDirs'][number] }> = [];
 
   for (const dirEntry of config.skillDirs.filter((entry) => entry.enabled !== false)) {
     const dir = resolveCodexPath(dirEntry.path, projectDir, homeDir);
     for (const skillPath of findSkillFiles(dir)) {
       const skill = await parseSkill(toSkillFile(skillPath, dirEntry.scope, dirEntry.path));
       if (!skill) continue;
-      const enabled = !matchesDisabledSkill(skill, skillPath, disabledSkills);
-      if (!enabled && !includeDisabled) continue;
-      results.push({
+      candidates.push({ skill, skillPath, dirEntry });
+    }
+  }
+
+  return candidates.map(({ skill, skillPath, dirEntry }) => {
+      const enabled = isSkillEnabled(skill, skillPath, effectiveState.skillSelectors);
+      return {
         ...skill,
         id: `codex:skill:${skillPath}`,
         context: {
@@ -152,11 +168,8 @@ async function scanSkillEntries(
           controlMethod: 'skills.config',
           estimateStatus: 'estimated',
         },
-      });
-    }
-  }
-
-  return results;
+      };
+    });
 }
 
 async function scanPluginEntries(
@@ -164,9 +177,18 @@ async function scanPluginEntries(
   homeDir: string,
   config: CodexContextConfig,
   controlPath: string,
+  effectiveState: CodexEffectiveState,
   includeDisabled: boolean,
 ): Promise<Array<SkillRecord | McpServerRecord>> {
-  const pluginStates = readPluginEnabledStates(projectDir, homeDir);
+  const pluginStates = effectiveState.pluginEnabled;
+  const skillCandidates: Array<{
+    skill: SkillRecord;
+    skillPath: string;
+    dirEntry: CodexContextConfig['pluginDirs'][number];
+    pluginName: string;
+    pluginId: string;
+    pluginEnabled: boolean;
+  }> = [];
   const results: Array<SkillRecord | McpServerRecord> = [];
 
   for (const dirEntry of config.pluginDirs.filter((entry) => entry.enabled !== false)) {
@@ -175,24 +197,18 @@ async function scanPluginEntries(
       const pluginName = stringValue(manifest?.name) ?? basename(dirname(dirname(manifestPath)));
       const pluginId = findPluginConfigId(pluginName, pluginStates) ?? pluginName;
       const enabled = pluginStates.get(pluginId) ?? pluginStates.get(pluginName) ?? true;
-      if (!enabled && !includeDisabled) continue;
 
       const skillsDir = resolvePluginSkillsDir(manifestPath, manifest, dirEntry.skillsField, dirEntry.defaultSkillsDir);
       for (const skillPath of findSkillFiles(skillsDir)) {
         const skill = await parseSkill(toSkillFile(skillPath, dirEntry.scope, dirEntry.id));
         if (!skill) continue;
-        results.push({
-          ...skill,
-          id: `codex:plugin:${pluginId}:skill:${skill.name}`,
-          context: {
-            resource: 'plugin',
-            configSource: dirEntry.configSource,
-            enabled,
-            controllable: true,
-            controlPath,
-            controlMethod: `plugins.${pluginId}.enabled`,
-            estimateStatus: 'estimated',
-          },
+        skillCandidates.push({
+          skill,
+          skillPath,
+          dirEntry,
+          pluginName,
+          pluginId,
+          pluginEnabled: enabled,
         });
       }
 
@@ -229,6 +245,28 @@ async function scanPluginEntries(
     }
   }
 
+  for (const candidate of skillCandidates) {
+    const skillEnabled = candidate.pluginEnabled && isSkillEnabled(
+      candidate.skill,
+      candidate.skillPath,
+      effectiveState.skillSelectors,
+      [`${candidate.pluginName}:${candidate.skill.name}`, `${candidate.pluginId}:${candidate.skill.name}`],
+    );
+    results.push({
+      ...candidate.skill,
+      id: `codex:plugin:${candidate.pluginId}:skill:${candidate.skill.name}`,
+      context: {
+        resource: 'plugin',
+        configSource: candidate.dirEntry.configSource,
+        enabled: skillEnabled,
+        controllable: true,
+        controlPath,
+        controlMethod: `plugins.${candidate.pluginId}.enabled`,
+        estimateStatus: 'estimated',
+      },
+    });
+  }
+
   return results;
 }
 
@@ -241,26 +279,55 @@ function scanMcpEntries(
 ): McpServerRecord[] {
   const files: McpConfigFile[] = config.mcpConfigFiles
     .filter((entry) => entry.enabled !== false)
-    .map((entry) => ({
-      platform: 'codex' as const,
-      scope: entry.scope,
-      path: resolveCodexPath(entry.path, projectDir, homeDir),
-      format: 'toml' as const,
-    }));
+    .flatMap((entry) => {
+      const baseDirs = entry.scope === 'project' && !isAbsolute(entry.path) && !entry.path.startsWith('~')
+        ? buildProjectDirectoryChain(projectDir)
+        : [projectDir];
+      return baseDirs.map((baseDir) => ({
+        platform: 'codex' as const,
+        scope: entry.scope,
+        path: resolveCodexPath(entry.path, baseDir, homeDir),
+        format: 'toml' as const,
+      }));
+    });
 
-  return scanMcpServers(projectDir, { files, includeDisabled }).map((server) => ({
-    ...server,
-    id: `codex:mcp:${server.name}`,
-    context: {
-      resource: 'mcp',
-      configSource: config.mcpConfigFiles.find((entry) => resolveCodexPath(entry.path, projectDir, homeDir) === server.sourcePath)?.configSource,
-      enabled: server.enabled !== false,
-      controllable: true,
-      controlPath,
-      controlMethod: `mcp_servers.${server.name}.enabled`,
-      estimateStatus: server.toolDiscoveryStatus === 'failed' ? 'unknown' : 'estimated',
-    },
-  }));
+  const servers = mergeCodexMcpServerOverrides(scanMcpServers(projectDir, { files, includeDisabled: true }));
+
+  return servers
+    .filter((server) => includeDisabled || server.enabled !== false)
+    .map((server) => {
+      server.id = `codex:mcp:${server.name}`;
+      server.context = {
+        resource: 'mcp',
+        configSource: config.mcpConfigFiles.find((entry) => entry.scope === server.scope)?.configSource,
+        enabled: server.enabled !== false,
+        controllable: true,
+        controlPath,
+        controlMethod: `mcp_servers.${server.name}.enabled`,
+        estimateStatus: server.toolDiscoveryStatus === 'failed' ? 'unknown' : 'estimated',
+      };
+      return server;
+    });
+}
+
+function mergeCodexMcpServerOverrides(servers: McpServerRecord[]): McpServerRecord[] {
+  const effective = new Map<string, McpServerRecord>();
+
+  for (const server of servers.filter((candidate) => candidate.scope === 'global')) {
+    effective.set(server.name, server);
+  }
+
+  for (const projectServer of servers.filter((candidate) => candidate.scope === 'project')) {
+    const globalServer = effective.get(projectServer.name);
+    if (!globalServer) {
+      effective.set(projectServer.name, projectServer);
+      continue;
+    }
+
+    effective.set(projectServer.name, applyMcpServerOverride(globalServer, projectServer));
+  }
+
+  return [...effective.values()];
 }
 
 function scanMemoryEntries(
@@ -269,8 +336,9 @@ function scanMemoryEntries(
   config: CodexContextConfig,
   controlPath: string,
   includeDisabled: boolean,
+  effectiveState: CodexEffectiveState,
 ): ContextResourceRecord[] {
-  const configState = readMemoryEnabledState(projectDir, homeDir);
+  const configState = effectiveState.memoriesEnabled;
   const enabled = configState ?? true;
   if (!enabled && !includeDisabled) return [];
 
@@ -304,7 +372,7 @@ function expandAgentsCandidates(
   homeDir: string,
   config: CodexContextConfig,
 ): Array<CodexContextConfig['agentsFiles'][number] & { resolvedPath: string; chainOrder: number }> {
-  const projectChain = buildProjectDirectoryChain(projectDir, homeDir);
+  const projectChain = buildProjectDirectoryChain(projectDir);
   const candidates: Array<CodexContextConfig['agentsFiles'][number] & { resolvedPath: string; chainOrder: number }> = [];
 
   for (const entry of config.agentsFiles) {
@@ -333,21 +401,36 @@ function expandAgentsCandidates(
   return candidates;
 }
 
-function buildProjectDirectoryChain(projectDir: string, homeDir: string): string[] {
+function buildProjectDirectoryChain(projectDir: string): string[] {
   const resolvedProject = resolve(projectDir);
-  const resolvedHome = homeDir ? resolve(homeDir) : '';
-  const root = parse(resolvedProject).root;
+  const projectRoot = findGitProjectRoot(resolvedProject);
+  if (!projectRoot) return [resolvedProject];
+
   const chain: string[] = [];
   let current = resolvedProject;
 
-  while (current && current !== root && current !== resolvedHome) {
+  while (true) {
     chain.unshift(current);
+    if (current === projectRoot) break;
     const parent = dirname(current);
     if (parent === current) break;
     current = parent;
   }
 
   return chain.length > 0 ? chain : [resolvedProject];
+}
+
+function findGitProjectRoot(projectDir: string): string | null {
+  let current = projectDir;
+  const filesystemRoot = parse(projectDir).root;
+
+  while (true) {
+    if (existsSync(join(current, '.git'))) return current;
+    if (current === filesystemRoot) return null;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
 }
 
 function applyAgentsOverridePrecedence<T extends { resolvedPath: string; priority?: number; scope: Scope; chainOrder?: number }>(entries: T[]): T[] {
@@ -404,60 +487,72 @@ function toSkillFile(filePath: string, scope: Scope, installSource: string): Ski
   };
 }
 
-function readDisabledSkillSelectors(projectDir: string, homeDir: string): Array<{ path?: string; name?: string }> {
-  const selectors: Array<{ path?: string; name?: string }> = [];
-  for (const path of codexStateConfigPaths(projectDir, homeDir)) {
-    const raw = readText(path);
+function loadCodexEffectiveState(projectDir: string, homeDir: string): CodexEffectiveState {
+  const skillSelectors: CodexSkillSelector[] = [];
+  const pluginEnabled = new Map<string, boolean>();
+  let memoriesEnabled: boolean | undefined;
+
+  for (const configPath of codexStateConfigPaths(projectDir, homeDir)) {
+    const raw = readText(configPath);
     if (!raw) continue;
+
     const blocks = raw.split(/(?=^\[\[skills\.config\]\])/gm).filter((block) => block.startsWith('[[skills.config]]'));
     for (const block of blocks) {
-      if (!/^\s*enabled\s*=\s*false\s*$/m.test(block)) continue;
+      const enabled = block.match(/^\s*enabled\s*=\s*(true|false)\s*$/m)?.[1];
+      if (!enabled) continue;
       const selector: { path?: string; name?: string } = {};
       const pathMatch = block.match(/^\s*path\s*=\s*(['"])(.*?)\1\s*$/m);
       const nameMatch = block.match(/^\s*name\s*=\s*(['"])(.*?)\1\s*$/m);
-      if (pathMatch?.[2]) selector.path = resolveCodexPath(pathMatch[2], projectDir, homeDir);
+      if (pathMatch?.[2]) selector.path = resolveCodexPath(pathMatch[2], dirname(configPath), homeDir);
       if (nameMatch?.[2]) selector.name = nameMatch[2];
-      selectors.push(selector);
+      if (!selector.path && !selector.name) continue;
+      skillSelectors.push({ ...selector, enabled: enabled === 'true' });
     }
-  }
-  return selectors;
-}
 
-function matchesDisabledSkill(skill: SkillRecord, skillPath: string, selectors: Array<{ path?: string; name?: string }>): boolean {
-  return selectors.some((selector) =>
-    (selector.path && selector.path === skillPath) ||
-    (selector.name && selector.name === skill.name)
-  );
-}
-
-function readPluginEnabledStates(projectDir: string, homeDir: string): Map<string, boolean> {
-  const states = new Map<string, boolean>();
-  for (const path of codexStateConfigPaths(projectDir, homeDir)) {
-    const raw = readText(path);
-    if (!raw) continue;
     for (const match of raw.matchAll(/^\[plugins\.(?:"([^"]+)"|([^\]]+))\]\s*$(?<body>[\s\S]*?)(?=^\[|$(?![\s\S]))/gm)) {
       const id = match[1] ?? match[2];
       const body = match.groups?.body ?? '';
       const enabled = body.match(/^\s*enabled\s*=\s*(true|false)\s*$/m)?.[1];
-      if (id && enabled) states.set(id.trim(), enabled === 'true');
+      if (id && enabled) pluginEnabled.set(id.trim(), enabled === 'true');
     }
-  }
-  return states;
-}
 
-function readMemoryEnabledState(projectDir: string, homeDir: string): boolean | undefined {
-  let state: boolean | undefined;
-  for (const path of codexStateConfigPaths(projectDir, homeDir)) {
-    const raw = readText(path);
-    if (!raw) continue;
     const features = readTomlTable(raw, 'features');
     const memories = readTomlTable(raw, 'memories');
     const featureEnabled = features.match(/^\s*memories\s*=\s*(true|false)\s*$/m)?.[1];
     const useMemories = memories.match(/^\s*use_memories\s*=\s*(true|false)\s*$/m)?.[1];
-    if (featureEnabled) state = featureEnabled === 'true';
-    if (useMemories) state = useMemories === 'true';
+    if (featureEnabled) memoriesEnabled = featureEnabled === 'true';
+    if (useMemories) memoriesEnabled = useMemories === 'true';
   }
-  return state;
+
+  return { skillSelectors, pluginEnabled, ...(memoriesEnabled === undefined ? {} : { memoriesEnabled }) };
+}
+
+function isSkillEnabled(
+  skill: SkillRecord,
+  skillPath: string,
+  selectors: CodexSkillSelector[],
+  alternateNames: string[] = [],
+): boolean {
+  const names = new Set([skill.name, ...alternateNames]);
+  let enabled = true;
+  for (const selector of selectors) {
+    if ((selector.path && sameResolvedPath(selector.path, skillPath)) || (selector.name && names.has(selector.name))) {
+      enabled = selector.enabled;
+    }
+  }
+  return enabled;
+}
+
+function sameResolvedPath(left: string, right: string): boolean {
+  return resolveExistingPath(left) === resolveExistingPath(right);
+}
+
+function resolveExistingPath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
 }
 
 function codexStateConfigPaths(projectDir: string, homeDir: string): string[] {
@@ -465,8 +560,9 @@ function codexStateConfigPaths(projectDir: string, homeDir: string): string[] {
     '~/.codex/config.toml',
     '~/.agent/config.toml',
     '~/.agents/config.toml',
-    '.codex/config.toml',
-  ].map((path) => resolveCodexPath(path, projectDir, homeDir));
+  ].map((path) => resolveCodexPath(path, projectDir, homeDir)).concat(
+    buildProjectDirectoryChain(projectDir).map((dir) => join(dir, '.codex', 'config.toml')),
+  );
 }
 
 function readTomlTable(raw: string, name: string): string {

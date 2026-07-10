@@ -1621,6 +1621,7 @@ describe('CLI integration — context cost', () => {
       'copilot:project-review',
     ]);
     expect(payload.summary.projectPath).toBe(realpathSync(cwd));
+    expect(payload.summary.scope).toBe('all');
     expect(payload.summary.byPlatform).toEqual(expect.arrayContaining([
       expect.objectContaining({ platform: 'claude', items: 2 }),
       expect.objectContaining({ platform: 'copilot', items: 1 }),

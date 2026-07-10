@@ -17,6 +17,7 @@ type JsonObject = Record<string, unknown>;
 type PrivateMcpConfig = { env: Record<string, string>; headers: Record<string, string>; cwd?: string };
 
 const PRIVATE_CONFIG = new WeakMap<McpServerRecord, PrivateMcpConfig>();
+const CONFIG_KEYS = new WeakMap<McpServerRecord, Set<string>>();
 
 export interface McpConfigFile {
   platform: Platform;
@@ -208,11 +209,51 @@ function normalizeMcpServer(name: string, config: JsonObject, file: McpConfigFil
     headers: stringRecord(headers),
     ...(cwd ? { cwd } : {}),
   });
+  CONFIG_KEYS.set(record, new Set(Object.keys(config)));
   return record;
 }
 
 export function getMcpPrivateConfig(server: McpServerRecord): PrivateMcpConfig {
   return PRIVATE_CONFIG.get(server) ?? { env: {}, headers: {} };
+}
+
+export function applyMcpServerOverride(base: McpServerRecord, override: McpServerRecord): McpServerRecord {
+  const keys = CONFIG_KEYS.get(override) ?? new Set<string>();
+  const has = (...names: string[]) => names.some((name) => keys.has(name));
+
+  if (has('enabled', 'disabled')) base.enabled = override.enabled;
+  if (has('instructions')) base.instructions = override.instructions;
+  if (has('transport', 'type')) base.transport = override.transport;
+  if (has('command')) base.command = override.command;
+  if (has('args', 'arguments')) base.args = override.args;
+  if (has('url', 'endpoint')) base.url = override.url;
+  if (has('allowedTools', 'allowed_tools', 'enabledTools', 'enabled_tools', 'toolAllowlist', 'tool_allowlist', 'includeTools', 'include_tools', 'tools', 'allowed')) {
+    base.toolAllowlist = override.toolAllowlist;
+  }
+  if (has('disabledTools', 'disabled_tools', 'excludedTools', 'excluded_tools', 'toolDenylist', 'tool_denylist', 'excludeTools', 'exclude_tools', 'excluded')) {
+    base.toolDenylist = override.toolDenylist;
+  }
+  if (has('approvalMode', 'approval_mode', 'default_tools_approval_mode')) base.approvalMode = override.approvalMode;
+  if (has('trusted')) base.trusted = override.trusted;
+  if (has('timeout', 'timeoutMs', 'timeout_ms', 'tool_timeout_sec', 'startup_timeout_sec')) base.timeoutMs = override.timeoutMs;
+
+  const basePrivate = getMcpPrivateConfig(base);
+  const overridePrivate = getMcpPrivateConfig(override);
+  if (has('env', 'environment', 'bearer_token_env_var')) {
+    base.envKeys = override.envKeys;
+    PRIVATE_CONFIG.set(base, { ...basePrivate, env: overridePrivate.env });
+  }
+  if (has('headers', 'header', 'requestHeaders')) {
+    base.headerKeys = override.headerKeys;
+    PRIVATE_CONFIG.set(base, { ...getMcpPrivateConfig(base), headers: overridePrivate.headers });
+  }
+  if (has('cwd', 'workingDirectory', 'working_dir')) {
+    PRIVATE_CONFIG.set(base, { ...getMcpPrivateConfig(base), ...(overridePrivate.cwd ? { cwd: overridePrivate.cwd } : {}) });
+  }
+
+  base.scope = override.scope;
+  base.sourcePath = override.sourcePath;
+  return base;
 }
 
 function resolveWorkingDir(cwd: string | undefined, file: McpConfigFile): string | undefined {

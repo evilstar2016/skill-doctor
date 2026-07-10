@@ -88,6 +88,10 @@ export function loadCodexContextConfig(options: LoadCodexContextConfigOptions = 
 }
 
 export function resolveCodexPath(rawPath: string, projectDir: string, homeDir: string = resolveHomeDir()): string {
+  const codexHome = process.env.CODEX_HOME?.trim();
+  if (codexHome && (rawPath === '~/.codex' || rawPath.startsWith('~/.codex/'))) {
+    return normalize(join(codexHome, rawPath.slice('~/.codex'.length)));
+  }
   const expanded = rawPath
     .replace(/^~(?=[/\\]|$)/, homeDir)
     .replace(/%USERPROFILE%/gi, homeDir);

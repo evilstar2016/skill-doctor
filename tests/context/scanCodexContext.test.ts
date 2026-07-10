@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -47,6 +47,7 @@ describe('scanCodexContextEntries', () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace', 'packages', 'api');
     const home = join(root, 'home');
+    writeFile(join(root, 'workspace', '.git'), 'gitdir: .git/worktrees/api');
     writeFile(join(home, '.codex', 'AGENTS.override.md'), 'Global override instructions.');
     writeFile(join(home, '.codex', 'AGENTS.md'), 'Global base should be hidden.');
     writeFile(join(root, 'workspace', 'AGENTS.md'), 'Workspace root instructions.');
@@ -111,6 +112,60 @@ describe('scanCodexContextEntries', () => {
     ]));
   });
 
+  it('honors path selectors that target the resolved destination of a symlinked skill', async () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const sourceSkill = join(root, 'source-skills', 'linked-helper', 'SKILL.md');
+    const linkedSkillDir = join(home, '.agents', 'skills', 'linked-helper');
+    writeFile(sourceSkill, ['---', 'name: linked-helper', 'description: Symlinked test skill.', '---'].join('\n'));
+    mkdirSync(dirname(linkedSkillDir), { recursive: true });
+    symlinkSync(dirname(sourceSkill), linkedSkillDir);
+    writeFile(join(home, '.codex', 'config.toml'), [
+      '[[skills.config]]',
+      `path = ${JSON.stringify(sourceSkill)}`,
+      'enabled = false',
+    ].join('\n'));
+
+    const hidden = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'skill' });
+    const visible = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'skill', includeDisabled: true });
+
+    expect(hidden).toHaveLength(0);
+    expect(visible).toEqual([
+      expect.objectContaining({
+        sourcePath: join(linkedSkillDir, 'SKILL.md'),
+        context: expect.objectContaining({ enabled: false }),
+      }),
+    ]);
+  });
+
+  it('lets a project skill selector override the user-level selector for the same candidate', async () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const skillPath = join(home, '.codex', 'skills', 'review-helper', 'SKILL.md');
+    writeFile(skillPath, ['---', 'name: review-helper', 'description: Test skill.', '---'].join('\n'));
+    writeFile(join(home, '.codex', 'config.toml'), [
+      '[[skills.config]]',
+      'name = "review-helper"',
+      'enabled = false',
+    ].join('\n'));
+    writeFile(join(cwd, '.codex', 'config.toml'), [
+      '[[skills.config]]',
+      'name = "review-helper"',
+      'enabled = true',
+    ].join('\n'));
+
+    const entries = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'skill' });
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        sourcePath: skillPath,
+        context: expect.objectContaining({ enabled: true }),
+      }),
+    ]);
+  });
+
   it('discovers plugin skills and honors plugin enabled state', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
@@ -139,6 +194,84 @@ describe('scanCodexContextEntries', () => {
         controlMethod: 'plugins.notes@example.enabled',
       }),
     }));
+  });
+
+  it('honors disabled skill selectors for enabled plugins', async () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', '.codex-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'notes', skills: './skills/' }),
+    );
+    writeFile(
+      join(home, '.codex', 'plugins', 'notes', 'skills', 'note-helper', 'SKILL.md'),
+      ['---', 'name: note-helper', 'description: Help with notes.', '---', '', '# Note Helper'].join('\n'),
+    );
+    writeFile(join(home, '.codex', 'config.toml'), [
+      '[plugins."notes@example"]',
+      'enabled = true',
+      '',
+      '[[skills.config]]',
+      'name = "notes:note-helper"',
+      'enabled = false',
+    ].join('\n'));
+
+    const hidden = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'plugin' });
+    const visible = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'plugin', includeDisabled: true });
+
+    expect(hidden).toHaveLength(0);
+    expect(visible).toEqual([
+      expect.objectContaining({
+        id: 'codex:plugin:notes@example:skill:note-helper',
+        context: expect.objectContaining({ enabled: false }),
+      }),
+    ]);
+  });
+
+  it('applies project MCP enabled overrides to matching global servers', async () => {
+    const root = tempRoot();
+    const workspace = join(root, 'workspace');
+    const cwd = join(workspace, 'packages', 'api');
+    const home = join(root, 'home');
+    writeFile(join(workspace, '.git'), 'gitdir: .git/worktrees/api');
+    writeFile(join(home, '.codex', 'config.toml'), [
+      '[mcp_servers.node_repl]',
+      'command = "node"',
+      'args = ["server.js"]',
+    ].join('\n'));
+    writeFile(join(workspace, '.codex', 'config.toml'), [
+      '[mcp_servers.node_repl]',
+      'enabled = false',
+      'instructions = "Project-local instructions."',
+      'enabled_tools = ["evaluate"]',
+      'startup_timeout_sec = 60',
+    ].join('\n'));
+
+    const hidden = await scanCodexContextEntries(cwd, {
+      homeDir: home,
+      resource: 'mcp',
+      discoverMcpTools: false,
+    });
+    const visible = await scanCodexContextEntries(cwd, {
+      homeDir: home,
+      resource: 'mcp',
+      includeDisabled: true,
+      discoverMcpTools: false,
+    });
+
+    expect(hidden).toHaveLength(0);
+    expect(visible).toEqual([
+      expect.objectContaining({
+        id: 'codex:mcp:node_repl',
+        sourcePath: join(workspace, '.codex', 'config.toml'),
+        enabled: false,
+        instructions: 'Project-local instructions.',
+        toolAllowlist: ['evaluate'],
+        timeoutMs: 60,
+        context: expect.objectContaining({ enabled: false }),
+      }),
+    ]);
   });
 
   it('discovers plugin MCP servers from manifests and reports them with plugin metadata', async () => {

@@ -493,6 +493,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       tokenizer,
       ...(tokenizerModel ? { tokenizerModel } : {}),
       projectPath: projectDir,
+      scope,
     }));
 
     if (jsonOutput) {

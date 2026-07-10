@@ -171,6 +171,8 @@ skill-doctor cost --platform codex --resource memory
 skill-doctor cost --platform codex --include-disabled   # 单独显示已禁用资源的成本
 ```
 
+不传 `--scope` 时，`cost` 使用 `all` 范围：当前项目资源加上已启用的用户/全局资源。例如，`~/.codex/plugins/` 下 plugin 的已启用 skill 会以 `scope: global` 出现，因为它会影响所有 Codex 项目；`[[skills.config]]` 选择器仍可单独禁用 plugin skill。使用 `--scope project` 可只查看当前项目配置的文件。
+
 Codex 报告中的 `Estimated token tax` 只计算当前启用的上下文。加上 `--include-disabled` 后，已禁用资源会出现在明细里，并汇总到 `Disabled token tax (not counted)`，但不会增加当前启用的总成本。
 
 Codex 控制能力：

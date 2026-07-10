@@ -79,6 +79,7 @@ export interface ContextCostSummary {
   totalEstimatedTokens: number;
   disabledEstimatedTokens?: number;
   budgetTokens: number;
+  scope?: Scope | 'all';
   grade: ContextCostGrade;
   overBudget: boolean;
   scanned: number;
