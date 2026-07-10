@@ -213,6 +213,8 @@ describe('renderers', () => {
     expect(output).toContain('skill: 120 tokens/turn (1 active)');
     expect(output).toContain('plugin: 0 tokens/turn (0 active)  disabled: 1 (40 tokens)');
     expect(output).toContain('Disabled token tax (not counted): 40 tokens/turn');
+    expect(output).toContain('platform: codex  scope: global  resource: plugin');
+    expect(output).not.toContain('source: plugin  resource: plugin');
   });
 
   it('renders a single skill detail card', () => {

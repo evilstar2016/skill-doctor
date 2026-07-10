@@ -19,7 +19,7 @@ export function renderContextCost(result: ContextCostResult): string {
       ? ['- none']
       : items.flatMap((item) => [
           `- ${item.name}`,
-          `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}${item.source ? `  source: ${item.source}` : ''}${item.resource ? `  resource: ${item.resource}` : ''}`,
+          `  tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}${formatSourceResource(item)}`,
           `  kind: ${item.kind}  activation: ${item.activation}  budget: ${item.budgetScope}`,
           `  activation tokens: ${item.activationEstimatedTokens}  confidence: ${item.confidence}${item.enabled === false ? '  disabled' : ''}`,
           item.id ? `  id: ${item.id}` : '',
@@ -54,6 +54,13 @@ function formatTokenizer(tokenizer: ContextCostResult['summary']['tokenizer']): 
     tokenizer.encoding ? `encoding=${tokenizer.encoding}` : '',
     tokenizer.fallback ? 'fallback=true' : '',
   ].filter(Boolean).join(' ');
+}
+
+function formatSourceResource(item: ContextCostResult['items'][number]): string {
+  if (item.source && item.resource && item.source === item.resource) {
+    return `  resource: ${item.resource}`;
+  }
+  return `${item.source ? `  source: ${item.source}` : ''}${item.resource ? `  resource: ${item.resource}` : ''}`;
 }
 
 function buildCodexResourceLines(items: ContextCostResult['items']): string[] {
