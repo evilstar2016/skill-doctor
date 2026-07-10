@@ -1483,6 +1483,25 @@ describe('CLI integration — context cost', () => {
     expect(result.stdout).toContain(`aliases: ${aliases}`);
   });
 
+  it('cost and context subcommand help does not run a context scan', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const costHelp = runCli(['cost', '--help'], cwd, home);
+    const contextHelp = runCli(['context', '--help'], cwd, home);
+
+    expect(costHelp.status).toBe(0);
+    expect(costHelp.stdout).toContain('Usage:');
+    expect(costHelp.stdout).toContain('--include-disabled');
+    expect(costHelp.stdout).not.toContain('CONTEXT COST REPORT');
+    expect(contextHelp.status).toBe(0);
+    expect(contextHelp.stdout).toContain('skill-doctor context enable|disable');
+    expect(contextHelp.stdout).not.toContain('CONTEXT COST REPORT');
+  });
+
   it('cost reports estimated token tax for Claude skills and always-on files', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

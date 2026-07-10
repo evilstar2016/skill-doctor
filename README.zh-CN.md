@@ -140,20 +140,56 @@ skill-doctor cost --platform codex
 skill-doctor cost claudecode
 skill-doctor cost --source skill
 skill-doctor cost --source mcp
+skill-doctor cost --platform codex --scope project
+skill-doctor cost --platform codex --scope global
 skill-doctor cost --platform codex --resource plugin --include-disabled
 skill-doctor cost --platform codex --codex-config ./codex-config.json
 skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
+skill-doctor context disable --id codex:mcp:github:tool:search_repositories --platform codex
 skill-doctor cost --budget-tokens 2000 --fail-on-budget
 skill-doctor context --json
 ```
 
 对 Claude Code skills，`cost` 估算始终注入的 name、description、trigger 元数据，而不是完整 skill 正文。对 `AGENTS.md` 这类 always-on 文件，它会估算本地文件内容。
 
-`--source skill|mcp|all` 可以选择只统计 skills/rules/instruction/prompt files、只统计 MCP 工具列表，或两者都统计。Copilot 模式会覆盖 `.github/copilot-instructions.md`、`.github/instructions/**/*.instructions.md`、`.github/prompts/**/*.prompt.md`、Copilot skills、`AGENTS.md` 以及 `.vscode/mcp.json`/`.github/mcp.json` 中的 MCP。MCP 模式会先读取本地配置，再尝试访问每个 MCP server：HTTP 服务会通过配置 URL 调用，stdio 服务会按配置命令启动，并调用 `tools/list` 读取工具名称、说明和 schema 后估算 token。如果服务不可访问或无法启动，报告会保留一个 0 token 的 MCP 项，并在修复建议里提示失败原因。
+`--source skill|mcp|all` 可以选择只统计 skills/rules/instruction/prompt files、只统计 MCP 工具列表，或两者都统计。Copilot 模式会覆盖 `.github/copilot-instructions.md`、`.github/instructions/**/*.instructions.md`、`.github/prompts/**/*.prompt.md`、Copilot skills、`AGENTS.md` 以及 `.vscode/mcp.json`/`.github/mcp.json` 中的 MCP。MCP 模式会先读取本地配置，再尝试访问每个 MCP server：HTTP 服务会通过配置 URL 调用，stdio 服务会按配置命令启动，并调用 `tools/list` 读取工具名称、说明和 schema 后估算 token。如果服务不可访问或无法启动，报告会保留一个 0 token 的 MCP 项，并在修复建议里提示失败原因。MCP 工具数量是一次 live preview，不保证下一次 Agent 会话看到的 runtime 工具完全一致。
 
 Codex 模式使用独立配置驱动。内置默认值在 `src/platforms/codex-config.json`，覆盖当前 Codex 的 `AGENTS.md`、skills、plugins、MCP 配置和 memories 位置。高级用户可以用 `~/.skill-doctor/codex-config.json` 追加或覆盖路径，也可以临时传 `--codex-config <path>`。数组按 `id` 合并：同 id 覆盖内置项，新 id 追加，`enabled: false` 禁用该扫描源。
 
-Codex 可用 `--resource all|agents|skill|mcp|plugin|memory` 过滤资源。`context enable|disable` 只写项目 `.codex/config.toml`，支持 skill、MCP server 和 plugin。`AGENTS.md` 与 memories 在 v1 只报告成本和建议，不自动禁用。
+Codex 可用 `--resource all|agents|skill|mcp|plugin|memory` 过滤资源：
+
+```bash
+skill-doctor cost --platform codex --scope project      # 预览项目启动上下文
+skill-doctor cost --platform codex --scope global       # 预览用户空间启动上下文
+skill-doctor cost --platform codex --resource agents
+skill-doctor cost --platform codex --resource skill
+skill-doctor cost --platform codex --resource mcp
+skill-doctor cost --platform codex --resource plugin
+skill-doctor cost --platform codex --resource memory
+skill-doctor cost --platform codex --include-disabled   # 单独显示已禁用资源的成本
+```
+
+Codex 报告中的 `Estimated token tax` 只计算当前启用的上下文。加上 `--include-disabled` 后，已禁用资源会出现在明细里，并汇总到 `Disabled token tax (not counted)`，但不会增加当前启用的总成本。
+
+Codex 控制能力：
+
+| 资源 | 成本预览 | 自动启用/禁用 | 写入位置 |
+|------|----------|---------------|----------|
+| Skills | 启动时的 skill 元数据和 activation-risk 文本 | 支持 | `[[skills.config]]` 的 `path` 和 `enabled` |
+| MCP servers | server 配置，以及可访问时的 live `tools/list` | 支持 | `[mcp_servers.<name>] enabled` |
+| MCP tools | 可控 MCP server 下的单个 live tool | 支持 | `[mcp_servers.<name>]` 的 `enabled_tools` / `disabled_tools` |
+| Plugins | plugin 提供的 skills 和 MCP tools | 支持，按 plugin 级别控制 | `[plugins."<id>"] enabled` |
+| `AGENTS.md` 文件 | 项目和用户空间 always-on 指导文件 | 不支持 | 标记为 `unsupported`；需要手动编辑或移动文件 |
+| Memories | memory 存在状态，以及可近似读取时的文本 | 不支持 | 标记为 `memory-context-unknown`；需要手动改 Codex memory 设置/配置 |
+
+`context enable|disable` 只写入配置中的项目级 Codex 控制文件，通常是 `.codex/config.toml`；它不会编辑全局 `~/.codex/config.toml`、plugin manifest、skill 文件、`AGENTS.md` 或 memory 存储。支持自动切换的资源会返回 `requiresNewSession: true`；需要新建 Codex session 或重启 Codex 后，runtime context 才会体现变化。
+
+估算限制：
+
+- token 估算使用 `chars / 4`，适合做预算和排序，不等同于精确计费。
+- live MCP 检查依赖当前 server 可访问，并且 `tools/list` 返回的工具与之后 Codex runtime 看到的一致。
+- runtime dynamic context 仍可能在启动后增加或减少 instructions、tool schemas、memories 或 plugin 内容。
+- Memories 可能显示为 `memory-context-unknown`，因为 Codex memory storage 会影响未来会话，但不一定暴露可确定的注入文本给 preview。
 
 ### `dashboard`
 

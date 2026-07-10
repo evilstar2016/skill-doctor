@@ -79,6 +79,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (hasFlag(rest, '--help') || hasFlag(rest, '-h')) {
+    process.stdout.write(getHelpText());
+    return;
+  }
+
   if (command === 'scan') {
     const scope = readScope(rest);
     const groupMode = hasFlag(rest, '--group');

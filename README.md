@@ -296,9 +296,12 @@ skill-doctor cost --scope project         # project entries only
 skill-doctor cost --scope global          # global/system entries only
 skill-doctor cost --source skill          # skills/rules/instruction files only
 skill-doctor cost --source mcp            # MCP tools/list budget only
+skill-doctor cost --platform codex --scope project
+skill-doctor cost --platform codex --scope global
 skill-doctor cost --platform codex --resource plugin --include-disabled
 skill-doctor cost --platform codex --codex-config ./codex-config.json
 skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
+skill-doctor context disable --id codex:mcp:github:tool:search_repositories --platform codex
 skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
 skill-doctor context --json
 ```
@@ -323,21 +326,44 @@ npm run dev -- cost --platform codex
 
 This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
 
-MCP cost mode reads local config files, then tries to inspect each configured MCP server. HTTP servers are contacted through their configured URL; stdio servers are started with their configured command and queried with `tools/list`. If a server cannot be reached or started, the report keeps a zero-token MCP item with a fix message explaining the failure.
+MCP cost mode reads local config files, then tries to inspect each configured MCP server. HTTP servers are contacted through their configured URL; stdio servers are started with their configured command and queried with `tools/list`. If a server cannot be reached or started, the report keeps a zero-token MCP item with a fix message explaining the failure. MCP tool counts are a live preview, not a guarantee that every runtime tool will be present in the next agent session.
 
-Codex cost mode is configuration-driven. The built-in defaults live in `src/platforms/codex-config.json` and cover current Codex locations for `AGENTS.md`, skills, plugins, MCP config, and memories. Advanced users can add or override paths with `~/.skill-doctor/codex-config.json`, or pass a one-off file with `--codex-config <path>`. Arrays merge by `id`: matching ids override built-ins, new ids append, and `enabled: false` disables a scan source.
+Codex cost mode is configuration-driven. The built-in defaults live in `src/platforms/codex-config.json` and cover current Codex locations for `AGENTS.md`, skills, plugins, MCP config, and memories. Advanced users can add or override preview paths with `~/.skill-doctor/codex-config.json`, or pass a one-off file with `--codex-config <path>`. Arrays merge by `id`: matching ids override built-ins, new ids append, and `enabled: false` disables a scan source.
 
 Codex resource filters:
 
 ```bash
+skill-doctor cost --platform codex --scope project      # project startup context preview
+skill-doctor cost --platform codex --scope global       # user-space startup context preview
 skill-doctor cost --platform codex --resource agents
 skill-doctor cost --platform codex --resource skill
 skill-doctor cost --platform codex --resource mcp
 skill-doctor cost --platform codex --resource plugin
 skill-doctor cost --platform codex --resource memory
+skill-doctor cost --platform codex --include-disabled   # show disabled tax separately
 ```
 
-`context enable|disable` writes only project-local `.codex/config.toml`. It supports skills (`[[skills.config]]`), MCP servers (`[mcp_servers.<name>] enabled`), and plugins (`[plugins."<id>"] enabled`). `AGENTS.md` and memories are reported but not automatically disabled in v1; the report marks them as not controllable and suggests manual cleanup or Codex settings changes.
+The Codex report includes active context in `Estimated token tax`. When `--include-disabled` is set, disabled resources are shown in the item list and summarized as `Disabled token tax (not counted)`, but they do not increase the active total.
+
+Codex controls:
+
+| Resource | Cost preview | Automatic enable/disable | Written control |
+|----------|--------------|--------------------------|-----------------|
+| Skills | Startup skill metadata plus activation-risk text | Yes | `[[skills.config]]` with `path` and `enabled` |
+| MCP servers | Server config plus live `tools/list` when reachable | Yes | `[mcp_servers.<name>] enabled` |
+| MCP tools | Individual live tools under a controllable MCP server | Yes | `enabled_tools` / `disabled_tools` on `[mcp_servers.<name>]` |
+| Plugins | Plugin-contributed skills and MCP tools | Yes, at plugin level | `[plugins."<id>"] enabled` |
+| `AGENTS.md` files | Always-on project and user guidance files | No | Reported as `unsupported`; edit or move the file manually |
+| Memories | Memory presence and approximate text when available | No | Reported as `memory-context-unknown`; change Codex memory settings/config manually |
+
+`context enable|disable` writes only the configured project Codex control file, normally `.codex/config.toml`; it does not edit global `~/.codex/config.toml`, plugin manifests, skill files, `AGENTS.md`, or memory storage. Supported toggles return `requiresNewSession: true`; start a new Codex session or restart Codex before expecting the change to affect runtime context.
+
+Estimate limitations:
+
+- Token estimates use `chars / 4`, so use them for budgeting and ranking, not exact billing.
+- Live MCP inspection depends on the current server being reachable and on `tools/list` returning the same tools Codex will see later.
+- Runtime dynamic context can still add or remove instructions, tool schemas, memories, or plugin content after startup.
+- Memories may appear as `memory-context-unknown` because Codex memory storage can affect future sessions without exposing deterministic injected text to this preview.
 
 ### `diff`
 
