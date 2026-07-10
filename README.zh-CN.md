@@ -146,6 +146,8 @@ skill-doctor cost --platform codex --resource plugin --include-disabled
 skill-doctor cost --platform codex --codex-config ./codex-config.json
 skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
 skill-doctor context disable --id codex:mcp:github:tool:search_repositories --platform codex
+skill-doctor cost --tokenizer approx       # 使用旧版 chars / 4 估算
+skill-doctor cost --tokenizer openai --tokenizer-model gpt-4o
 skill-doctor cost --budget-tokens 2000 --fail-on-budget
 skill-doctor context --json
 ```
@@ -186,7 +188,7 @@ Codex 控制能力：
 
 估算限制：
 
-- token 估算使用 `chars / 4`，适合做预算和排序，不等同于精确计费。
+- token 估算默认使用 OpenAI tokenizer（`--tokenizer openai --tokenizer-model gpt-4o`），报告会显示 tokenizer 元数据。需要旧版 `chars / 4` 估算时使用 `--tokenizer approx`。非 OpenAI agent 的数字仍是预算估算，不代表对应平台的官方计费。
 - live MCP 检查依赖当前 server 可访问，并且 `tools/list` 返回的工具与之后 Codex runtime 看到的一致。
 - runtime dynamic context 仍可能在启动后增加或减少 instructions、tool schemas、memories 或 plugin 内容。
 - Memories 可能显示为 `memory-context-unknown`，因为 Codex memory storage 会影响未来会话，但不一定暴露可确定的注入文本给 preview。

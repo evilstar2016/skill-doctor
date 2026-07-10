@@ -1518,6 +1518,7 @@ describe('CLI integration — context cost', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('CONTEXT COST REPORT');
     expect(result.stdout).toContain('Estimated token tax:');
+    expect(result.stdout).toContain('Tokenizer: openai model=gpt-4o encoding=o200k_base');
     expect(result.stdout).toContain('review-helper');
     expect(result.stdout).toContain('AGENTS.md');
   });
@@ -1537,6 +1538,11 @@ describe('CLI integration — context cost', () => {
 
     expect(result.status).toBe(0);
     expect(payload.summary.budgetTokens).toBe(1000);
+    expect(payload.summary.tokenizer).toEqual({
+      mode: 'openai',
+      model: 'gpt-4o',
+      encoding: 'o200k_base',
+    });
     expect(payload.summary.grade).toMatch(/^[ABCDF]$/);
     expect(payload.summary.projectPath).toBe(realpathSync(cwd));
     expect(payload.summary.byPlatform).toEqual(expect.arrayContaining([
@@ -1544,6 +1550,51 @@ describe('CLI integration — context cost', () => {
       expect.objectContaining({ platform: 'copilot', items: 1 }),
     ]));
     expect(payload.items[0].kind).toBe('claude-skill-description');
+  });
+
+  it('cost --json supports approximate token estimates', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, 'AGENTS.md'), 'Always follow this project instruction. '.repeat(10));
+
+    const result = runCli(['cost', '--tokenizer', 'approx', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.tokenizer).toEqual({ mode: 'approx' });
+  });
+
+  it('cost --json supports explicit OpenAI tokenizer models', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, 'AGENTS.md'), 'Always follow this project instruction. '.repeat(10));
+
+    const result = runCli(['cost', '--tokenizer', 'openai', '--tokenizer-model', 'gpt-4o', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.summary.tokenizer).toEqual({
+      mode: 'openai',
+      model: 'gpt-4o',
+      encoding: 'o200k_base',
+    });
+  });
+
+  it('cost rejects invalid tokenizer values', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['cost', '--tokenizer', 'exact'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid tokenizer. Use --tokenizer openai|approx');
   });
 
   it('cost defaults to current project plus global agent scope', () => {

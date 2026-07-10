@@ -32,6 +32,7 @@ export function renderContextCost(result: ContextCostResult): string {
     'CONTEXT COST REPORT',
     ...(summary.projectPath ? [`Project: ${summary.projectPath}`] : []),
     `Estimated token tax: ${summary.totalEstimatedTokens} tokens/turn`,
+    `Tokenizer: ${formatTokenizer(summary.tokenizer)}`,
     ...(summary.disabledEstimatedTokens ? [`Disabled token tax (not counted): ${summary.disabledEstimatedTokens} tokens/turn`] : []),
     `Budget: ${summary.budgetTokens} tokens/turn`,
     `Grade: ${summary.grade} (${status})`,
@@ -44,6 +45,15 @@ export function renderContextCost(result: ContextCostResult): string {
     'Highest cost items:',
     ...itemLines,
   ].join('\n');
+}
+
+function formatTokenizer(tokenizer: ContextCostResult['summary']['tokenizer']): string {
+  return [
+    tokenizer.mode,
+    tokenizer.model ? `model=${tokenizer.model}` : '',
+    tokenizer.encoding ? `encoding=${tokenizer.encoding}` : '',
+    tokenizer.fallback ? 'fallback=true' : '',
+  ].filter(Boolean).join(' ');
 }
 
 function buildCodexResourceLines(items: ContextCostResult['items']): string[] {

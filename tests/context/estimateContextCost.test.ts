@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { buildMcpConfigText, estimateContextCost, estimateTokens } from '../../src/context/estimateContextCost';
+import { buildMcpConfigText, estimateApproxTokens, estimateContextCost, estimateTokens } from '../../src/context/estimateContextCost';
 import type { McpServerRecord } from '../../src/types/mcp';
 import type { SkillRecord } from '../../src/types/skill';
 
@@ -57,6 +57,65 @@ function makeMcpServer(overrides: Partial<McpServerRecord> = {}): McpServerRecor
 }
 
 describe('estimateContextCost', () => {
+  it('counts tokens with the default OpenAI tokenizer', () => {
+    expect(estimateTokens('hello world')).toBe(2);
+  });
+
+  it('keeps the approximate chars-over-four tokenizer available', () => {
+    expect(estimateApproxTokens('hello world')).toBe(3);
+  });
+
+  it('exposes default OpenAI tokenizer metadata in the cost summary', () => {
+    const result = estimateContextCost([
+      makeSkill({
+        description: 'Use for focused code review.',
+        triggers: [],
+      }),
+    ]);
+
+    expect(result.summary.tokenizer).toEqual({
+      mode: 'openai',
+      model: 'gpt-4o',
+      encoding: 'o200k_base',
+    });
+  });
+
+  it('falls back to o200k_base for unknown OpenAI tokenizer models', () => {
+    const result = estimateContextCost([
+      makeSkill({
+        description: 'Use for focused code review.',
+        triggers: [],
+      }),
+    ], { tokenizerModel: 'unknown-model' });
+
+    expect(result.summary.tokenizer).toEqual({
+      mode: 'openai',
+      model: 'unknown-model',
+      encoding: 'o200k_base',
+      fallback: true,
+    });
+  });
+
+  it('can use approximate token estimates for compatibility', () => {
+    const root = tempRoot();
+    const agentsPath = join(root, 'AGENTS.md');
+    const content = 'Always follow this project rule. '.repeat(8);
+    writeFileSync(agentsPath, content, 'utf8');
+
+    const result = estimateContextCost([
+      makeSkill({
+        sourcePath: agentsPath,
+        platform: 'codex',
+        name: 'AGENTS.md',
+        description: 'Codex instructions',
+        triggers: [],
+      }),
+    ], { tokenizer: 'approx' });
+
+    expect(result.summary.tokenizer).toEqual({ mode: 'approx' });
+    expect(result.items[0]?.estimatedTokens).toBe(estimateApproxTokens(content));
+  });
+
   it('estimates Claude skill token tax from metadata instead of full skill body', () => {
     const root = tempRoot();
     const skillPath = join(root, '.claude', 'skills', 'large-body', 'SKILL.md');
@@ -158,7 +217,7 @@ describe('estimateContextCost', () => {
       name: `codex-helper-${index}`,
       sourcePath: `/fake/.codex/skills/codex-helper-${index}/SKILL.md`,
       platform: 'codex',
-      description: `Use for Codex task ${index}. ${'Detailed metadata. '.repeat(80)}`,
+      description: `Use for Codex task ${index}. ${'Detailed metadata. '.repeat(20)}`,
       triggers: [`task-${index}`],
       context: {
         resource: 'skill',
@@ -187,7 +246,7 @@ describe('estimateContextCost', () => {
       id: 'codex:skill-list:enabled',
       kind: 'codex-skill-list',
       resource: 'skill',
-      estimatedTokens: estimateTokens('x'.repeat(8000)),
+      estimatedTokens: 1000,
       estimatedChars: 8000,
       officialLimit: {
         kind: 'chars',

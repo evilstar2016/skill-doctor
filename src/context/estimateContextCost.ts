@@ -3,6 +3,8 @@ import { basename, dirname, sep } from 'node:path';
 
 import { getPlatformAdapter } from '../platforms/registry';
 import type { PlatformCostPolicyMatch, PlatformCostPolicyProfile } from '../platforms/registry';
+import { createTokenCounter, estimateApproxTokens, estimateTokens, normalizeForTokenEstimate as normalizeForEstimate } from './tokenCounter';
+import type { TokenCounter } from './tokenCounter';
 import type {
   ContextActivation,
   ContextBudgetScope,
@@ -11,6 +13,7 @@ import type {
   ContextCostOfficialLimit,
   ContextCostResult,
   ContextInjectionKind,
+  ContextTokenizerMode,
   ContextResourceRecord,
 } from '../types/context';
 import type { McpServerRecord, McpToolRecord } from '../types/mcp';
@@ -23,6 +26,8 @@ interface EstimateContextCostOptions {
   budgetTokens?: number;
   platformBudgets?: Partial<Record<Platform, number>>;
   projectPath?: string;
+  tokenizer?: ContextTokenizerMode;
+  tokenizerModel?: string;
 }
 
 interface CostProfile {
@@ -40,12 +45,16 @@ export function estimateContextCost(
 ): ContextCostResult {
   const budgetTokens = options.budgetTokens ?? DEFAULT_BUDGET_TOKENS;
   const platformBudgets = options.platformBudgets ?? {};
+  const tokenCounter = createTokenCounter({
+    tokenizer: options.tokenizer,
+    tokenizerModel: options.tokenizerModel,
+  });
   const estimatedEntries = entries
     .map((entry) => {
-      if (isContextResourceRecord(entry)) return estimateContextResourceCost(entry);
-      return isMcpServerRecord(entry) ? estimateMcpServerCost(entry) : estimateSkillCost(entry);
+      if (isContextResourceRecord(entry)) return estimateContextResourceCost(entry, tokenCounter);
+      return isMcpServerRecord(entry) ? estimateMcpServerCost(entry, tokenCounter) : estimateSkillCost(entry, tokenCounter);
     });
-  const items = appendCodexSkillListAggregates(estimatedEntries, options.projectPath)
+  const items = appendCodexSkillListAggregates(estimatedEntries, options.projectPath, tokenCounter)
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -68,13 +77,18 @@ export function estimateContextCost(
       overBudget: totalEstimatedTokens > budgetTokens || byPlatform.some((entry) => entry.overBudget),
       scanned: entries.length,
       ...(options.projectPath ? { projectPath: options.projectPath } : {}),
+      tokenizer: tokenCounter.summary,
       byPlatform,
     },
     items,
   };
 }
 
-function appendCodexSkillListAggregates(items: ContextCostItem[], projectPath: string | undefined): ContextCostItem[] {
+function appendCodexSkillListAggregates(
+  items: ContextCostItem[],
+  projectPath: string | undefined,
+  tokenCounter: TokenCounter,
+): ContextCostItem[] {
   const aggregateItems: ContextCostItem[] = [];
   const groups = new Map<string, ContextCostItem[]>();
 
@@ -92,7 +106,7 @@ function appendCodexSkillListAggregates(items: ContextCostItem[], projectPath: s
       groupItems.reduce((sum, item) => sum + item.estimatedChars, 0),
       CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS,
     );
-    const estimatedTokens = estimateTokens('x'.repeat(estimatedChars));
+    const estimatedTokens = tokenCounter.count('x'.repeat(estimatedChars));
     const sourcePath = projectPath ?? commonParentPath(groupItems.map((item) => item.sourcePath));
 
     aggregateItems.push({
@@ -145,19 +159,15 @@ function codexSkillListOfficialLimit(): ContextCostOfficialLimit {
   };
 }
 
-export function estimateTokens(text: string): number {
-  const normalized = normalizeForEstimate(text);
-  if (!normalized) return 0;
-  return Math.max(1, Math.ceil(normalized.length / 4));
-}
+export { estimateApproxTokens, estimateTokens };
 
-function estimateSkillCost(skill: SkillRecord): ContextCostItem {
+function estimateSkillCost(skill: SkillRecord, tokenCounter: TokenCounter): ContextCostItem {
   const raw = readRawFile(skill.sourcePath);
   const frontmatter = parseFrontmatter(raw ?? '');
   const profile = classifySkillCost(skill, raw, frontmatter);
   const budgetText = applyOfficialBudgetLimit(profile.budgetText, profile.officialLimit);
-  const estimatedTokens = estimateTokens(budgetText);
-  const activationEstimatedTokens = estimateTokens(profile.activationText);
+  const estimatedTokens = tokenCounter.count(budgetText);
+  const activationEstimatedTokens = tokenCounter.count(profile.activationText);
 
   return {
     ...(skill.id ? { id: skill.id } : {}),
@@ -186,9 +196,9 @@ function estimateSkillCost(skill: SkillRecord): ContextCostItem {
   };
 }
 
-function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
+function estimateMcpServerCost(server: McpServerRecord, tokenCounter: TokenCounter): ContextCostItem {
   const text = buildMcpToolListText(server);
-  const estimatedTokens = estimateTokens(text);
+  const estimatedTokens = tokenCounter.count(text);
   const normalizedLength = normalizeForEstimate(text).length;
 
   return {
@@ -217,12 +227,12 @@ function estimateMcpServerCost(server: McpServerRecord): ContextCostItem {
   };
 }
 
-function estimateContextResourceCost(entry: ContextResourceRecord): ContextCostItem {
+function estimateContextResourceCost(entry: ContextResourceRecord, tokenCounter: TokenCounter): ContextCostItem {
   const budgetText = applyOfficialBudgetLimit(entry.text, entry.officialLimit);
   const activationText = entry.activationText ?? entry.text;
-  const estimatedTokens = entry.estimateStatus === 'unknown' ? 0 : estimateTokens(budgetText);
+  const estimatedTokens = entry.estimateStatus === 'unknown' ? 0 : tokenCounter.count(budgetText);
   const estimatedChars = entry.estimateStatus === 'unknown' ? 0 : normalizeForEstimate(budgetText).length;
-  const activationEstimatedTokens = entry.estimateStatus === 'unknown' ? 0 : estimateTokens(activationText);
+  const activationEstimatedTokens = entry.estimateStatus === 'unknown' ? 0 : tokenCounter.count(activationText);
   const activationEstimatedChars = entry.estimateStatus === 'unknown' ? 0 : normalizeForEstimate(activationText).length;
 
   return {
@@ -513,10 +523,6 @@ function stableJson(value: unknown): string {
 function applyOfficialBudgetLimit(text: string, limit: ContextCostOfficialLimit | undefined): string {
   if (!limit || limit.kind !== 'chars' || text.length <= limit.value) return text;
   return text.slice(0, limit.value);
-}
-
-function normalizeForEstimate(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
 }
 
 function summarizeByPlatform(

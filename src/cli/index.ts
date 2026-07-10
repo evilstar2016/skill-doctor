@@ -46,7 +46,7 @@ import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
 import type { AuditFinding } from '../types/audit';
-import type { ContextCostItem, ContextCostResult, ContextResource } from '../types/context';
+import type { ContextCostItem, ContextCostResult, ContextResource, ContextTokenizerMode } from '../types/context';
 import type {
   ConflictDetectionOptions,
   ConflictDetectionStrategy,
@@ -408,6 +408,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const resource = readCodexResource(rest);
     const budgetTokens = readBudgetTokens(rest);
     const platformBudgets = readPlatformBudgets(rest);
+    const tokenizer = readTokenizer(rest);
+    const tokenizerModel = readFlagValue(rest, '--tokenizer-model');
     const projectDir = readCostProjectDir(rest, cwd, implicitPlatform);
     const codexConfigPath = readFlagValue(rest, '--codex-config');
     const includeDisabled = hasFlag(rest, '--include-disabled');
@@ -448,8 +450,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
+    if (tokenizer === 'invalid') {
+      process.stderr.write('Invalid tokenizer. Use --tokenizer openai|approx\n');
+      process.exitCode = 1;
+      return;
+    }
+
     if (projectDir === 'invalid') {
-      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--source skill|mcp|all] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
+      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--source skill|mcp|all] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
       process.exitCode = 1;
       return;
     }
@@ -482,6 +490,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const result = addCodexResourceGroups(estimateContextCost(entries, {
       ...(budgetTokens === null ? {} : { budgetTokens }),
       ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
+      tokenizer,
+      ...(tokenizerModel ? { tokenizerModel } : {}),
       projectPath: projectDir,
     }));
 
@@ -739,8 +749,8 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
-    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
@@ -936,7 +946,7 @@ function readScope(args: string[], defaultScope: Scope | 'all' = 'all'): Scope |
 
 function readCostProjectDir(args: string[], cwd: string, implicitPlatform: Platform | null = null): string | 'invalid' {
   const positionals: string[] = [];
-  const valueFlags = new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source', '--resource', '--codex-config', '--id']);
+  const valueFlags = costValueFlags();
 
   for (const arg of readPositionals(args, valueFlags)) {
     if (implicitPlatform !== null && normalizePlatformInput(arg) === implicitPlatform && !existsSync(resolve(cwd, arg))) {
@@ -985,7 +995,7 @@ function readPlatform(args: string[]): Platform | null | 'invalid' {
 }
 
 function readImplicitCostPlatform(args: string[], cwd: string): Platform | null {
-  const positionals = readPositionals(args, new Set(['--scope', '--budget-tokens', '--platform', '--platform-budget', '--source', '--resource', '--codex-config', '--id']));
+  const positionals = readPositionals(args, costValueFlags());
   const candidate = positionals[0];
   const platform = normalizePlatformInput(candidate);
 
@@ -1000,8 +1010,34 @@ function readImplicitCostPlatform(args: string[], cwd: string): Platform | null 
   return platform;
 }
 
+function costValueFlags(): Set<string> {
+  return new Set([
+    '--scope',
+    '--budget-tokens',
+    '--platform',
+    '--platform-budget',
+    '--source',
+    '--resource',
+    '--codex-config',
+    '--id',
+    '--tokenizer',
+    '--tokenizer-model',
+  ]);
+}
+
 function normalizePlatformInput(value: string | undefined): Platform | null {
   return normalizePlatformName(value);
+}
+
+function readTokenizer(args: string[]): ContextTokenizerMode | 'invalid' {
+  const index = args.indexOf('--tokenizer');
+
+  if (index === -1) {
+    return 'openai';
+  }
+
+  const value = args[index + 1];
+  return value === 'openai' || value === 'approx' ? value : 'invalid';
 }
 
 function readCostSource(args: string[]): CostSourceFilter | 'invalid' {

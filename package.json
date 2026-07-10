@@ -54,5 +54,8 @@
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^3.1.4"
+  },
+  "dependencies": {
+    "js-tiktoken": "^1.0.21"
   }
 }

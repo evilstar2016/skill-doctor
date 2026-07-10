@@ -99,6 +99,7 @@ describe('renderers', () => {
         overBudget: false,
         scanned: 1,
         projectPath: 'E:/project',
+        tokenizer: { mode: 'approx' },
         byPlatform: [
           {
             platform: 'claude',
@@ -125,6 +126,7 @@ describe('renderers', () => {
     expect(output).toContain('CONTEXT COST REPORT');
     expect(output).toContain('Project: E:/project');
     expect(output).toContain('Estimated token tax: 240 tokens/turn');
+    expect(output).toContain('Tokenizer: approx');
     expect(output).toContain('Grade: A');
     expect(output).toContain('By coding agent:');
     expect(output).toContain('claude: 240 tokens/turn (1 items)');
@@ -141,6 +143,7 @@ describe('renderers', () => {
         grade: 'A',
         overBudget: false,
         scanned: 2,
+        tokenizer: { mode: 'openai', model: 'gpt-4o', encoding: 'o200k_base' },
         byPlatform: [
           {
             platform: 'codex',

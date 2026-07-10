@@ -302,6 +302,8 @@ skill-doctor cost --platform codex --resource plugin --include-disabled
 skill-doctor cost --platform codex --codex-config ./codex-config.json
 skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
 skill-doctor context disable --id codex:mcp:github:tool:search_repositories --platform codex
+skill-doctor cost --tokenizer approx       # use legacy chars / 4 estimates
+skill-doctor cost --tokenizer openai --tokenizer-model gpt-4o
 skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budget (CI)
 skill-doctor context --json
 ```
@@ -360,7 +362,7 @@ Codex controls:
 
 Estimate limitations:
 
-- Token estimates use `chars / 4`, so use them for budgeting and ranking, not exact billing.
+- Token estimates use the OpenAI tokenizer by default (`--tokenizer openai --tokenizer-model gpt-4o`) and reports include the tokenizer metadata. Use `--tokenizer approx` for the legacy `chars / 4` estimate. Non-OpenAI agent totals are still budgeting estimates, not official billing.
 - Live MCP inspection depends on the current server being reachable and on `tools/list` returning the same tools Codex will see later.
 - Runtime dynamic context can still add or remove instructions, tool schemas, memories, or plugin content after startup.
 - Memories may appear as `memory-context-unknown` because Codex memory storage can affect future sessions without exposing deterministic injected text to this preview.

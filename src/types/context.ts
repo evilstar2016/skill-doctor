@@ -4,6 +4,14 @@ export type ContextCostGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 export type ContextCostSource = 'skill' | 'mcp' | 'agents' | 'plugin' | 'memory';
 export type ContextResource = 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
 export type ContextEstimateStatus = 'estimated' | 'unknown' | 'unsupported';
+export type ContextTokenizerMode = 'openai' | 'approx';
+
+export interface ContextTokenizerSummary {
+  mode: ContextTokenizerMode;
+  model?: string;
+  encoding?: string;
+  fallback?: boolean;
+}
 
 export type ContextInjectionKind =
   | 'claude-skill-description'
@@ -75,6 +83,7 @@ export interface ContextCostSummary {
   overBudget: boolean;
   scanned: number;
   projectPath?: string;
+  tokenizer: ContextTokenizerSummary;
   byPlatform: ContextCostPlatformSummary[];
 }
 
