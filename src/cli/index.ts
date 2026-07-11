@@ -15,6 +15,7 @@ import { toggleCodexResource } from '../context/codexControls';
 import type { CodexResourceFilter } from '../context/codexContextConfig';
 import { estimateContextCost } from '../context/estimateContextCost';
 import { scanCodexContextEntries } from '../context/scanCodexContext';
+import { scanCodexPluginCache } from '../context/scanCodexPluginCache';
 import { scanSkills } from '../discovery/scanSkills';
 import { buildExplanation } from '../explain/buildExplanation';
 import { groupSkills } from '../explain/groupSkills';
@@ -413,6 +414,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const projectDir = readCostProjectDir(rest, cwd, implicitPlatform);
     const codexConfigPath = readFlagValue(rest, '--codex-config');
     const includeDisabled = hasFlag(rest, '--include-disabled');
+    const includeCache = hasFlag(rest, '--include-cache');
 
     if (scope === 'invalid') {
       process.stderr.write('Invalid scope. Use --scope project|global|all\n');
@@ -434,6 +436,18 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     if (resource === 'invalid') {
       process.stderr.write('Invalid resource. Use --resource all|agents|skill|mcp|plugin|memory\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    if (includeCache && platform !== null && platform !== 'codex') {
+      process.stderr.write('--include-cache supports Codex only. Use --platform codex.\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    if (includeCache && resource !== null && resource !== 'all' && resource !== 'plugin') {
+      process.stderr.write('--include-cache requires --resource all or --resource plugin.\n');
       process.exitCode = 1;
       return;
     }
@@ -487,7 +501,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
                 filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
               )),
         ];
-    const result = addCodexResourceGroups(estimateContextCost(entries, {
+    let result = addCodexResourceGroups(estimateContextCost(entries, {
       ...(budgetTokens === null ? {} : { budgetTokens }),
       ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
       tokenizer,
@@ -495,6 +509,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       projectPath: projectDir,
       scope,
     }));
+
+    if (includeCache && (resource === null || resource === 'all' || resource === 'plugin')) {
+      result = {
+        ...result,
+        catalog: scanCodexPluginCache(),
+      };
+    }
 
     if (jsonOutput) {
       process.stdout.write(`${toJson(result)}\n`);
@@ -750,8 +771,8 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
-    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',

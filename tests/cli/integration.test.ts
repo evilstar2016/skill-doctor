@@ -1870,6 +1870,74 @@ describe('CLI integration — context cost', () => {
     ]));
   });
 
+  it('cost --include-cache inventories cached Codex plugin UI entries without adding token tax', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const pluginRoot = join(
+      home,
+      '.codex',
+      'plugins',
+      'cache',
+      'openai-curated-remote',
+      'openai-templates',
+      '0.1.0',
+    );
+
+    writeFile(join(cwd, '.keep'), '');
+    writeFile(
+      join(pluginRoot, '.codex-plugin', 'plugin.json'),
+      JSON.stringify({
+        name: 'openai-templates',
+        version: '0.1.0',
+        skills: './skills/',
+        interface: { displayName: 'Default templates', shortDescription: 'Default templates' },
+      }),
+    );
+    writeFile(
+      join(pluginRoot, 'skills', 'artifact-template-system-design', 'SKILL.md'),
+      ['---', 'name: artifact-template-system-design', 'description: Routing metadata.', '---'].join('\n'),
+    );
+    writeFile(
+      join(pluginRoot, 'skills', 'artifact-template-system-design', 'agents', 'openai.yaml'),
+      [
+        'interface:',
+        '  display_name: "System Design"',
+        '  short_description: "Create documents with the System Design template"',
+        'policy:',
+        '  allow_implicit_invocation: false',
+      ].join('\n'),
+    );
+
+    const jsonResult = runCli(
+      ['cost', '--platform', 'codex', '--resource', 'plugin', '--include-cache', '--json'],
+      cwd,
+      home,
+    );
+    const payload = JSON.parse(jsonResult.stdout);
+    const textResult = runCli(
+      ['cost', '--platform', 'codex', '--resource', 'plugin', '--include-cache'],
+      cwd,
+      home,
+    );
+
+    expect(jsonResult.status).toBe(0);
+    expect(payload.summary.totalEstimatedTokens).toBe(0);
+    expect(payload.items).toEqual([]);
+    expect(payload.catalog).toEqual(expect.objectContaining({
+      countedInContextCost: false,
+      summary: { plugins: 1, uiEntries: 1, explicitOnlyEntries: 1 },
+    }));
+    expect(payload.catalog.plugins[0].entries[0]).toEqual(expect.objectContaining({
+      displayName: 'System Design',
+      invocation: 'explicit-only',
+      countedInContextCost: false,
+    }));
+    expect(textResult.status).toBe(0);
+    expect(textResult.stdout).toContain('Cached Codex plugin catalog (not counted):');
+    expect(textResult.stdout).toContain('System Design');
+  });
+
   it('cost --platform codex --json groups all Codex resource types with control metadata', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

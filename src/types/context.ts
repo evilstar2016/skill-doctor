@@ -105,6 +105,46 @@ export interface ContextCostResult {
   summary: ContextCostSummary;
   items: ContextCostItem[];
   resources?: Record<ContextResource, ContextCostItem[]>;
+  catalog?: CodexPluginCacheCatalog;
+}
+
+export interface CodexPluginCacheCatalog {
+  cacheRoot: string;
+  status: 'cached';
+  countedInContextCost: false;
+  summary: {
+    plugins: number;
+    uiEntries: number;
+    explicitOnlyEntries: number;
+  };
+  plugins: CodexCachedPlugin[];
+}
+
+export interface CodexCachedPlugin {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  version?: string;
+  cacheSource: string;
+  manifestPath: string;
+  iconPath?: string;
+  status: 'cached';
+  countedInContextCost: false;
+  entries: CodexCachedPluginUiEntry[];
+}
+
+export interface CodexCachedPluginUiEntry {
+  id: string;
+  skillName: string;
+  displayName: string;
+  description: string;
+  sourcePath: string;
+  iconPath?: string;
+  defaultPrompt?: string;
+  invocation: 'implicit' | 'explicit-only' | 'unknown';
+  status: 'cached';
+  countedInContextCost: false;
 }
 
 export interface ContextResourceRecord {

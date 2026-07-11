@@ -2,6 +2,11 @@
 
 All notable changes to `skill-doctor` are documented here.
 
+## Unreleased
+
+- Added `cost --platform codex --resource plugin --include-cache` to inventory cached plugin and Skill UI metadata without adding it to estimated context token tax.
+- Added structured `catalog` JSON output with cache source, display metadata, icon paths, and implicit/explicit invocation policy.
+
 ## 0.3.5 - 2026-07-08
 
 - Fixed GitHub Copilot context cost accounting to include prompt files, nested `AGENTS.md` agent instructions, and multiple nested `.github/instructions/**/*.instructions.md` files.

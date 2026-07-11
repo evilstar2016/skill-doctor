@@ -14,6 +14,7 @@ export function renderContextCost(result: ContextCostResult): string {
           ].join('\n'),
         );
   const codexResourceLines = buildCodexResourceLines(items);
+  const cacheCatalogLines = buildCacheCatalogLines(result.catalog);
   const itemLines =
     items.length === 0
       ? ['- none']
@@ -42,10 +43,39 @@ export function renderContextCost(result: ContextCostResult): string {
     'By coding agent:',
     ...platformLines,
     ...(codexResourceLines.length > 0 ? ['', 'By Codex resource:', ...codexResourceLines] : []),
+    ...(cacheCatalogLines.length > 0 ? ['', ...cacheCatalogLines] : []),
     '',
     'Highest cost items:',
     ...itemLines,
   ].join('\n');
+}
+
+function buildCacheCatalogLines(catalog: ContextCostResult['catalog']): string[] {
+  if (!catalog) return [];
+
+  const pluginLines = catalog.plugins.length === 0
+    ? ['- none']
+    : catalog.plugins.flatMap((plugin) => {
+        const version = plugin.version ? `@${plugin.version}` : '';
+        const header = `- ${plugin.displayName} (${plugin.name}${version}; ${plugin.cacheSource})`;
+        const detail = `  status: cached  context cost: not counted  UI entries: ${plugin.entries.length}`;
+        const path = `  manifest: ${plugin.manifestPath}`;
+        const icon = plugin.iconPath ? `  icon: ${plugin.iconPath}` : '';
+        const entries = plugin.entries.flatMap((entry) => [
+          `  - ${entry.displayName}: ${entry.description || '(no UI description)'}`,
+          `    invocation: ${entry.invocation}  status: cached  context cost: not counted`,
+          entry.iconPath ? `    icon: ${entry.iconPath}` : '',
+          entry.defaultPrompt ? `    entry prompt: ${entry.defaultPrompt}` : '',
+        ].filter(Boolean));
+        return [header, detail, path, icon, ...entries].filter(Boolean);
+      });
+
+  return [
+    'Cached Codex plugin catalog (not counted):',
+    `Cache: ${catalog.cacheRoot}`,
+    `Plugins: ${catalog.summary.plugins}  UI entries: ${catalog.summary.uiEntries}  explicit-only: ${catalog.summary.explicitOnlyEntries}`,
+    ...pluginLines,
+  ];
 }
 
 function formatScope(scope: NonNullable<ContextCostResult['summary']['scope']>): string {

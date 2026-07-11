@@ -219,6 +219,55 @@ describe('renderers', () => {
     expect(output).not.toContain('source: plugin  resource: plugin');
   });
 
+  it('renders cached plugin UI entries separately from context cost', () => {
+    const output = renderContextCost({
+      summary: {
+        totalEstimatedTokens: 0,
+        budgetTokens: 2000,
+        grade: 'A',
+        overBudget: false,
+        scanned: 0,
+        tokenizer: { mode: 'openai' },
+        byPlatform: [],
+      },
+      items: [],
+      catalog: {
+        cacheRoot: '/home/test/.codex/plugins/cache',
+        status: 'cached',
+        countedInContextCost: false,
+        summary: { plugins: 1, uiEntries: 1, explicitOnlyEntries: 1 },
+        plugins: [{
+          id: 'openai-curated-remote:openai-templates@0.1.0',
+          name: 'openai-templates',
+          displayName: 'Default templates',
+          description: 'Default templates',
+          version: '0.1.0',
+          cacheSource: 'openai-curated-remote',
+          manifestPath: '/home/test/.codex/plugins/cache/openai-templates/plugin.json',
+          status: 'cached',
+          countedInContextCost: false,
+          entries: [{
+            id: 'openai-templates:artifact-template-system-design',
+            skillName: 'artifact-template-system-design',
+            displayName: 'System Design',
+            description: 'Create documents with the System Design template',
+            sourcePath: '/home/test/.codex/plugins/cache/openai-templates/openai.yaml',
+            iconPath: '/home/test/.codex/plugins/cache/openai-templates/preview.png',
+            invocation: 'explicit-only',
+            status: 'cached',
+            countedInContextCost: false,
+          }],
+        }],
+      },
+    });
+
+    expect(output).toContain('Estimated token tax: 0 tokens/turn');
+    expect(output).toContain('Cached Codex plugin catalog (not counted):');
+    expect(output).toContain('Default templates (openai-templates@0.1.0; openai-curated-remote)');
+    expect(output).toContain('System Design: Create documents with the System Design template');
+    expect(output).toContain('invocation: explicit-only  status: cached  context cost: not counted');
+  });
+
   it('renders a single skill detail card', () => {
     const output = renderShow(sampleSkill);
 

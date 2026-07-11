@@ -299,6 +299,7 @@ skill-doctor cost --source mcp            # MCP tools/list budget only
 skill-doctor cost --platform codex --scope project
 skill-doctor cost --platform codex --scope global
 skill-doctor cost --platform codex --resource plugin --include-disabled
+skill-doctor cost --platform codex --resource plugin --include-cache
 skill-doctor cost --platform codex --codex-config ./codex-config.json
 skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
 skill-doctor context disable --id codex:mcp:github:tool:search_repositories --platform codex
@@ -343,11 +344,14 @@ skill-doctor cost --platform codex --resource mcp
 skill-doctor cost --platform codex --resource plugin
 skill-doctor cost --platform codex --resource memory
 skill-doctor cost --platform codex --include-disabled   # show disabled tax separately
+skill-doctor cost --platform codex --resource plugin --include-cache  # inventory cached UI entries; zero token tax
 ```
 
 Without `--scope`, `cost` uses `all`: current-project resources plus enabled user/global resources. For example, an enabled skill from a plugin under `~/.codex/plugins/` is reported as `scope: global` because it can affect every Codex project; `[[skills.config]]` selectors still disable individual plugin skills. Use `--scope project` to inspect only files configured in the current project.
 
 The Codex report includes active context in `Estimated token tax`. When `--include-disabled` is set, disabled resources are shown in the item list and summarized as `Disabled token tax (not counted)`, but they do not increase the active total.
+
+`--include-cache` adds a separate inventory of plugin and skill UI metadata found under `~/.codex/plugins/cache`, including display names, descriptions, icon paths, cache provenance, and implicit/explicit invocation policy. Cached catalog entries are marked `cached` and `not counted`; merely appearing in the Codex UI is not treated as evidence that the metadata is injected into model context. The option is available for Codex with `--resource all|plugin`, and the structured inventory is returned as `catalog` in JSON output.
 
 Codex controls:
 
