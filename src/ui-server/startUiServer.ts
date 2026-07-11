@@ -7,6 +7,7 @@ import packageJson from '../../package.json';
 import { executeDuplicateCleanup, exportSnapshotDashboard, getManagedRegistry, getResourceDetail, installManagedSkill, compareResources, uninstallManagedSkill } from '../application/actions';
 import type { HealthCheckOptions } from '../application/types';
 import { loadUserConfig } from '../config/loadUserConfig';
+import { detectAgents } from '../discovery/detectAgents';
 import { toggleCodexResource } from '../context/codexControls';
 import { getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
 import type { Platform, Scope } from '../types/skill';
@@ -92,6 +93,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
       configPath: loaded.path,
       defaultScope: 'all',
       supportedPlatforms: getPlatformCliValues(),
+      detectedAgents: detectAgents(context.projectDir, { homeDir: context.homeDir }),
       capabilities: context.scans.currentSnapshot?.capabilities ?? {
         aiAuditConfigured: Boolean(loaded.config.analysis?.baseUrl && loaded.config.analysis.model),
         embeddingConfigured: Boolean(loaded.config.embedding?.baseUrl && loaded.config.embedding.model),
@@ -108,10 +110,11 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
 
   if (request.method === 'POST' && url.pathname === '/api/scans') {
     const body = await readJsonBody(request);
+    const projectDir = readProjectDir(body.projectDir, context.projectDir);
     const scope = readScope(body.scope);
     const platform = readPlatform(body.platform);
     const scanOptions: HealthCheckOptions = {
-      projectDir: context.projectDir,
+      projectDir,
       scope,
       platform,
       includeContext: body.includeContext !== false,
@@ -127,6 +130,12 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
       homeDir: context.homeDir,
     };
     return sendJson(response, 202, { scanId: context.scans.start(scanOptions) });
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/agents/detect') {
+    const body = await readJsonBody(request);
+    const projectDir = readProjectDir(body.projectDir, context.projectDir);
+    return sendJson(response, 200, { projectDir, agents: detectAgents(projectDir, { homeDir: context.homeDir }) });
   }
 
   const eventMatch = url.pathname.match(/^\/api\/scans\/([^/]+)\/events$/);
@@ -158,12 +167,12 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
   if (request.method === 'POST' && url.pathname === '/api/compare') {
     const snapshot = requireSnapshot(context);
     const body = await readJsonBody(request);
-    return sendJson(response, 200, await compareResources(snapshot, requiredString(body.leftId, 'leftId'), requiredString(body.rightId, 'rightId'), context.projectDir, context.homeDir));
+    return sendJson(response, 200, await compareResources(snapshot, requiredString(body.leftId, 'leftId'), requiredString(body.rightId, 'rightId'), snapshot.target.projectDir, context.homeDir));
   }
 
   if (request.method === 'POST' && url.pathname === '/api/context/toggle') {
     const body = await readJsonBody(request);
-    const result = await toggleCodexResource(context.projectDir, requiredString(body.id, 'id'), body.enabled === true, { homeDir: context.homeDir });
+    const result = await toggleCodexResource(context.scans.currentSnapshot?.target.projectDir ?? context.projectDir, requiredString(body.id, 'id'), body.enabled === true, { homeDir: context.homeDir });
     return sendJson(response, 200, result);
   }
 
@@ -258,6 +267,13 @@ function requireSnapshot(context: ApiContext) {
 function requiredString(value: unknown, name: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required.`);
   return value;
+}
+
+function readProjectDir(value: unknown, fallback: string): string {
+  const projectDir = resolve(typeof value === 'string' && value.trim() ? value.trim() : fallback);
+  if (!existsSync(projectDir)) throw new Error(`项目目录不存在：${projectDir}`);
+  if (!statSync(projectDir).isDirectory()) throw new Error(`项目路径不是目录：${projectDir}`);
+  return projectDir;
 }
 
 function readScope(value: unknown): Scope | 'all' {

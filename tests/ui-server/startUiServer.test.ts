@@ -57,5 +57,35 @@ describe('Skill Doctor UI server', () => {
     expect(snapshot.summary.resources).toBe(1);
     expect(snapshot.summary.security).toBe(1);
   });
-});
 
+  it('detects agents for a selected project and validates scan directories', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const otherProjectDir = join(root, 'other-project');
+    const homeDir = join(root, 'home');
+    const uiDir = join(root, 'ui');
+    writeFile(join(uiDir, 'index.html'), '<div id="root">Skill Doctor</div>');
+    writeFile(join(projectDir, 'AGENTS.md'), '# default');
+    writeFile(join(otherProjectDir, '.claude', 'CLAUDE.md'), '# selected');
+
+    handle = await startUiServer({ projectDir, homeDir, uiDir, port: 0 });
+    const baseUrl = `http://${handle.host}:${handle.port}`;
+    const bootstrapSession = await fetch(handle.url, { redirect: 'manual' });
+    const cookie = bootstrapSession.headers.get('set-cookie')!.split(';')[0];
+    const headers = { Cookie: cookie, Origin: baseUrl, 'Content-Type': 'application/json' };
+
+    const detection = await fetch(`${baseUrl}/api/agents/detect`, {
+      method: 'POST', headers, body: JSON.stringify({ projectDir: otherProjectDir }),
+    });
+    expect(detection.status).toBe(200);
+    expect((await detection.json()).agents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'claude', projectDetected: true, recommended: true }),
+    ]));
+
+    const invalid = await fetch(`${baseUrl}/api/scans`, {
+      method: 'POST', headers, body: JSON.stringify({ projectDir: join(root, 'missing') }),
+    });
+    expect(invalid.status).toBe(500);
+    expect(await invalid.text()).toContain('项目目录不存在');
+  });
+});

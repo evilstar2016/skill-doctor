@@ -4,6 +4,7 @@ import type { ContextCostResult, ContextResource } from '../types/context';
 import type { DiffResult } from '../diff/types';
 import type { GroupResult, SkillExplanation } from '../types/explain';
 import type { RegistryEntry } from '../types/install';
+import type { DetectedAgent } from '../discovery/detectAgents';
 import type { ConflictAnalysis, ConflictDetectionStrategy, ConflictPair, Platform, Scope, Severity, SkillRecord } from '../types/skill';
 
 export type HealthCheckScope = Scope | 'all';
@@ -54,6 +55,15 @@ export interface UiResource {
   sourcePath: string;
   platform: Platform;
   scope: Scope;
+  shared: boolean;
+  consumers: Array<{
+    platform: Platform;
+    scope: Scope;
+    enabled?: boolean;
+    activation?: string;
+    fixedTokens: number;
+    activationTokens: number;
+  }>;
   description?: string;
   triggers: string[];
   enabled?: boolean;
@@ -153,6 +163,7 @@ export interface BootstrapPayload {
   configPath: string;
   defaultScope: HealthCheckScope;
   supportedPlatforms: Platform[];
+  detectedAgents: DetectedAgent[];
   capabilities: UiCapabilities;
   registry: RegistryEntry[];
   snapshot: DoctorSnapshot | null;
@@ -167,4 +178,3 @@ export interface ResourceDetailPayload {
 export interface ComparePayload {
   result: DiffResult;
 }
-

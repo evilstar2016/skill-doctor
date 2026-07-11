@@ -1,4 +1,5 @@
-import { basename, extname } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { basename, extname, normalize } from 'node:path';
 
 import type { AuditResult } from '../types/audit';
 import type { CleanupSuggestion } from '../types/cleanup';
@@ -6,7 +7,7 @@ import type { ContextCostItem, ContextCostResult } from '../types/context';
 import type { RegistryEntry } from '../types/install';
 import type { McpServerRecord } from '../types/mcp';
 import type { ConflictPair, Platform, Scope, SkillRecord } from '../types/skill';
-import { countPlatforms, countScopes, stableId } from './helpers';
+import { countScopes, stableId } from './helpers';
 import type { DoctorSnapshot, HealthCheckScope, ScanWarning, UiIssue, UiIssueSeverity, UiResource, UiResourceKind } from './types';
 
 interface BuildSnapshotInput {
@@ -52,7 +53,7 @@ export function buildDoctorSnapshot(input: BuildSnapshotInput): DoctorSnapshot {
       fixedTokens,
       activationTokens,
       disabledResources: resources.filter((resource) => resource.enabled === false).length,
-      platforms: countPlatforms(resources),
+      platforms: countResourceConsumers(resources),
       scopes: countScopes(resources),
     },
     resources,
@@ -199,6 +200,14 @@ function buildResources(
 
   for (const skill of skills) {
     const id = resourceIdForSkill(skill);
+    const existing = byId.get(id);
+    if (existing) {
+      upsertConsumer(existing, { platform: skill.platform, scope: skill.scope, enabled: skill.context?.enabled, fixedTokens: 0, activationTokens: 0 });
+      existing.issueIds = [...new Set([...existing.issueIds, ...(issueIds.get(id) ?? [])])];
+      existing.shared = existing.consumers.length > 1;
+      existing.status = statusFor(id, combinedEnabled(existing), issueIds);
+      continue;
+    }
     byId.set(id, {
       id,
       name: skill.name,
@@ -207,6 +216,8 @@ function buildResources(
       sourcePath: skill.sourcePath,
       platform: skill.platform,
       scope: skill.scope,
+      shared: false,
+      consumers: [{ platform: skill.platform, scope: skill.scope, enabled: skill.context?.enabled, fixedTokens: 0, activationTokens: 0 }],
       description: skill.description,
       triggers: skill.triggers,
       enabled: skill.context?.enabled,
@@ -227,6 +238,12 @@ function buildResources(
 
   for (const server of mcpServers) {
     const id = resourceIdForMcp(server);
+    const existing = byId.get(id);
+    if (existing) {
+      upsertConsumer(existing, { platform: server.platform, scope: server.scope, enabled: server.enabled, fixedTokens: 0, activationTokens: 0 });
+      existing.shared = existing.consumers.length > 1;
+      continue;
+    }
     byId.set(id, {
       id,
       name: server.name,
@@ -235,6 +252,8 @@ function buildResources(
       sourcePath: server.sourcePath,
       platform: server.platform,
       scope: server.scope,
+      shared: false,
+      consumers: [{ platform: server.platform, scope: server.scope, enabled: server.enabled, fixedTokens: 0, activationTokens: 0 }],
       description: server.toolDiscoveryStatus === 'failed' ? server.toolDiscoveryError : server.instructions,
       triggers: server.tools?.map((tool) => tool.name) ?? [],
       enabled: server.enabled,
@@ -252,16 +271,20 @@ function buildResources(
     const id = resourceIdForContextItem(item);
     const existing = findMatchingResource(byId, item);
     if (existing) {
-      existing.enabled = item.enabled;
-      existing.controllable = item.controllable === true;
+      existing.controllable = existing.controllable || item.controllable === true;
       existing.activation = item.activation;
       existing.fixedTokens = fixedCost(item);
       existing.activationTokens = item.activationEstimatedTokens;
       existing.recommendation = item.recommendation;
       existing.controlMethod = item.controlMethod;
       existing.estimateStatus = item.estimateStatus;
+      upsertConsumer(existing, { platform: item.platform, scope: item.scope, enabled: item.enabled, activation: item.activation, fixedTokens: fixedCost(item), activationTokens: item.activationEstimatedTokens });
+      existing.shared = existing.consumers.length > 1;
+      existing.fixedTokens = existing.consumers.reduce((sum, consumer) => sum + consumer.fixedTokens, 0);
+      existing.activationTokens = existing.consumers.reduce((sum, consumer) => sum + consumer.activationTokens, 0);
+      existing.enabled = combinedEnabled(existing);
       existing.issueIds = [...new Set([...existing.issueIds, ...(issueIds.get(id) ?? [])])];
-      existing.status = item.enabled === false ? 'disabled' : existing.issueIds.length > 0 ? 'attention' : 'healthy';
+      existing.status = existing.enabled === false ? 'disabled' : existing.issueIds.length > 0 ? 'attention' : 'healthy';
       continue;
     }
     byId.set(id, {
@@ -272,6 +295,8 @@ function buildResources(
       sourcePath: item.sourcePath,
       platform: item.platform,
       scope: item.scope,
+      shared: false,
+      consumers: [{ platform: item.platform, scope: item.scope, enabled: item.enabled, activation: item.activation, fixedTokens: fixedCost(item), activationTokens: item.activationEstimatedTokens }],
       triggers: [],
       enabled: item.enabled,
       controllable: item.controllable === true,
@@ -298,6 +323,8 @@ function buildResources(
         sourcePath: plugin.manifestPath,
         platform: 'codex',
         scope: 'global',
+        shared: false,
+        consumers: [{ platform: 'codex', scope: 'global', fixedTokens: 0, activationTokens: 0 }],
         description: plugin.description,
         triggers: plugin.entries.map((entry) => entry.skillName),
         controllable: false,
@@ -320,6 +347,8 @@ function buildResources(
         sourcePath: entry.sourcePath,
         platform: 'codex',
         scope: 'global',
+        shared: false,
+        consumers: [{ platform: 'codex', scope: 'global', fixedTokens: 0, activationTokens: 0 }],
         description: entry.description,
         triggers: entry.defaultPrompt ? [entry.defaultPrompt] : [],
         controllable: false,
@@ -340,23 +369,49 @@ function buildResources(
 }
 
 export function resourceIdForSkill(skill: Pick<SkillRecord, 'sourcePath' | 'name' | 'platform' | 'scope'>): string {
-  return stableId('resource', skill.platform, skill.scope, skill.sourcePath, skill.name);
+  return stableId('resource', canonicalPath(skill.sourcePath), skill.name);
 }
 
 export function resourceIdForMcp(server: Pick<McpServerRecord, 'id' | 'sourcePath' | 'name' | 'platform' | 'scope'>): string {
-  return server.id ?? stableId('resource', server.platform, server.scope, server.sourcePath, server.name, 'mcp');
+  return stableId('resource', canonicalPath(server.sourcePath), server.name);
 }
 
 export function resourceIdForContextItem(item: Pick<ContextCostItem, 'id' | 'sourcePath' | 'name' | 'platform' | 'scope' | 'resource'>): string {
-  return item.id ?? stableId('resource', item.platform, item.scope, item.sourcePath, item.name, item.resource);
+  return stableId('resource', canonicalPath(item.sourcePath), item.name);
 }
 
 function findMatchingResource(resources: Map<string, UiResource>, item: ContextCostItem): UiResource | undefined {
   const direct = resources.get(resourceIdForContextItem(item));
   if (direct) return direct;
   return [...resources.values()].find((resource) =>
-    resource.sourcePath === item.sourcePath && resource.name === item.name && resource.platform === item.platform,
+    canonicalPath(resource.sourcePath) === canonicalPath(item.sourcePath) && resource.name === item.name,
   );
+}
+
+function canonicalPath(path: string): string {
+  try { return normalize(existsSync(path) ? realpathSync(path) : path); }
+  catch { return normalize(path); }
+}
+
+function upsertConsumer(resource: UiResource, consumer: UiResource['consumers'][number]): void {
+  const index = resource.consumers.findIndex((entry) => entry.platform === consumer.platform && entry.scope === consumer.scope);
+  if (index < 0) resource.consumers.push(consumer);
+  else resource.consumers[index] = { ...resource.consumers[index], ...consumer };
+}
+
+function combinedEnabled(resource: UiResource): boolean | undefined {
+  if (resource.consumers.every((consumer) => consumer.enabled === undefined)) return undefined;
+  return resource.consumers.some((consumer) => consumer.enabled !== false);
+}
+
+function countResourceConsumers(resources: UiResource[]): Partial<Record<Platform, number>> {
+  const counts: Partial<Record<Platform, number>> = {};
+  for (const resource of resources) {
+    for (const platform of new Set(resource.consumers.map((consumer) => consumer.platform))) {
+      counts[platform] = (counts[platform] ?? 0) + 1;
+    }
+  }
+  return counts;
 }
 
 function fixedCost(item: ContextCostItem): number {

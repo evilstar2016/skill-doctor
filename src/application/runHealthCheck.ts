@@ -1,4 +1,5 @@
-import { resolve } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { normalize, resolve } from 'node:path';
 
 import { runAiAudit } from '../audit/ai-scanner';
 import { runAudit } from '../audit/runAudit';
@@ -17,7 +18,7 @@ import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
 import type { LlmExplainOptions } from '../types/explain';
 import type { McpServerRecord } from '../types/mcp';
-import type { Platform } from '../types/skill';
+import type { Platform, SkillRecord } from '../types/skill';
 import { addCodexResourceGroups, filterByPlatform, filterByScope, stableId } from './helpers';
 import { buildDoctorSnapshot } from './buildSnapshot';
 import type { DoctorSnapshot, HealthCheckOptions, ScanPhase, ScanProgressEvent, ScanWarning } from './types';
@@ -49,13 +50,14 @@ export async function runHealthCheck(
     extraPaths: loaded.config.paths?.extra,
   }), scope), platform);
   let mcpServers = filterByPlatform(filterByScope(scanMcpServers(projectDir, { homeDir: options.homeDir }), scope), platform);
+  const analysisSkills = uniquePhysicalSkills(skills);
 
   if (options.discoverMcpTools && mcpServers.length > 0) {
     mcpServers = await discoverMcpToolsSafely(mcpServers, warnings);
   }
 
   progress('conflicts', '正在检查重复安装与触发冲突');
-  const conflicts = filterConflicts(await detectConflicts(skills, {
+  const conflicts = filterConflicts(await detectConflicts(analysisSkills, {
     strategy: options.conflictStrategy ?? 'token',
     analyze: options.analyzeConflicts ?? false,
     ...(embedding?.baseUrl ? { baseUrl: embedding.baseUrl } : {}),
@@ -67,7 +69,7 @@ export async function runHealthCheck(
   }), loaded.config.ignore ?? {});
 
   progress('audit', '正在执行安全审计');
-  const staticAudit = runAudit(skills);
+  const staticAudit = runAudit(analysisSkills);
   const findings = filterFindings(staticAudit.findings, loaded.config.ignore ?? {});
   let aiFindings = staticAudit.aiFindings ?? [];
   if (options.useAiAudit) {
@@ -75,7 +77,7 @@ export async function runHealthCheck(
       warnings.push(warning('audit', 'ai-not-configured', 'AI 审计未运行：尚未配置 analysis 服务。'));
     } else {
       try {
-        aiFindings = await runAiAudit(skills, { llmOptions, useCache: true });
+        aiFindings = await runAiAudit(analysisSkills, { llmOptions, useCache: true });
       } catch (error) {
         warnings.push(warning('audit', 'ai-audit-failed', `AI 审计失败：${errorMessage(error)}`));
       }
@@ -113,7 +115,7 @@ export async function runHealthCheck(
   try {
     const cachePath = getDefaultGroupLabelCachePath(options.homeDir);
     const labelCache = loadGroupLabelCache(cachePath);
-    groups = await groupSkills(skills, { llmOptions: undefined, labelCache });
+    groups = await groupSkills(analysisSkills, { llmOptions: undefined, labelCache });
     if (labelCache.size > 0) saveGroupLabelCache(labelCache, cachePath);
   } catch (error) {
     warnings.push(warning('grouping', 'grouping-failed', `资源分组未完成：${errorMessage(error)}`));
@@ -138,6 +140,18 @@ export async function runHealthCheck(
   });
   progress('complete', snapshot.status === 'partial' ? '体检完成，部分项目需要关注' : '体检完成');
   return snapshot;
+}
+
+function uniquePhysicalSkills(skills: SkillRecord[]): SkillRecord[] {
+  const seen = new Set<string>();
+  return skills.filter((skill) => {
+    let path = normalize(skill.sourcePath);
+    try { if (existsSync(path)) path = realpathSync(path); } catch { /* use normalized path */ }
+    const key = `${path}\0${skill.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function loadContextEntries(

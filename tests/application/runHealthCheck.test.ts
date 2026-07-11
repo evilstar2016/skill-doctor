@@ -38,5 +38,26 @@ describe('runHealthCheck', () => {
 
     cleanupTempRoots();
   });
-});
 
+  it('represents one physical shared skill once with all agent consumers', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    writeFile(
+      join(projectDir, '.agents', 'skills', 'shared-reviewer', 'SKILL.md'),
+      ['---', 'name: shared-reviewer', 'description: Review api_key handling before release.', '---', ''].join('\n'),
+    );
+
+    const snapshot = await runHealthCheck({ projectDir, homeDir, scope: 'project', includeContext: false });
+    const resources = snapshot.resources.filter((resource) => resource.name === 'shared-reviewer');
+
+    expect(resources).toHaveLength(1);
+    expect(resources[0].shared).toBe(true);
+    expect(resources[0].consumers.map((consumer) => consumer.platform)).toEqual(expect.arrayContaining(['copilot', 'codex', 'windsurf']));
+    expect(snapshot.issues.filter((issue) => issue.kind === 'duplicate')).toHaveLength(0);
+    expect(snapshot.issues.filter((issue) => issue.kind === 'security')).toHaveLength(1);
+    expect(resources[0].issueIds).toContain(snapshot.issues.find((issue) => issue.kind === 'security')?.id);
+
+    cleanupTempRoots();
+  });
+});

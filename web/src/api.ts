@@ -1,8 +1,10 @@
 import type { BootstrapPayload, DoctorSnapshot, HealthCheckScope, ResourceDetailPayload } from '../../src/application/types';
+import type { DetectedAgent } from '../../src/discovery/detectAgents';
 import type { DiffResult } from '../../src/diff/types';
 import type { Platform } from '../../src/types/skill';
 
 export interface ScanRequest {
+  projectDir: string;
   scope: HealthCheckScope;
   platform: Platform | 'all';
   includeContext: boolean;
@@ -15,6 +17,10 @@ export interface ScanRequest {
   budgetTokens: number;
   tokenizer: 'openai' | 'approx';
   tokenizerModel: string;
+}
+
+export async function detectAgents(projectDir: string): Promise<{ projectDir: string; agents: DetectedAgent[] }> {
+  return request('/api/agents/detect', { method: 'POST', body: JSON.stringify({ projectDir }) });
 }
 
 export interface ScanStreamHandlers {
@@ -104,4 +110,3 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return payload as T;
 }
-
