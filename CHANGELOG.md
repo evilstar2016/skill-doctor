@@ -4,6 +4,10 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+- Added the complete `skill-doctor ui` local product interface with overview, issue triage, context cost, resource inventory, resource details, comparisons, install management, cleanup, and dashboard export.
+- Added a shared application layer that composes the existing discovery, conflict, audit, cleanup, grouping, and context-cost engines into a stable UI snapshot.
+- Added a loopback-only authenticated HTTP API with scan progress streaming, Codex resource controls, managed install/uninstall actions, and explicit destructive-action confirmation.
+- Added responsive light/dark themes, local search and filtering, accessible status labels, and mobile navigation.
 - Added `cost --platform codex --resource plugin --include-cache` to inventory cached plugin and Skill UI metadata without adding it to estimated context token tax.
 - Added structured `catalog` JSON output with cache source, display metadata, icon paths, and implicit/explicit invocation policy.
 

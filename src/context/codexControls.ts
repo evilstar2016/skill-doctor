@@ -252,12 +252,14 @@ function removeUnique(values: string[], value: string): string[] {
   return values.filter((candidate) => candidate !== value);
 }
 
-function getUnsupportedRecommendation(resource: string | undefined, entry: { recommendation?: string }): string | undefined {
+function getUnsupportedRecommendation(resource: string | undefined, entry: unknown): string | undefined {
+  const recommendation = entry && typeof entry === 'object' && 'recommendation' in entry
+    && typeof entry.recommendation === 'string' ? entry.recommendation : undefined;
   if (resource === 'agents') {
-    return entry.recommendation ?? 'Simplify AGENTS.md, move rare guidance into a skill, or manually rename the file.';
+    return recommendation ?? 'Simplify AGENTS.md, move rare guidance into a skill, or manually rename the file.';
   }
   if (resource === 'memory') {
-    return entry.recommendation ?? 'Disable Codex memories in Codex settings/config if this context is not wanted.';
+    return recommendation ?? 'Disable Codex memories in Codex settings/config if this context is not wanted.';
   }
   return undefined;
 }

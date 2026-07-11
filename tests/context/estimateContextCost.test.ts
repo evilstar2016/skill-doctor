@@ -448,7 +448,7 @@ describe('estimateContextCost', () => {
         kind: 'always-on-file',
         activation: testCase.activation,
         budgetScope: testCase.budgetScope,
-        estimatedTokens: testCase.estimatedTokens(content),
+        estimatedTokens: (testCase.estimatedTokens as (value: string) => number)(content),
         activationEstimatedTokens: testCase.activationEstimatedTokens(content),
       }));
     }

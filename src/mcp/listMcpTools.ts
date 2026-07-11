@@ -115,6 +115,7 @@ async function listToolsOverStdio(server: McpServerRecord): Promise<McpToolRecor
 }
 
 function sendStdioNotification(child: ReturnType<typeof spawn>, method: string): void {
+  if (!child.stdin) throw new Error('MCP stdio server stdin is unavailable.');
   child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method })}\n`);
 }
 
@@ -127,6 +128,10 @@ function sendStdioRequest(
   timeoutMs: number,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
+    if (!child.stdin) {
+      reject(new Error('MCP stdio server stdin is unavailable.'));
+      return;
+    }
     const timeout = setTimeout(() => {
       pending.delete(id);
       reject(new Error(`Timed out waiting for ${method}.`));

@@ -20,6 +20,14 @@ Current release: [`v0.3.5`](https://github.com/evilstar2016/skill-doctor/release
 npx @evilstar2025/skill-doctor scan
 ```
 
+Or launch the complete local product UI:
+
+```bash
+npx @evilstar2025/skill-doctor ui
+```
+
+The browser UI includes the health overview, unified issue queue, context cost, resource inventory, details and comparisons, Codex resource controls, duplicate cleanup, managed skill installs, and static report export. It only binds to the loopback interface and uses a temporary authenticated session.
+
 If it finds skills, run the deeper local checks:
 
 ```bash

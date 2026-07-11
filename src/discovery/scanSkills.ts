@@ -5,6 +5,8 @@ import type { SkillRecord } from '../types/skill';
 import { resolvePaths } from './resolvePaths';
 
 interface ScanSkillsOptions {
+  homeDir?: string;
+  appDataDir?: string;
   llmOptions?: LlmExplainOptions;
   provenanceCache?: ProvenanceCache;
   extraPaths?: string[];
@@ -15,6 +17,8 @@ export async function scanSkills(cwd: string, options: ScanSkillsOptions = {}): 
   const skills: SkillRecord[] = [];
 
   for (const file of resolvePaths(cwd, {
+    homeDir: options.homeDir,
+    appDataDir: options.appDataDir,
     extraPaths: options.extraPaths,
     includeCostPaths: options.includeCostPaths,
   })) {

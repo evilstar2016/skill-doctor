@@ -22,3 +22,5 @@ skill-backup/
 .vscode/
 marketing/
 .codex/
+.playwright-cli/
+output/playwright/

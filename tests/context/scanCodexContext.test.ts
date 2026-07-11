@@ -61,7 +61,7 @@ describe('scanCodexContextEntries', () => {
       join(root, 'workspace', 'AGENTS.md'),
       join(cwd, 'AGENTS.override.md'),
     ]);
-    expect(entries.every((entry) => entry.kind === 'agents-chain')).toBe(true);
+    expect(entries.every((entry) => 'kind' in entry && entry.kind === 'agents-chain')).toBe(true);
     expect(entries[0]).toEqual(expect.objectContaining({
       id: 'codex:agents:global-agents-override',
       resource: 'agents',

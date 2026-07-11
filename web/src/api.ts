@@ -1,0 +1,107 @@
+import type { BootstrapPayload, DoctorSnapshot, HealthCheckScope, ResourceDetailPayload } from '../../src/application/types';
+import type { DiffResult } from '../../src/diff/types';
+import type { Platform } from '../../src/types/skill';
+
+export interface ScanRequest {
+  scope: HealthCheckScope;
+  platform: Platform | 'all';
+  includeContext: boolean;
+  includeDisabled: boolean;
+  includeCache: boolean;
+  discoverMcpTools: boolean;
+  useAiAudit: boolean;
+  conflictStrategy: 'token' | 'embedding';
+  analyzeConflicts: boolean;
+  budgetTokens: number;
+  tokenizer: 'openai' | 'approx';
+  tokenizerModel: string;
+}
+
+export interface ScanStreamHandlers {
+  progress(event: { phase: string; message: string; completed: number; total: number }): void;
+  complete(snapshot: DoctorSnapshot): void;
+  error(error: Error): void;
+  cancelled(): void;
+}
+
+export async function getBootstrap(): Promise<BootstrapPayload> {
+  return request('/api/bootstrap');
+}
+
+export async function startScan(options: ScanRequest): Promise<string> {
+  const result = await request<{ scanId: string }>('/api/scans', { method: 'POST', body: JSON.stringify(options) });
+  return result.scanId;
+}
+
+export function streamScan(scanId: string, handlers: ScanStreamHandlers): () => void {
+  const source = new EventSource(`/api/scans/${encodeURIComponent(scanId)}/events`);
+  source.addEventListener('progress', (event) => handlers.progress(JSON.parse((event as MessageEvent).data)));
+  source.addEventListener('complete', (event) => {
+    handlers.complete(JSON.parse((event as MessageEvent).data));
+    source.close();
+  });
+  source.addEventListener('cancelled', () => {
+    handlers.cancelled();
+    source.close();
+  });
+  source.addEventListener('error', (event) => {
+    if (event instanceof MessageEvent && event.data) {
+      const payload = JSON.parse(event.data);
+      handlers.error(new Error(payload.message));
+    } else if (source.readyState === EventSource.CLOSED) {
+      handlers.error(new Error('扫描连接已关闭'));
+    }
+    source.close();
+  });
+  return () => source.close();
+}
+
+export async function cancelScan(scanId: string): Promise<void> {
+  await request(`/api/scans/${encodeURIComponent(scanId)}/cancel`, { method: 'POST' });
+}
+
+export async function getResourceDetail(id: string): Promise<ResourceDetailPayload> {
+  return request(`/api/resources/${encodeURIComponent(id)}`);
+}
+
+export async function compareResources(leftId: string, rightId: string): Promise<DiffResult> {
+  return request('/api/compare', { method: 'POST', body: JSON.stringify({ leftId, rightId }) });
+}
+
+export async function toggleContextResource(id: string, enabled: boolean) {
+  return request<{ changed: boolean; supported: boolean; message: string; configPath: string; requiresNewSession: boolean }>('/api/context/toggle', {
+    method: 'POST', body: JSON.stringify({ id, enabled }),
+  });
+}
+
+export async function cleanupDuplicate(issueId: string, removePath: string, confirmation: string) {
+  return request<{ removedPath: string }>('/api/cleanup', {
+    method: 'POST', body: JSON.stringify({ issueId, removePath, confirmation }),
+  });
+}
+
+export async function installSkill(input: { source: string; sourceType: 'local' | 'marketplace'; target: string; link: boolean }) {
+  return request<{ name: string; installedPath: string }>('/api/install', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function uninstallSkill(input: { name: string; platform: Platform; force: boolean }) {
+  return request<{ removed: boolean }>('/api/uninstall', { method: 'POST', body: JSON.stringify(input) });
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    credentials: 'same-origin',
+  });
+  const contentType = response.headers.get('content-type') ?? '';
+  const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+  if (!response.ok) {
+    const message = typeof payload === 'object' && payload && 'error' in payload
+      ? String((payload as { error: { message?: string } }).error.message ?? response.statusText)
+      : String(payload || response.statusText);
+    throw new Error(message);
+  }
+  return payload as T;
+}
+

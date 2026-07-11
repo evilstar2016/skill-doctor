@@ -559,6 +559,39 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'ui') {
+    const positionals = readPositionals(rest, new Set(['--port']));
+    const projectDir = resolve(cwd, positionals[0] ?? '.');
+    const rawPort = readFlagValue(rest, '--port');
+    const port = rawPort === null ? 0 : Number(rawPort);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      process.stderr.write('Invalid port. Use --port <0-65535>\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (!existsSync(projectDir) || !statSync(projectDir).isDirectory()) {
+      process.stderr.write(`Project directory not found: ${projectDir}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const { startUiServer } = await import('../ui-server/startUiServer');
+    const handle = await startUiServer({ projectDir, port });
+    process.stdout.write(`Skill Doctor UI: ${handle.url}\nPress Ctrl+C to stop.\n`);
+
+    if (!hasFlag(rest, '--no-open')) {
+      const { execFile } = await import('node:child_process');
+      if (process.platform === 'darwin') execFile('open', [handle.url]);
+      else if (process.platform === 'win32') execFile('cmd', ['/c', 'start', '', handle.url]);
+      else execFile('xdg-open', [handle.url]);
+    }
+
+    const shutdown = () => { void handle.close().finally(() => process.exit(0)); };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+    return;
+  }
+
   if (command === 'dashboard') {
     const scope = readScope(rest);
     if (scope === 'invalid') {
@@ -775,6 +808,7 @@ function getHelpText(): string {
     '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
+    '  skill-doctor ui [project-dir] [--port N] [--no-open]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
     '  skill-doctor uninstall <name> [--target <platform>] [--force]',

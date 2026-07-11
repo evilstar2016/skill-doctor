@@ -20,6 +20,14 @@
 npx @evilstar2025/skill-doctor scan
 ```
 
+也可以直接启动完整的本地产品界面：
+
+```bash
+npx @evilstar2025/skill-doctor ui
+```
+
+界面会在本机浏览器中打开，提供总览、统一待处理列表、上下文成本、资源清单、详情与对比、Codex 资源开关、重复清理、Skill 安装卸载和静态报告导出。服务只监听本机回环地址，并使用临时会话验证。
+
 如果扫描到了本地 skills，可以继续跑更深入的检查：
 
 ```bash
@@ -206,6 +214,17 @@ Codex 控制能力：
 ```bash
 skill-doctor dashboard
 skill-doctor dashboard --report ./skill-doctor-report.html
+```
+
+### `ui`
+
+启动完整的本地管理界面。默认使用当前目录，也可以指定项目目录。
+
+```bash
+skill-doctor ui
+skill-doctor ui ./my-project
+skill-doctor ui --no-open
+skill-doctor ui --port 43123
 ```
 
 ## 安全边界
