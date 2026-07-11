@@ -277,7 +277,7 @@ describe('estimateContextCost', () => {
 
     const result = estimateContextCost([enabledSkill, disabledSkill], { projectPath: '/fake' });
     const enabledAggregate = result.items.find((item) => item.id === 'codex:skill-list:enabled');
-    const disabledAggregate = result.items.find((item) => item.id === 'codex:skill-list:disabled');
+    const disabledAggregate = result.disabledItems?.find((item) => item.id === 'codex:skill-list:disabled');
 
     expect(enabledAggregate?.estimatedTokens).toBeGreaterThan(0);
     expect(disabledAggregate).toEqual(expect.objectContaining({
@@ -643,7 +643,7 @@ describe('estimateContextCost', () => {
 
     const result = estimateContextCost([enabledPluginMcp, disabledPluginMcp]);
     const enabled = result.items.find((item) => item.id === enabledPluginMcp.id);
-    const disabled = result.items.find((item) => item.id === disabledPluginMcp.id);
+    const disabled = result.disabledItems?.find((item) => item.id === disabledPluginMcp.id);
 
     expect(enabled).toEqual(expect.objectContaining({
       source: 'plugin',

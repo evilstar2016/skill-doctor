@@ -15,6 +15,7 @@ export function renderContextCost(result: ContextCostResult): string {
         );
   const codexResourceLines = buildCodexResourceLines(items);
   const cacheCatalogLines = buildCacheCatalogLines(result.catalog);
+  const disabledLines = buildDisabledResourceLines(result.disabledItems, summary.disabledEstimatedTokens);
   const itemLines =
     items.length === 0
       ? ['- none']
@@ -35,7 +36,6 @@ export function renderContextCost(result: ContextCostResult): string {
     ...(summary.scope ? [`Scope: ${formatScope(summary.scope)}`] : []),
     `Estimated token tax: ${summary.totalEstimatedTokens} tokens/turn`,
     `Tokenizer: ${formatTokenizer(summary.tokenizer)}`,
-    ...(summary.disabledEstimatedTokens ? [`Disabled token tax (not counted): ${summary.disabledEstimatedTokens} tokens/turn`] : []),
     `Budget: ${summary.budgetTokens} tokens/turn`,
     `Grade: ${summary.grade} (${status})`,
     `Items scanned: ${summary.scanned}`,
@@ -47,7 +47,38 @@ export function renderContextCost(result: ContextCostResult): string {
     '',
     'Highest cost items:',
     ...itemLines,
+    ...(disabledLines.length > 0 ? ['', ...disabledLines] : []),
   ].join('\n');
+}
+
+function buildDisabledResourceLines(
+  items: ContextCostResult['disabledItems'],
+  disabledEstimatedTokens: number | undefined,
+): string[] {
+  if (!items || items.length === 0) return [];
+
+  const concreteItems = items.filter((item) => !isDisabledAggregate(item));
+  const itemLines = concreteItems.flatMap((item) => [
+    `- ${item.name}`,
+    `  potential tokens: ${item.estimatedTokens}  platform: ${item.platform}  scope: ${item.scope}${formatSourceResource(item)}`,
+    `  kind: ${item.kind}  status: disabled  context cost: not counted`,
+    item.id ? `  id: ${item.id}` : '',
+    item.id && item.controllable !== false
+      ? `  enable: skill-doctor context enable --id ${JSON.stringify(item.id)} --platform ${item.platform}`
+      : `  enable: use the ${item.platform} configuration that disabled this resource`,
+    `  path: ${item.sourcePath}`,
+  ].filter(Boolean));
+
+  return [
+    'Disabled resources (not counted):',
+    'These resources are disabled and do not contribute to Estimated token tax. Use the enable subcommand to turn them on.',
+    ...(disabledEstimatedTokens ? [`Potential token tax if enabled: ${disabledEstimatedTokens} tokens/turn`] : []),
+    ...itemLines,
+  ];
+}
+
+function isDisabledAggregate(item: ContextCostResult['items'][number]): boolean {
+  return item.id === 'codex:skill-list:disabled' || item.id === 'codex:plugin-list:disabled';
 }
 
 function buildCacheCatalogLines(catalog: ContextCostResult['catalog']): string[] {
@@ -106,19 +137,14 @@ function formatSourceResource(item: ContextCostResult['items'][number]): string 
 }
 
 function buildCodexResourceLines(items: ContextCostResult['items']): string[] {
-  const counts = new Map<string, { active: number; disabled: number; tokens: number; disabledTokens: number }>();
+  const counts = new Map<string, { active: number; tokens: number }>();
 
   for (const item of items) {
     if (item.platform !== 'codex' || !item.resource) continue;
-    const current = counts.get(item.resource) ?? { active: 0, disabled: 0, tokens: 0, disabledTokens: 0 };
+    const current = counts.get(item.resource) ?? { active: 0, tokens: 0 };
     const tokens = chargeableCodexResourceTokens(item);
-    if (item.enabled === false) {
-      current.disabled += 1;
-      current.disabledTokens += tokens;
-    } else {
-      current.active += 1;
-      current.tokens += tokens;
-    }
+    current.active += 1;
+    current.tokens += tokens;
     counts.set(item.resource, current);
   }
 
@@ -126,8 +152,7 @@ function buildCodexResourceLines(items: ContextCostResult['items']): string[] {
     .filter((resource) => counts.has(resource))
     .map((resource) => {
       const entry = counts.get(resource)!;
-      const disabled = entry.disabled > 0 ? `  disabled: ${entry.disabled} (${entry.disabledTokens} tokens)` : '';
-      return `- ${resource}: ${entry.tokens} tokens/turn (${entry.active} active)${disabled}`;
+      return `- ${resource}: ${entry.tokens} tokens/turn (${entry.active} active)`;
     });
 }
 

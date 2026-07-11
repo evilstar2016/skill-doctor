@@ -413,7 +413,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const tokenizerModel = readFlagValue(rest, '--tokenizer-model');
     const projectDir = readCostProjectDir(rest, cwd, implicitPlatform);
     const codexConfigPath = readFlagValue(rest, '--codex-config');
-    const includeDisabled = hasFlag(rest, '--include-disabled');
+    const showDisabled = hasFlag(rest, '--show-disable') || hasFlag(rest, '--include-disabled');
     const includeCache = hasFlag(rest, '--include-cache');
 
     if (scope === 'invalid') {
@@ -471,7 +471,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     if (projectDir === 'invalid') {
-      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--source skill|mcp|all] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
+      process.stderr.write('Usage: skill-doctor cost [project-dir] [--platform <agent>] [--scope project|global|all] [--source skill|mcp|all] [--show-disable] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]\n');
       process.exitCode = 1;
       return;
     }
@@ -486,7 +486,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       ? filterCodexEntriesBySource(filterEntriesByScope(await scanCodexContextEntries(projectDir, {
           ...(codexConfigPath ? { configPath: codexConfigPath } : {}),
           resource: resource ?? 'all',
-          includeDisabled,
+          includeDisabled: showDisabled,
         }), scope), source)
       : [
           ...(source === 'mcp'
@@ -771,8 +771,8 @@ function getHelpText(): string {
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
-    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--include-disabled] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
@@ -1105,8 +1105,17 @@ function filterCodexEntriesBySource<T extends { source?: string; context?: { res
 
 function addCodexResourceGroups(result: ContextCostResult): ContextCostResult {
   const codexItems = result.items.filter((item) => item.platform === 'codex' && item.resource);
-  if (codexItems.length === 0) return result;
+  const disabledCodexItems = (result.disabledItems ?? []).filter((item) => item.platform === 'codex' && item.resource);
+  if (codexItems.length === 0 && disabledCodexItems.length === 0) return result;
 
+  return {
+    ...result,
+    resources: groupCodexResources(codexItems),
+    ...(disabledCodexItems.length > 0 ? { disabledResources: groupCodexResources(disabledCodexItems) } : {}),
+  };
+}
+
+function groupCodexResources(items: ContextCostItem[]): Record<ContextResource, ContextCostItem[]> {
   const resources: Record<ContextResource, ContextCostItem[]> = {
     agents: [],
     skill: [],
@@ -1115,11 +1124,11 @@ function addCodexResourceGroups(result: ContextCostResult): ContextCostResult {
     memory: [],
   };
 
-  for (const item of codexItems) {
+  for (const item of items) {
     if (item.resource) resources[item.resource].push(item);
   }
 
-  return { ...result, resources };
+  return resources;
 }
 
 function readKind(args: string[]): ConflictPair['kind'] | 'all' | 'invalid' {

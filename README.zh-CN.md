@@ -142,7 +142,7 @@ skill-doctor cost --source skill
 skill-doctor cost --source mcp
 skill-doctor cost --platform codex --scope project
 skill-doctor cost --platform codex --scope global
-skill-doctor cost --platform codex --resource plugin --include-disabled
+skill-doctor cost --platform codex --resource plugin --show-disable
 skill-doctor cost --platform codex --resource plugin --include-cache
 skill-doctor cost --platform codex --codex-config ./codex-config.json
 skill-doctor context disable --id codex:skill:/path/to/SKILL.md --platform codex
@@ -169,13 +169,13 @@ skill-doctor cost --platform codex --resource skill
 skill-doctor cost --platform codex --resource mcp
 skill-doctor cost --platform codex --resource plugin
 skill-doctor cost --platform codex --resource memory
-skill-doctor cost --platform codex --include-disabled   # 单独显示已禁用资源的成本
+skill-doctor cost --platform codex --show-disable       # 单独显示已禁用资源
 skill-doctor cost --platform codex --resource plugin --include-cache  # 盘点缓存 UI 条目，不增加 token 成本
 ```
 
 不传 `--scope` 时，`cost` 使用 `all` 范围：当前项目资源加上已启用的用户/全局资源。例如，`~/.codex/plugins/` 下 plugin 的已启用 skill 会以 `scope: global` 出现，因为它会影响所有 Codex 项目；`[[skills.config]]` 选择器仍可单独禁用 plugin skill。使用 `--scope project` 可只查看当前项目配置的文件。
 
-Codex 报告中的 `Estimated token tax` 只计算当前启用的上下文。加上 `--include-disabled` 后，已禁用资源会出现在明细里，并汇总到 `Disabled token tax (not counted)`，但不会增加当前启用的总成本。
+Codex 报告中的 `Estimated token tax`、`items` 和 `resources` 只包含当前启用的上下文。加上 `--show-disable` 后，已禁用的 skill、MCP server、plugin 等资源会显示在独立的 `Disabled resources (not counted)` 区域；JSON 输出使用 `disabledItems` 和 `disabledResources`。可控制的条目会附带对应的 `context enable` 命令。旧参数 `--include-disabled` 仍作为兼容别名保留。
 
 `--include-cache` 会单独盘点 `~/.codex/plugins/cache` 中插件和 Skill 的 UI 元数据，包括显示名称、描述、图标路径、缓存来源，以及允许隐式调用还是仅显式调用。缓存目录条目统一标记为 `cached` 和 `not counted`；仅仅能在 Codex 界面里看到某个入口，不会被当成它已经进入模型上下文的证据。该选项用于 Codex 的 `--resource all|plugin`，JSON 输出会把结构化盘点放在 `catalog` 字段中。
 

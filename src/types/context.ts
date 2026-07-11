@@ -104,7 +104,9 @@ export interface ContextCostPlatformSummary {
 export interface ContextCostResult {
   summary: ContextCostSummary;
   items: ContextCostItem[];
+  disabledItems?: ContextCostItem[];
   resources?: Record<ContextResource, ContextCostItem[]>;
+  disabledResources?: Record<ContextResource, ContextCostItem[]>;
   catalog?: CodexPluginCacheCatalog;
 }
 

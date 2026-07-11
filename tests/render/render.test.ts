@@ -185,15 +185,17 @@ describe('renderers', () => {
           estimateStatus: 'estimated',
           recommendation: 'OK',
         },
+      ],
+      disabledItems: [
         {
-          id: 'codex:plugin-list:disabled',
-          name: 'Codex plugin skill list',
+          id: 'codex:plugin:notes:skill:note-helper',
+          name: 'note-helper',
           sourcePath: 'E:/project/.codex/plugins',
           platform: 'codex',
           scope: 'global',
           source: 'plugin',
           resource: 'plugin',
-          kind: 'plugin-skill-list',
+          kind: 'agent-skill-description',
           estimatedTokens: 40,
           estimatedChars: 160,
           activationEstimatedTokens: 40,
@@ -213,8 +215,13 @@ describe('renderers', () => {
 
     expect(output).toContain('By Codex resource:');
     expect(output).toContain('skill: 120 tokens/turn (1 active)');
-    expect(output).toContain('plugin: 0 tokens/turn (0 active)  disabled: 1 (40 tokens)');
-    expect(output).toContain('Disabled token tax (not counted): 40 tokens/turn');
+    expect(output).not.toContain('plugin: 0 tokens/turn');
+    expect(output).toContain('Disabled resources (not counted):');
+    expect(output).toContain('These resources are disabled and do not contribute to Estimated token tax.');
+    expect(output).toContain('potential tokens: 40');
+    expect(output).toContain('context cost: not counted');
+    expect(output).toContain('Potential token tax if enabled: 40 tokens/turn');
+    expect(output).toContain('skill-doctor context enable --id "codex:plugin:notes:skill:note-helper" --platform codex');
     expect(output).toContain('platform: codex  scope: global  resource: plugin');
     expect(output).not.toContain('source: plugin  resource: plugin');
   });

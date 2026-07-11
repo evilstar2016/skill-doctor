@@ -1495,7 +1495,7 @@ describe('CLI integration — context cost', () => {
 
     expect(costHelp.status).toBe(0);
     expect(costHelp.stdout).toContain('Usage:');
-    expect(costHelp.stdout).toContain('--include-disabled');
+    expect(costHelp.stdout).toContain('--show-disable');
     expect(costHelp.stdout).not.toContain('CONTEXT COST REPORT');
     expect(contextHelp.status).toBe(0);
     expect(contextHelp.stdout).toContain('skill-doctor context enable|disable');
@@ -1833,7 +1833,7 @@ describe('CLI integration — context cost', () => {
     ]));
   });
 
-  it('cost --resource plugin reports plugin-contributed skills and disabled tax separately', () => {
+  it('cost --show-disable reports disabled plugin resources separately from actual cost', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -1849,13 +1849,14 @@ describe('CLI integration — context cost', () => {
     );
     writeFile(join(home, '.codex', 'config.toml'), ['[plugins."notes@example"]', 'enabled = false'].join('\n'));
 
-    const result = runCli(['cost', '--platform', 'codex', '--resource', 'plugin', '--include-disabled', '--json'], cwd, home);
+    const result = runCli(['cost', '--platform', 'codex', '--resource', 'plugin', '--show-disable', '--json'], cwd, home);
     const payload = JSON.parse(result.stdout);
 
     expect(result.status).toBe(0);
     expect(payload.summary.totalEstimatedTokens).toBe(0);
     expect(payload.summary.disabledEstimatedTokens).toBeGreaterThan(0);
-    expect(payload.items).toEqual(expect.arrayContaining([
+    expect(payload.items).toEqual([]);
+    expect(payload.disabledItems).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: 'codex:plugin:notes@example:skill:note-helper',
         resource: 'plugin',
@@ -1867,6 +1868,11 @@ describe('CLI integration — context cost', () => {
         kind: 'plugin-skill-list',
         enabled: false,
       }),
+    ]));
+    expect(payload.resources.plugin).toEqual([]);
+    expect(payload.disabledResources.plugin).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'codex:plugin:notes@example:skill:note-helper' }),
+      expect.objectContaining({ id: 'codex:plugin-list:disabled' }),
     ]));
   });
 
@@ -2050,9 +2056,21 @@ describe('CLI integration — context cost', () => {
     const afterPlugin = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
     expect(afterPlugin.summary.totalEstimatedTokens).toBeLessThan(afterMcp.summary.totalEstimatedTokens);
 
-    const withDisabled = JSON.parse(runCli(['cost', '--platform', 'codex', '--include-disabled', '--json'], cwd, home).stdout);
+    const withDisabledResult = runCli(['cost', '--platform', 'codex', '--show-disable', '--json'], cwd, home);
+    const withDisabled = JSON.parse(withDisabledResult.stdout);
     expect(withDisabled.summary.totalEstimatedTokens).toBe(0);
     expect(withDisabled.summary.disabledEstimatedTokens).toBeGreaterThan(0);
+    expect(withDisabled.items).toEqual([]);
+    expect(withDisabled.disabledItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: skillId, resource: 'skill', enabled: false }),
+      expect.objectContaining({ id: 'codex:mcp:github', resource: 'mcp', enabled: false }),
+      expect.objectContaining({ id: pluginId, resource: 'plugin', enabled: false }),
+    ]));
+
+    const disabledText = runCli(['cost', '--platform', 'codex', '--show-disable'], cwd, home).stdout;
+    expect(disabledText).toContain('Disabled resources (not counted):');
+    expect(disabledText).toContain('Use the enable subcommand to turn them on.');
+    expect(disabledText).toContain(`skill-doctor context enable --id ${JSON.stringify(skillId)} --platform codex`);
   });
 
   it('context disable writes project Codex config for a skill resource id', () => {

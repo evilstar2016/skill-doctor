@@ -55,7 +55,7 @@ export function estimateContextCost(
       if (isContextResourceRecord(entry)) return estimateContextResourceCost(entry, tokenCounter);
       return isMcpServerRecord(entry) ? estimateMcpServerCost(entry, tokenCounter) : estimateSkillCost(entry, tokenCounter);
     });
-  const items = appendCodexSkillListAggregates(estimatedEntries, options.projectPath, tokenCounter)
+  const estimatedItems = appendCodexSkillListAggregates(estimatedEntries, options.projectPath, tokenCounter)
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -65,8 +65,10 @@ export function estimateContextCost(
       }
       return left.name.localeCompare(right.name);
     });
-  const totalEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum : sum + chargeableEstimatedTokens(item), 0);
-  const disabledEstimatedTokens = items.reduce((sum, item) => item.enabled === false ? sum + chargeableEstimatedTokens(item) : sum, 0);
+  const items = estimatedItems.filter((item) => item.enabled !== false);
+  const disabledItems = estimatedItems.filter((item) => item.enabled === false);
+  const totalEstimatedTokens = items.reduce((sum, item) => sum + chargeableEstimatedTokens(item), 0);
+  const disabledEstimatedTokens = disabledItems.reduce((sum, item) => sum + chargeableEstimatedTokens(item), 0);
   const byPlatform = summarizeByPlatform(items, budgetTokens, platformBudgets);
 
   return {
@@ -83,6 +85,7 @@ export function estimateContextCost(
       byPlatform,
     },
     items,
+    ...(disabledItems.length > 0 ? { disabledItems } : {}),
   };
 }
 
