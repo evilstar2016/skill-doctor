@@ -25,7 +25,7 @@ export function detectPlatform(options: DetectOptions = {}): DetectedPlatform | 
   ];
 
   for (const def of sorted) {
-    for (const target of def.installTargets) {
+    for (const target of def.installTargets.filter((entry) => entry.scope === 'global')) {
       const resolvedDir = resolvePlatformPathTemplate(target.path, homeDir, appDataDir);
       if (existsSync(resolvedDir)) {
         return { platform: def.platform, globalDir: resolvedDir, layout: target.layout };

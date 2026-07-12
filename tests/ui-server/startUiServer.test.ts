@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -140,5 +141,63 @@ describe('Skill Doctor UI server', () => {
     });
     expect(reset.status).toBe(200);
     expect((await reset.json()).sources.some((entry: { id: string }) => entry.id === 'custom-reviewer')).toBe(false);
+  });
+
+  it('previews and commits Agent imports without accepting a browser-provided target path', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    const uiDir = join(root, 'ui');
+    const agentSkill = join(homeDir, '.claude', 'skills', 'review');
+    writeFile(join(uiDir, 'index.html'), '<div id="root">Skill Doctor</div>');
+    writeFile(join(agentSkill, 'SKILL.md'), '---\nname: review\ndescription: review safely\n---\n');
+
+    handle = await startUiServer({ projectDir, homeDir, uiDir, port: 0 });
+    const baseUrl = `http://${handle.host}:${handle.port}`;
+    const bootstrapSession = await fetch(handle.url, { redirect: 'manual' });
+    const cookie = bootstrapSession.headers.get('set-cookie')!.split(';')[0];
+    const headers = { Cookie: cookie, Origin: baseUrl, 'Content-Type': 'application/json' };
+
+    const preview = await fetch(`${baseUrl}/api/library/import/preview`, {
+      method: 'POST', headers, body: '{}',
+    });
+    expect(preview.status).toBe(200);
+    const plan = await preview.json() as { planId: string; candidates: Array<{ id: string }> };
+
+    const commit = await fetch(`${baseUrl}/api/library/import/commit`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        planId: plan.planId,
+        decisions: [{ candidateId: plan.candidates[0].id, action: 'replace-with-link' }],
+        finalPath: join(root, 'must-not-be-written'),
+      }),
+    });
+    expect(commit.status).toBe(200);
+    expect((await commit.json()).outcomes[0].status).toBe('linked');
+    expect(fs.lstatSync(agentSkill).isSymbolicLink()).toBe(true);
+    expect(fs.existsSync(join(root, 'must-not-be-written'))).toBe(false);
+
+    const library = await fetch(`${baseUrl}/api/library/skills`, { headers: { Cookie: cookie } });
+    const libraryPayload = await library.json() as { skills: Array<{ id: string }>; deployments: unknown[] };
+    expect(libraryPayload.skills).toHaveLength(1);
+    expect(libraryPayload.deployments).toEqual([]);
+
+    const targets = await fetch(`${baseUrl}/api/deployments/targets`, { headers: { Cookie: cookie } });
+    expect((await targets.json()).targets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetId: 'claude-global-skills', scope: 'global' }),
+      expect.objectContaining({ targetId: 'claude-project-skills', scope: 'project' }),
+    ]));
+
+    const deploymentPreview = await fetch(`${baseUrl}/api/deployments/preview`, {
+      method: 'POST', headers, body: JSON.stringify({ skillId: libraryPayload.skills[0].id, targetIds: ['claude-global-skills'], mode: 'symlink', installedPath: join(root, 'must-not-be-written') }),
+    });
+    expect(deploymentPreview.status).toBe(200);
+    const deploymentPlan = await deploymentPreview.json() as { planId: string };
+    const deploymentCommit = await fetch(`${baseUrl}/api/deployments/commit`, {
+      method: 'POST', headers, body: JSON.stringify({ skillId: libraryPayload.skills[0].id, targetIds: ['claude-global-skills'], mode: 'symlink', planId: deploymentPlan.planId, installedPath: join(root, 'must-not-be-written') }),
+    });
+    expect((await deploymentCommit.json()).outcomes[0].status).toBe('registered');
+    expect(fs.existsSync(join(root, 'must-not-be-written'))).toBe(false);
   });
 });

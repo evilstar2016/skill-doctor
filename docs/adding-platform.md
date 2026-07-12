@@ -20,7 +20,7 @@ Required decisions:
 - `confidence`: `high` for documented paths, `low` for best-effort/community paths.
 - `global` and `project`: discovery paths, scope, layout, and file filters.
 - `extensions`: file extensions allowed in those paths.
-- `installTargets`: global destinations used by `install`, `uninstall`, and auto-detection.
+- `installTargets`: stable, explicitly scoped destinations. Each needs a unique `targetId`, `scope`, and `layout`. Only declare documented writable `skill-dirs` locations that Skill Doctor may deploy to; discovery-only, `costOnly`, single-file, and system-owned paths must not become deployment targets. Add a project target only when its relative path is safe to resolve under the current project.
 - `mcpConfigFiles`: local MCP config files to scan for `cost --source mcp`.
 - `costPolicy`: rules that classify records as metadata, always-on, file-scoped, or manual.
 
@@ -47,7 +47,8 @@ Update or add tests for the adapter features you changed:
 - `tests/discovery/resolvePaths.test.ts`: global/project discovery, layout, extension filters, `costOnly` behavior.
 - `tests/mcp/scanMcpServers.test.ts`: MCP config parsing if `mcpConfigFiles` is non-empty.
 - `tests/context/estimateContextCost.test.ts`: cost-policy classification and recommendations.
-- `tests/install/resolveInstallPath.test.ts` and `tests/install/detectPlatform.test.ts`: install target support.
+- `tests/install/resolveInstallPath.test.ts` and `tests/install/detectPlatform.test.ts`: legacy install target support.
+- `tests/library/deployments.test.ts`: stable target IDs, global/current-project resolution, and managed directory deployment behavior when `skill-dirs` targets change.
 - `tests/cli/integration.test.ts`: CLI help/validation, cost filtering, install target aliases, and stable JSON output when user-facing behavior changes.
 - `tests/render/render.test.ts` and `tests/render/renderDashboard.test.ts`: renderer compatibility if visible output changes.
 - `tests/scenarios/platform-adapter-regression/multi-platform-regression.scenario.ts`: end-to-end coverage for Claude Code, Cursor, Copilot, Codex, Gemini CLI, and Windsurf together. Keep this scenario focused on shared `SkillRecord`, `McpServerRecord`, and `ContextCostItem` behavior rather than adapter internals.

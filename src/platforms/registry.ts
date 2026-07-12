@@ -13,6 +13,8 @@ export interface PlatformPathTarget {
 }
 
 export interface PlatformInstallTarget {
+  targetId: string;
+  scope: 'global' | 'project';
   path: string;
   layout: 'files' | 'skill-dirs';
 }
@@ -100,7 +102,10 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
       { path: '.claude/commands', mode: 'recursive-dir', layout: 'files' },
     ],
     extensions: ['.md'],
-    installTargets: [{ path: '~/.claude/skills', layout: 'skill-dirs' }],
+    installTargets: [
+      { targetId: 'claude-global-skills', scope: 'global', path: '~/.claude/skills', layout: 'skill-dirs' },
+      { targetId: 'claude-project-skills', scope: 'project', path: '.claude/skills', layout: 'skill-dirs' },
+    ],
     mcpConfigFiles: [
       { scope: 'global', path: '~/.claude.json', format: 'json' },
       { scope: 'project', path: '.mcp.json', format: 'json' },
@@ -150,7 +155,7 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
       { path: '.cursorrules', mode: 'single-file' },
     ],
     extensions: ['.md', '.mdc'],
-    installTargets: [{ path: '~/.cursor/rules', layout: 'files' }],
+    installTargets: [{ targetId: 'cursor-global-rules', scope: 'global', path: '~/.cursor/rules', layout: 'files' }],
     mcpConfigFiles: [
       { scope: 'global', path: '~/.cursor/mcp.json', format: 'json' },
       { scope: 'project', path: '.cursor/mcp.json', format: 'json' },
@@ -199,8 +204,10 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     ],
     extensions: ['.md'],
     installTargets: [
-      { path: '~/.copilot/skills', layout: 'skill-dirs' },
-      { path: '~/.agents/skills', layout: 'skill-dirs' },
+      { targetId: 'copilot-global-skills', scope: 'global', path: '~/.copilot/skills', layout: 'skill-dirs' },
+      { targetId: 'copilot-global-agents-skills', scope: 'global', path: '~/.agents/skills', layout: 'skill-dirs' },
+      { targetId: 'copilot-project-skills', scope: 'project', path: '.github/skills', layout: 'skill-dirs' },
+      { targetId: 'copilot-project-agents-skills', scope: 'project', path: '.agents/skills', layout: 'skill-dirs' },
     ],
     mcpConfigFiles: [
       { scope: 'project', path: '.vscode/mcp.json', format: 'json' },
@@ -252,10 +259,12 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     ],
     extensions: ['.md'],
     installTargets: [
-      { path: '~/.codex/skills', layout: 'skill-dirs' },
-      { path: '~/.agent/skills', layout: 'skill-dirs' },
-      { path: '~/.agents/skills', layout: 'skill-dirs' },
-      { path: '/etc/codex/skills', layout: 'skill-dirs' },
+      { targetId: 'codex-global-skills', scope: 'global', path: '~/.codex/skills', layout: 'skill-dirs' },
+      { targetId: 'codex-global-agent-skills', scope: 'global', path: '~/.agent/skills', layout: 'skill-dirs' },
+      { targetId: 'codex-global-agents-skills', scope: 'global', path: '~/.agents/skills', layout: 'skill-dirs' },
+      { targetId: 'codex-project-skills', scope: 'project', path: '.codex/skills', layout: 'skill-dirs' },
+      { targetId: 'codex-project-agent-skills', scope: 'project', path: '.agent/skills', layout: 'skill-dirs' },
+      { targetId: 'codex-project-agents-skills', scope: 'project', path: '.agents/skills', layout: 'skill-dirs' },
     ],
     mcpConfigFiles: [
       { scope: 'global', path: '~/.codex/config.toml', format: 'toml' },
@@ -302,7 +311,10 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
       { path: 'GEMINI.md', mode: 'single-file' },
     ],
     extensions: ['.md'],
-    installTargets: [{ path: '~/.gemini/skills', layout: 'skill-dirs' }],
+    installTargets: [
+      { targetId: 'gemini-global-skills', scope: 'global', path: '~/.gemini/skills', layout: 'skill-dirs' },
+      { targetId: 'gemini-project-skills', scope: 'project', path: '.gemini/skills', layout: 'skill-dirs' },
+    ],
     mcpConfigFiles: [
       { scope: 'global', path: '~/.gemini/settings.json', format: 'json' },
       { scope: 'project', path: '.gemini/settings.json', format: 'json' },
@@ -329,8 +341,10 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     ],
     extensions: ['.md'],
     installTargets: [
-      { path: '~/.codeium/windsurf/skills', layout: 'skill-dirs' },
-      { path: '~/.agents/skills', layout: 'skill-dirs' },
+      { targetId: 'windsurf-global-skills', scope: 'global', path: '~/.codeium/windsurf/skills', layout: 'skill-dirs' },
+      { targetId: 'windsurf-global-agents-skills', scope: 'global', path: '~/.agents/skills', layout: 'skill-dirs' },
+      { targetId: 'windsurf-project-skills', scope: 'project', path: '.windsurf/skills', layout: 'skill-dirs' },
+      { targetId: 'windsurf-project-agents-skills', scope: 'project', path: '.agents/skills', layout: 'skill-dirs' },
     ],
     mcpConfigFiles: [],
     costPolicy: {
@@ -371,7 +385,10 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     global: [{ path: '~/.trae/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [{ path: '.trae/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     extensions: ['.md'],
-    installTargets: [{ path: '~/.trae/skills', layout: 'skill-dirs' }],
+    installTargets: [
+      { targetId: 'trae-global-skills', scope: 'global', path: '~/.trae/skills', layout: 'skill-dirs' },
+      { targetId: 'trae-project-skills', scope: 'project', path: '.trae/skills', layout: 'skill-dirs' },
+    ],
     mcpConfigFiles: [],
     costPolicy: DEFAULT_SKILL_COST_POLICY,
   },
@@ -390,8 +407,9 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     ],
     extensions: ['.md'],
     installTargets: [
-      { path: '~/.config/opencode/skills', layout: 'skill-dirs' },
-      { path: '%APPDATA%/opencode/skills', layout: 'skill-dirs' },
+      { targetId: 'opencode-global-config-skills', scope: 'global', path: '~/.config/opencode/skills', layout: 'skill-dirs' },
+      { targetId: 'opencode-global-appdata-skills', scope: 'global', path: '%APPDATA%/opencode/skills', layout: 'skill-dirs' },
+      { targetId: 'opencode-project-skills', scope: 'project', path: 'skills', layout: 'skill-dirs' },
     ],
     mcpConfigFiles: [],
     costPolicy: DEFAULT_SKILL_COST_POLICY,
@@ -404,7 +422,10 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     global: [{ path: '~/.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [{ path: '.kiro/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     extensions: ['.md'],
-    installTargets: [{ path: '~/.kiro/skills', layout: 'skill-dirs' }],
+    installTargets: [
+      { targetId: 'kiro-global-skills', scope: 'global', path: '~/.kiro/skills', layout: 'skill-dirs' },
+      { targetId: 'kiro-project-skills', scope: 'project', path: '.kiro/skills', layout: 'skill-dirs' },
+    ],
     mcpConfigFiles: [],
     costPolicy: DEFAULT_SKILL_COST_POLICY,
   },
@@ -416,7 +437,7 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     global: [{ path: '~/.openclaw/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [],
     extensions: ['.md'],
-    installTargets: [{ path: '~/.openclaw/skills', layout: 'skill-dirs' }],
+    installTargets: [{ targetId: 'openclaw-global-skills', scope: 'global', path: '~/.openclaw/skills', layout: 'skill-dirs' }],
     mcpConfigFiles: [],
     costPolicy: DEFAULT_SKILL_COST_POLICY,
   },
@@ -428,7 +449,7 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
     global: [{ path: '~/.config/hermes/skills', mode: 'recursive-dir', layout: 'skill-dirs' }],
     project: [],
     extensions: ['.md'],
-    installTargets: [{ path: '~/.config/hermes/skills', layout: 'skill-dirs' }],
+    installTargets: [{ targetId: 'hermes-global-skills', scope: 'global', path: '~/.config/hermes/skills', layout: 'skill-dirs' }],
     mcpConfigFiles: [],
     costPolicy: DEFAULT_SKILL_COST_POLICY,
   },
@@ -490,11 +511,12 @@ export function normalizePlatformName(value: string | undefined): Platform | nul
 }
 
 export function getDefaultInstallTarget(adapter: PlatformAdapter): PlatformPathTarget | undefined {
-  return adapter.installTargets[0]
+  const target = adapter.installTargets.find((entry) => entry.scope === 'global');
+  return target
     ? {
-        path: adapter.installTargets[0].path,
+        path: target.path,
         mode: 'recursive-dir',
-        layout: adapter.installTargets[0].layout,
+        layout: target.layout,
       }
     : undefined;
 }

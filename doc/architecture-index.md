@@ -48,6 +48,14 @@ This document is the repository index for architecture and functions.
   - Module: `src/install/uninstallSkill.ts`
   - Module: `src/install/registry.ts`
   - Responsibility: resolve adapter-defined install targets and maintain stable install registry records.
+- Domain: Managed skill library
+  - Module: `src/library/paths.ts`
+  - Module: `src/library/catalog.ts`
+  - Module: `src/library/skillDirectory.ts`
+  - Module: `src/library/importLocalSkill.ts`
+  - Module: `src/library/importAgentSkills.ts`
+  - Module: `src/library/deployments.ts`
+  - Responsibility: validate and hash complete skill directories, preview Agent-library conflicts, atomically persist managed skill copies, safely take over approved Agent directories, and deploy managed directory skills under `~/.skill-doctor`.
 - Domain: Parsing
   - Module: `src/parsing/parseSkill.ts`
   - Module: `src/parsing/extractTriggers.ts`
@@ -199,6 +207,91 @@ Module: `src/install/registry.ts`
 | `src/install/registry.ts::addRegistryEntry` | 21 | exported helper | Add or replace one stable `RegistryEntry`. |
 | `src/install/registry.ts::removeRegistryEntry` | 34 | exported helper | Remove one platform/name registry entry. |
 | `src/install/registry.ts::findRegistryEntry` | 42 | exported helper | Find a registry entry by name and platform. |
+
+### Domain: Managed skill library
+
+Module: `src/library/paths.ts`
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/library/paths.ts::getManagedSkillPaths` | 12 | exported helper | Resolve central catalog, managed-copy, staging, and backup paths with an injectable home directory. |
+
+Module: `src/library/catalog.ts`
+
+Key contracts:
+
+- `ManagedSkill`: immutable managed-copy identity, content hash, source, and timestamps.
+- `ManagedSkillSource`: local, agent-import, GitHub, or marketplace provenance for a managed skill.
+- `ManagedSkillCatalog`: versioned on-disk catalog of managed skills.
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/library/catalog.ts::ManagedSkillCatalogError` | 34 | exported error | Report invalid or unreadable central catalog data. |
+| `src/library/catalog.ts::loadManagedSkillCatalog` | 41 | exported helper | Load and validate the versioned central catalog, returning an empty catalog when absent. |
+| `src/library/catalog.ts::saveManagedSkillCatalog` | 58 | exported helper | Atomically persist a validated central catalog. |
+
+Module: `src/library/skillDirectory.ts`
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/library/skillDirectory.ts::SkillDirectoryError` | 21 | exported error | Report invalid skill roots, unsafe links, or unsupported directory entries. |
+| `src/library/skillDirectory.ts::inspectSkillDirectory` | 28 | exported service | Validate a complete skill root, derive its name, and calculate its deterministic tree hash. |
+| `src/library/skillDirectory.ts::hashSkillDirectory` | 48 | exported helper | Return the deterministic tree hash for a valid complete skill directory. |
+| `src/library/skillDirectory.ts::copySkillDirectory` | 52 | exported helper | Copy validated skill content while preserving modes and excluding managed metadata. |
+
+Module: `src/library/importLocalSkill.ts`
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/library/importLocalSkill.ts::ManagedSkillNameConflictError` | 24 | exported error | Require explicit later conflict handling for a same-name skill with different content. |
+| `src/library/importLocalSkill.ts::importLocalSkill` | 34 | exported service | Stage, revalidate, atomically promote, and catalog a local or explicitly named Agent skill copy with duplicate rollback protection. |
+
+Module: `src/library/importAgentSkills.ts`
+
+Key contracts:
+
+- `AgentSkillImportPreview`: deterministic, read-only candidate plan with source preconditions.
+- `AgentImportDecision`: an explicit per-candidate keep, takeover, conflict-resolution, registration, or skip choice.
+- `AgentImportCommitResult`: structured execution steps, failures, rollback status, and rescan signal.
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/library/importAgentSkills.ts::previewAgentSkillImport` | 73 | exported service | Discover configured Agent skill roots and classify managed copies, conflicts, links, invalid entries, and unreadable targets without writing. |
+| `src/library/importAgentSkills.ts::commitAgentSkillImport` | 81 | exported service | Recheck a stable preview, enforce explicit decisions, import approved content, and perform directory-link takeover with backup rollback. |
+
+Module: `src/library/deployments.ts`
+
+Key contracts:
+
+- `SkillDeployment`: one independently persisted managed-skill deployment, keyed by immutable deployment ID rather than platform or skill name.
+- `DeploymentStatus`: authoritative `synced`, `outdated`, `modified`, `missing`, or `conflict` lifecycle state.
+- `ResolvedSkillDeploymentTarget`: adapter-owned, writable `skill-dirs` destination resolved for global or current-project scope.
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/library/deployments.ts::loadSkillDeploymentStore` | 89 | exported helper | Load and validate the independent deployments registry. |
+| `src/library/deployments.ts::saveSkillDeploymentStore` | 101 | exported helper | Atomically persist validated deployment records. |
+| `src/library/deployments.ts::listSkillDeploymentTargets` | 114 | exported service | Resolve only adapter-declared writable directory targets for the current project. |
+| `src/library/deployments.ts::previewSkillDeployment` | 125 | exported service | Create stable deployment plans with source/target precondition hashes. |
+| `src/library/deployments.ts::commitSkillDeployment` | 148 | exported service | Recheck a deployment plan and atomically create or replace full-directory links/copies. |
+| `src/library/deployments.ts::listManagedSkillDeployments` | 172 | exported service | Refresh deployment drift state and conservatively adopt compatible legacy registry records. |
+| `src/library/deployments.ts::syncSkillDeployment` | 184 | exported service | Synchronize an outdated copy, requiring force confirmation for a modified copy. |
+| `src/library/deployments.ts::uninstallSkillDeployment` | 208 | exported service | Remove or unregister exactly one managed deployment with modification safeguards. |
+
+### Domain: Application actions
+
+Module: `src/application/actions.ts`
+
+| Index Key | Line | Role | Purpose |
+| --- | --- | --- | --- |
+| `src/application/actions.ts::previewManagedAgentSkillImport` | 133 | exported action | Provide the UI server with a project-scoped Agent import preview. |
+| `src/application/actions.ts::commitManagedAgentSkillImport` | 137 | exported action | Commit a previously previewed Agent import plan without accepting a final target path. |
+| `src/application/actions.ts::getManagedSkillLibrary` | 150 | exported action | Return authoritative deployment and legacy-registration state for the current project. |
+| `src/application/actions.ts::getManagedSkillDeploymentTargets` | 154 | exported action | Expose only backend-resolved writable deployment targets. |
+| `src/application/actions.ts::previewManagedSkillDeployment` | 158 | exported action | Create a managed deployment preview without accepting a browser filesystem path. |
+| `src/application/actions.ts::commitManagedSkillDeployment` | 169 | exported action | Commit a confirmed managed deployment preview. |
+| `src/application/actions.ts::syncManagedSkillDeployment` | 183 | exported action | Safely synchronize a single registered deployment. |
+| `src/application/actions.ts::uninstallManagedSkillDeployment` | 187 | exported action | Safely remove or unregister a single registered deployment. |
 
 ### Domain: Parsing
 
