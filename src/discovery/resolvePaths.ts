@@ -3,6 +3,7 @@ import { basename, dirname, extname, join, sep } from 'node:path';
 import { homedir } from 'node:os';
 
 import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
+import type { EffectiveScanSource } from '../config/scanSources';
 import {
   UNKNOWN_PLATFORM_ADAPTER,
   getPlatformAdapter,
@@ -20,6 +21,7 @@ interface ResolvePathsOptions {
   appDataDir?: string;
   extraPaths?: string[];
   includeCostPaths?: boolean;
+  sources?: EffectiveScanSource[];
 }
 
 export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): SkillFile[] {
@@ -28,22 +30,34 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
   const results: SkillFile[] = [];
   const seen = new Set<string>();
 
-  for (const definition of getPlatformAdapters()) {
-    for (const target of definition.global) {
-      if (target.costOnly && !options.includeCostPaths) continue;
-      collectPath(
-        resolvePlatformPathTemplate(target.path, homeDir, appDataDir),
-        definition,
-        target,
-        'global',
-        results,
-        seen,
-      );
+  if (options.sources) {
+    for (const source of options.sources.filter((entry) => entry.resource === 'skill' && entry.enabled)) {
+      if (source.costOnly && !options.includeCostPaths) continue;
+      const definition = getPlatformAdapter(source.platform) ?? UNKNOWN_PLATFORM_ADAPTER;
+      collectPath(source.resolvedPath, definition, {
+        path: source.path,
+        mode: source.mode ?? 'recursive-dir',
+        layout: source.layout ?? 'skill-dirs',
+      }, source.scope, results, seen);
     }
+  } else {
+    for (const definition of getPlatformAdapters()) {
+      for (const target of definition.global) {
+        if (target.costOnly && !options.includeCostPaths) continue;
+        collectPath(
+          resolvePlatformPathTemplate(target.path, homeDir, appDataDir),
+          definition,
+          target,
+          'global',
+          results,
+          seen,
+        );
+      }
 
-    for (const target of definition.project) {
-      if (target.costOnly && !options.includeCostPaths) continue;
-      collectPath(join(cwd, target.path), definition, target, 'project', results, seen);
+      for (const target of definition.project) {
+        if (target.costOnly && !options.includeCostPaths) continue;
+        collectPath(join(cwd, target.path), definition, target, 'project', results, seen);
+      }
     }
   }
 

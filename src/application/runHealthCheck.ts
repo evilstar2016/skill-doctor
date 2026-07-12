@@ -6,6 +6,7 @@ import { runAudit } from '../audit/runAudit';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
+import { loadEffectiveScanSources } from '../config/scanSources';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { estimateContextCost } from '../context/estimateContextCost';
 import { scanCodexPluginCache } from '../context/scanCodexPluginCache';
@@ -36,6 +37,7 @@ export async function runHealthCheck(
   const includeContext = options.includeContext ?? true;
   const warnings: ScanWarning[] = [];
   const loaded = loadUserConfig(options.homeDir);
+  const scanSources = loadEffectiveScanSources(projectDir, { homeDir: options.homeDir });
   const llmOptions = getAnalysisOptions(loaded.config.analysis);
   const embedding = loaded.config.embedding;
   const registry = loadRegistry(getRegistryPath(options.homeDir));
@@ -48,8 +50,14 @@ export async function runHealthCheck(
   let skills = filterByPlatform(filterByScope(await scanSkills(projectDir, {
     homeDir: options.homeDir,
     extraPaths: loaded.config.paths?.extra,
+    sources: scanSources,
   }), scope), platform);
-  let mcpServers = filterByPlatform(filterByScope(scanMcpServers(projectDir, { homeDir: options.homeDir }), scope), platform);
+  let mcpServers = filterByPlatform(filterByScope(scanMcpServers(projectDir, {
+    homeDir: options.homeDir,
+    files: scanSources.filter((entry) => entry.resource === 'mcp' && entry.enabled).map((entry) => ({
+      platform: entry.platform, scope: entry.scope, path: entry.resolvedPath, format: entry.format ?? 'json',
+    })),
+  }), scope), platform);
   const analysisSkills = uniquePhysicalSkills(skills);
 
   if (options.discoverMcpTools && mcpServers.length > 0) {
@@ -94,7 +102,7 @@ export async function runHealthCheck(
   if (includeContext) {
     progress('context', '正在估算固定与按需上下文成本');
     try {
-      const contextEntries = await loadContextEntries(projectDir, scope, platform, options, loaded.config.paths?.extra);
+      const contextEntries = await loadContextEntries(projectDir, scope, platform, options, loaded.config.paths?.extra, scanSources);
       context = addCodexResourceGroups(estimateContextCost(contextEntries, {
         ...(options.budgetTokens ? { budgetTokens: options.budgetTokens } : {}),
         projectPath: projectDir,
@@ -160,6 +168,7 @@ async function loadContextEntries(
   platform: Platform | null,
   options: HealthCheckOptions,
   extraPaths: string[] | undefined,
+  scanSources: ReturnType<typeof loadEffectiveScanSources>,
 ) {
   const effectiveScope = scope ?? 'all';
   const entries: Parameters<typeof estimateContextCost>[0] = [];
@@ -170,15 +179,21 @@ async function loadContextEntries(
       includeDisabled: options.includeDisabled ?? true,
       resource: 'all',
       discoverMcpTools: options.discoverMcpTools ?? false,
+      scanSources,
     }), effectiveScope));
   }
 
   if (platform !== 'codex') {
     const costSkills = filterByPlatform(
-      filterByScope(await scanSkills(projectDir, { homeDir: options.homeDir, extraPaths, includeCostPaths: true }), effectiveScope),
+      filterByScope(await scanSkills(projectDir, { homeDir: options.homeDir, extraPaths, includeCostPaths: true, sources: scanSources }), effectiveScope),
       platform,
     ).filter((entry) => entry.platform !== 'codex');
-    let servers = filterByPlatform(filterByScope(scanMcpServers(projectDir, { homeDir: options.homeDir }), effectiveScope), platform)
+    let servers = filterByPlatform(filterByScope(scanMcpServers(projectDir, {
+      homeDir: options.homeDir,
+      files: scanSources.filter((entry) => entry.resource === 'mcp' && entry.enabled).map((entry) => ({
+        platform: entry.platform, scope: entry.scope, path: entry.resolvedPath, format: entry.format ?? 'json',
+      })),
+    }), effectiveScope), platform)
       .filter((entry) => entry.platform !== 'codex');
     if (options.discoverMcpTools) servers = await discoverMcpToolsForServers(servers);
     entries.push(...costSkills, ...servers);

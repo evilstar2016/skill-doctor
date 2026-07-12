@@ -9,6 +9,10 @@ const mocks = vi.hoisted(() => ({
   getResourceDetail: vi.fn(),
   startScan: vi.fn(),
   streamScan: vi.fn(),
+  getScanSources: vi.fn(),
+  validateScanSources: vi.fn(),
+  saveScanSources: vi.fn(),
+  resetScanSources: vi.fn(),
 }));
 
 vi.mock('../../web/src/api', () => ({
@@ -48,6 +52,15 @@ describe('UI onboarding', () => {
     mocks.detectAgents.mockResolvedValue({ projectDir: '/tmp/project', agents: [codexAgent] });
     mocks.startScan.mockResolvedValue('scan-1');
     mocks.streamScan.mockImplementation((_id, handlers) => { queueMicrotask(() => handlers.complete(snapshot)); return () => {}; });
+    const sources = [
+      { id: 'global-codex-skills', platform: 'codex', resource: 'skill', scope: 'global', path: '~/.codex/skills', resolvedPath: '/tmp/home/.codex/skills', enabled: true, origin: 'builtin', status: 'missing', mode: 'recursive-dir', layout: 'skill-dirs' },
+      { id: 'global-codex-mcp', platform: 'codex', resource: 'mcp', scope: 'global', path: '~/.codex/config.toml', resolvedPath: '/tmp/home/.codex/config.toml', enabled: true, origin: 'builtin', status: 'exists', format: 'toml' },
+      { id: 'global-codex-plugins', platform: 'codex', resource: 'plugin', scope: 'global', path: '~/.codex/plugins/*/.codex-plugin/plugin.json', resolvedPath: '/tmp/home/.codex/plugins/*/.codex-plugin/plugin.json', enabled: true, origin: 'builtin', status: 'missing' },
+    ];
+    mocks.getScanSources.mockResolvedValue({ projectDir: '/tmp/project', configPath: '/tmp/config.json', sources });
+    mocks.validateScanSources.mockImplementation(async (scanSources) => ({ valid: true, scanSources }));
+    mocks.saveScanSources.mockResolvedValue({ saved: true, sources });
+    mocks.resetScanSources.mockResolvedValue({ reset: true, sources });
   });
 
   it('waits for confirmation, recommends the project agent, then starts the first scan', async () => {
@@ -97,5 +110,34 @@ describe('UI onboarding', () => {
     expect(await screen.findByText(/修改这个文件会同时影响以下 3 个 Agent/)).toBeTruthy();
     expect(screen.getAllByText('Codex').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Windsurf').length).toBeGreaterThan(0);
+  });
+
+  it('shows defaults and supports adding, saving and resetting Agent scan paths', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [], snapshot,
+    });
+    render(<App />);
+
+    const scanPathButtons = await screen.findAllByRole('button', { name: '扫描路径' });
+    fireEvent.click(scanPathButtons[scanPathButtons.length - 1]);
+    expect(await screen.findByDisplayValue('~/.codex/skills')).toBeTruthy();
+    expect(screen.getAllByText('不存在').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('系统默认').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: '添加路径' })[0]);
+    const skillPaths = screen.getAllByLabelText('Codex Skill 路径路径');
+    fireEvent.change(skillPaths[skillPaths.length - 1], { target: { value: '/tmp/custom-skills' } });
+    const saveButtons = screen.getAllByRole('button', { name: /^保存$/ });
+    fireEvent.click(saveButtons[saveButtons.length - 1]);
+    await waitFor(() => expect(mocks.validateScanSources).toHaveBeenCalledWith(expect.objectContaining({
+      codex: expect.objectContaining({ skills: expect.arrayContaining([expect.objectContaining({ path: '/tmp/custom-skills' })]) }),
+    })));
+    expect(mocks.saveScanSources).toHaveBeenCalled();
+
+    const resetButtons = screen.getAllByRole('button', { name: /恢复当前 Agent 默认/ });
+    fireEvent.click(resetButtons[resetButtons.length - 1]);
+    await waitFor(() => expect(mocks.resetScanSources).toHaveBeenCalledWith('codex'));
   });
 });

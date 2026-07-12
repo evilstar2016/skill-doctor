@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -24,11 +24,33 @@ export interface PathsUserConfig {
   extra?: string[];
 }
 
+export type ScanSourceResource = 'skill' | 'mcp' | 'plugin';
+
+export interface ScanSourceUserEntry {
+  id: string;
+  scope: 'global' | 'project';
+  path: string;
+  enabled?: boolean;
+  format?: 'json' | 'toml';
+  mode?: 'recursive-dir' | 'single-file';
+  layout?: 'files' | 'skill-dirs';
+  skillsField?: string;
+  defaultSkillsDir?: string;
+  costOnly?: boolean;
+}
+
+export interface AgentScanSourcesUserConfig {
+  skills?: ScanSourceUserEntry[];
+  mcp?: ScanSourceUserEntry[];
+  plugins?: ScanSourceUserEntry[];
+}
+
 export interface SkillDoctorUserConfig {
   embedding?: EmbeddingUserConfig;
   analysis?: AnalysisUserConfig;
   ignore?: IgnoreUserConfig;
   paths?: PathsUserConfig;
+  scanSources?: Record<string, AgentScanSourcesUserConfig>;
 }
 
 export interface LoadedUserConfig {
@@ -67,6 +89,7 @@ function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserCon
   const analysis = readObject(value.analysis);
   const ignore = readObject(value.ignore);
   const paths = readObject(value.paths);
+  const scanSources = readObject(value.scanSources);
 
   return {
     ...(embedding
@@ -90,7 +113,17 @@ function normalizeUserConfig(value: Record<string, unknown>): SkillDoctorUserCon
       : {}),
     ...(ignore ? { ignore: normalizeIgnoreConfig(ignore) } : {}),
     ...(paths ? { paths: normalizePathsConfig(paths) } : {}),
+    ...(scanSources ? { scanSources: normalizeScanSourcesConfig(scanSources) } : {}),
   };
+}
+
+export function saveUserConfig(config: SkillDoctorUserConfig, homeDir: string = resolveHomeDir()): string {
+  const path = getDefaultUserConfigPath(homeDir);
+  mkdirSync(join(homeDir, '.skill-doctor'), { recursive: true });
+  const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(temporaryPath, `${JSON.stringify(config, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  renameSync(temporaryPath, path);
+  return path;
 }
 
 function normalizeIgnoreConfig(value: Record<string, unknown>): IgnoreUserConfig {
@@ -119,6 +152,51 @@ function normalizePathsConfig(value: Record<string, unknown>): PathsUserConfig {
   return {
     ...(extra ? { extra } : {}),
   };
+}
+
+function normalizeScanSourcesConfig(value: Record<string, unknown>): Record<string, AgentScanSourcesUserConfig> {
+  const result: Record<string, AgentScanSourcesUserConfig> = {};
+  for (const [platform, rawAgent] of Object.entries(value)) {
+    const agent = readObject(rawAgent);
+    if (!agent) continue;
+    const normalized: AgentScanSourcesUserConfig = {};
+    const skills = normalizeScanSourceEntries(agent.skills, 'skill');
+    const mcp = normalizeScanSourceEntries(agent.mcp, 'mcp');
+    const plugins = normalizeScanSourceEntries(agent.plugins, 'plugin');
+    if (skills) normalized.skills = skills;
+    if (mcp) normalized.mcp = mcp;
+    if (plugins) normalized.plugins = plugins;
+    result[platform] = normalized;
+  }
+  return result;
+}
+
+function normalizeScanSourceEntries(value: unknown, resource: ScanSourceResource): ScanSourceUserEntry[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.flatMap((raw, index) => {
+    const entry = readObject(raw);
+    if (!entry) return [];
+    const path = readString(entry.path);
+    if (!path) return [];
+    const scope = entry.scope === 'project' ? 'project' : entry.scope === 'global' ? 'global' : null;
+    if (!scope) return [];
+    const id = readString(entry.id) ?? `user-${resource}-${index}`;
+    const format = entry.format === 'toml' ? 'toml' : entry.format === 'json' ? 'json' : undefined;
+    const mode = entry.mode === 'single-file' ? 'single-file' : entry.mode === 'recursive-dir' ? 'recursive-dir' : undefined;
+    const layout = entry.layout === 'files' ? 'files' : entry.layout === 'skill-dirs' ? 'skill-dirs' : undefined;
+    return [{
+      id,
+      scope,
+      path,
+      ...(typeof entry.enabled === 'boolean' ? { enabled: entry.enabled } : {}),
+      ...(format ? { format } : {}),
+      ...(mode ? { mode } : {}),
+      ...(layout ? { layout } : {}),
+      ...(readString(entry.skillsField) ? { skillsField: readString(entry.skillsField) } : {}),
+      ...(readString(entry.defaultSkillsDir) ? { defaultSkillsDir: readString(entry.defaultSkillsDir) } : {}),
+      ...(typeof entry.costOnly === 'boolean' ? { costOnly: entry.costOnly } : {}),
+    }];
+  });
 }
 
 function readObject(value: unknown): Record<string, unknown> | null {

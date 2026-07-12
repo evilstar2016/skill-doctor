@@ -7,6 +7,7 @@ import { parseSkill } from '../parsing/parseSkill';
 import type { ContextResourceRecord } from '../types/context';
 import type { McpServerRecord } from '../types/mcp';
 import type { Scope, SkillFile, SkillRecord } from '../types/skill';
+import type { EffectiveScanSource } from '../config/scanSources';
 import {
   type CodexContextConfig,
   type CodexResourceFilter,
@@ -22,6 +23,7 @@ export interface ScanCodexContextOptions {
   resource?: CodexResourceFilter;
   includeDisabled?: boolean;
   discoverMcpTools?: boolean;
+  scanSources?: EffectiveScanSource[];
 }
 
 export type CodexContextEntry = SkillRecord | McpServerRecord | ContextResourceRecord;
@@ -45,7 +47,7 @@ export async function scanCodexContextEntries(
   options: ScanCodexContextOptions = {},
 ): Promise<CodexContextEntry[]> {
   const loaded = loadCodexContextConfig({ homeDir: options.homeDir, projectDir, configPath: options.configPath });
-  const { config } = loaded;
+  const config = options.scanSources ? applyConfiguredScanSources(loaded.config, options.scanSources) : loaded.config;
   const homeDir = options.homeDir ?? process.env.HOME ?? process.env.USERPROFILE;
   const resolvedHome = homeDir ?? '';
   const resource = options.resource ?? 'all';
@@ -77,6 +79,26 @@ export async function scanCodexContextEntries(
   }
 
   return entries.filter((entry) => includeDisabled || getEntryEnabled(entry) !== false);
+}
+
+function applyConfiguredScanSources(config: CodexContextConfig, sources: EffectiveScanSource[]): CodexContextConfig {
+  const codex = sources.filter((entry) => entry.platform === 'codex');
+  return {
+    ...config,
+    skillDirs: codex.filter((entry) => entry.resource === 'skill').map((entry) => ({
+      id: entry.id, scope: entry.scope, path: entry.path, enabled: entry.enabled,
+      configSource: entry.origin === 'builtin' ? 'builtin:scan-sources' : 'user:scan-sources',
+    })),
+    mcpConfigFiles: codex.filter((entry) => entry.resource === 'mcp').map((entry) => ({
+      id: entry.id, scope: entry.scope, path: entry.path, format: entry.format ?? 'toml', enabled: entry.enabled,
+      configSource: entry.origin === 'builtin' ? 'builtin:scan-sources' : 'user:scan-sources',
+    })),
+    pluginDirs: codex.filter((entry) => entry.resource === 'plugin').map((entry) => ({
+      id: entry.id, scope: entry.scope, manifestGlob: entry.path, enabled: entry.enabled,
+      skillsField: entry.skillsField, defaultSkillsDir: entry.defaultSkillsDir,
+      configSource: entry.origin === 'builtin' ? 'builtin:scan-sources' : 'user:scan-sources',
+    })),
+  };
 }
 
 function matchesResource(filter: CodexResourceFilter, resource: Exclude<CodexResourceFilter, 'all'>): boolean {
@@ -287,7 +309,7 @@ function scanMcpEntries(
         platform: 'codex' as const,
         scope: entry.scope,
         path: resolveCodexPath(entry.path, baseDir, homeDir),
-        format: 'toml' as const,
+        format: entry.format,
       }));
     });
 

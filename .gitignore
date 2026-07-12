@@ -14,6 +14,7 @@ doc/*
 !doc/specs/
 doc/specs/*
 !doc/specs/ui-onboarding-agent-scan-tracker.md
+!doc/specs/ui-agent-scan-sources-tracker.md
 !doc/scenarios/
 doc/scenarios/*
 !doc/scenarios/platform-adapter-regression/

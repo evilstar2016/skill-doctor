@@ -49,7 +49,7 @@ export interface CodexMcpConfigEntry {
   id: string;
   scope: Scope;
   path: string;
-  format: 'toml';
+  format: 'json' | 'toml';
   enabled?: boolean;
   configSource?: string;
 }
@@ -234,7 +234,7 @@ function readMcpConfigEntries(value: unknown): CodexMcpConfigEntry[] {
       id,
       scope: readScope(entry.scope),
       path,
-      format: 'toml',
+      format: entry.format === 'json' ? 'json' : 'toml',
       ...(typeof entry.enabled === 'boolean' ? { enabled: entry.enabled } : {}),
     };
   });

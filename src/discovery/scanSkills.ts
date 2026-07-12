@@ -2,6 +2,7 @@ import { parseSkill } from '../parsing/parseSkill';
 import type { ProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
+import type { EffectiveScanSource } from '../config/scanSources';
 import { resolvePaths } from './resolvePaths';
 
 interface ScanSkillsOptions {
@@ -11,6 +12,7 @@ interface ScanSkillsOptions {
   provenanceCache?: ProvenanceCache;
   extraPaths?: string[];
   includeCostPaths?: boolean;
+  sources?: EffectiveScanSource[];
 }
 
 export async function scanSkills(cwd: string, options: ScanSkillsOptions = {}): Promise<SkillRecord[]> {
@@ -21,6 +23,7 @@ export async function scanSkills(cwd: string, options: ScanSkillsOptions = {}): 
     appDataDir: options.appDataDir,
     extraPaths: options.extraPaths,
     includeCostPaths: options.includeCostPaths,
+    sources: options.sources,
   })) {
     const skill = await parseSkill(file, {
       llmOptions: options.llmOptions,

@@ -6,7 +6,8 @@ import { dirname, extname, relative, resolve, sep } from 'node:path';
 import packageJson from '../../package.json';
 import { executeDuplicateCleanup, exportSnapshotDashboard, getManagedRegistry, getResourceDetail, installManagedSkill, compareResources, uninstallManagedSkill } from '../application/actions';
 import type { HealthCheckOptions } from '../application/types';
-import { loadUserConfig } from '../config/loadUserConfig';
+import { loadUserConfig, saveUserConfig } from '../config/loadUserConfig';
+import { loadEffectiveScanSources, validateScanSourcesConfig, withScanSources } from '../config/scanSources';
 import { detectAgents } from '../discovery/detectAgents';
 import { toggleCodexResource } from '../context/codexControls';
 import { getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
@@ -86,6 +87,7 @@ interface ApiContext {
 async function handleApi(request: IncomingMessage, response: ServerResponse, url: URL, context: ApiContext): Promise<void> {
   if (request.method === 'GET' && url.pathname === '/api/bootstrap') {
     const loaded = loadUserConfig(context.homeDir);
+    const scanSources = loadEffectiveScanSources(context.projectDir, { homeDir: context.homeDir });
     const registry = getManagedRegistry(context.homeDir);
     return sendJson(response, 200, {
       version: packageJson.version,
@@ -93,7 +95,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
       configPath: loaded.path,
       defaultScope: 'all',
       supportedPlatforms: getPlatformCliValues(),
-      detectedAgents: detectAgents(context.projectDir, { homeDir: context.homeDir }),
+      detectedAgents: detectAgents(context.projectDir, { homeDir: context.homeDir, sources: scanSources }),
       capabilities: context.scans.currentSnapshot?.capabilities ?? {
         aiAuditConfigured: Boolean(loaded.config.analysis?.baseUrl && loaded.config.analysis.model),
         embeddingConfigured: Boolean(loaded.config.embedding?.baseUrl && loaded.config.embedding.model),
@@ -105,6 +107,45 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
       },
       registry: registry.entries,
       snapshot: context.scans.currentSnapshot,
+    });
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/scan-sources') {
+    return sendJson(response, 200, {
+      projectDir: context.projectDir,
+      configPath: loadUserConfig(context.homeDir).path,
+      sources: loadEffectiveScanSources(context.projectDir, { homeDir: context.homeDir }),
+    });
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/scan-sources/validate') {
+    const body = await readJsonBody(request);
+    const scanSources = validateScanSourcesConfig(body.scanSources);
+    return sendJson(response, 200, { valid: true, scanSources });
+  }
+
+  if (request.method === 'PUT' && url.pathname === '/api/scan-sources') {
+    const body = await readJsonBody(request);
+    const scanSources = validateScanSourcesConfig(body.scanSources);
+    const loaded = loadUserConfig(context.homeDir);
+    saveUserConfig(withScanSources(loaded.config, scanSources), context.homeDir);
+    return sendJson(response, 200, {
+      saved: true,
+      sources: loadEffectiveScanSources(context.projectDir, { homeDir: context.homeDir }),
+    });
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/scan-sources/reset') {
+    const body = await readJsonBody(request);
+    const platform = normalizePlatformName(requiredString(body.platform, 'platform'));
+    if (!platform || platform === 'unknown') throw new Error('Invalid platform.');
+    const loaded = loadUserConfig(context.homeDir);
+    const scanSources = { ...(loaded.config.scanSources ?? {}) };
+    delete scanSources[platform];
+    saveUserConfig(withScanSources(loaded.config, scanSources), context.homeDir);
+    return sendJson(response, 200, {
+      reset: true,
+      sources: loadEffectiveScanSources(context.projectDir, { homeDir: context.homeDir }),
     });
   }
 
@@ -135,7 +176,8 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
   if (request.method === 'POST' && url.pathname === '/api/agents/detect') {
     const body = await readJsonBody(request);
     const projectDir = readProjectDir(body.projectDir, context.projectDir);
-    return sendJson(response, 200, { projectDir, agents: detectAgents(projectDir, { homeDir: context.homeDir }) });
+    const sources = loadEffectiveScanSources(projectDir, { homeDir: context.homeDir });
+    return sendJson(response, 200, { projectDir, agents: detectAgents(projectDir, { homeDir: context.homeDir, sources }) });
   }
 
   const eventMatch = url.pathname.match(/^\/api\/scans\/([^/]+)\/events$/);

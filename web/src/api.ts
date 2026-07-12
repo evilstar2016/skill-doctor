@@ -2,6 +2,8 @@ import type { BootstrapPayload, DoctorSnapshot, HealthCheckScope, ResourceDetail
 import type { DetectedAgent } from '../../src/discovery/detectAgents';
 import type { DiffResult } from '../../src/diff/types';
 import type { Platform } from '../../src/types/skill';
+import type { AgentScanSourcesUserConfig } from '../../src/config/loadUserConfig';
+import type { EffectiveScanSource } from '../../src/config/scanSources';
 
 export interface ScanRequest {
   projectDir: string;
@@ -32,6 +34,34 @@ export interface ScanStreamHandlers {
 
 export async function getBootstrap(): Promise<BootstrapPayload> {
   return request('/api/bootstrap');
+}
+
+export interface ScanSourcesPayload {
+  projectDir: string;
+  configPath: string;
+  sources: EffectiveScanSource[];
+}
+
+export async function getScanSources(): Promise<ScanSourcesPayload> {
+  return request('/api/scan-sources');
+}
+
+export async function validateScanSources(scanSources: Record<string, AgentScanSourcesUserConfig>) {
+  return request<{ valid: true; scanSources: Record<string, AgentScanSourcesUserConfig> }>('/api/scan-sources/validate', {
+    method: 'POST', body: JSON.stringify({ scanSources }),
+  });
+}
+
+export async function saveScanSources(scanSources: Record<string, AgentScanSourcesUserConfig>) {
+  return request<{ saved: true; sources: EffectiveScanSource[] }>('/api/scan-sources', {
+    method: 'PUT', body: JSON.stringify({ scanSources }),
+  });
+}
+
+export async function resetScanSources(platform: Platform) {
+  return request<{ reset: true; sources: EffectiveScanSource[] }>('/api/scan-sources/reset', {
+    method: 'POST', body: JSON.stringify({ platform }),
+  });
 }
 
 export async function startScan(options: ScanRequest): Promise<string> {

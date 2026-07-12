@@ -88,4 +88,57 @@ describe('Skill Doctor UI server', () => {
     expect(invalid.status).toBe(500);
     expect(await invalid.text()).toContain('项目目录不存在');
   });
+
+  it('lists, validates, saves and resets per-Agent scan sources', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    const uiDir = join(root, 'ui');
+    const customSkills = join(root, 'custom-skills');
+    writeFile(join(uiDir, 'index.html'), '<div id="root">Skill Doctor</div>');
+    writeFile(join(customSkills, 'reviewer', 'SKILL.md'), '---\nname: reviewer\ndescription: review\n---');
+    writeFile(join(projectDir, '.keep'), '');
+
+    handle = await startUiServer({ projectDir, homeDir, uiDir, port: 0 });
+    const baseUrl = `http://${handle.host}:${handle.port}`;
+    const bootstrapSession = await fetch(handle.url, { redirect: 'manual' });
+    const cookie = bootstrapSession.headers.get('set-cookie')!.split(';')[0];
+    const headers = { Cookie: cookie, Origin: baseUrl, 'Content-Type': 'application/json' };
+
+    const initial = await fetch(`${baseUrl}/api/scan-sources`, { headers: { Cookie: cookie } });
+    expect(initial.status).toBe(200);
+    expect((await initial.json()).sources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'claude', resource: 'skill', origin: 'builtin' }),
+    ]));
+
+    const invalid = await fetch(`${baseUrl}/api/scan-sources/validate`, {
+      method: 'POST', headers, body: JSON.stringify({ scanSources: { claude: { mcp: [{ id: 'bad', scope: 'global', path: '/tmp/x', format: 'yaml' }] } } }),
+    });
+    expect(invalid.status).toBe(500);
+    expect(await invalid.text()).toContain('MCP format');
+
+    const scanSources = { claude: { skills: [{
+      id: 'custom-reviewer', scope: 'global', path: customSkills, enabled: true, mode: 'recursive-dir', layout: 'skill-dirs',
+    }] } };
+    const saved = await fetch(`${baseUrl}/api/scan-sources`, {
+      method: 'PUT', headers, body: JSON.stringify({ scanSources }),
+    });
+    expect(saved.status).toBe(200);
+    expect((await saved.json()).sources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'custom-reviewer', status: 'exists', origin: 'user' }),
+    ]));
+
+    const detection = await fetch(`${baseUrl}/api/agents/detect`, {
+      method: 'POST', headers, body: JSON.stringify({ projectDir }),
+    });
+    expect((await detection.json()).agents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'claude', globalDetected: true }),
+    ]));
+
+    const reset = await fetch(`${baseUrl}/api/scan-sources/reset`, {
+      method: 'POST', headers, body: JSON.stringify({ platform: 'claude' }),
+    });
+    expect(reset.status).toBe(200);
+    expect((await reset.json()).sources.some((entry: { id: string }) => entry.id === 'custom-reviewer')).toBe(false);
+  });
 });
