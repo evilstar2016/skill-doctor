@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,6 +34,7 @@ const snapshot = {
 
 describe('UI onboarding', () => {
   beforeEach(() => {
+    cleanup();
     const values = new Map<string, string>();
     Object.defineProperty(window, 'localStorage', { configurable: true, value: {
       getItem: (key: string) => values.get(key) ?? null,
@@ -110,6 +111,47 @@ describe('UI onboarding', () => {
     expect(await screen.findByText(/修改这个文件会同时影响以下 3 个 Agent/)).toBeTruthy();
     expect(screen.getAllByText('Codex').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Windsurf').length).toBeGreaterThan(0);
+  });
+
+  it('shows the real member paths for a Codex skill-list aggregate', async () => {
+    const sourcePaths = [
+      '/tmp/home/.codex/skills/global-helper/SKILL.md',
+      '/tmp/project/.codex/skills/project-helper/SKILL.md',
+    ];
+    const aggregate = {
+      id: 'aggregate-resource', name: 'Codex skill list', kind: 'skill', kindLabel: 'Skill', sourcePath: '/tmp', sourcePaths,
+      platform: 'codex', scope: 'project', shared: false,
+      consumers: [{ platform: 'codex', scope: 'project', fixedTokens: 120, activationTokens: 120 }],
+      triggers: [], controllable: true, fixedTokens: 120, activationTokens: 120, issueIds: [], status: 'healthy',
+    };
+    const contextItem = {
+      id: 'codex:skill-list:enabled', name: 'Codex skill list', sourcePath: '/tmp', sourcePaths,
+      platform: 'codex', scope: 'project', resource: 'skill', kind: 'codex-skill-list',
+      estimatedTokens: 120, estimatedChars: 480, activationEstimatedTokens: 120, activationEstimatedChars: 480,
+      activation: 'startup', budgetScope: 'startup-selection', confidence: 'high', enabled: true, controllable: true,
+      estimateStatus: 'estimated', recommendation: 'OK',
+    };
+    const context = {
+      summary: { totalEstimatedTokens: 120, budgetTokens: 2000, grade: 'A', overBudget: false, scanned: 2, tokenizer: { mode: 'openai' }, byPlatform: [] },
+      items: [contextItem],
+    };
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [],
+      snapshot: { ...snapshot, context, resources: [aggregate], summary: { ...snapshot.summary, resources: 1, fixedTokens: 120, activationTokens: 120, platforms: { codex: 1 } } },
+    });
+    mocks.getResourceDetail.mockResolvedValue({ resource: aggregate, issues: [] });
+
+    render(<App />);
+    const contextButtons = await screen.findAllByRole('button', { name: '上下文成本' });
+    fireEvent.click(contextButtons[contextButtons.length - 1]);
+    const aggregateLinks = await screen.findAllByText('Codex skill list');
+    fireEvent.click(aggregateLinks[aggregateLinks.length - 1]);
+
+    expect(await screen.findByText('聚合来源（2）')).toBeTruthy();
+    expect(screen.getByText(sourcePaths[0])).toBeTruthy();
+    expect(screen.getByText(sourcePaths[1])).toBeTruthy();
+    expect(screen.queryByText('/tmp')).toBeNull();
   });
 
   it('shows defaults and supports adding, saving and resetting Agent scan paths', async () => {

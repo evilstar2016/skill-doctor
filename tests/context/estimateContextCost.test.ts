@@ -246,6 +246,8 @@ describe('estimateContextCost', () => {
       id: 'codex:skill-list:enabled',
       kind: 'codex-skill-list',
       resource: 'skill',
+      sourcePath: '/fake/.codex/skills',
+      sourcePaths: skills.map((skill) => skill.sourcePath).sort(),
       estimatedTokens: 1000,
       estimatedChars: 8000,
       officialLimit: {

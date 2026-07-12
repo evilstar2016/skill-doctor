@@ -55,7 +55,7 @@ export function estimateContextCost(
       if (isContextResourceRecord(entry)) return estimateContextResourceCost(entry, tokenCounter);
       return isMcpServerRecord(entry) ? estimateMcpServerCost(entry, tokenCounter) : estimateSkillCost(entry, tokenCounter);
     });
-  const estimatedItems = appendCodexSkillListAggregates(estimatedEntries, options.projectPath, tokenCounter)
+  const estimatedItems = appendCodexSkillListAggregates(estimatedEntries, tokenCounter)
     .sort((left, right) => {
       if (right.estimatedTokens !== left.estimatedTokens) {
         return right.estimatedTokens - left.estimatedTokens;
@@ -91,7 +91,6 @@ export function estimateContextCost(
 
 function appendCodexSkillListAggregates(
   items: ContextCostItem[],
-  projectPath: string | undefined,
   tokenCounter: TokenCounter,
 ): ContextCostItem[] {
   const aggregateItems: ContextCostItem[] = [];
@@ -112,12 +111,14 @@ function appendCodexSkillListAggregates(
       CODEX_SKILL_LIST_UNKNOWN_WINDOW_MAX_CHARS,
     );
     const estimatedTokens = tokenCounter.count('x'.repeat(estimatedChars));
-    const sourcePath = projectPath ?? commonParentPath(groupItems.map((item) => item.sourcePath));
+    const sourcePaths = [...new Set(groupItems.map((item) => item.sourcePath))].sort();
+    const sourcePath = commonParentPath(sourcePaths);
 
     aggregateItems.push({
       id: `codex:${resource}-list:${enabledKey}`,
       name: resource === 'plugin' ? 'Codex plugin skill list' : 'Codex skill list',
       sourcePath,
+      sourcePaths,
       platform: 'codex',
       scope: groupItems.some((item) => item.scope === 'project') ? 'project' : 'global',
       source: resource,

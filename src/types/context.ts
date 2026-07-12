@@ -53,6 +53,7 @@ export interface ContextCostItem {
   id?: string;
   name: string;
   sourcePath: string;
+  sourcePaths?: string[];
   platform: Platform;
   scope: Scope;
   source?: ContextCostSource;

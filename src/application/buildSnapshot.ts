@@ -293,6 +293,7 @@ function buildResources(
       kind: item.resource ?? kindFromContextItem(item),
       kindLabel: labelFromContextItem(item),
       sourcePath: item.sourcePath,
+      ...(item.sourcePaths ? { sourcePaths: item.sourcePaths } : {}),
       platform: item.platform,
       scope: item.scope,
       shared: false,

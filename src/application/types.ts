@@ -53,6 +53,7 @@ export interface UiResource {
   kind: UiResourceKind;
   kindLabel: string;
   sourcePath: string;
+  sourcePaths?: string[];
   platform: Platform;
   scope: Scope;
   shared: boolean;
