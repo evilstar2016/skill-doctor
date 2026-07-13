@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { scanMcpServers } from '../../src/mcp/scanMcpServers';
+import { getMcpPrivateConfig, scanMcpServers } from '../../src/mcp/scanMcpServers';
 
 const tempRoots: string[] = [];
 
@@ -232,16 +232,19 @@ describe('scanMcpServers', () => {
 
     writeFile(
       join(cwd, '.vscode', 'mcp.json'),
-      JSON.stringify({
-        servers: {
-          github: {
-            type: 'http',
-            url: 'https://api.githubcopilot.com/mcp/readonly',
-            tools: ['repos.list', 'issues.search'],
-            headers: { Authorization: 'Bearer hidden' },
-          },
-        },
-      }),
+      [
+        '{',
+        '  // VS Code MCP files use JSONC.',
+        '  "servers": {',
+        '    "github": {',
+        '      "type": "http",',
+        '      "url": "https://api.githubcopilot.com/mcp/readonly",',
+        '      "tools": ["repos.list", "issues.search"],',
+        '      "headers": { "Authorization": "Bearer hidden" },',
+        '    },',
+        '  },',
+        '}',
+      ].join('\n'),
     );
     writeFile(
       join(cwd, '.github', 'mcp.json'),
@@ -267,6 +270,7 @@ describe('scanMcpServers', () => {
       toolAllowlist: ['repos.list', 'issues.search'],
       headerKeys: ['Authorization'],
     }));
+    expect(getMcpPrivateConfig(byName.github).cwd).toBe(cwd);
     expect(byName.playwright).toEqual(expect.objectContaining({
       platform: 'copilot',
       scope: 'project',

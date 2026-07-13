@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 
 import { getPlatformAdapters, resolvePlatformPathTemplate } from '../platforms/registry';
 import type { McpServerRecord } from '../types/mcp';
@@ -30,7 +31,8 @@ export interface McpConfigFile {
 export function scanMcpServers(projectDir: string, options: ScanMcpServersOptions = {}): McpServerRecord[] {
   const homeDir = options.homeDir ?? homedir();
   const appDataDir = options.appDataDir ?? (process.env['APPDATA'] ?? join(homeDir, 'AppData', 'Roaming'));
-  const files = options.files ?? resolveMcpConfigFiles(projectDir, homeDir, appDataDir);
+  const files = (options.files ?? resolveMcpConfigFiles(projectDir, homeDir, appDataDir))
+    .map((file) => ({ ...file, baseDir: file.baseDir ?? projectDir }));
 
   return files.flatMap((file) => readConfigFile(file, projectDir, { includeDisabled: options.includeDisabled ?? false }));
 }
@@ -63,7 +65,9 @@ function readConfigFile(file: McpConfigFile, projectDir: string, options: { incl
       return parseCodexToml(raw, file, options);
     }
 
-    const parsed = JSON.parse(raw) as unknown;
+    const errors: ParseError[] = [];
+    const parsed = parseJsonc(raw, errors, { allowTrailingComma: true }) as unknown;
+    if (errors.length > 0) return [];
     return parseJsonMcpConfig(parsed, file, projectDir, options);
   } catch {
     return [];
@@ -258,7 +262,7 @@ export function applyMcpServerOverride(base: McpServerRecord, override: McpServe
 }
 
 function resolveWorkingDir(cwd: string | undefined, file: McpConfigFile): string | undefined {
-  if (!cwd) return undefined;
+  if (!cwd) return file.baseDir;
   if (isAbsolute(cwd)) return cwd;
   return resolve(file.baseDir ?? dirname(file.path), cwd);
 }

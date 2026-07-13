@@ -162,7 +162,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, url
       includeContext: body.includeContext !== false,
       includeDisabled: body.includeDisabled !== false,
       includeCache: body.includeCache === true,
-      discoverMcpTools: body.discoverMcpTools === true,
+      discoverMcpTools: body.discoverMcpTools !== false,
       useAiAudit: body.useAiAudit === true,
       conflictStrategy: body.conflictStrategy === 'embedding' ? 'embedding' : 'token',
       analyzeConflicts: body.analyzeConflicts === true,

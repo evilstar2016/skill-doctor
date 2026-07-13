@@ -74,7 +74,9 @@ describe('UI onboarding', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /开始体检/ }));
 
-    await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ projectDir: '/tmp/project', platform: 'codex' })));
+    await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({
+      projectDir: '/tmp/project', platform: 'codex', discoverMcpTools: true,
+    })));
     const agentBar = await screen.findByLabelText('选择要体检的 Agent');
     fireEvent.click(within(agentBar).getByRole('button', { name: '全部' }));
     await waitFor(() => expect(mocks.startScan).toHaveBeenLastCalledWith(expect.objectContaining({ platform: 'all' })));

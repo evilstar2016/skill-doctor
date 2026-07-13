@@ -61,34 +61,63 @@ describe('runHealthCheck', () => {
     cleanupTempRoots();
   });
 
-  it('includes VS Code MCP servers in Copilot resources and context cost', async () => {
+  it('discovers stdio MCP tool lists by default for Copilot and Codex context cost', async () => {
     const root = createTempRoot();
     const projectDir = join(root, 'project');
     const homeDir = join(root, 'home');
+    const serverPath = join(projectDir, 'mcp-server.cjs');
+    writeFile(
+      serverPath,
+      [
+        'const readline = require("node:readline");',
+        'const rl = readline.createInterface({ input: process.stdin });',
+        'rl.on("line", (line) => {',
+        '  const message = JSON.parse(line);',
+        '  if (message.method === "initialize") console.log(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "test", version: "1.0.0" } } }));',
+        '  if (message.method === "tools/list") console.log(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools: [{ name: "search_project", description: "Search project source code and return detailed symbol matches. ".repeat(8), inputSchema: { type: "object", properties: { query: { type: "string", description: "Source code query" } }, required: ["query"] } }] } }));',
+        '});',
+      ].join('\n'),
+    );
     writeFile(
       join(projectDir, '.vscode', 'mcp.json'),
-      JSON.stringify({
-        servers: {
-          github: {
-            type: 'http',
-            url: 'https://api.githubcopilot.com/mcp/readonly',
-          },
-        },
-      }),
+      [
+        '{',
+        '  "servers": {',
+        '    "project-search": {',
+        '      "type": "stdio",',
+        `      "command": ${JSON.stringify(process.execPath)},`,
+        '      "args": ["mcp-server.cjs"],',
+        '    },',
+        '  },',
+        '}',
+      ].join('\n'),
+    );
+    writeFile(
+      join(projectDir, '.codex', 'config.toml'),
+      [
+        '[mcp_servers.project-search]',
+        `command = ${JSON.stringify(process.execPath)}`,
+        'args = ["mcp-server.cjs"]',
+      ].join('\n'),
     );
 
-    const snapshot = await runHealthCheck({ projectDir, homeDir, scope: 'project', platform: 'copilot' });
-    const resource = snapshot.resources.find((entry) => entry.name === 'github');
+    const copilot = await runHealthCheck({ projectDir, homeDir, scope: 'project', platform: 'copilot' });
+    const codex = await runHealthCheck({ projectDir, homeDir, scope: 'project', platform: 'codex' });
 
-    expect(resource).toEqual(expect.objectContaining({
-      kind: 'mcp',
-      platform: 'copilot',
-      scope: 'project',
-    }));
-    expect(resource?.fixedTokens).toBeGreaterThan(0);
-    expect(snapshot.context?.items).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'github', source: 'mcp', kind: 'mcp-tool-list' }),
-    ]));
+    for (const snapshot of [copilot, codex]) {
+      const resource = snapshot.resources.find((entry) => entry.name === 'project-search');
+      expect(resource).toEqual(expect.objectContaining({ kind: 'mcp', scope: 'project' }));
+      expect(resource?.triggers).toContain('search_project');
+      expect(resource?.fixedTokens).toBeGreaterThan(50);
+      expect(snapshot.context?.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: 'project-search',
+          source: 'mcp',
+          kind: 'mcp-tool-list',
+          estimatedTokens: expect.any(Number),
+        }),
+      ]));
+    }
 
     cleanupTempRoots();
   });

@@ -10,6 +10,7 @@ All notable changes to `skill-doctor` are documented here.
 - Added responsive light/dark themes, local search and filtering, accessible status labels, and mobile navigation.
 - Added `cost --platform codex --resource plugin --include-cache` to inventory cached plugin and Skill UI metadata without adding it to estimated context token tax.
 - Added structured `catalog` JSON output with cache source, display metadata, icon paths, and implicit/explicit invocation policy.
+- Fixed MCP context-cost discovery for VS Code JSONC configs, project-relative stdio servers, and legacy SSE transports; UI scans now inspect live tool lists by default for Copilot and Codex.
 
 ## 0.3.5 - 2026-07-08
 

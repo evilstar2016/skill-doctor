@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import type { ServerResponse } from 'node:http';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -139,6 +140,73 @@ describe('discoverMcpTools', () => {
       name: 'summarize',
       description: 'Summarize a file.',
     }));
+  });
+
+  it('lists tools from a legacy SSE MCP server', async () => {
+    let stream: ServerResponse | undefined;
+    const server = createServer((request, response) => {
+      if (request.method === 'GET' && request.url === '/sse') {
+        stream = response;
+        response.writeHead(200, {
+          'content-type': 'text/event-stream',
+          connection: 'keep-alive',
+        });
+        response.write('event: endpoint\ndata: /messages/?session_id=test-session\n\n');
+        return;
+      }
+
+      if (request.method !== 'POST' || !request.url?.startsWith('/messages/')) {
+        response.statusCode = 405;
+        response.end();
+        return;
+      }
+
+      let body = '';
+      request.setEncoding('utf8');
+      request.on('data', (chunk) => { body += chunk; });
+      request.on('end', () => {
+        const payload = JSON.parse(body) as { id?: number; method: string };
+        response.statusCode = 202;
+        response.end();
+        if (payload.method === 'notifications/initialized') return;
+        const result = payload.method === 'initialize'
+          ? {
+              protocolVersion: '2025-06-18',
+              capabilities: { tools: {} },
+              serverInfo: { name: 'sse-test', version: '1.0.0' },
+            }
+          : {
+              tools: [{
+                name: 'search_code',
+                description: 'Search project source code.',
+                inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+              }],
+            };
+        stream?.write(`event: message\ndata: ${JSON.stringify({ jsonrpc: '2.0', id: payload.id, result })}\n\n`);
+      });
+    });
+
+    try {
+      const port = await new Promise<number>((resolve) => {
+        server.listen(0, '127.0.0.1', () => resolve((server.address() as AddressInfo).port));
+      });
+
+      const result = await discoverMcpTools(makeServer({
+        transport: 'sse',
+        url: `http://127.0.0.1:${port}/sse`,
+      }));
+
+      expect(result.toolDiscoveryStatus).toBe('ok');
+      expect(result.tools).toEqual([
+        expect.objectContaining({
+          name: 'search_code',
+          description: 'Search project source code.',
+        }),
+      ]);
+    } finally {
+      stream?.end();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   it('returns a failed status when a server cannot be reached', async () => {

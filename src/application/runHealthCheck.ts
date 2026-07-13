@@ -60,7 +60,7 @@ export async function runHealthCheck(
   }), scope), platform);
   const analysisSkills = uniquePhysicalSkills(skills);
 
-  if (options.discoverMcpTools && mcpServers.length > 0) {
+  if (options.discoverMcpTools !== false && mcpServers.length > 0) {
     mcpServers = await discoverMcpToolsSafely(mcpServers, warnings);
   }
 
@@ -178,7 +178,7 @@ async function loadContextEntries(
       homeDir: options.homeDir,
       includeDisabled: options.includeDisabled ?? true,
       resource: 'all',
-      discoverMcpTools: options.discoverMcpTools ?? false,
+      discoverMcpTools: options.discoverMcpTools ?? true,
       scanSources,
     }), effectiveScope));
   }
@@ -195,7 +195,7 @@ async function loadContextEntries(
       })),
     }), effectiveScope), platform)
       .filter((entry) => entry.platform !== 'codex');
-    if (options.discoverMcpTools) servers = await discoverMcpToolsForServers(servers);
+    if (options.discoverMcpTools !== false) servers = await discoverMcpToolsForServers(servers);
     entries.push(...costSkills, ...servers);
   }
 

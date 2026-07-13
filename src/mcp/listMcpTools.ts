@@ -161,6 +161,10 @@ async function listToolsOverHttp(server: McpServerRecord): Promise<McpToolRecord
     throw new Error('No HTTP URL configured.');
   }
 
+  if (server.transport?.toLowerCase() === 'sse') {
+    return listToolsOverLegacySse(server);
+  }
+
   const timeoutMs = getTimeoutMs(server);
   const privateConfig = getMcpPrivateConfig(server);
   let nextId = 1;
@@ -180,6 +184,151 @@ async function listToolsOverHttp(server: McpServerRecord): Promise<McpToolRecord
     if (!cursor) break;
   }
   return tools;
+}
+
+async function listToolsOverLegacySse(server: McpServerRecord): Promise<McpToolRecord[]> {
+  if (!server.url) throw new Error('No SSE URL configured.');
+
+  const timeoutMs = getTimeoutMs(server);
+  const privateConfig = getMcpPrivateConfig(server);
+  const controller = new AbortController();
+  const connectTimeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(server.url, {
+      method: 'GET',
+      headers: { ...privateConfig.headers, accept: 'text/event-stream' },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Timed out connecting to MCP server at ${server.url}.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(connectTimeout);
+  }
+
+  if (!response.ok) throw new Error(`HTTP ${response.status} from MCP server.`);
+  if (!response.body) throw new Error('MCP SSE server returned no event stream.');
+
+  const pending = new Map<number, (response: JsonRpcResponse) => void>();
+  let resolveEndpoint: (value: string) => void = () => undefined;
+  let rejectEndpoint: (error: Error) => void = () => undefined;
+  const endpointPromise = new Promise<string>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timed out waiting for MCP SSE endpoint.')), timeoutMs);
+    resolveEndpoint = (value) => { clearTimeout(timeout); resolve(value); };
+    rejectEndpoint = (error) => { clearTimeout(timeout); reject(error); };
+  });
+  const streamPromise = readLegacySseStream(response.body, (event, data) => {
+    if (event === 'endpoint') {
+      resolveEndpoint(data);
+      return;
+    }
+    if (event !== 'message') return;
+    const message = JSON.parse(data) as JsonRpcResponse;
+    if (typeof message.id !== 'number') return;
+    const complete = pending.get(message.id);
+    if (complete) {
+      pending.delete(message.id);
+      complete(message);
+    }
+  }).catch((error: unknown) => {
+    const resolved = error instanceof Error ? error : new Error(String(error));
+    rejectEndpoint(resolved);
+    for (const complete of pending.values()) complete({ error: { message: resolved.message } });
+    pending.clear();
+  });
+
+  try {
+    const endpoint = new URL(await endpointPromise, server.url).toString();
+    let nextId = 1;
+    await sendLegacySseRequest(endpoint, privateConfig.headers, pending, nextId++, 'initialize', buildInitializeParams(), timeoutMs);
+    await postLegacySseMessage(endpoint, privateConfig.headers, { jsonrpc: '2.0', method: 'notifications/initialized' }, timeoutMs);
+
+    const tools: McpToolRecord[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_TOOL_LIST_PAGES; page += 1) {
+      const params = cursor ? { cursor } : {};
+      const result = await sendLegacySseRequest(endpoint, privateConfig.headers, pending, nextId++, 'tools/list', params, timeoutMs);
+      const pageResult = parseToolsListResult(result);
+      tools.push(...pageResult.tools);
+      cursor = pageResult.nextCursor;
+      if (!cursor) break;
+    }
+    return tools;
+  } finally {
+    controller.abort();
+    await streamPromise;
+  }
+}
+
+function sendLegacySseRequest(
+  endpoint: string,
+  headers: Record<string, string>,
+  pending: Map<number, (response: JsonRpcResponse) => void>,
+  id: number,
+  method: string,
+  params: unknown,
+  timeoutMs: number,
+): Promise<unknown> {
+  const result = new Promise<unknown>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`Timed out waiting for ${method}.`));
+    }, timeoutMs);
+    pending.set(id, (response) => {
+      clearTimeout(timeout);
+      if (response.error) reject(new Error(response.error.message ?? `${method} failed.`));
+      else resolve(response.result);
+    });
+  });
+
+  const post = postLegacySseMessage(endpoint, headers, { jsonrpc: '2.0', id, method, params }, timeoutMs)
+    .catch((error: unknown) => {
+      const complete = pending.get(id);
+      pending.delete(id);
+      complete?.({ error: { message: error instanceof Error ? error.message : String(error) } });
+    });
+  return Promise.all([post, result]).then(([, value]) => value);
+}
+
+async function postLegacySseMessage(
+  endpoint: string,
+  headers: Record<string, string>,
+  message: JsonObject,
+  timeoutMs: number,
+): Promise<void> {
+  const response = await fetchWithTimeout(endpoint, {
+    method: 'POST',
+    headers: buildHttpHeaders(headers),
+    body: JSON.stringify(message),
+  }, timeoutMs);
+  if (!response.ok) throw new Error(`HTTP ${response.status} from MCP server.`);
+}
+
+async function readLegacySseStream(
+  body: ReadableStream<Uint8Array>,
+  onEvent: (event: string, data: string) => void,
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.match(/\r?\n\r?\n/);
+    while (boundary?.index !== undefined) {
+      const rawEvent = buffer.slice(0, boundary.index);
+      buffer = buffer.slice(boundary.index + boundary[0].length);
+      const lines = rawEvent.split(/\r?\n/);
+      const event = lines.find((line) => line.startsWith('event:'))?.slice(6).trim() ?? 'message';
+      const data = lines.filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
+      if (data) onEvent(event, data);
+      boundary = buffer.match(/\r?\n\r?\n/);
+    }
+  }
 }
 
 async function sendHttpNotification(
