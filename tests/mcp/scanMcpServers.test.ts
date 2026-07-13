@@ -233,7 +233,7 @@ describe('scanMcpServers', () => {
     writeFile(
       join(cwd, '.vscode', 'mcp.json'),
       JSON.stringify({
-        mcpServers: {
+        servers: {
           github: {
             type: 'http',
             url: 'https://api.githubcopilot.com/mcp/readonly',

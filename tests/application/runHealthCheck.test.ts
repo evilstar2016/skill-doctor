@@ -60,4 +60,36 @@ describe('runHealthCheck', () => {
 
     cleanupTempRoots();
   });
+
+  it('includes VS Code MCP servers in Copilot resources and context cost', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    writeFile(
+      join(projectDir, '.vscode', 'mcp.json'),
+      JSON.stringify({
+        servers: {
+          github: {
+            type: 'http',
+            url: 'https://api.githubcopilot.com/mcp/readonly',
+          },
+        },
+      }),
+    );
+
+    const snapshot = await runHealthCheck({ projectDir, homeDir, scope: 'project', platform: 'copilot' });
+    const resource = snapshot.resources.find((entry) => entry.name === 'github');
+
+    expect(resource).toEqual(expect.objectContaining({
+      kind: 'mcp',
+      platform: 'copilot',
+      scope: 'project',
+    }));
+    expect(resource?.fixedTokens).toBeGreaterThan(0);
+    expect(snapshot.context?.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'github', source: 'mcp', kind: 'mcp-tool-list' }),
+    ]));
+
+    cleanupTempRoots();
+  });
 });

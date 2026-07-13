@@ -133,8 +133,9 @@ function parseJsonMcpConfig(
   if (!isObject(parsed)) return [];
 
   const configs: Array<{ servers: unknown; baseConfig?: JsonObject; scope: Scope }> = [];
-  if (isObject(parsed.mcpServers)) {
-    configs.push({ servers: parsed.mcpServers, baseConfig: getGlobalMcpConfig(parsed), scope: file.scope });
+  const servers = isObject(parsed.mcpServers) ? parsed.mcpServers : parsed.servers;
+  if (isObject(servers)) {
+    configs.push({ servers, baseConfig: getGlobalMcpConfig(parsed), scope: file.scope });
   }
 
   if (file.platform === 'claude' && file.scope === 'global' && isObject(parsed.projects)) {
