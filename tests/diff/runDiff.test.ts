@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DiffError, runDiff } from '../../src/diff/runDiff';
+import { DiffError, runDiff as runDiffRecords, runDiffForCwd as runDiff } from '../../src/diff/runDiff';
 
 const tempRoots: string[] = [];
 
@@ -55,6 +55,24 @@ Use when writing new features using TDD approach.
 `;
 
 describe('runDiff', () => {
+  it('uses the supplied records without scanning default paths', async () => {
+    const root = createTempRoot();
+    const firstPath = join(root, 'custom', 'external-alpha', 'SKILL.md');
+    const secondPath = join(root, 'special', 'external-beta', 'SKILL.md');
+    mkdirSync(join(root, 'custom', 'external-alpha'), { recursive: true });
+    mkdirSync(join(root, 'special', 'external-beta'), { recursive: true });
+    writeFileSync(firstPath, SKILL_A, 'utf8');
+    writeFileSync(secondPath, SKILL_B, 'utf8');
+
+    const result = await runDiffRecords('external-alpha', 'external-beta', [
+      { name: 'external-alpha', sourcePath: firstPath, platform: 'claude', scope: 'global', description: 'custom', triggers: [] },
+      { name: 'external-beta', sourcePath: secondPath, platform: 'codex', scope: 'global', description: 'special', triggers: [] },
+    ]);
+
+    expect(result.skillA.name).toBe('external-alpha');
+    expect(result.skillB.name).toBe('external-beta');
+  });
+
   it('returns profiles for two valid skills without LLM', async () => {
     const cwd = createTempRoot();
     writeSkill(cwd, 'skill-alpha', SKILL_A);

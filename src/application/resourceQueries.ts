@@ -46,7 +46,6 @@ export async function compareResources(
   snapshot: DoctorSnapshot,
   leftId: string,
   rightId: string,
-  projectDir: string,
   homeDir?: string,
 ) {
   const left = snapshot.resources.find((entry) => entry.id === leftId);
@@ -55,5 +54,5 @@ export async function compareResources(
   if (!snapshot.skills.some((skill) => skill.name === left.name) || !snapshot.skills.some((skill) => skill.name === right.name)) {
     throw new Error('Only skill-like resources can be compared.');
   }
-  return runDiff(left.name, right.name, projectDir, { llmOptions: getAnalysisOptions(homeDir) });
+  return runDiff(left.name, right.name, snapshot.skills, { llmOptions: getAnalysisOptions(homeDir) });
 }

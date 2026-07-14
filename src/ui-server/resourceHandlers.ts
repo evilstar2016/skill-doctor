@@ -29,7 +29,6 @@ export async function handleResourceRoute(
       snapshot,
       requiredString(body.leftId, 'leftId'),
       requiredString(body.rightId, 'rightId'),
-      snapshot.target.projectDir,
       context.homeDir,
     ));
     return true;
@@ -75,4 +74,3 @@ function requireSnapshot(context: ApiRequestContext) {
   if (!context.scans.currentSnapshot) throw new Error('Run a scan first.');
   return context.scans.currentSnapshot;
 }
-

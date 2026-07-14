@@ -23,7 +23,7 @@ import { loadWhenToUseCache, saveWhenToUseCache } from '../explain/whenToUseCach
 import { parseSkill } from '../parsing/parseSkill';
 import { loadProvenanceCache, saveProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
-import { DiffError, runDiff } from '../diff/runDiff';
+import { DiffError, runDiffForCwd } from '../diff/runDiff';
 import { detectPlatform } from '../install/detectPlatform.js';
 import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
 import { installSkill } from '../install/installSkill.js';
@@ -569,7 +569,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
     const llmOptions = readAnalysisLlmOptions();
     try {
-      const result = await runDiff(nameA, nameB, cwd, { llmOptions: llmOptions ?? undefined });
+      const result = await runDiffForCwd(nameA, nameB, cwd, { llmOptions: llmOptions ?? undefined });
       const reportPath = readReport(rest);
       if (reportPath !== null) {
         const outPath = reportPath === true ? `skill-doctor-diff-${nameA}-vs-${nameB}.html` : reportPath;
