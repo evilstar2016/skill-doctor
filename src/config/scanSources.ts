@@ -28,12 +28,13 @@ export interface EffectiveScanSource extends ScanSourceUserEntry {
 export interface LoadScanSourcesOptions {
   homeDir?: string;
   appDataDir?: string;
+  config?: SkillDoctorUserConfig;
 }
 
 export function loadEffectiveScanSources(projectDir: string, options: LoadScanSourcesOptions = {}): EffectiveScanSource[] {
   const homeDir = options.homeDir ?? homedir();
   const appDataDir = options.appDataDir ?? join(homeDir, 'AppData', 'Roaming');
-  const user = loadUserConfig(homeDir).config.scanSources ?? {};
+  const user = options.config ? (options.config.scanSources ?? {}) : (loadUserConfig(homeDir).config.scanSources ?? {});
   const defaults = builtinSources(homeDir);
   const results: EffectiveScanSource[] = [];
 

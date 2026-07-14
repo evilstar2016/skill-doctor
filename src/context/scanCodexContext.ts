@@ -23,6 +23,7 @@ export interface ScanCodexContextOptions {
   resource?: CodexResourceFilter;
   includeDisabled?: boolean;
   discoverMcpTools?: boolean;
+  discoverMcpToolsForServers?: (servers: McpServerRecord[]) => Promise<McpServerRecord[]>;
   scanSources?: EffectiveScanSource[];
 }
 
@@ -52,6 +53,7 @@ export async function scanCodexContextEntries(
   const resolvedHome = homeDir ?? '';
   const resource = options.resource ?? 'all';
   const includeDisabled = options.includeDisabled ?? false;
+  const discoverTools = options.discoverMcpToolsForServers ?? discoverMcpToolsForServers;
   const controlPath = getCodexProjectConfigPath(projectDir, config);
   const effectiveState = loadCodexEffectiveState(projectDir, resolvedHome);
   const entries: CodexContextEntry[] = [];
@@ -66,12 +68,12 @@ export async function scanCodexContextEntries(
 
   if (matchesResource(resource, 'plugin')) {
     const pluginEntries = await scanPluginEntries(projectDir, resolvedHome, config, controlPath, effectiveState, includeDisabled);
-    entries.push(...(options.discoverMcpTools === false ? pluginEntries : await discoverMcpToolsForMixedEntries(pluginEntries)));
+    entries.push(...(options.discoverMcpTools === false ? pluginEntries : await discoverMcpToolsForMixedEntries(pluginEntries, discoverTools)));
   }
 
   if (matchesResource(resource, 'mcp')) {
     const mcpEntries = scanMcpEntries(projectDir, resolvedHome, config, controlPath, includeDisabled);
-    entries.push(...(options.discoverMcpTools === false ? mcpEntries : await discoverMcpToolsForMixedEntries(mcpEntries)));
+    entries.push(...(options.discoverMcpTools === false ? mcpEntries : await discoverMcpToolsForMixedEntries(mcpEntries, discoverTools)));
   }
 
   if (matchesResource(resource, 'memory')) {
@@ -619,8 +621,11 @@ function resolvePluginMcpConfigPath(
   return resolve(pluginRoot, mcpConfigPath);
 }
 
-async function discoverMcpToolsForMixedEntries<T extends SkillRecord | McpServerRecord>(entries: T[]): Promise<T[]> {
-  const discovered = await discoverMcpToolsForServers(
+async function discoverMcpToolsForMixedEntries<T extends SkillRecord | McpServerRecord>(
+  entries: T[],
+  discoverTools: (servers: McpServerRecord[]) => Promise<McpServerRecord[]>,
+): Promise<T[]> {
+  const discovered = await discoverTools(
     entries.filter((entry): entry is Extract<T, McpServerRecord> => isMcpServerRecord(entry) && entry.context?.enabled !== false),
   );
   const byIdOrName = new Map(discovered.map((server) => [server.id ?? server.name, server]));

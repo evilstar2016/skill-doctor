@@ -6,22 +6,19 @@ import { runAudit } from '../audit/runAudit';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
-import { loadEffectiveScanSources } from '../config/scanSources';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { estimateContextCost } from '../context/estimateContextCost';
 import { scanCodexPluginCache } from '../context/scanCodexPluginCache';
 import { scanCodexContextEntries } from '../context/scanCodexContext';
-import { scanSkills } from '../discovery/scanSkills';
 import { groupSkills } from '../explain/groupSkills';
 import { getDefaultGroupLabelCachePath, loadGroupLabelCache, saveGroupLabelCache } from '../explain/groupLabelCache';
 import { loadRegistry } from '../install/registry';
-import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
-import { scanMcpServers } from '../mcp/scanMcpServers';
 import type { LlmExplainOptions } from '../types/explain';
 import type { McpServerRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
 import { addCodexResourceGroups, filterByPlatform, filterByScope, stableId } from './helpers';
 import { buildDoctorSnapshot } from './buildSnapshot';
+import { createHealthCheckScanContext, type HealthCheckScanContext } from './scanContext';
 import type { DoctorSnapshot, HealthCheckOptions, ScanPhase, ScanProgressEvent, ScanWarning } from './types';
 
 const PHASES: ScanPhase[] = ['discovering', 'conflicts', 'audit', 'context', 'grouping', 'complete'];
@@ -37,7 +34,6 @@ export async function runHealthCheck(
   const includeContext = options.includeContext ?? true;
   const warnings: ScanWarning[] = [];
   const loaded = loadUserConfig(options.homeDir);
-  const scanSources = loadEffectiveScanSources(projectDir, { homeDir: options.homeDir });
   const llmOptions = getAnalysisOptions(loaded.config.analysis);
   const embedding = loaded.config.embedding;
   const registry = loadRegistry(getRegistryPath(options.homeDir));
@@ -47,23 +43,21 @@ export async function runHealthCheck(
   };
 
   progress('discovering', '正在发现 skills、rules、instructions 与 MCP 配置');
-  let skills = filterByPlatform(filterByScope(await scanSkills(projectDir, {
+  const scanContext = await createHealthCheckScanContext({
+    projectDir,
     homeDir: options.homeDir,
-    ...(options.provenanceCache ? { llmOptions, provenanceCache: options.provenanceCache } : {}),
+    config: loaded.config,
     extraPaths: loaded.config.paths?.extra,
-    sources: scanSources,
-  }), scope), platform);
-  let mcpServers = filterByPlatform(filterByScope(scanMcpServers(projectDir, {
-    homeDir: options.homeDir,
-    files: scanSources.filter((entry) => entry.resource === 'mcp' && entry.enabled).map((entry) => ({
-      platform: entry.platform, scope: entry.scope, path: entry.resolvedPath, format: entry.format ?? 'json',
-    })),
-  }), scope), platform);
+    llmOptions,
+    provenanceCache: options.provenanceCache,
+  });
+  const skills = filterByPlatform(filterByScope(scanContext.skills, scope), platform);
+  let mcpServers = filterByPlatform(filterByScope(scanContext.mcpServers, scope), platform);
   const analysisSkills = options.deduplicatePhysicalSkills === false ? skills : uniquePhysicalSkills(skills);
   const ignore = options.applyIgnore === false ? {} : (loaded.config.ignore ?? {});
 
   if (options.discoverMcpTools !== false && mcpServers.length > 0) {
-    mcpServers = await discoverMcpToolsSafely(mcpServers, warnings);
+    mcpServers = await discoverMcpToolsSafely(mcpServers, warnings, scanContext.discoverMcpToolsForServers);
   }
 
   progress('conflicts', '正在检查重复安装与触发冲突');
@@ -105,7 +99,7 @@ export async function runHealthCheck(
   if (includeContext) {
     progress('context', '正在估算固定与按需上下文成本');
     try {
-      const contextEntries = await loadContextEntries(projectDir, scope, platform, options, loaded.config.paths?.extra, scanSources);
+      const contextEntries = await loadContextEntries(projectDir, scope, platform, options, scanContext);
       context = addCodexResourceGroups(estimateContextCost(contextEntries, {
         ...(options.budgetTokens ? { budgetTokens: options.budgetTokens } : {}),
         ...(options.platformBudgets ? { platformBudgets: options.platformBudgets } : {}),
@@ -173,8 +167,7 @@ async function loadContextEntries(
   scope: HealthCheckOptions['scope'],
   platform: Platform | null,
   options: HealthCheckOptions,
-  extraPaths: string[] | undefined,
-  scanSources: ReturnType<typeof loadEffectiveScanSources>,
+  scanContext: HealthCheckScanContext,
 ) {
   const effectiveScope = scope ?? 'all';
   const entries: Parameters<typeof estimateContextCost>[0] = [];
@@ -185,31 +178,31 @@ async function loadContextEntries(
       includeDisabled: options.includeDisabled ?? true,
       resource: 'all',
       discoverMcpTools: options.discoverMcpTools ?? true,
-      scanSources,
+      discoverMcpToolsForServers: scanContext.discoverMcpToolsForServers,
+      scanSources: scanContext.scanSources,
     }), effectiveScope));
   }
 
   if (platform !== 'codex') {
     const costSkills = filterByPlatform(
-      filterByScope(await scanSkills(projectDir, { homeDir: options.homeDir, extraPaths, includeCostPaths: true, sources: scanSources }), effectiveScope),
+      filterByScope(scanContext.skills, effectiveScope),
       platform,
     ).filter((entry) => entry.platform !== 'codex');
-    let servers = filterByPlatform(filterByScope(scanMcpServers(projectDir, {
-      homeDir: options.homeDir,
-      files: scanSources.filter((entry) => entry.resource === 'mcp' && entry.enabled).map((entry) => ({
-        platform: entry.platform, scope: entry.scope, path: entry.resolvedPath, format: entry.format ?? 'json',
-      })),
-    }), effectiveScope), platform)
+    let servers = filterByPlatform(filterByScope(scanContext.mcpServers, effectiveScope), platform)
       .filter((entry) => entry.platform !== 'codex');
-    if (options.discoverMcpTools !== false) servers = await discoverMcpToolsForServers(servers);
+    if (options.discoverMcpTools !== false) servers = await scanContext.discoverMcpToolsForServers(servers);
     entries.push(...costSkills, ...servers);
   }
 
   return entries;
 }
 
-async function discoverMcpToolsSafely(servers: McpServerRecord[], warnings: ScanWarning[]): Promise<McpServerRecord[]> {
-  const results = await discoverMcpToolsForServers(servers);
+async function discoverMcpToolsSafely(
+  servers: McpServerRecord[],
+  warnings: ScanWarning[],
+  discoverTools: (servers: McpServerRecord[]) => Promise<McpServerRecord[]>,
+): Promise<McpServerRecord[]> {
+  const results = await discoverTools(servers);
   for (const server of results) {
     if (server.toolDiscoveryStatus === 'failed') {
       warnings.push({
