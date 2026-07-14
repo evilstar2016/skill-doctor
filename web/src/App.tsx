@@ -16,6 +16,12 @@ import {
   getScanSources, resetScanSources, saveScanSources, startScan, streamScan, toggleContextResource, uninstallSkill, validateScanSources,
   type ScanRequest,
 } from './api';
+import { OverviewPage as OverviewPageView } from './pages/OverviewPage';
+import { IssuesPage as IssuesPageView } from './pages/IssuesPage';
+import { ContextPage as ContextPageView } from './pages/ContextPage';
+import { ResourcesPage as ResourcesPageView } from './pages/ResourcesPage';
+import { ManagePage as ManagePageView } from './pages/ManagePage';
+import { ScanPathsPage as ScanPathsPageView } from './pages/ScanPathsPage';
 
 type Route = 'overview' | 'issues' | 'context' | 'resources' | 'scan-paths' | 'manage';
 type Theme = 'light' | 'dark';
@@ -178,9 +184,9 @@ export default function App() {
         {error && <InlineNotice kind="danger" title="操作未完成" onClose={() => setError(null)}>{error}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{warning.message}</InlineNotice>)}
         <div className="page-container">
-          {route === 'overview' && <OverviewPage snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigate={navigate} />}
-          {route === 'issues' && <IssuesPage snapshot={snapshot} openIssue={setSelectedIssue} />}
-          {route === 'context' && <ContextPage snapshot={snapshot} openResource={openResource} onToggle={async (item) => {
+          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} />}
+          {route === 'issues' && <IssuesPageView snapshot={snapshot} openIssue={setSelectedIssue} />}
+          {route === 'context' && <ContextPageView snapshot={snapshot} openResource={openResource} onToggle={async (item) => {
             if (!item.id) return;
             const enabling = item.enabled === false;
             if (!window.confirm(`${enabling ? '启用' : '禁用'} ${item.name}？该修改将在新 Codex 会话中生效。`)) return;
@@ -188,8 +194,8 @@ export default function App() {
             setToast(result.requiresNewSession ? '配置已更新，新会话后生效' : result.message);
             refresh();
           }} />}
-          {route === 'resources' && <ResourcesPage snapshot={snapshot} openResource={openResource} />}
-          {route === 'scan-paths' && <ScanPathsPage
+          {route === 'resources' && <ResourcesPageView snapshot={snapshot} openResource={openResource} />}
+          {route === 'scan-paths' && <ScanPathsPageView
             platforms={bootstrap?.supportedPlatforms ?? []}
             setToast={setToast}
             onSaved={async (rescan) => {
@@ -199,7 +205,7 @@ export default function App() {
               if (rescan) refresh();
             }}
           />}
-          {route === 'manage' && <ManagePage bootstrap={bootstrap} snapshot={snapshot} onChanged={() => { void getBootstrap().then(setBootstrap); refresh(); }} setToast={setToast} />}
+          {route === 'manage' && <ManagePageView bootstrap={bootstrap} snapshot={snapshot} onChanged={() => { void getBootstrap().then(setBootstrap); refresh(); }} setToast={setToast} />}
         </div>
       </main>
 
@@ -302,230 +308,7 @@ function Topbar(props: {
   </header><div className="agent-bar" aria-label="选择要体检的 Agent"><span>Agent</span><div className="agent-tabs"><button className={scanOptions.platform === 'all' ? 'active' : ''} onClick={() => props.selectAgent('all')}>全部</button>{props.detectedAgents.map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)} title={agent.projectDetected ? '当前项目已使用' : '仅发现全局配置'}>{agent.displayName}{agent.projectDetected && <small>项目</small>}</button>)}</div></div></>;
 }
 
-function OverviewPage({ snapshot, scan, openIssue, navigate }: { snapshot: DoctorSnapshot | null; scan: { running: boolean }; openIssue: (issue: UiIssue) => void; navigate: (route: Route) => void }) {
-  if (!snapshot) return <ScanningEmpty running={scan.running} />;
-  const priority = snapshot.issues.slice(0, 3);
-  return <section>
-    <PageHeading title={snapshot.summary.issues ? `先处理这 ${Math.min(3, snapshot.summary.issues)} 件事` : '配置状态良好'} subtitle={snapshot.summary.issues ? '已按风险和影响排序，逐项处理后重新体检。' : '没有发现高风险、安全冲突或重复安装。'}>
-      <StatusPill kind={snapshot.summary.high ? 'danger' : snapshot.summary.issues ? 'warning' : 'success'}>{snapshot.summary.issues ? `${snapshot.summary.issues} 项待处理` : '未发现问题'}</StatusPill>
-    </PageHeading>
-    {priority.length > 0 ? <div className="priority-list">{priority.map((issue) => <IssueCard key={issue.id} issue={issue} open={() => openIssue(issue)} />)}</div>
-      : <div className="clean-state"><span><ShieldCheck size={30} /></span><div><h3>当前扫描范围内未发现明显问题</h3><p>仍建议在新增 skill、MCP 或 Agent 配置后重新体检。</p></div></div>}
-    <div className="stat-grid">
-      <StatCard label="发现资源" value={snapshot.summary.resources} detail={`${Object.keys(snapshot.summary.platforms).length} 个平台`} />
-      <StatCard label="安全提示" value={snapshot.summary.security} detail={snapshot.summary.high ? `${snapshot.summary.high} 个高优先级问题` : '无高风险'} />
-      <StatCard label="固定成本" value={snapshot.summary.fixedTokens} detail="tokens / 轮" />
-      <StatCard label="按需激活" value={snapshot.summary.activationTokens} detail="tokens" />
-    </div>
-    <div className="overview-grid">
-      <section className="panel"><div className="panel-heading"><div><h3>平台覆盖</h3><p>当前范围内实际发现的资源</p></div><button className="text-button" onClick={() => navigate('resources')}>查看全部<ArrowRight size={15} /></button></div>
-        <div className="platform-list">{Object.entries(snapshot.summary.platforms).map(([platform, count]) => <div key={platform} className="platform-row"><PlatformIcon platform={platform} /><span>{platformLabel(platform)}</span><div className="mini-bar"><span style={{ width: `${Math.max(8, Number(count) / snapshot.summary.resources * 100)}%` }} /></div><strong>{count}</strong></div>)}</div>
-      </section>
-      <section className="panel"><div className="panel-heading"><div><h3>资源分组</h3><p>按用途聚合相似配置</p></div></div>
-        <div className="group-list">{snapshot.groups?.groups.slice(0, 4).map((group) => <div className="group-row" key={group.label}><span>{group.label || '相关资源'}</span><div>{group.skills.slice(0, 3).map((skill) => <code key={skill.sourcePath}>{skill.name}</code>)}</div><strong>{group.skills.length}</strong></div>)}
-          {!snapshot.groups?.groups.length && <p className="muted empty-copy">没有需要聚合的相似资源。</p>}</div>
-      </section>
-    </div>
-  </section>;
-}
 
-function IssuesPage({ snapshot, openIssue }: { snapshot: DoctorSnapshot | null; openIssue: (issue: UiIssue) => void }) {
-  const [query, setQuery] = useState(''); const [kind, setKind] = useState('all'); const [severity, setSeverity] = useState('all');
-  const issues = useMemo(() => (snapshot?.issues ?? []).filter((issue) => {
-    const haystack = `${issue.title} ${issue.summary} ${issue.resourceNames.join(' ')}`.toLowerCase();
-    return (!query || haystack.includes(query.toLowerCase())) && (kind === 'all' || issue.kind === kind) && (severity === 'all' || issue.severity === severity);
-  }), [snapshot, query, kind, severity]);
-  return <section><PageHeading title="待处理" subtitle="安全、冲突、重复和成本问题统一排序。"><span className="result-count">{issues.length} 项</span></PageHeading>
-    <FilterBar query={query} setQuery={setQuery} placeholder="搜索问题或资源">
-      <select value={kind} onChange={(event) => setKind(event.target.value)}><option value="all">全部类型</option><option value="security">安全</option><option value="conflict">冲突</option><option value="duplicate">重复</option><option value="context">成本</option></select>
-      <select value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="all">全部等级</option><option value="high">高风险</option><option value="med">中风险</option><option value="low">低风险</option><option value="info">提示</option></select>
-    </FilterBar>
-    <div className="issue-table"><div className="table-head issues"><span>问题</span><span>类型</span><span>等级</span><span>资源</span><span /></div>
-      {issues.map((issue) => <button className="table-row issues" key={issue.id} onClick={() => openIssue(issue)}><span><strong>{issue.title}</strong><small>{issue.summary}</small></span><span>{kindLabel(issue.kind)}</span><span><SeverityBadge severity={issue.severity} /></span><span>{issue.resourceNames.slice(0, 2).join('、')}</span><ArrowRight size={16} /></button>)}
-      {issues.length === 0 && <EmptyRows icon={Check} title="没有匹配的问题" />}
-    </div>
-  </section>;
-}
-
-function ContextPage({ snapshot, openResource, onToggle }: { snapshot: DoctorSnapshot | null; openResource: (resource: UiResource) => void; onToggle: (item: ContextCostItem) => Promise<void> }) {
-  const [showDisabled, setShowDisabled] = useState(false);
-  const context = snapshot?.context;
-  const items = showDisabled ? [...(context?.items ?? []), ...(context?.disabledItems ?? [])] : context?.items ?? [];
-  const max = Math.max(1, ...items.map((item) => Math.max(item.estimatedTokens, item.activationEstimatedTokens)));
-  return <section><PageHeading title="上下文成本" subtitle="固定成本与按需激活成本分开计算，避免误判。"><StatusPill kind={context?.summary.overBudget ? 'danger' : 'success'}>{context?.summary.overBudget ? '超过预算' : '预算内'}</StatusPill></PageHeading>
-    <div className="stat-grid context-stats"><StatCard label="每轮固定成本" value={snapshot?.summary.fixedTokens ?? 0} detail="tokens" /><StatCard label="按需激活成本" value={snapshot?.summary.activationTokens ?? 0} detail="tokens" /><StatCard label="预算" value={context?.summary.budgetTokens ?? 2000} detail={`评级 ${context?.summary.grade ?? '—'}`} /></div>
-    <div className="section-toolbar"><div><strong>资源成本明细</strong><span>{context?.summary.tokenizer.model ?? context?.summary.tokenizer.mode ?? 'openai'}</span></div><label className="switch-label"><input type="checkbox" checked={showDisabled} onChange={(event) => setShowDisabled(event.target.checked)} /><span />显示已禁用</label></div>
-    <div className="cost-list">{items.map((item) => {
-      const resource = snapshot?.resources.find((entry) => entry.sourcePath === item.sourcePath && entry.name === item.name) ?? snapshot?.resources.find((entry) => entry.id === item.id);
-      const cost = item.budgetScope === 'activation' ? item.activationEstimatedTokens : item.estimatedTokens;
-      return <div className={`cost-row ${item.enabled === false ? 'disabled' : ''}`} key={`${item.id ?? item.sourcePath}:${item.enabled}`}>
-        <button className="resource-link" onClick={() => resource && openResource(resource)}><code>{item.name}</code><small>{item.platform} · {activationLabel(item.activation)}</small></button>
-        <div className="cost-bar"><span style={{ width: `${Math.max(2, cost / max * 100)}%` }} /></div><strong>{cost}</strong><span className="cost-unit">tokens</span>
-        {item.controllable ? <button className="button compact" onClick={() => void onToggle(item)}>{item.enabled === false ? '启用' : '禁用'}</button> : <span className="muted">{item.estimateStatus === 'unknown' ? '未知' : '只读'}</span>}
-      </div>;
-    })}{!items.length && <EmptyRows icon={BarChart3} title="没有可计算的上下文资源" />}</div>
-  </section>;
-}
-
-function ResourcesPage({ snapshot, openResource }: { snapshot: DoctorSnapshot | null; openResource: (resource: UiResource) => void }) {
-  const [query, setQuery] = useState(''); const [kind, setKind] = useState('all'); const [platform, setPlatform] = useState('all'); const [scope, setScope] = useState('all');
-  const resources = useMemo(() => (snapshot?.resources ?? []).filter((resource) => {
-    const text = `${resource.name} ${resource.sourcePath} ${resource.description ?? ''} ${resource.triggers.join(' ')}`.toLowerCase();
-    return (!query || text.includes(query.toLowerCase())) && (kind === 'all' || resource.kind === kind) && (platform === 'all' || resource.consumers.some((consumer) => consumer.platform === platform)) && (scope === 'all' || resource.consumers.some((consumer) => consumer.scope === scope));
-  }), [snapshot, query, kind, platform, scope]);
-  const platforms = Object.keys(snapshot?.summary.platforms ?? {});
-  return <section><PageHeading title="资源清单" subtitle="统一查看 skills、rules、instructions、MCP、plugins 与 memories。"><span className="result-count">{resources.length} 个资源</span></PageHeading>
-    <FilterBar query={query} setQuery={setQuery} placeholder="查找资源、路径或触发词">
-      <select value={kind} onChange={(event) => setKind(event.target.value)}><option value="all">全部类型</option>{['skill','instruction','rule','prompt','agents','mcp','plugin','memory'].map((value) => <option key={value} value={value}>{resourceKindLabel(value)}</option>)}</select>
-      <select value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="all">全部平台</option>{platforms.map((value) => <option key={value}>{value}</option>)}</select>
-      <select value={scope} onChange={(event) => setScope(event.target.value)}><option value="all">全部范围</option><option value="project">项目</option><option value="global">全局</option></select>
-    </FilterBar>
-    <div className="resource-table"><div className="table-head resources"><span>名称</span><span>类型</span><span>平台</span><span>范围</span><span>状态</span><span /></div>
-      {resources.map((resource) => <button className="table-row resources" key={resource.id} onClick={() => openResource(resource)}><span><span className="resource-name"><code>{resource.name}</code>{resource.shared && <span className="shared-badge">共享 · {resource.consumers.length} Agent</span>}</span><small>{shortPath(resource.sourcePath)}</small></span><span>{resource.kindLabel}</span><span>{[...new Set(resource.consumers.map((consumer) => platformLabel(consumer.platform)))].join('、')}</span><span>{[...new Set(resource.consumers.map((consumer) => scopeLabel(consumer.scope)))].join('、')}</span><span><ResourceStatus status={resource.status} count={resource.issueIds.length} /></span><ArrowRight size={16} /></button>)}
-      {!resources.length && <EmptyRows icon={Search} title="没有匹配的资源" />}
-    </div>
-  </section>;
-}
-
-function ScanPathsPage({ platforms, setToast, onSaved }: {
-  platforms: Platform[];
-  setToast: (message: string) => void;
-  onSaved: (rescan: boolean) => Promise<void>;
-}) {
-  const available = platforms.filter((platform) => platform !== 'unknown');
-  const [active, setActive] = useState<Platform>(available[0] ?? 'codex');
-  const [sources, setSources] = useState<EffectiveScanSource[]>([]);
-  const [configPath, setConfigPath] = useState('');
-  const [busy, setBusy] = useState(true);
-  const [localError, setLocalError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    setBusy(true);
-    void getScanSources().then((payload) => {
-      if (!alive) return;
-      setSources(payload.sources);
-      setConfigPath(payload.configPath);
-      if (!payload.sources.some((entry) => entry.platform === active)) {
-        setActive(payload.sources[0]?.platform ?? available[0] ?? 'codex');
-      }
-    }).catch((error) => setLocalError(error instanceof Error ? error.message : String(error)))
-      .finally(() => { if (alive) setBusy(false); });
-    return () => { alive = false; };
-  }, []);
-
-  const update = (source: EffectiveScanSource, patch: Partial<EffectiveScanSource>) => {
-    setSources((current) => current.map((entry) => entry.platform === source.platform && entry.resource === source.resource && entry.id === source.id
-      ? { ...entry, ...patch, origin: entry.origin === 'builtin' ? 'override' : entry.origin }
-      : entry));
-  };
-  const add = (resource: ScanSourceResource) => {
-    const id = `user-${resource}-${Date.now()}`;
-    setSources((current) => [...current, {
-      id, platform: active, resource, scope: 'global', path: '', resolvedPath: '', enabled: true,
-      origin: 'user', status: 'missing',
-      ...(resource === 'skill' ? { mode: 'recursive-dir', layout: 'skill-dirs' } : {}),
-      ...(resource === 'mcp' ? { format: active === 'codex' ? 'toml' : 'json' } : {}),
-    }]);
-  };
-  const remove = (source: EffectiveScanSource) => {
-    setSources((current) => current.filter((entry) => !(entry.platform === source.platform && entry.resource === source.resource && entry.id === source.id)));
-  };
-  const userConfig = () => {
-    const result: Record<string, AgentScanSourcesUserConfig> = {};
-    for (const source of sources.filter((entry) => entry.origin !== 'builtin')) {
-      const agent = result[source.platform] ?? {};
-      const key = source.resource === 'skill' ? 'skills' : source.resource === 'mcp' ? 'mcp' : 'plugins';
-      const { id, scope, path, enabled, format, mode, layout, skillsField, defaultSkillsDir, costOnly } = source;
-      const entry = { id, scope, path, enabled, format, mode, layout, skillsField, defaultSkillsDir, costOnly };
-      agent[key] = [...(agent[key] ?? []), entry];
-      result[source.platform] = agent;
-    }
-    return result;
-  };
-  const save = async (rescan: boolean) => {
-    setBusy(true); setLocalError(null);
-    try {
-      const config = userConfig();
-      await validateScanSources(config);
-      const result = await saveScanSources(config);
-      setSources(result.sources);
-      await onSaved(rescan);
-      setToast(rescan ? '扫描路径已保存，正在重新体检' : '扫描路径已保存');
-    } catch (error) { setLocalError(error instanceof Error ? error.message : String(error)); }
-    finally { setBusy(false); }
-  };
-  const reset = async () => {
-    if (!window.confirm(`恢复 ${platformLabel(active)} 的默认扫描路径？`)) return;
-    setBusy(true); setLocalError(null);
-    try {
-      const result = await resetScanSources(active);
-      setSources(result.sources);
-      setToast(`${platformLabel(active)} 已恢复默认`);
-      await onSaved(false);
-    } catch (error) { setLocalError(error instanceof Error ? error.message : String(error)); }
-    finally { setBusy(false); }
-  };
-
-  return <section className="scan-paths-page"><PageHeading title="扫描路径" subtitle="按 Agent 管理 Skill、MCP 与 Plugin 的扫描来源。"><code className="config-path">{shortPath(configPath)}</code></PageHeading>
-    <div className="source-agent-tabs" aria-label="选择要配置的 Agent">{available.map((platform) => <button key={platform} className={active === platform ? 'active' : ''} onClick={() => setActive(platform)}><PlatformIcon platform={platform} />{platformLabel(platform)}</button>)}</div>
-    <div className="scan-source-help"><Info size={17} /><span>系统默认路径即使当前不存在也会展示。项目路径相对于当前项目解析，用户路径支持 <code>~</code>。</span></div>
-    {localError && <InlineNotice kind="danger" title="配置未保存" onClose={() => setLocalError(null)}>{localError}</InlineNotice>}
-    {busy && sources.length === 0 ? <div className="loading-line"><LoaderCircle className="spin" size={18} />正在读取扫描路径</div> : <div className="source-groups">
-      {(['skill', 'mcp', 'plugin'] as ScanSourceResource[]).map((resource) => {
-        const entries = sources.filter((entry) => entry.platform === active && entry.resource === resource);
-        return <section className="panel source-group" key={resource}><div className="panel-heading"><div><h3>{scanSourceLabel(resource)}</h3><p>{scanSourceDescription(resource)}</p></div><button className="button secondary compact" onClick={() => add(resource)}><Plus size={15} />添加路径</button></div>
-          <div className="source-list">{entries.map((source) => <div className={`source-row ${resource} ${!source.enabled ? 'disabled' : ''}`} key={`${source.resource}:${source.id}`}>
-            <label className="source-path-field"><span>路径</span><input aria-label={`${platformLabel(active)} ${scanSourceLabel(resource)}路径`} value={source.path} onChange={(event) => update(source, { path: event.target.value })} placeholder={resource === 'plugin' ? '/path/to/plugins/*/plugin.json' : '/path/to/config'} /></label>
-            <label><span>范围</span><select value={source.scope} onChange={(event) => update(source, { scope: event.target.value as Scope })}><option value="global">全局</option><option value="project">项目</option></select></label>
-            {resource === 'mcp' && <label><span>格式</span><select value={source.format ?? 'json'} onChange={(event) => update(source, { format: event.target.value as 'json' | 'toml' })}><option value="json">JSON</option><option value="toml">TOML</option></select></label>}
-            <div className="source-meta"><StatusPill kind={sourceStatusKind(source.status)}>{sourceStatusLabel(source.status)}</StatusPill><span className={`origin-badge ${source.origin}`}>{sourceOriginLabel(source.origin)}</span></div>
-            <label className="switch-label source-switch"><input type="checkbox" checked={source.enabled} onChange={(event) => update(source, { enabled: event.target.checked })} /><span />启用</label>
-            {source.origin === 'user' ? <button className="icon-button danger-text" aria-label={`删除 ${source.path || '新路径'}`} onClick={() => remove(source)}><Trash2 size={16} /></button> : <span className="source-locked">{source.origin === 'builtin' ? '只读' : '已覆盖'}</span>}
-            {source.resolvedPath && <code className="resolved-path" title={source.resolvedPath}>{source.resolvedPath}</code>}
-          </div>)}{entries.length === 0 && <div className="empty-source"><span>该 Agent 暂无内置 {scanSourceLabel(resource)} 配置。</span><button onClick={() => add(resource)}>添加第一个路径</button></div>}</div>
-        </section>;
-      })}
-    </div>}
-    <div className="scan-path-actions"><button className="button secondary" onClick={() => void reset()} disabled={busy}><RotateCcw size={16} />恢复当前 Agent 默认</button><span /><button className="button secondary" onClick={() => void save(false)} disabled={busy}><Save size={16} />保存</button><button className="button primary" onClick={() => void save(true)} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}保存并重新体检</button></div>
-  </section>;
-}
-
-function scanSourceLabel(resource: ScanSourceResource): string {
-  return resource === 'skill' ? 'Skill 路径' : resource === 'mcp' ? 'MCP 配置文件' : 'Plugin 路径';
-}
-function scanSourceDescription(resource: ScanSourceResource): string {
-  return resource === 'skill' ? 'Skill 目录、规则或指令文件' : resource === 'mcp' ? '包含 MCP server 定义的 JSON 或 TOML 文件' : 'Plugin manifest 路径，支持 * 通配符';
-}
-function sourceStatusLabel(status: EffectiveScanSource['status']): string {
-  return status === 'exists' ? '存在' : status === 'missing' ? '不存在' : status === 'unreadable' ? '无权限' : '类型错误';
-}
-function sourceStatusKind(status: EffectiveScanSource['status']): 'success' | 'warning' | 'danger' {
-  return status === 'exists' ? 'success' : status === 'missing' ? 'warning' : 'danger';
-}
-function sourceOriginLabel(origin: EffectiveScanSource['origin']): string {
-  return origin === 'builtin' ? '系统默认' : origin === 'override' ? '用户覆盖' : '用户添加';
-}
-
-function ManagePage({ bootstrap, snapshot, onChanged, setToast }: { bootstrap: BootstrapPayload | null; snapshot: DoctorSnapshot | null; onChanged: () => void; setToast: (message: string) => void }) {
-  const [sourceType, setSourceType] = useState<'local' | 'marketplace'>('local'); const [source, setSource] = useState(''); const [target, setTarget] = useState('claude'); const [link, setLink] = useState(false); const [busy, setBusy] = useState(false); const [localError, setLocalError] = useState<string | null>(null);
-  const submit = async () => { setBusy(true); setLocalError(null); try { const result = await installSkill({ source, sourceType, target, link }); setToast(`已安装 ${result.name}`); setSource(''); onChanged(); } catch (error) { setLocalError(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } };
-  return <section><PageHeading title="管理与导出" subtitle="安装受信任的 skill、管理已登记资源并导出报告。"><a className="button secondary" href="/api/export/dashboard" download><Download size={16} />导出报告</a></PageHeading>
-    <div className="manage-grid"><section className="panel install-panel"><div className="panel-heading"><div><h3>安装 Skill</h3><p>支持本地路径或 skills.sh slug</p></div><PackagePlus size={20} /></div>
-      <div className="segmented"><button className={sourceType === 'local' ? 'active' : ''} onClick={() => setSourceType('local')}>本地文件</button><button className={sourceType === 'marketplace' ? 'active' : ''} onClick={() => setSourceType('marketplace')}>Marketplace</button></div>
-      <label className="field"><span>{sourceType === 'local' ? 'SKILL.md 或目录路径' : 'Skill slug'}</span><input value={source} onChange={(event) => setSource(event.target.value)} placeholder={sourceType === 'local' ? '/path/to/my-skill' : 'owner/skill-name'} /></label>
-      <label className="field"><span>安装到</span><select value={target} onChange={(event) => setTarget(event.target.value)}>{bootstrap?.supportedPlatforms.filter((value) => value !== 'unknown').map((value) => <option key={value}>{value}</option>)}</select></label>
-      {sourceType === 'local' && <label className="check-row"><input type="checkbox" checked={link} onChange={(event) => setLink(event.target.checked)} />使用符号链接，便于同步本地修改</label>}
-      {localError && <p className="form-error">{localError}</p>}
-      <button className="button primary full" disabled={!source.trim() || busy} onClick={() => void submit()}>{busy ? <LoaderCircle className="spin" size={17} /> : <PackagePlus size={17} />}安装</button>
-    </section>
-    <section className="panel"><div className="panel-heading"><div><h3>扫描与报告</h3><p>保留本地诊断结果用于分享</p></div><FileCode2 size={20} /></div><div className="action-list"><div><span>静态 HTML 报告</span><small>包含资源、冲突、安全和清理建议</small></div><a className="button secondary" href="/api/export/dashboard" download>下载</a><div><span>当前快照</span><small>{snapshot ? `${snapshot.summary.resources} 个资源 · ${snapshot.summary.issues} 个问题` : '尚未扫描'}</small></div><span className="muted">{snapshot ? new Date(snapshot.generatedAt).toLocaleString() : '—'}</span></div></section></div>
-    <section className="panel registry-panel"><div className="panel-heading"><div><h3>已登记安装</h3><p>通过 Skill Doctor 安装的全局 skills</p></div><span className="result-count">{bootstrap?.registry.length ?? 0}</span></div>
-      <div className="registry-list">{bootstrap?.registry.map((entry) => <div className="registry-row" key={`${entry.platform}:${entry.name}`}><div><code>{entry.name}</code><small>{entry.platform} · {entry.source} · {shortPath(entry.installedPath)}</small></div><button className="button danger compact" onClick={async () => { if (!window.confirm(`确认卸载 ${entry.name}？`)) return; try { await uninstallSkill({ name: entry.name, platform: entry.platform, force: false }); setToast(`已卸载 ${entry.name}`); onChanged(); } catch (error) { if (window.confirm(`${error instanceof Error ? error.message : error}\n是否强制卸载？`)) { await uninstallSkill({ name: entry.name, platform: entry.platform, force: true }); setToast(`已强制卸载 ${entry.name}`); onChanged(); } } }}><Trash2 size={15} />卸载</button></div>)}
-        {!bootstrap?.registry.length && <p className="muted empty-copy">还没有通过 Skill Doctor 安装的资源。</p>}</div>
-    </section>
-  </section>;
-}
 
 function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysisMode, setOptions, detect, start }: {
   bootstrap: BootstrapPayload;
