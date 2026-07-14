@@ -57,6 +57,12 @@ describe('Skill Doctor UI server', () => {
     const snapshot = await current.json() as { summary: { resources: number; security: number } };
     expect(snapshot.summary.resources).toBe(1);
     expect(snapshot.summary.security).toBe(1);
+
+    const dashboard = await fetch(`${baseUrl}/api/export/dashboard`, { headers: { Cookie: cookie } });
+    expect(dashboard.status).toBe(200);
+    expect(dashboard.headers.get('content-type')).toContain('text/html');
+    expect(dashboard.headers.get('content-disposition')).toContain('skill-doctor-dashboard.html');
+    expect(await dashboard.text()).toContain('SKILL DOCTOR');
   });
 
   it('detects agents for a selected project and validates scan directories', async () => {
