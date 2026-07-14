@@ -49,6 +49,7 @@ export async function runHealthCheck(
   progress('discovering', '正在发现 skills、rules、instructions 与 MCP 配置');
   let skills = filterByPlatform(filterByScope(await scanSkills(projectDir, {
     homeDir: options.homeDir,
+    ...(options.provenanceCache ? { llmOptions, provenanceCache: options.provenanceCache } : {}),
     extraPaths: loaded.config.paths?.extra,
     sources: scanSources,
   }), scope), platform);
@@ -58,7 +59,8 @@ export async function runHealthCheck(
       platform: entry.platform, scope: entry.scope, path: entry.resolvedPath, format: entry.format ?? 'json',
     })),
   }), scope), platform);
-  const analysisSkills = uniquePhysicalSkills(skills);
+  const analysisSkills = options.deduplicatePhysicalSkills === false ? skills : uniquePhysicalSkills(skills);
+  const ignore = options.applyIgnore === false ? {} : (loaded.config.ignore ?? {});
 
   if (options.discoverMcpTools !== false && mcpServers.length > 0) {
     mcpServers = await discoverMcpToolsSafely(mcpServers, warnings);
@@ -74,18 +76,19 @@ export async function runHealthCheck(
     ...(llmOptions?.baseUrl ? { analysisBaseUrl: llmOptions.baseUrl } : {}),
     ...(llmOptions?.modelId ? { analysisModelId: llmOptions.modelId } : {}),
     ...(llmOptions?.apiKey ? { analysisApiKey: llmOptions.apiKey } : {}),
-  }), loaded.config.ignore ?? {});
+    ...options.conflictOptions,
+  }), ignore);
 
   progress('audit', '正在执行安全审计');
   const staticAudit = runAudit(analysisSkills);
-  const findings = filterFindings(staticAudit.findings, loaded.config.ignore ?? {});
+  const findings = filterFindings(staticAudit.findings, ignore);
   let aiFindings = staticAudit.aiFindings ?? [];
   if (options.useAiAudit) {
     if (!llmOptions) {
       warnings.push(warning('audit', 'ai-not-configured', 'AI 审计未运行：尚未配置 analysis 服务。'));
     } else {
       try {
-        aiFindings = await runAiAudit(analysisSkills, { llmOptions, useCache: true });
+        aiFindings = await runAiAudit(analysisSkills, { llmOptions, useCache: options.aiAuditUseCache ?? true });
       } catch (error) {
         warnings.push(warning('audit', 'ai-audit-failed', `AI 审计失败：${errorMessage(error)}`));
       }
@@ -95,7 +98,7 @@ export async function runHealthCheck(
     ...staticAudit,
     findings,
     aiFindings,
-    summary: summarizeAudit(findings),
+    summary: options.preserveUnfilteredAuditSummary ? staticAudit.summary : summarizeAudit(findings),
   };
 
   let context: DoctorSnapshot['context'];
@@ -105,6 +108,7 @@ export async function runHealthCheck(
       const contextEntries = await loadContextEntries(projectDir, scope, platform, options, loaded.config.paths?.extra, scanSources);
       context = addCodexResourceGroups(estimateContextCost(contextEntries, {
         ...(options.budgetTokens ? { budgetTokens: options.budgetTokens } : {}),
+        ...(options.platformBudgets ? { platformBudgets: options.platformBudgets } : {}),
         projectPath: projectDir,
         scope,
         tokenizer: options.tokenizer ?? 'openai',
@@ -118,15 +122,17 @@ export async function runHealthCheck(
     }
   }
 
-  progress('grouping', '正在整理资源用途');
   let groups: DoctorSnapshot['groups'];
-  try {
-    const cachePath = getDefaultGroupLabelCachePath(options.homeDir);
-    const labelCache = loadGroupLabelCache(cachePath);
-    groups = await groupSkills(analysisSkills, { llmOptions: undefined, labelCache });
-    if (labelCache.size > 0) saveGroupLabelCache(labelCache, cachePath);
-  } catch (error) {
-    warnings.push(warning('grouping', 'grouping-failed', `资源分组未完成：${errorMessage(error)}`));
+  if (options.includeGroups !== false) {
+    progress('grouping', '正在整理资源用途');
+    try {
+      const cachePath = getDefaultGroupLabelCachePath(options.homeDir);
+      const labelCache = loadGroupLabelCache(cachePath);
+      groups = await groupSkills(analysisSkills, { llmOptions: undefined, labelCache });
+      if (labelCache.size > 0) saveGroupLabelCache(labelCache, cachePath);
+    } catch (error) {
+      warnings.push(warning('grouping', 'grouping-failed', `资源分组未完成：${errorMessage(error)}`));
+    }
   }
 
   const snapshot = buildDoctorSnapshot({

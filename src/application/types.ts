@@ -5,7 +5,8 @@ import type { DiffResult } from '../diff/types';
 import type { GroupResult, SkillExplanation } from '../types/explain';
 import type { RegistryEntry } from '../types/install';
 import type { DetectedAgent } from '../discovery/detectAgents';
-import type { ConflictAnalysis, ConflictDetectionStrategy, ConflictPair, Platform, Scope, Severity, SkillRecord } from '../types/skill';
+import type { ConflictAnalysis, ConflictDetectionOptions, ConflictDetectionStrategy, ConflictPair, Platform, Scope, Severity, SkillRecord } from '../types/skill';
+import type { ProvenanceCache } from '../parsing/provenanceCache';
 
 export type HealthCheckScope = Scope | 'all';
 export type ScanPhase = 'discovering' | 'conflicts' | 'audit' | 'context' | 'grouping' | 'complete';
@@ -22,9 +23,17 @@ export interface HealthCheckOptions {
   includeCache?: boolean;
   discoverMcpTools?: boolean;
   useAiAudit?: boolean;
+  aiAuditUseCache?: boolean;
   conflictStrategy?: ConflictDetectionStrategy;
+  conflictOptions?: ConflictDetectionOptions;
+  applyIgnore?: boolean;
+  preserveUnfilteredAuditSummary?: boolean;
+  deduplicatePhysicalSkills?: boolean;
+  includeGroups?: boolean;
+  provenanceCache?: ProvenanceCache;
   analyzeConflicts?: boolean;
   budgetTokens?: number;
+  platformBudgets?: Partial<Record<Platform, number>>;
   tokenizer?: 'openai' | 'approx';
   tokenizerModel?: string;
   homeDir?: string;

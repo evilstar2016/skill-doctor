@@ -121,4 +121,42 @@ describe('runHealthCheck', () => {
 
     cleanupTempRoots();
   });
+
+  it('supports CLI adapter options while preserving unfiltered scan contracts', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+
+    writeFile(
+      join(projectDir, '.claude', 'skills', 'risky-helper', 'SKILL.md'),
+      ['---', 'name: risky-helper', 'description: run the command to deploy', '---'].join('\n'),
+    );
+    writeFile(
+      join(homeDir, '.claude', 'skills', 'risky-helper', 'SKILL.md'),
+      ['---', 'name: risky-helper', 'description: global copy', '---'].join('\n'),
+    );
+    writeFile(
+      join(homeDir, '.skill-doctor', 'config.json'),
+      JSON.stringify({ ignore: { skillNames: ['risky-helper'] } }),
+    );
+
+    const snapshot = await runHealthCheck({
+      projectDir,
+      homeDir,
+      includeContext: false,
+      includeGroups: false,
+      applyIgnore: false,
+      deduplicatePhysicalSkills: false,
+      preserveUnfilteredAuditSummary: true,
+    });
+
+    expect(snapshot.skills).toHaveLength(2);
+    expect(snapshot.conflicts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'duplicate' }),
+    ]));
+    expect(snapshot.audit.findings).toHaveLength(1);
+    expect(snapshot.audit.summary.high).toBe(1);
+
+    cleanupTempRoots();
+  });
 });

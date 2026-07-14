@@ -5,10 +5,9 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import packageJson from '../../package.json';
-import { runAudit } from '../audit/runAudit';
-import { runAiAudit } from '../audit/ai-scanner';
+import { runHealthCheck } from '../application/runHealthCheck';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
-import { filterConflicts, filterFindings } from '../config/applyIgnoreList';
+import { filterConflicts } from '../config/applyIgnoreList';
 import { loadUserConfig } from '../config/loadUserConfig';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { toggleCodexResource } from '../context/codexControls';
@@ -111,14 +110,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     const provenanceCache = loadProvenanceCache();
-    const skills = filterSkillsByScope(
-      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache, extraPaths }),
-      scope,
-    );
-    if (llmOptions && provenanceCache.size > 0) {
-      saveProvenanceCache(provenanceCache);
-    }
-
     const conflictOptions = readConflictOptions(rest);
 
     if (conflictOptions.error) {
@@ -127,7 +118,21 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const conflicts = await detectConflicts(skills, conflictOptions.options);
+    const snapshot = await runHealthCheck({
+      projectDir: cwd,
+      scope,
+      includeContext: false,
+      includeGroups: false,
+      applyIgnore: false,
+      deduplicatePhysicalSkills: false,
+      provenanceCache,
+      conflictOptions: conflictOptions.options,
+    });
+    const skills = snapshot.skills;
+    if (llmOptions && provenanceCache.size > 0) {
+      saveProvenanceCache(provenanceCache);
+    }
+    const conflicts = snapshot.conflicts;
 
     const reportPath = readReport(rest);
     if (reportPath !== null) {
@@ -223,12 +228,15 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
-    const ignore = loadUserConfig().config.ignore ?? {};
-    const conflicts = limitConflicts(
-      sortConflicts(filterConflictsByKind(filterConflicts(await detectConflicts(skills, conflictOptions.options), ignore), kind)),
-      limit,
-    );
+    const snapshot = await runHealthCheck({
+      projectDir: cwd,
+      scope,
+      includeContext: false,
+      includeGroups: false,
+      deduplicatePhysicalSkills: false,
+      conflictOptions: conflictOptions.options,
+    });
+    const conflicts = limitConflicts(sortConflicts(filterConflictsByKind(snapshot.conflicts, kind)), limit);
     const suggestions = suggestCleanup(conflicts);
     if (jsonOutput) {
       process.stdout.write(`${toJson(buildConflictsPayload(conflicts, suggestions))}\n`);
@@ -258,19 +266,25 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const noCache = hasFlag(rest, '--no-cache');
     const llmOptions = readAnalysisLlmOptions();
     const provenanceCache = loadProvenanceCache();
-    const skills = filterSkillsByScope(
-      await scanSkills(cwd, { llmOptions: llmOptions ?? undefined, provenanceCache, extraPaths }),
+    const snapshot = await runHealthCheck({
+      projectDir: cwd,
       scope,
-    );
+      includeContext: false,
+      includeGroups: false,
+      deduplicatePhysicalSkills: false,
+      provenanceCache,
+      preserveUnfilteredAuditSummary: true,
+      useAiAudit: useAi,
+      aiAuditUseCache: !noCache,
+    });
     if (llmOptions && provenanceCache.size > 0) {
       saveProvenanceCache(provenanceCache);
     }
-    const ignore = loadUserConfig().config.ignore ?? {};
-    const result = runAudit(skills);
-    let findings = filterFindings(result.findings, ignore);
+    const result = snapshot.audit;
+    let findings = result.findings;
     if (minSeverity) findings = filterFindingsBySeverity(findings, minSeverity);
 
-    let aiFindings = result.aiFindings ?? [];
+    let aiFindings = result.aiFindings;
     if (useAi) {
       if (!llmOptions) {
         process.stderr.write(
@@ -279,10 +293,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         process.exitCode = 1;
         return;
       }
-      aiFindings = await runAiAudit(skills, {
-        llmOptions,
-        useCache: !noCache,
-      });
     }
 
     const filtered = { ...result, findings, aiFindings };
@@ -482,39 +492,59 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const entries = platform === 'codex'
-      ? filterCodexEntriesBySource(filterEntriesByScope(await scanCodexContextEntries(projectDir, {
-          ...(codexConfigPath ? { configPath: codexConfigPath } : {}),
-          resource: resource ?? 'all',
-          includeDisabled: showDisabled,
-        }), scope), source)
-      : [
-          ...(source === 'mcp'
-            ? []
-            : filterEntriesByPlatform(
-                filterEntriesByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
-                platform,
-              )),
-          ...(source === 'skill'
-            ? []
-            : await discoverMcpToolsForServers(
-                filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
-              )),
-        ];
-    let result = addCodexResourceGroups(estimateContextCost(entries, {
-      ...(budgetTokens === null ? {} : { budgetTokens }),
-      ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
-      tokenizer,
-      ...(tokenizerModel ? { tokenizerModel } : {}),
-      projectPath: projectDir,
-      scope,
-    }));
+    const canUseHealthCheck = platform !== null && source === 'all' && resource === null && !codexConfigPath;
+    let result: ContextCostResult;
 
-    if (includeCache && (resource === null || resource === 'all' || resource === 'plugin')) {
-      result = {
-        ...result,
-        catalog: scanCodexPluginCache(),
-      };
+    if (canUseHealthCheck) {
+      const snapshot = await runHealthCheck({
+        projectDir,
+        scope,
+        platform,
+        includeContext: true,
+        includeDisabled: showDisabled,
+        includeCache,
+        includeGroups: false,
+        budgetTokens: budgetTokens ?? undefined,
+        platformBudgets,
+        tokenizer,
+        ...(tokenizerModel ? { tokenizerModel } : {}),
+      });
+      result = snapshot.context!;
+    } else {
+      const entries = platform === 'codex'
+        ? filterCodexEntriesBySource(filterEntriesByScope(await scanCodexContextEntries(projectDir, {
+            ...(codexConfigPath ? { configPath: codexConfigPath } : {}),
+            resource: resource ?? 'all',
+            includeDisabled: showDisabled,
+          }), scope), source)
+        : [
+            ...(source === 'mcp'
+              ? []
+              : filterEntriesByPlatform(
+                  filterEntriesByScope(await scanSkills(projectDir, { extraPaths, includeCostPaths: true }), scope),
+                  platform,
+                )),
+            ...(source === 'skill'
+              ? []
+              : await discoverMcpToolsForServers(
+                  filterEntriesByPlatform(filterEntriesByScope(scanMcpServers(projectDir), scope), platform),
+                )),
+          ];
+      result = addCodexResourceGroups(estimateContextCost(entries, {
+        ...(budgetTokens === null ? {} : { budgetTokens }),
+        ...(Object.keys(platformBudgets).length === 0 ? {} : { platformBudgets }),
+        tokenizer,
+        ...(tokenizerModel ? { tokenizerModel } : {}),
+        projectPath: projectDir,
+        scope,
+      }));
+
+      if (includeCache && (resource === null || resource === 'all' || resource === 'plugin')) {
+        result = {
+          ...result,
+          catalog: scanCodexPluginCache(),
+        };
+      }
     }
 
     if (jsonOutput) {
@@ -600,14 +630,20 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
-    const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
-    const ignore = loadUserConfig().config.ignore ?? {};
-    const allConflicts = filterConflicts(await detectConflicts(skills), ignore);
+    const snapshot = await runHealthCheck({
+      projectDir: cwd,
+      scope,
+      includeContext: false,
+      includeGroups: false,
+      deduplicatePhysicalSkills: false,
+      preserveUnfilteredAuditSummary: true,
+    });
+    const skills = snapshot.skills;
+    const allConflicts = snapshot.conflicts;
     const conflicts = allConflicts.filter((p) => p.kind === 'conflict');
     const duplicates = allConflicts.filter((p) => p.kind === 'duplicate');
     const suggestions = suggestCleanup(allConflicts);
-    const auditResult = runAudit(skills);
-    const filteredAudit = { ...auditResult, findings: filterFindings(auditResult.findings, ignore) };
+    const filteredAudit = snapshot.audit;
 
     const reportPath = readReport(rest);
     const outPath = reportPath === true ? 'skill-doctor-dashboard.html'
