@@ -61,6 +61,29 @@ describe('runHealthCheck', () => {
     cleanupTempRoots();
   });
 
+  it('keeps other Agent consumers without adding their cost to a single-Agent scan', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    writeFile(
+      join(projectDir, '.agents', 'skills', 'shared-reviewer', 'SKILL.md'),
+      ['---', 'name: shared-reviewer', 'description: Review api_key handling before release.', '---', ''].join('\n'),
+    );
+
+    const snapshot = await runHealthCheck({ projectDir, homeDir, scope: 'project', platform: 'codex' });
+    const resource = snapshot.resources.find((entry) => entry.name === 'shared-reviewer');
+    const codex = resource?.consumers.find((consumer) => consumer.platform === 'codex');
+    const windsurf = resource?.consumers.find((consumer) => consumer.platform === 'windsurf');
+
+    expect(snapshot.target.platform).toBe('codex');
+    expect(resource?.shared).toBe(true);
+    expect(codex?.activationTokens).toBeGreaterThanOrEqual(0);
+    expect(windsurf?.fixedTokens).toBeUndefined();
+    expect(windsurf?.activationTokens).toBeUndefined();
+
+    cleanupTempRoots();
+  });
+
   it('discovers stdio MCP tool lists by default for Copilot and Codex context cost', async () => {
     const root = createTempRoot();
     const projectDir = join(root, 'project');

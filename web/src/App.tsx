@@ -60,6 +60,8 @@ export default function App() {
   const [resourceDetail, setResourceDetail] = useState<ResourceDetailPayload | null>(null);
   const [compare, setCompare] = useState<{ leftId: string; rightId: string; result?: DiffResult; loading?: boolean } | null>(null);
   const cleanupStream = useRef<null | (() => void)>(null);
+  const activeScanId = useRef<string | undefined>(undefined);
+  const scanVersion = useRef(0);
   const startedAutomatically = useRef(false);
 
   useEffect(() => {
@@ -74,31 +76,46 @@ export default function App() {
   }, []);
 
   const runScan = useCallback(async (options: ScanRequest) => {
+    const version = ++scanVersion.current;
+    const previousScanId = activeScanId.current;
     cleanupStream.current?.();
+    cleanupStream.current = null;
+    activeScanId.current = undefined;
+    if (previousScanId) void cancelScan(previousScanId);
     setError(null);
     setScan({ running: true, message: '准备体检', progress: 3 });
     saveProjectPreference(options);
     try {
       const id = await startScan(options);
+      if (version !== scanVersion.current) { void cancelScan(id); return; }
+      activeScanId.current = id;
       setScan((current) => ({ ...current, id }));
       cleanupStream.current = streamScan(id, {
         progress(event) {
+          if (version !== scanVersion.current) return;
           setScan({ id, running: true, message: event.message, progress: Math.round((event.completed / event.total) * 100) });
         },
         complete(nextSnapshot) {
+          if (version !== scanVersion.current || nextSnapshot.target.platform !== (options.platform === 'all' ? null : options.platform)) return;
+          activeScanId.current = undefined;
           setSnapshot(nextSnapshot);
           setScan({ running: false, message: nextSnapshot.status === 'partial' ? '体检完成，部分项目需要关注' : '体检完成', progress: 100 });
           setToast('体检结果已更新');
         },
         error(nextError) {
+          if (version !== scanVersion.current) return;
+          activeScanId.current = undefined;
           setError(nextError.message);
           setScan({ running: false, message: '体检失败', progress: 0 });
         },
         cancelled() {
+          if (version !== scanVersion.current) return;
+          activeScanId.current = undefined;
           setScan({ running: false, message: '已取消', progress: 0 });
         },
       });
     } catch (nextError) {
+      if (version !== scanVersion.current) return;
       setError(nextError instanceof Error ? nextError.message : String(nextError));
       setScan({ running: false, message: '体检失败', progress: 0 });
     }
@@ -109,14 +126,15 @@ export default function App() {
     void getBootstrap().then((payload) => {
       if (!alive) return;
       setBootstrap(payload);
-      setSnapshot(payload.snapshot);
       setDetectedAgents(payload.detectedAgents);
-      const configured = { ...DEFAULT_SCAN, ...loadProjectPreference(payload.projectDir), projectDir: payload.projectDir };
+      const configured = initialScanOptions(payload);
       setScanOptions(configured);
-      const onboardingComplete = isOnboardingComplete(payload.projectDir);
-      if (!payload.snapshot && !onboardingComplete) {
+      const needsAgentChoice = configured.platform === 'all' && payload.detectedAgents.filter((agent) => agent.recommended).length > 1;
+      const snapshotMatches = payload.snapshot?.target.platform === (configured.platform === 'all' ? null : configured.platform);
+      setSnapshot(snapshotMatches ? payload.snapshot : null);
+      if (needsAgentChoice) {
         setOnboardingOpen(true);
-      } else if (!payload.snapshot && !startedAutomatically.current) {
+      } else if ((!snapshotMatches || !payload.snapshot) && !startedAutomatically.current) {
         startedAutomatically.current = true;
         void runScan(configured);
       }
@@ -170,10 +188,19 @@ export default function App() {
           selectAgent={(platform) => {
             const next = { ...scanOptions, platform };
             setScanOptions(next);
+            setSnapshot(null);
             void runScan(next);
           }}
           runScan={refresh}
-          cancel={() => scan.id && void cancelScan(scan.id)}
+          cancel={() => {
+            ++scanVersion.current;
+            cleanupStream.current?.();
+            cleanupStream.current = null;
+            const id = activeScanId.current;
+            activeScanId.current = undefined;
+            if (id) void cancelScan(id);
+            setScan({ running: false, message: '已取消', progress: 0 });
+          }}
           openSettings={() => setSettingsOpen(true)}
           detectedAgents={detectedAgents}
           analysisMode={analysisMode}
@@ -182,6 +209,7 @@ export default function App() {
           toggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         />
         {error && <InlineNotice kind="danger" title="操作未完成" onClose={() => setError(null)}>{error}</InlineNotice>}
+        {snapshot?.target.platform === null && <InlineNotice kind="info" title="跨 Agent 总览">此结果汇总多个 Agent，用于查看共享资源、跨平台重复和统一盘点。</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{warning.message}</InlineNotice>)}
         <div className="page-container">
           {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} />}
@@ -233,7 +261,6 @@ export default function App() {
           return result.agents;
         }}
         start={(options) => {
-          markOnboardingComplete(options.projectDir);
           setOnboardingOpen(false);
           setScanOptions(options);
           void runScan(options);
@@ -305,7 +332,7 @@ function Topbar(props: {
         ? <button className="button secondary" onClick={props.cancel}><X size={17} />取消</button>
         : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />重新体检</button>}
     </div>
-  </header><div className="agent-bar" aria-label="选择要体检的 Agent"><span>Agent</span><div className="agent-tabs"><button className={scanOptions.platform === 'all' ? 'active' : ''} onClick={() => props.selectAgent('all')}>全部</button>{props.detectedAgents.map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)} title={agent.projectDetected ? '当前项目已使用' : '仅发现全局配置'}>{agent.displayName}{agent.projectDetected && <small>项目</small>}</button>)}</div></div></>;
+  </header><div className="agent-bar" aria-label="选择要体检的 Agent"><span>当前 Agent</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)} title={agent.projectDetected ? '当前项目已使用' : '仅发现全局配置'}>{agent.displayName}{agent.projectDetected && <small>项目</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>跨 Agent 总览</button></div></div></>;
 }
 
 
@@ -323,9 +350,11 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
   const [projectDir, setProjectDir] = useState(options.projectDir || bootstrap.projectDir);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [agentChosen, setAgentChosen] = useState(options.platform !== 'all');
   const recommend = (nextAgents: DetectedAgent[]) => {
     const projectAgents = nextAgents.filter((agent) => agent.recommended);
     const platform = projectAgents.length === 1 ? projectAgents[0].platform : 'all';
+    setAgentChosen(projectAgents.length === 1);
     setOptions((current) => ({ ...current, projectDir, platform }));
   };
   useEffect(() => { recommend(agents); }, []);
@@ -341,6 +370,7 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
       const nextAgents = await detect(projectDir);
       const available = new Set(nextAgents.map((agent) => agent.platform));
       const projectAgents = nextAgents.filter((agent) => agent.recommended);
+      if (projectAgents.length > 1 && !agentChosen) { setLocalError('请选择一个当前 Agent，或明确选择跨 Agent 总览。'); setBusy(false); return; }
       const platform = options.platform !== 'all' && available.has(options.platform)
         ? options.platform
         : projectAgents.length === 1 ? projectAgents[0].platform : 'all';
@@ -350,7 +380,7 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
   return <div className="onboarding-backdrop"><section className="onboarding-card" aria-modal="true" role="dialog" aria-labelledby="onboarding-title">
     <header><span className="brand-mark"><Stethoscope size={22} /></span><div><span className="eyebrow">第一次体检</span><h1 id="onboarding-title">确认检查目标</h1><p>分析默认在本机完成；先确认项目与 Agent，再开始扫描。</p></div></header>
     <div className="onboarding-section"><div className="section-title"><div><strong>项目目录</strong><span>用于发现这个项目中的 AGENTS.md、skills、MCP 和其他 Agent 配置。</span></div></div><div className="path-input-row"><input value={projectDir} onChange={(event) => setProjectDir(event.target.value)} aria-label="项目目录" /><button className="button secondary" onClick={() => void redetect()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Search size={16} />}检测 Agent</button></div><p className="scope-help"><strong>项目配置</strong>位于该目录内；<strong>全局配置</strong>位于你的用户目录，会影响多个项目。</p></div>
-    <div className="onboarding-section"><div className="section-title"><div><strong>要体检的 Agent</strong><span>优先推荐当前项目已经使用的 Agent，也可检查全部。</span></div></div><div className="agent-choice-grid"><button className={options.platform === 'all' ? 'active' : ''} onClick={() => setOptions((current) => ({ ...current, platform: 'all' }))}><Boxes size={18} /><strong>全部 Agent</strong><small>检查所有已发现配置</small></button>{agents.map((agent) => <button key={agent.platform} className={options.platform === agent.platform ? 'active' : ''} onClick={() => setOptions((current) => ({ ...current, platform: agent.platform }))}><PlatformIcon platform={agent.platform} /><strong>{agent.displayName}</strong><small>{agent.projectDetected ? '当前项目已使用 · 推荐' : '仅发现全局配置'}</small></button>)}</div>{agents.length === 0 && <p className="muted">当前目录尚未发现已知 Agent 配置；仍可选择“全部”进行完整检查。</p>}</div>
+    <div className="onboarding-section"><div className="section-title"><div><strong>要体检的 Agent</strong><span>先选择当前项目使用的 Agent；跨 Agent 总览用于共享资源和统一盘点。</span></div></div><div className="agent-choice-grid">{[...agents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={agentChosen && options.platform === agent.platform ? 'active' : ''} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: agent.platform })); }}><PlatformIcon platform={agent.platform} /><strong>{agent.displayName}</strong><small>{agent.projectDetected ? '当前项目已使用 · 推荐' : '仅发现全局配置'}</small></button>)}<button className={`agent-overview ${agentChosen && options.platform === 'all' ? 'active' : ''}`} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: 'all' })); }}><Boxes size={18} /><strong>跨 Agent 总览</strong><small>检查所有已发现配置</small></button></div>{agents.length === 0 && <p className="muted">当前目录尚未发现已知 Agent 配置；可选择“跨 Agent 总览”进行完整检查。</p>}</div>
     <div className="onboarding-section"><div className="section-title"><div><strong>分析模式</strong><span>上下文成本会连接 MCP 获取工具清单，stdio 配置可能启动本地命令；请仅体检可信项目。</span></div></div><div className="analysis-choice"><button className={analysisMode === 'standard' ? 'active' : ''} onClick={() => setAnalysisMode('standard')}><ShieldCheck size={19} /><span><strong>标准体检</strong><small>静态安全、关键词冲突、上下文成本</small></span></button><button className={analysisMode === 'deep' ? 'active' : ''} disabled={!bootstrap.capabilities.aiAuditConfigured && !bootstrap.capabilities.embeddingConfigured} onClick={() => setAnalysisMode('deep')}><Sparkles size={19} /><span><strong>深度体检</strong><small>{bootstrap.capabilities.aiAuditConfigured || bootstrap.capabilities.embeddingConfigured ? '使用已配置的语义或 AI 分析能力' : '尚未配置分析服务'}</small></span></button></div></div>
     {localError && <p className="form-error onboarding-error">{localError}</p>}
     <footer><div><ShieldCheck size={16} /><span>Skill 内容默认不会上传；深度体检仅使用你配置的服务。</span></div><button className="button primary" onClick={() => void submit()} disabled={busy || !projectDir.trim()}>{busy ? <LoaderCircle className="spin" size={17} /> : <Stethoscope size={17} />}开始体检</button></footer>
@@ -381,7 +411,7 @@ function ResourceDrawer({ resource, detail, close, openIssue }: { resource: UiRe
   return <Drawer title={resource.name} subtitle={`${resource.kindLabel} · ${resource.shared ? `${resource.consumers.length} 个 Agent 共享` : platformLabel(resource.platform)} · ${scopeLabel(resource.scope)}`} close={close}>
     <div className="resource-hero"><div><ResourceStatus status={resource.status} count={resource.issueIds.length} />{resource.shared && <span className="shared-badge">共享资源</span>}</div><p>{resource.description || resource.recommendation || '暂无描述'}</p></div>
     <div className="detail-grid"><Detail label="激活方式" value={activationLabel(resource.activation)} /><Detail label="固定成本" value={`${resource.fixedTokens} tokens`} /><Detail label="按需成本" value={`${resource.activationTokens} tokens`} /><Detail label="可控制" value={resource.controllable ? '支持' : '只读'} /></div>
-    {resource.shared && <div className="drawer-section"><h4>使用这个资源的 Agent</h4><p className="shared-impact">修改这个文件会同时影响以下 {resource.consumers.length} 个 Agent。</p><div className="consumer-list">{resource.consumers.map((consumer) => <div key={`${consumer.platform}:${consumer.scope}`}><PlatformIcon platform={consumer.platform} /><span><strong>{platformLabel(consumer.platform)}</strong><small>{scopeLabel(consumer.scope)} · {activationLabel(consumer.activation)}{consumer.enabled === false ? ' · 已禁用' : ''}</small></span><code>{consumer.fixedTokens + consumer.activationTokens} tokens</code></div>)}</div></div>}
+    {resource.shared && <div className="drawer-section"><h4>使用这个资源的 Agent</h4><p className="shared-impact">修改这个文件会同时影响以下 {resource.consumers.length} 个 Agent。</p><div className="consumer-list">{resource.consumers.map((consumer) => <div key={`${consumer.platform}:${consumer.scope}`}><PlatformIcon platform={consumer.platform} /><span><strong>{platformLabel(consumer.platform)}</strong><small>{scopeLabel(consumer.scope)} · {activationLabel(consumer.activation)}{consumer.enabled === false ? ' · 已禁用' : ''}</small></span><code>{consumer.fixedTokens === undefined || consumer.activationTokens === undefined ? '本次未计算' : `${consumer.fixedTokens + consumer.activationTokens} tokens`}</code></div>)}</div></div>}
     <div className="drawer-section"><h4>{resource.sourcePaths?.length ? `聚合来源（${resource.sourcePaths.length}）` : '来源'}</h4>{(resource.sourcePaths ?? [resource.sourcePath]).map((path) => <div className="path-box" key={path}><code>{path}</code><button onClick={() => void navigator.clipboard.writeText(path)}><Clipboard size={14} /></button></div>)}{resource.installSource && <Detail label="安装来源" value={resource.installSource} />}{resource.repository && <Detail label="仓库" value={resource.repository} />}{resource.author && <Detail label="作者" value={resource.author} />}</div>
     <div className="drawer-section"><h4>触发词与入口</h4><div className="tag-list">{resource.triggers.length ? resource.triggers.map((trigger) => <span key={trigger}>{trigger}</span>) : <span className="muted">没有可用触发信息</span>}</div></div>
     <div className="drawer-section"><h4>关联问题</h4>{detail ? <div className="linked-issues">{detail.issues.map((issue) => <button key={issue.id} onClick={() => openIssue(issue)}><SeverityBadge severity={issue.severity} /><span>{issue.title}</span><ArrowRight size={15} /></button>)}{!detail.issues.length && <p className="muted">没有关联问题。</p>}</div> : <LoadingLine />}</div>
@@ -405,7 +435,7 @@ function SeverityBadge({ severity }: { severity: UiIssue['severity'] }) { return
 function StatusPill({ kind, children }: { kind: 'success' | 'warning' | 'danger'; children: React.ReactNode }) { return <span className={`status-pill ${kind}`}>{kind === 'success' ? <Check size={14} /> : <AlertTriangle size={14} />}{children}</span>; }
 function ResourceStatus({ status, count }: { status: UiResource['status']; count: number }) { return <span className={`resource-status ${status}`}>{status === 'attention' ? `${count} 项需处理` : status === 'disabled' ? '已禁用' : status === 'unknown' ? '未知' : '正常'}</span>; }
 function FilterBar({ query, setQuery, placeholder, children }: { query: string; setQuery: (value: string) => void; placeholder: string; children: ReactNode }) { return <div className="filter-bar"><label className="search-input"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={placeholder} /></label><div className="filter-selects"><Filter size={15} />{children}</div></div>; }
-function InlineNotice({ kind, title, children, onClose }: { kind: 'danger' | 'warning'; title: string; children: ReactNode; onClose?: () => void }) { return <div className={`inline-notice ${kind}`}><AlertTriangle size={17} /><div><strong>{title}</strong><span>{children}</span></div>{onClose && <button onClick={onClose}><X size={15} /></button>}</div>; }
+function InlineNotice({ kind, title, children, onClose }: { kind: 'danger' | 'warning' | 'info'; title: string; children: ReactNode; onClose?: () => void }) { return <div className={`inline-notice ${kind}`}><AlertTriangle size={17} /><div><strong>{title}</strong><span>{children}</span></div>{onClose && <button onClick={onClose}><X size={15} /></button>}</div>; }
 function SettingSwitch({ label, description, checked, disabled, onChange }: { label: string; description: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void }) { return <label className={`setting-switch ${disabled ? 'disabled' : ''}`}><div><strong>{label}</strong><span>{description}</span></div><input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} /><span className="switch-track" /></label>; }
 function HelpTip({ label, text }: { label: string; text: string }) { return <details className="help-tip"><summary aria-label={`解释${label}`}><CircleHelp size={14} /></summary><p>{text}</p></details>; }
 function Detail({ label, value }: { label: string; value: string }) { return <div className="detail"><span>{label}</span><strong>{value}</strong></div>; }
@@ -416,11 +446,32 @@ function ScanningEmpty({ running }: { running: boolean }) { return <div classNam
 function PlatformIcon({ platform }: { platform: string }) { return <span className="platform-icon">{platform.slice(0, 1).toUpperCase()}</span>; }
 
 function routeFromHash(): Route { const value = window.location.hash.replace(/^#\//, '') as Route; return ROUTES.some((route) => route.id === value) ? value : 'overview'; }
+function initialScanOptions(payload: BootstrapPayload): ScanRequest {
+  const preference = loadProjectPreference(payload.projectDir);
+  const available = new Set(payload.detectedAgents.map((agent) => agent.platform));
+  const preferredPlatform = preference.platform && preference.platform !== 'all' && available.has(preference.platform) ? preference.platform : undefined;
+  const snapshotPlatform = payload.snapshot?.target.platform;
+  const snapshotSelection = snapshotPlatform && available.has(snapshotPlatform) ? snapshotPlatform : undefined;
+  const projectAgents = payload.detectedAgents.filter((agent) => agent.recommended);
+  const platform = preferredPlatform ?? snapshotSelection ?? (projectAgents.length === 1 ? projectAgents[0].platform : 'all');
+  return { ...DEFAULT_SCAN, ...preference, projectDir: payload.projectDir, platform };
+}
+
 function loadScanOptions(): ScanRequest { return DEFAULT_SCAN; }
 function loadProjectPreference(projectDir: string): Partial<ScanRequest> { try { return JSON.parse(localStorage.getItem('skill-doctor-project-preferences') ?? '{}')[projectDir] ?? {}; } catch { return {}; } }
-function saveProjectPreference(options: ScanRequest): void { try { const preferences = JSON.parse(localStorage.getItem('skill-doctor-project-preferences') ?? '{}'); preferences[options.projectDir] = options; localStorage.setItem('skill-doctor-project-preferences', JSON.stringify(preferences)); } catch { /* ignore unavailable storage */ } }
-function isOnboardingComplete(projectDir: string): boolean { try { return JSON.parse(localStorage.getItem('skill-doctor-onboarded-projects') ?? '{}')[projectDir] === true; } catch { return false; } }
-function markOnboardingComplete(projectDir: string): void { try { const projects = JSON.parse(localStorage.getItem('skill-doctor-onboarded-projects') ?? '{}'); projects[projectDir] = true; localStorage.setItem('skill-doctor-onboarded-projects', JSON.stringify(projects)); } catch { /* ignore unavailable storage */ } }
+function saveProjectPreference(options: ScanRequest): void {
+  try {
+    const preferences = JSON.parse(localStorage.getItem('skill-doctor-project-preferences') ?? '{}');
+    const existing = preferences[options.projectDir] ?? {};
+    const { platform, ...rest } = options;
+    preferences[options.projectDir] = {
+      ...existing,
+      ...rest,
+      ...(platform === 'all' ? existing.platform && existing.platform !== 'all' ? { platform: existing.platform } : {} : { platform }),
+    };
+    localStorage.setItem('skill-doctor-project-preferences', JSON.stringify(preferences));
+  } catch { /* ignore unavailable storage */ }
+}
 function loadAnalysisMode(): AnalysisMode { const value = localStorage.getItem('skill-doctor-analysis-mode'); return value === 'deep' || value === 'custom' ? value : 'standard'; }
 function optionsForAnalysisMode(options: ScanRequest, mode: Exclude<AnalysisMode, 'custom'>, capabilities?: BootstrapPayload['capabilities']): ScanRequest {
   if (mode === 'standard') return { ...options, includeContext: true, discoverMcpTools: true, useAiAudit: false, conflictStrategy: 'token', analyzeConflicts: false };

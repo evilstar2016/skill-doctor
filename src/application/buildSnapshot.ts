@@ -17,6 +17,8 @@ interface BuildSnapshotInput {
   platform: Platform | null;
   skills: SkillRecord[];
   mcpServers: McpServerRecord[];
+  consumerSkills?: SkillRecord[];
+  consumerMcpServers?: McpServerRecord[];
   conflicts: ConflictPair[];
   audit: AuditResult;
   context?: ContextCostResult;
@@ -30,7 +32,7 @@ interface BuildSnapshotInput {
 
 export function buildDoctorSnapshot(input: BuildSnapshotInput): DoctorSnapshot {
   const issues = buildIssues(input.skills, input.conflicts, input.audit, input.context, input.suggestions);
-  const resources = buildResources(input.skills, input.mcpServers, input.context, input.registry, issues);
+  const resources = buildResources(input.skills, input.mcpServers, input.context, input.registry, issues, input.consumerSkills, input.consumerMcpServers);
   const fixedTokens = input.context?.summary.totalEstimatedTokens ?? 0;
   const activationTokens = input.context?.items.reduce((sum, item) => sum + item.activationEstimatedTokens, 0) ?? 0;
   const generatedAt = new Date().toISOString();
@@ -191,6 +193,8 @@ function buildResources(
   context: ContextCostResult | undefined,
   registry: RegistryEntry[],
   issues: UiIssue[],
+  consumerSkills: SkillRecord[] = skills,
+  consumerMcpServers: McpServerRecord[] = mcpServers,
 ): UiResource[] {
   const byId = new Map<string, UiResource>();
   const issueIds = new Map<string, string[]>();
@@ -267,6 +271,19 @@ function buildResources(
     });
   }
 
+  for (const skill of consumerSkills) {
+    const resource = byId.get(resourceIdForSkill(skill));
+    if (!resource) continue;
+    upsertConsumer(resource, { platform: skill.platform, scope: skill.scope, enabled: skill.context?.enabled });
+    resource.shared = resource.consumers.length > 1;
+  }
+  for (const server of consumerMcpServers) {
+    const resource = byId.get(resourceIdForMcp(server));
+    if (!resource) continue;
+    upsertConsumer(resource, { platform: server.platform, scope: server.scope, enabled: server.enabled });
+    resource.shared = resource.consumers.length > 1;
+  }
+
   for (const item of [...(context?.items ?? []), ...(context?.disabledItems ?? [])]) {
     const id = resourceIdForContextItem(item);
     const existing = findMatchingResource(byId, item);
@@ -280,8 +297,8 @@ function buildResources(
       existing.estimateStatus = item.estimateStatus;
       upsertConsumer(existing, { platform: item.platform, scope: item.scope, enabled: item.enabled, activation: item.activation, fixedTokens: fixedCost(item), activationTokens: item.activationEstimatedTokens });
       existing.shared = existing.consumers.length > 1;
-      existing.fixedTokens = existing.consumers.reduce((sum, consumer) => sum + consumer.fixedTokens, 0);
-      existing.activationTokens = existing.consumers.reduce((sum, consumer) => sum + consumer.activationTokens, 0);
+      existing.fixedTokens = existing.consumers.reduce((sum, consumer) => sum + (consumer.fixedTokens ?? 0), 0);
+      existing.activationTokens = existing.consumers.reduce((sum, consumer) => sum + (consumer.activationTokens ?? 0), 0);
       existing.enabled = combinedEnabled(existing);
       existing.issueIds = [...new Set([...existing.issueIds, ...(issueIds.get(id) ?? [])])];
       existing.status = existing.enabled === false ? 'disabled' : existing.issueIds.length > 0 ? 'attention' : 'healthy';

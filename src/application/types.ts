@@ -71,8 +71,8 @@ export interface UiResource {
     scope: Scope;
     enabled?: boolean;
     activation?: string;
-    fixedTokens: number;
-    activationTokens: number;
+    fixedTokens?: number;
+    activationTokens?: number;
   }>;
   description?: string;
   triggers: string[];

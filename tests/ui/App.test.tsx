@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getResourceDetail: vi.fn(),
   startScan: vi.fn(),
   streamScan: vi.fn(),
+  cancelScan: vi.fn(),
   getScanSources: vi.fn(),
   validateScanSources: vi.fn(),
   saveScanSources: vi.fn(),
@@ -17,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../web/src/api', () => ({
   ...mocks,
-  cancelScan: vi.fn(), cleanupDuplicate: vi.fn(), compareResources: vi.fn(), getResourceDetail: mocks.getResourceDetail,
+  cancelScan: mocks.cancelScan, cleanupDuplicate: vi.fn(), compareResources: vi.fn(), getResourceDetail: mocks.getResourceDetail,
   installSkill: vi.fn(), toggleContextResource: vi.fn(), uninstallSkill: vi.fn(),
 }));
 
@@ -64,27 +65,90 @@ describe('UI onboarding', () => {
     mocks.resetScanSources.mockResolvedValue({ reset: true, sources });
   });
 
-  it('waits for confirmation, recommends the project agent, then starts the first scan', async () => {
+  it('automatically scans the only project Agent and keeps cross-Agent overview secondary', async () => {
     render(<App />);
-
-    expect(await screen.findByText('确认检查目标')).toBeTruthy();
-    expect(mocks.startScan).not.toHaveBeenCalled();
-    const codexButton = within(screen.getByRole('dialog')).getByRole('button', { name: /Codex/ });
-    await waitFor(() => expect(codexButton.className).toContain('active'));
-
-    fireEvent.click(screen.getByRole('button', { name: /开始体检/ }));
 
     await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({
       projectDir: '/tmp/project', platform: 'codex', discoverMcpTools: true,
     })));
     const agentBar = await screen.findByLabelText('选择要体检的 Agent');
-    fireEvent.click(within(agentBar).getByRole('button', { name: '全部' }));
+    expect(within(agentBar).getByText('当前 Agent')).toBeTruthy();
+    fireEvent.click(within(agentBar).getByRole('button', { name: '跨 Agent 总览' }));
     await waitFor(() => expect(mocks.startScan).toHaveBeenLastCalledWith(expect.objectContaining({ platform: 'all' })));
+    expect(JSON.parse(localStorage.getItem('skill-doctor-project-preferences') ?? '{}')['/tmp/project'].platform).toBe('codex');
 
     fireEvent.change(screen.getByLabelText('分析模式'), { target: { value: 'custom' } });
     expect(await screen.findByText('体检设置')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('解释Tokenizer'));
     expect(screen.getByText(/OpenAI tokenizer 提供更准确的估算/)).toBeTruthy();
+  });
+
+  it('requires an explicit choice when multiple project Agents are detected', async () => {
+    const claudeAgent = { platform: 'claude', displayName: 'Claude', projectDetected: true, globalDetected: false, recommended: true };
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex', 'claude'], detectedAgents: [codexAgent, claudeAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
+    });
+    mocks.detectAgents.mockResolvedValue({ projectDir: '/tmp/project', agents: [codexAgent, claudeAgent] });
+
+    render(<App />);
+
+    expect(await screen.findByText('确认检查目标')).toBeTruthy();
+    expect(mocks.startScan).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Claude/ }));
+    fireEvent.click(screen.getByRole('button', { name: /开始体检/ }));
+    await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ platform: 'claude' })));
+  });
+
+  it('restores a valid project Agent preference and ignores legacy all preferences', async () => {
+    localStorage.setItem('skill-doctor-project-preferences', JSON.stringify({ '/tmp/project': { platform: 'codex' } }));
+    render(<App />);
+    await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ platform: 'codex' })));
+
+    cleanup();
+    localStorage.clear();
+    const claudeAgent = { platform: 'claude', displayName: 'Claude', projectDetected: true, globalDetected: false, recommended: true };
+    localStorage.setItem('skill-doctor-project-preferences', JSON.stringify({ '/tmp/project': { platform: 'all' } }));
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex', 'claude'], detectedAgents: [codexAgent, claudeAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
+    });
+    render(<App />);
+    expect(await screen.findByText('确认检查目标')).toBeTruthy();
+    expect(mocks.startScan).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    vi.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem('skill-doctor-project-preferences', JSON.stringify({ '/tmp/project': { platform: 'opencode' } }));
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex', 'claude'], detectedAgents: [codexAgent, claudeAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
+    });
+    render(<App />);
+    expect(await screen.findByText('确认检查目标')).toBeTruthy();
+    expect(mocks.startScan).not.toHaveBeenCalled();
+  });
+
+  it('ignores a completed scan after switching Agents', async () => {
+    const claudeAgent = { platform: 'claude', displayName: 'Claude', projectDetected: false, globalDetected: true, recommended: false };
+    const handlers: Array<{ complete: (value: typeof snapshot) => void }> = [];
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex', 'claude'], detectedAgents: [codexAgent, claudeAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
+    });
+    mocks.startScan.mockResolvedValueOnce('scan-1').mockResolvedValueOnce('scan-2');
+    mocks.streamScan.mockImplementation((_id, nextHandlers) => { handlers.push(nextHandlers); return () => {}; });
+
+    render(<App />);
+    const agentBar = await screen.findByLabelText('选择要体检的 Agent');
+    await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ platform: 'codex' })));
+    fireEvent.click(within(agentBar).getByRole('button', { name: 'Claude' }));
+    await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ platform: 'claude' })));
+    handlers[0].complete(snapshot);
+    handlers[1].complete({ ...snapshot, target: { ...snapshot.target, platform: 'claude' } });
+    await waitFor(() => expect(screen.getByText('体检结果已更新')).toBeTruthy());
+    expect(mocks.cancelScan).toHaveBeenCalledWith('scan-1');
   });
 
   it('shows a shared resource once with every agent consumer and impact notice', async () => {
@@ -113,6 +177,28 @@ describe('UI onboarding', () => {
     expect(await screen.findByText(/修改这个文件会同时影响以下 3 个 Agent/)).toBeTruthy();
     expect(screen.getAllByText('Codex').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Windsurf').length).toBeGreaterThan(0);
+  });
+
+  it('labels consumers outside the current scan as not calculated', async () => {
+    const sharedResource = {
+      id: 'shared-resource', name: 'shared-reviewer', kind: 'skill', kindLabel: 'Skill', sourcePath: '/tmp/project/.agents/skills/shared-reviewer/SKILL.md',
+      platform: 'codex', scope: 'project', shared: true,
+      consumers: [
+        { platform: 'codex', scope: 'project', fixedTokens: 30, activationTokens: 10 },
+        { platform: 'windsurf', scope: 'project' },
+      ],
+      triggers: [], controllable: false, fixedTokens: 30, activationTokens: 10, issueIds: [], status: 'healthy',
+    };
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex', 'windsurf'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [], snapshot: { ...snapshot, resources: [sharedResource] },
+    });
+    mocks.getResourceDetail.mockResolvedValue({ resource: sharedResource, issues: [] });
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: '资源清单' }));
+    fireEvent.click(screen.getByText('shared-reviewer'));
+    expect(await screen.findByText('本次未计算')).toBeTruthy();
   });
 
   it('shows the real member paths for a Codex skill-list aggregate', async () => {

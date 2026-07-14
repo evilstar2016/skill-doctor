@@ -53,6 +53,8 @@ export async function runHealthCheck(
   });
   const skills = filterByPlatform(filterByScope(scanContext.skills, scope), platform);
   let mcpServers = filterByPlatform(filterByScope(scanContext.mcpServers, scope), platform);
+  const consumerSkills = filterByScope(scanContext.skills, scope);
+  const consumerMcpServers = filterByScope(scanContext.mcpServers, scope);
   const analysisSkills = options.deduplicatePhysicalSkills === false ? skills : uniquePhysicalSkills(skills);
   const ignore = options.applyIgnore === false ? {} : (loaded.config.ignore ?? {});
 
@@ -136,6 +138,8 @@ export async function runHealthCheck(
     platform,
     skills,
     mcpServers,
+    consumerSkills,
+    consumerMcpServers,
     conflicts,
     audit,
     context,
