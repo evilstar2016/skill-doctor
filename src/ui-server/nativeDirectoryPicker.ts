@@ -10,6 +10,7 @@ export interface NativeDirectoryCommandResult {
 export type NativeDirectoryCommandRunner = (file: string, args: string[]) => Promise<NativeDirectoryCommandResult>;
 
 export async function pickNativeDirectory(
+  prompt: string,
   platform: NodeJS.Platform = process.platform,
   run: NativeDirectoryCommandRunner = execFileAsync,
 ): Promise<string | null> {
@@ -17,7 +18,7 @@ export async function pickNativeDirectory(
     if (platform === 'darwin') {
       const { stdout } = await run('/usr/bin/osascript', [
         '-e',
-        'POSIX path of (choose folder with prompt "选择包含 Skills 的本地目录")',
+        `POSIX path of (choose folder with prompt "${prompt}")`,
       ]);
       return selectedPath(stdout);
     }
@@ -26,7 +27,7 @@ export async function pickNativeDirectory(
       const script = [
         'Add-Type -AssemblyName System.Windows.Forms',
         '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
-        '$dialog.Description = "选择包含 Skills 的本地目录"',
+        `$dialog.Description = "${prompt}"`,
         'if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($dialog.SelectedPath) }',
       ].join('; ');
       const { stdout } = await run('powershell.exe', ['-NoProfile', '-STA', '-Command', script]);
@@ -36,7 +37,7 @@ export async function pickNativeDirectory(
     const { stdout } = await run('zenity', [
       '--file-selection',
       '--directory',
-      '--title=选择包含 Skills 的本地目录',
+      `--title=${prompt}`,
     ]);
     return selectedPath(stdout);
   } catch (error) {

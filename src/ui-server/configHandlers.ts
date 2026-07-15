@@ -7,6 +7,7 @@ import { detectAgents } from '../discovery/detectAgents';
 import { getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 import type { ApiRequestContext } from './apiContext';
+import { pickNativeDirectory } from './nativeDirectoryPicker';
 
 export async function handleConfigRoute(
   request: IncomingMessage,
@@ -49,6 +50,12 @@ export async function handleConfigRoute(
     return true;
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/project-directory/pick') {
+    const projectDir = await pickNativeDirectory('选择项目目录');
+    sendJson(response, 200, projectDir ? { projectDir } : { cancelled: true });
+    return true;
+  }
+
   if (request.method === 'POST' && url.pathname === '/api/scan-sources/validate') {
     const body = await readJsonBody(request);
     const scanSources = validateScanSourcesConfig(body.scanSources);
@@ -79,4 +86,3 @@ export async function handleConfigRoute(
 
   return false;
 }
-

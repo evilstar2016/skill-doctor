@@ -37,6 +37,12 @@ export async function getBootstrap(): Promise<BootstrapPayload> {
   return request('/api/bootstrap');
 }
 
+export async function pickProjectDirectory() {
+  return request<{ projectDir: string } | { cancelled: true }>('/api/project-directory/pick', {
+    method: 'POST', body: '{}',
+  });
+}
+
 export interface ScanSourcesPayload {
   projectDir: string;
   configPath: string;

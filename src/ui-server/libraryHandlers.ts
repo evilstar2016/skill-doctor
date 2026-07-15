@@ -120,7 +120,7 @@ export async function handleLibraryRoute(
   }
 
   if (request.method === 'POST' && url.pathname === '/api/install/source/pick') {
-    const source = await pickNativeDirectory();
+    const source = await pickNativeDirectory('选择包含 Skills 的本地目录');
     sendJson(response, 200, source ? inspectManagedSkillSource(source) : { cancelled: true });
     return true;
   }

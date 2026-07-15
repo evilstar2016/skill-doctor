@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   resetScanSources: vi.fn(),
   getTargetAgentSkills: vi.fn(),
   inspectSkillSource: vi.fn(),
+  pickProjectDirectory: vi.fn(),
   pickSkillSourceDirectory: vi.fn(),
 }));
 
@@ -68,6 +69,7 @@ describe('UI onboarding', () => {
     mocks.resetScanSources.mockResolvedValue({ reset: true, sources });
     mocks.getTargetAgentSkills.mockResolvedValue({ targetPath: '/tmp/home/.codex/skills', scope: 'global', availableScopes: ['global', 'project'], skills: [] });
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
+    mocks.pickProjectDirectory.mockResolvedValue({ cancelled: true });
   });
 
   it('automatically scans the only project Agent and keeps cross-Agent overview secondary', async () => {
@@ -103,6 +105,22 @@ describe('UI onboarding', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Claude/ }));
     fireEvent.click(screen.getByRole('button', { name: /开始体检/ }));
     await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ platform: 'claude' })));
+  });
+
+  it('uses the startup directory by default and supports choosing another project directory', async () => {
+    const claudeAgent = { platform: 'claude', displayName: 'Claude', projectDetected: true, globalDetected: false, recommended: true };
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex', 'claude'], detectedAgents: [codexAgent, claudeAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
+    });
+    mocks.pickProjectDirectory.mockResolvedValue({ projectDir: '/tmp/selected-project' });
+
+    render(<App />);
+
+    const projectDirectory = await screen.findByLabelText('项目目录');
+    expect((projectDirectory as HTMLInputElement).value).toBe('/tmp/project');
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '选择目录' }));
+    await waitFor(() => expect((projectDirectory as HTMLInputElement).value).toBe('/tmp/selected-project'));
   });
 
   it('restores a valid project Agent preference and ignores legacy all preferences', async () => {

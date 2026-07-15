@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
-  Download, FileCode2, Filter, FolderCog, GitCompareArrows, Info, LayoutDashboard, LoaderCircle, Menu, Moon,
+  Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, Info, LayoutDashboard, LoaderCircle, Menu, Moon,
   PackagePlus, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Sun, Trash2, X,
 } from 'lucide-react';
 import type { BootstrapPayload, DoctorSnapshot, ResourceDetailPayload, UiIssue, UiResource } from '../../src/application/types';
@@ -13,7 +13,7 @@ import type { AgentScanSourcesUserConfig, ScanSourceResource } from '../../src/c
 import type { EffectiveScanSource } from '../../src/config/scanSources';
 import {
   cancelScan, cleanupDuplicate, compareResources, detectAgents, getBootstrap, getResourceDetail, installSkill,
-  getScanSources, resetScanSources, saveScanSources, startScan, streamScan, toggleContextResource, uninstallSkill, validateScanSources,
+  getScanSources, pickProjectDirectory, resetScanSources, saveScanSources, startScan, streamScan, toggleContextResource, uninstallSkill, validateScanSources,
   type ScanRequest,
 } from './api';
 import { OverviewPage as OverviewPageView } from './pages/OverviewPage';
@@ -364,6 +364,14 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
     catch (error) { setLocalError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };
+  const chooseProjectDirectory = async () => {
+    setBusy(true); setLocalError(null);
+    try {
+      const result = await pickProjectDirectory();
+      if (!('cancelled' in result)) setProjectDir(result.projectDir);
+    } catch (error) { setLocalError(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(false); }
+  };
   const submit = async () => {
     setBusy(true); setLocalError(null);
     try {
@@ -379,7 +387,7 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
   };
   return <div className="onboarding-backdrop"><section className="onboarding-card" aria-modal="true" role="dialog" aria-labelledby="onboarding-title">
     <header><span className="brand-mark"><Stethoscope size={22} /></span><div><span className="eyebrow">第一次体检</span><h1 id="onboarding-title">确认检查目标</h1><p>分析默认在本机完成；先确认项目与 Agent，再开始扫描。</p></div></header>
-    <div className="onboarding-section"><div className="section-title"><div><strong>项目目录</strong><span>用于发现这个项目中的 AGENTS.md、skills、MCP 和其他 Agent 配置。</span></div></div><div className="path-input-row"><input value={projectDir} onChange={(event) => setProjectDir(event.target.value)} aria-label="项目目录" /><button className="button secondary" onClick={() => void redetect()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Search size={16} />}检测 Agent</button></div><p className="scope-help"><strong>项目配置</strong>位于该目录内；<strong>全局配置</strong>位于你的用户目录，会影响多个项目。</p></div>
+    <div className="onboarding-section"><div className="section-title"><div><strong>项目目录</strong><span>用于发现这个项目中的 AGENTS.md、skills、MCP 和其他 Agent 配置。</span></div></div><div className="path-input-row"><input value={projectDir} onChange={(event) => setProjectDir(event.target.value)} aria-label="项目目录" /><button className="button secondary compact" onClick={() => void chooseProjectDirectory()} disabled={busy}><FolderOpen size={16} />选择目录</button><button className="button secondary" onClick={() => void redetect()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Search size={16} />}检测 Agent</button></div><p className="scope-help"><strong>项目配置</strong>位于该目录内；<strong>全局配置</strong>位于你的用户目录，会影响多个项目。</p></div>
     <div className="onboarding-section"><div className="section-title"><div><strong>要体检的 Agent</strong><span>先选择当前项目使用的 Agent；跨 Agent 总览用于共享资源和统一盘点。</span></div></div><div className="agent-choice-grid">{[...agents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={agentChosen && options.platform === agent.platform ? 'active' : ''} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: agent.platform })); }}><PlatformIcon platform={agent.platform} /><strong>{agent.displayName}</strong><small>{agent.projectDetected ? '当前项目已使用 · 推荐' : '仅发现全局配置'}</small></button>)}<button className={`agent-overview ${agentChosen && options.platform === 'all' ? 'active' : ''}`} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: 'all' })); }}><Boxes size={18} /><strong>跨 Agent 总览</strong><small>检查所有已发现配置</small></button></div>{agents.length === 0 && <p className="muted">当前目录尚未发现已知 Agent 配置；可选择“跨 Agent 总览”进行完整检查。</p>}</div>
     <div className="onboarding-section"><div className="section-title"><div><strong>分析模式</strong><span>上下文成本会连接 MCP 获取工具清单，stdio 配置可能启动本地命令；请仅体检可信项目。</span></div></div><div className="analysis-choice"><button className={analysisMode === 'standard' ? 'active' : ''} onClick={() => setAnalysisMode('standard')}><ShieldCheck size={19} /><span><strong>标准体检</strong><small>静态安全、关键词冲突、上下文成本</small></span></button><button className={analysisMode === 'deep' ? 'active' : ''} disabled={!bootstrap.capabilities.aiAuditConfigured && !bootstrap.capabilities.embeddingConfigured} onClick={() => setAnalysisMode('deep')}><Sparkles size={19} /><span><strong>深度体检</strong><small>{bootstrap.capabilities.aiAuditConfigured || bootstrap.capabilities.embeddingConfigured ? '使用已配置的语义或 AI 分析能力' : '尚未配置分析服务'}</small></span></button></div></div>
     {localError && <p className="form-error onboarding-error">{localError}</p>}
