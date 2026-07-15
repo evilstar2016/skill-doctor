@@ -29,6 +29,12 @@
    - Document how to add a new platform resolver.
    - Add small, well-scoped `good first issue` candidates.
 
+6. **Installation architecture convergence**
+   - Replace the separate simple-install and managed-deployment paths with one shared `InstallTarget` model containing `targetId`, platform, scope, directory, and layout.
+   - Route UI and CLI installs through the same preview/commit service, with one scope-aware registry and migration support for existing records.
+   - Share install API request/response contracts between the server and web client instead of duplicating them.
+   - Split source selection, target inventory, and registered-install management out of `ManagePage` when the unified service is adopted.
+
 ## Non-goals
 
 - No fake stars, paid star campaigns, or spammy promotion.
