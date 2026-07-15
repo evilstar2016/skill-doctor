@@ -72,6 +72,18 @@ describe('UI onboarding', () => {
     mocks.pickProjectDirectory.mockResolvedValue({ cancelled: true });
   });
 
+  it('switches the UI language and persists the selection', async () => {
+    render(<App />);
+
+    await screen.findByRole('button', { name: '切换到 English' });
+    fireEvent.click(screen.getByRole('button', { name: '切换到 English' }));
+
+    expect(await screen.findByRole('button', { name: 'Switch to Simplified Chinese' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Overview' })).toBeTruthy();
+    expect(localStorage.getItem('skill-doctor-locale')).toBe('en-US');
+    expect(document.documentElement.lang).toBe('en-US');
+  });
+
   it('automatically scans the only project Agent and keeps cross-Agent overview secondary', async () => {
     render(<App />);
 

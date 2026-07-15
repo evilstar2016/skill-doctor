@@ -22,6 +22,7 @@ import { ContextPage as ContextPageView } from './pages/ContextPage';
 import { ResourcesPage as ResourcesPageView } from './pages/ResourcesPage';
 import { ManagePage as ManagePageView } from './pages/ManagePage';
 import { ScanPathsPage as ScanPathsPageView } from './pages/ScanPathsPage';
+import { I18nProvider, useTranslation } from './i18n';
 
 type Route = 'overview' | 'issues' | 'context' | 'resources' | 'scan-paths' | 'manage';
 type Theme = 'light' | 'dark';
@@ -33,16 +34,21 @@ const DEFAULT_SCAN: ScanRequest = {
   budgetTokens: 2000, tokenizer: 'openai', tokenizerModel: 'gpt-4o',
 };
 
-const ROUTES: Array<{ id: Route; label: string; icon: typeof LayoutDashboard }> = [
-  { id: 'overview', label: '总览', icon: LayoutDashboard },
-  { id: 'issues', label: '待处理', icon: Activity },
-  { id: 'context', label: '上下文成本', icon: BarChart3 },
-  { id: 'resources', label: '资源清单', icon: Boxes },
-  { id: 'scan-paths', label: '扫描路径', icon: FolderCog },
-  { id: 'manage', label: '管理与导出', icon: PackagePlus },
+const ROUTES: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.scanPaths' | 'nav.manage'; icon: typeof LayoutDashboard }> = [
+  { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
+  { id: 'issues', labelKey: 'nav.issues', icon: Activity },
+  { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
+  { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
+  { id: 'scan-paths', labelKey: 'nav.scanPaths', icon: FolderCog },
+  { id: 'manage', labelKey: 'nav.manage', icon: PackagePlus },
 ];
 
 export default function App() {
+  return <I18nProvider><AppContent /></I18nProvider>;
+}
+
+function AppContent() {
+  const { locale, setLocale, t } = useTranslation();
   const [route, setRoute] = useState<Route>(() => routeFromHash());
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('skill-doctor-theme') as Theme) || 'light');
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
@@ -83,7 +89,7 @@ export default function App() {
     activeScanId.current = undefined;
     if (previousScanId) void cancelScan(previousScanId);
     setError(null);
-    setScan({ running: true, message: '准备体检', progress: 3 });
+    setScan({ running: true, message: t('status.preparing'), progress: 3 });
     saveProjectPreference(options);
     try {
       const id = await startScan(options);
@@ -99,27 +105,27 @@ export default function App() {
           if (version !== scanVersion.current || nextSnapshot.target.platform !== (options.platform === 'all' ? null : options.platform)) return;
           activeScanId.current = undefined;
           setSnapshot(nextSnapshot);
-          setScan({ running: false, message: nextSnapshot.status === 'partial' ? '体检完成，部分项目需要关注' : '体检完成', progress: 100 });
-          setToast('体检结果已更新');
+          setScan({ running: false, message: nextSnapshot.status === 'partial' ? t('status.partial') : t('status.complete'), progress: 100 });
+          setToast(t('toast.updated'));
         },
         error(nextError) {
           if (version !== scanVersion.current) return;
           activeScanId.current = undefined;
           setError(nextError.message);
-          setScan({ running: false, message: '体检失败', progress: 0 });
+          setScan({ running: false, message: t('status.failed'), progress: 0 });
         },
         cancelled() {
           if (version !== scanVersion.current) return;
           activeScanId.current = undefined;
-          setScan({ running: false, message: '已取消', progress: 0 });
+          setScan({ running: false, message: t('status.cancelled'), progress: 0 });
         },
       });
     } catch (nextError) {
       if (version !== scanVersion.current) return;
       setError(nextError instanceof Error ? nextError.message : String(nextError));
-      setScan({ running: false, message: '体检失败', progress: 0 });
+      setScan({ running: false, message: t('status.failed'), progress: 0 });
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let alive = true;
@@ -199,7 +205,7 @@ export default function App() {
             const id = activeScanId.current;
             activeScanId.current = undefined;
             if (id) void cancelScan(id);
-            setScan({ running: false, message: '已取消', progress: 0 });
+            setScan({ running: false, message: t('status.cancelled'), progress: 0 });
           }}
           openSettings={() => setSettingsOpen(true)}
           detectedAgents={detectedAgents}
@@ -207,9 +213,11 @@ export default function App() {
           setAnalysisMode={chooseAnalysisMode}
           theme={theme}
           toggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          locale={locale}
+          toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
-        {error && <InlineNotice kind="danger" title="操作未完成" onClose={() => setError(null)}>{error}</InlineNotice>}
-        {snapshot?.target.platform === null && <InlineNotice kind="info" title="跨 Agent 总览">此结果汇总多个 Agent，用于查看共享资源、跨平台重复和统一盘点。</InlineNotice>}
+        {error && <InlineNotice kind="danger" title={t('notice.incomplete')} onClose={() => setError(null)}>{error}</InlineNotice>}
+        {snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{warning.message}</InlineNotice>)}
         <div className="page-container">
           {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} />}
@@ -291,15 +299,16 @@ export default function App() {
 }
 
 function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route: Route) => void; snapshot: DoctorSnapshot | null }) {
+  const { t } = useTranslation();
   return <aside className="sidebar">
     <div className="brand"><span className="brand-mark"><Stethoscope size={21} /></span><span>Skill Doctor</span></div>
-    <nav className="nav-list" aria-label="主导航">
-      {ROUTES.map(({ id, label, icon: Icon }) => <button key={id} className={`nav-item ${route === id ? 'active' : ''}`} onClick={() => navigate(id)}>
-        <Icon size={18} /><span>{label}</span>
+    <nav className="nav-list" aria-label={t('nav.overview')}>
+      {ROUTES.map(({ id, labelKey, icon: Icon }) => <button key={id} className={`nav-item ${route === id ? 'active' : ''}`} onClick={() => navigate(id)}>
+        <Icon size={18} /><span>{t(labelKey)}</span>
         {id === 'issues' && snapshot && snapshot.summary.issues > 0 && <span className="nav-count">{snapshot.summary.issues}</span>}
       </button>)}
     </nav>
-    <div className="sidebar-foot"><ShieldCheck size={16} /><div><strong>分析在本机完成</strong><span>配置内容不会上传</span></div></div>
+    <div className="sidebar-foot"><ShieldCheck size={16} /><div><strong>{t('sidebar.local')}</strong><span>{t('sidebar.private')}</span></div></div>
   </aside>;
 }
 
@@ -308,31 +317,33 @@ function Topbar(props: {
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
   analysisMode: AnalysisMode; setAnalysisMode: (mode: AnalysisMode) => void;
-  openSettings: () => void; theme: Theme; toggleTheme: () => void;
+  openSettings: () => void; theme: Theme; toggleTheme: () => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
 }) {
+  const { t } = useTranslation();
   const { bootstrap, scan, scanOptions, setScanOptions } = props;
   const deepAvailable = Boolean(bootstrap?.capabilities.aiAuditConfigured || bootstrap?.capabilities.embeddingConfigured);
   return <><header className="topbar">
     <div className="target-block">
-      <span className="eyebrow">检查目标</span>
+      <span className="eyebrow">{t('topbar.target')}</span>
       <div className="target-row">
-        <select value={scanOptions.scope} onChange={(event) => setScanOptions({ ...scanOptions, scope: event.target.value as ScanRequest['scope'] })} aria-label="检查范围">
-          <option value="all">当前项目与全局配置</option><option value="project">仅当前项目</option><option value="global">仅全局配置</option>
+        <select value={scanOptions.scope} onChange={(event) => setScanOptions({ ...scanOptions, scope: event.target.value as ScanRequest['scope'] })} aria-label={t('topbar.scope')}>
+          <option value="all">{t('topbar.scope.all')}</option><option value="project">{t('topbar.scope.project')}</option><option value="global">{t('topbar.scope.global')}</option>
         </select>
         <span className="project-path" title={bootstrap?.projectDir}>{shortPath(bootstrap?.projectDir ?? '')}</span>
       </div>
       {scan.running && <div className="scan-progress"><span style={{ width: `${scan.progress}%` }} /></div>}
-      <span className="scan-message">{scan.message || '等待首次体检'}</span>
+      <span className="scan-message">{scan.message || t('topbar.waiting')}</span>
     </div>
     <div className="top-actions">
-      <label className="analysis-mode" title="标准体检只使用本地静态能力；深度体检使用已配置的语义或 AI 分析服务。"><span>分析模式</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">标准体检</option><option value="deep" disabled={!deepAvailable}>深度体检{deepAvailable ? '' : '（未配置）'}</option><option value="custom">自定义…</option></select></label>
-      <button className="icon-button" onClick={props.toggleTheme} aria-label={props.theme === 'light' ? '切换深色主题' : '切换浅色主题'}>{props.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
-      <button className="icon-button" onClick={props.openSettings} aria-label="扫描设置"><Settings2 size={18} /></button>
+      <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>
+      <button className="icon-button" onClick={props.toggleLocale} aria-label={props.locale === 'zh-CN' ? t('language.switchToEnglish') : t('language.switchToChinese')}>{props.locale === 'zh-CN' ? 'EN' : '中'}</button>
+      <button className="icon-button" onClick={props.toggleTheme} aria-label={props.theme === 'light' ? t('topbar.theme.dark') : t('topbar.theme.light')}>{props.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
+      <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>
       {scan.running
-        ? <button className="button secondary" onClick={props.cancel}><X size={17} />取消</button>
-        : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />重新体检</button>}
+        ? <button className="button secondary" onClick={props.cancel}><X size={17} />{t('topbar.cancel')}</button>
+        : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />{t('topbar.rescan')}</button>}
     </div>
-  </header><div className="agent-bar" aria-label="选择要体检的 Agent"><span>当前 Agent</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)} title={agent.projectDetected ? '当前项目已使用' : '仅发现全局配置'}>{agent.displayName}{agent.projectDetected && <small>项目</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>跨 Agent 总览</button></div></div></>;
+  </header><div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}>{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div></>;
 }
 
 
