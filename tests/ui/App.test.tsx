@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   validateScanSources: vi.fn(),
   saveScanSources: vi.fn(),
   resetScanSources: vi.fn(),
+  getTargetAgentSkills: vi.fn(),
+  inspectSkillSource: vi.fn(),
+  pickSkillSourceDirectory: vi.fn(),
 }));
 
 vi.mock('../../web/src/api', () => ({
@@ -63,6 +66,8 @@ describe('UI onboarding', () => {
     mocks.validateScanSources.mockImplementation(async (scanSources) => ({ valid: true, scanSources }));
     mocks.saveScanSources.mockResolvedValue({ saved: true, sources });
     mocks.resetScanSources.mockResolvedValue({ reset: true, sources });
+    mocks.getTargetAgentSkills.mockResolvedValue({ targetPath: '/tmp/home/.codex/skills', scope: 'global', availableScopes: ['global', 'project'], skills: [] });
+    mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
   });
 
   it('automatically scans the only project Agent and keeps cross-Agent overview secondary', async () => {

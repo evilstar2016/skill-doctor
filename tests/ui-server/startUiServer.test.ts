@@ -206,4 +206,54 @@ describe('Skill Doctor UI server', () => {
     expect((await deploymentCommit.json()).outcomes[0].status).toBe('registered');
     expect(fs.existsSync(join(root, 'must-not-be-written'))).toBe(false);
   });
+
+  it('previews directory skills, installs only the selected source, and lists the target Agent skills', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    const uiDir = join(root, 'ui');
+    const sourceDir = join(root, 'source-skills');
+    writeFile(join(uiDir, 'index.html'), '<div id="root">Skill Doctor</div>');
+    writeFile(join(projectDir, '.keep'), '');
+    writeFile(join(sourceDir, 'alpha', 'SKILL.md'), '---\nname: alpha\n---\n');
+    writeFile(join(sourceDir, 'beta', 'SKILL.md'), '---\nname: beta\n---\n');
+    writeFile(join(sourceDir, 'beta', 'assets', 'prompt.txt'), 'beta asset');
+    writeFile(join(homeDir, '.claude', 'skills', 'existing', 'SKILL.md'), '---\nname: existing\n---\n');
+
+    handle = await startUiServer({ projectDir, homeDir, uiDir, port: 0 });
+    const baseUrl = `http://${handle.host}:${handle.port}`;
+    const bootstrapSession = await fetch(handle.url, { redirect: 'manual' });
+    const cookie = bootstrapSession.headers.get('set-cookie')!.split(';')[0];
+    const headers = { Cookie: cookie, Origin: baseUrl, 'Content-Type': 'application/json' };
+
+    const preview = await fetch(`${baseUrl}/api/install/source/inspect`, {
+      method: 'POST', headers, body: JSON.stringify({ source: sourceDir }),
+    });
+    expect(preview.status).toBe(200);
+    const previewPayload = await preview.json() as { skills: Array<{ name: string; sourcePath: string }> };
+    expect(previewPayload.skills.map((skill) => skill.name)).toEqual(['alpha', 'beta']);
+
+    const beta = previewPayload.skills.find((skill) => skill.name === 'beta')!;
+    const install = await fetch(`${baseUrl}/api/install`, {
+      method: 'POST', headers, body: JSON.stringify({ source: beta.sourcePath, sourceType: 'local', target: 'claude', link: false }),
+    });
+    expect(install.status).toBe(200);
+    expect(fs.existsSync(join(homeDir, '.claude', 'skills', 'beta', 'SKILL.md'))).toBe(true);
+    expect(fs.readFileSync(join(homeDir, '.claude', 'skills', 'beta', 'assets', 'prompt.txt'), 'utf8')).toBe('beta asset');
+    expect(fs.existsSync(join(homeDir, '.claude', 'skills', 'alpha', 'SKILL.md'))).toBe(false);
+
+    const alpha = previewPayload.skills.find((skill) => skill.name === 'alpha')!;
+    const projectInstall = await fetch(`${baseUrl}/api/install`, {
+      method: 'POST', headers, body: JSON.stringify({ source: alpha.sourcePath, sourceType: 'local', target: 'claude', scope: 'project', link: false }),
+    });
+    expect(projectInstall.status).toBe(200);
+    expect(fs.existsSync(join(projectDir, '.claude', 'skills', 'alpha', 'SKILL.md'))).toBe(true);
+
+    const targetSkills = await fetch(`${baseUrl}/api/install/targets/claude/skills`, { headers: { Cookie: cookie } });
+    expect((await targetSkills.json()).skills).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'beta', managed: true }),
+      expect.objectContaining({ name: 'existing', managed: false, scope: 'global' }),
+      expect.objectContaining({ name: 'alpha', managed: true, scope: 'project' }),
+    ]));
+  });
 });

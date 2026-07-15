@@ -1,5 +1,10 @@
 export { executeDuplicateCleanup } from './cleanup';
-export { installManagedSkill, uninstallManagedSkill } from './install';
+export {
+  inspectManagedSkillSource,
+  installManagedSkill,
+  listTargetAgentSkills,
+  uninstallManagedSkill,
+} from './install';
 export {
   commitManagedAgentSkillImport,
   commitManagedSkillDeployment,

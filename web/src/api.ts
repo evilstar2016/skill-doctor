@@ -1,9 +1,10 @@
 import type { BootstrapPayload, DoctorSnapshot, HealthCheckScope, ResourceDetailPayload } from '../../src/application/types';
 import type { DetectedAgent } from '../../src/discovery/detectAgents';
 import type { DiffResult } from '../../src/diff/types';
-import type { Platform } from '../../src/types/skill';
+import type { Platform, Scope } from '../../src/types/skill';
 import type { AgentScanSourcesUserConfig } from '../../src/config/loadUserConfig';
 import type { EffectiveScanSource } from '../../src/config/scanSources';
+import type { InstallSourceSkill, TargetAgentSkill } from '../../src/application/install';
 
 export interface ScanRequest {
   projectDir: string;
@@ -116,11 +117,27 @@ export async function cleanupDuplicate(issueId: string, removePath: string, conf
   });
 }
 
-export async function installSkill(input: { source: string; sourceType: 'local' | 'marketplace'; target: string; link: boolean }) {
+export async function installSkill(input: { source: string; sourceType: 'local' | 'marketplace'; target: string; scope: Scope; link: boolean }) {
   return request<{ name: string; installedPath: string }>('/api/install', { method: 'POST', body: JSON.stringify(input) });
 }
 
-export async function uninstallSkill(input: { name: string; platform: Platform; force: boolean }) {
+export async function inspectSkillSource(source: string) {
+  return request<{ sourcePath: string; skills: InstallSourceSkill[] }>('/api/install/source/inspect', {
+    method: 'POST', body: JSON.stringify({ source }),
+  });
+}
+
+export async function pickSkillSourceDirectory() {
+  return request<{ sourcePath: string; skills: InstallSourceSkill[] } | { cancelled: true }>('/api/install/source/pick', {
+    method: 'POST', body: '{}',
+  });
+}
+
+export async function getTargetAgentSkills(target: string, scope: Scope) {
+  return request<{ targetPath: string; scope: Scope; availableScopes: Scope[]; skills: TargetAgentSkill[] }>(`/api/install/targets/${encodeURIComponent(target)}/skills?scope=${encodeURIComponent(scope)}`);
+}
+
+export async function uninstallSkill(input: { name: string; platform: Platform; scope: Scope; force: boolean }) {
   return request<{ removed: boolean }>('/api/uninstall', { method: 'POST', body: JSON.stringify(input) });
 }
 

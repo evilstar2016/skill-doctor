@@ -28,6 +28,8 @@ describe('installSkill', () => {
     const sourceDir = join(base, 'my-skill');
     mkdirSync(sourceDir, { recursive: true });
     writeFileSync(join(sourceDir, 'SKILL.md'), '---\nname: my-skill\ndescription: test\n---\n# My Skill');
+    mkdirSync(join(sourceDir, 'assets'), { recursive: true });
+    writeFileSync(join(sourceDir, 'assets', 'prompt.txt'), 'complete skill asset');
 
     const globalDir = join(base, 'target', '.claude', 'skills');
     mkdirSync(globalDir, { recursive: true });
@@ -48,12 +50,14 @@ describe('installSkill', () => {
       'utf8',
     );
     expect(installedContent).toContain('name: my-skill');
+    expect(readFileSync(join(globalDir, 'my-skill', 'assets', 'prompt.txt'), 'utf8')).toBe('complete skill asset');
 
     const registry = loadRegistry(registryPath);
     expect(registry.entries).toHaveLength(1);
     expect(registry.entries[0].name).toBe('my-skill');
     expect(registry.entries[0].platform).toBe('claude');
     expect(registry.entries[0].source).toBe('local');
+    expect(registry.entries[0].installedRootPath).toBe(join(globalDir, 'my-skill'));
   });
 
   it('copies skill to files layout as a .md file', async () => {
@@ -77,6 +81,7 @@ describe('installSkill', () => {
 
     const installed = readFileSync(join(globalDir, 'cursor-skill.md'), 'utf8');
     expect(installed).toContain('name: cursor-skill');
+    expect(loadRegistry(registryPath).entries[0].installedRootPath).toBeUndefined();
   });
 
   it('errors if skill already installed at target path', async () => {

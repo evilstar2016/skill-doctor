@@ -79,6 +79,16 @@ describe('addRegistryEntry', () => {
     expect(registry.entries).toHaveLength(1);
     expect(registry.entries[0].contentHash).toBe('sha256:new');
   });
+
+  it('keeps global and project installs of the same skill separately', () => {
+    const dir = makeTempDir();
+    const path = join(dir, 'registry.json');
+    addRegistryEntry(path, makeEntry({ scope: 'global', installedPath: '/global/SKILL.md' }));
+    addRegistryEntry(path, makeEntry({ scope: 'project', installedPath: '/project/SKILL.md' }));
+
+    expect(loadRegistry(path).entries).toHaveLength(2);
+    expect(findRegistryEntry(path, 'test-skill', 'claude', 'project')?.installedPath).toBe('/project/SKILL.md');
+  });
 });
 
 describe('removeRegistryEntry', () => {

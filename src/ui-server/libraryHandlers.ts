@@ -5,7 +5,9 @@ import {
   commitManagedSkillDeployment,
   getManagedSkillDeploymentTargets,
   getManagedSkillLibrary,
+  inspectManagedSkillSource,
   installManagedSkill,
+  listTargetAgentSkills,
   previewManagedAgentSkillImport,
   previewManagedSkillDeployment,
   syncManagedSkillDeployment,
@@ -16,6 +18,7 @@ import { normalizePlatformName } from '../platforms/registry';
 import type { AgentImportDecision } from '../library/importAgentSkills';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 import type { ApiRequestContext } from './apiContext';
+import { pickNativeDirectory } from './nativeDirectoryPicker';
 
 export async function handleLibraryRoute(
   request: IncomingMessage,
@@ -102,9 +105,34 @@ export async function handleLibraryRoute(
       sourceType: body.sourceType === 'marketplace' ? 'marketplace' : 'local',
       target: requiredString(body.target, 'target'),
       link: body.link === true,
+      scope: readInstallScope(body.scope),
+      projectDir: context.projectDir,
       homeDir: context.homeDir,
     });
     sendJson(response, 200, result);
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/install/source/inspect') {
+    const body = await readJsonBody(request);
+    sendJson(response, 200, inspectManagedSkillSource(requiredString(body.source, 'source')));
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/install/source/pick') {
+    const source = await pickNativeDirectory();
+    sendJson(response, 200, source ? inspectManagedSkillSource(source) : { cancelled: true });
+    return true;
+  }
+
+  const installTargetSkillsMatch = url.pathname.match(/^\/api\/install\/targets\/([^/]+)\/skills$/);
+  if (request.method === 'GET' && installTargetSkillsMatch) {
+    sendJson(response, 200, listTargetAgentSkills(
+      decodeURIComponent(installTargetSkillsMatch[1]),
+      context.projectDir,
+      readInstallScope(url.searchParams.get('scope')),
+      context.homeDir,
+    ));
     return true;
   }
 
@@ -112,7 +140,7 @@ export async function handleLibraryRoute(
     const body = await readJsonBody(request);
     const platform = normalizePlatformName(requiredString(body.platform, 'platform'));
     if (!platform) throw new Error('Invalid platform.');
-    await uninstallManagedSkill(requiredString(body.name, 'name'), platform, body.force === true, context.homeDir);
+    await uninstallManagedSkill(requiredString(body.name, 'name'), platform, body.force === true, context.homeDir, readInstallScope(body.scope));
     sendJson(response, 200, { removed: true });
     return true;
   }
@@ -149,3 +177,8 @@ function readDeploymentMode(value: unknown): 'symlink' | 'copy' {
   return value;
 }
 
+function readInstallScope(value: unknown): 'global' | 'project' {
+  if (value === undefined || value === null || value === 'global') return 'global';
+  if (value === 'project') return 'project';
+  throw new Error('scope must be global or project.');
+}

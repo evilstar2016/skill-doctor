@@ -441,7 +441,7 @@ function adoptLegacyRegistryEntries(context: ReturnType<typeof loadContext>): Le
       legacy.push({ entry, status: 'migrated', deploymentId: existing.id });
       continue;
     }
-    const target = context.targets.find((candidate) => candidate.platform === entry.platform && candidate.scope === 'global' && entry.installedPath === join(candidate.directory, entry.name, 'SKILL.md'));
+    const target = context.targets.find((candidate) => candidate.platform === entry.platform && candidate.scope === entry.scope && entry.installedPath === join(candidate.directory, entry.name, 'SKILL.md'));
     const rootPath = dirname(entry.installedPath);
     let skill: ManagedSkill | undefined;
     try {
@@ -457,8 +457,8 @@ function adoptLegacyRegistryEntries(context: ReturnType<typeof loadContext>): Le
     }
     const mode: DeploymentMode = fs.lstatSync(rootPath).isSymbolicLink() ? 'symlink' : 'copy';
     const deployment: SkillDeployment = {
-      id: randomUUID(), skillId: skill.id, targetId: target.targetId, platform: target.platform, scope: 'global', mode,
-      installedPath: rootPath, deployedHash: skill.treeHash, installedAt: entry.installedAt, status: getDeploymentStatus({ id: '', skillId: skill.id, targetId: target.targetId, platform: target.platform, scope: 'global', mode, installedPath: rootPath, deployedHash: skill.treeHash, installedAt: entry.installedAt, status: 'synced' }, skill),
+      id: randomUUID(), skillId: skill.id, targetId: target.targetId, platform: target.platform, scope: entry.scope, mode,
+      installedPath: rootPath, deployedHash: skill.treeHash, installedAt: entry.installedAt, status: getDeploymentStatus({ id: '', skillId: skill.id, targetId: target.targetId, platform: target.platform, scope: entry.scope, mode, installedPath: rootPath, deployedHash: skill.treeHash, installedAt: entry.installedAt, status: 'synced' }, skill),
     };
     context.store.deployments.push(deployment);
     saveSkillDeploymentStore(context.storePath, context.store);

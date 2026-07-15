@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type { InstallRegistry, RegistryEntry } from '../types/install.js';
-import type { Platform } from '../types/skill.js';
+import type { Platform, Scope } from '../types/skill.js';
 
 export function loadRegistry(registryPath: string): InstallRegistry {
   try {
@@ -21,7 +21,7 @@ export function saveRegistry(registryPath: string, registry: InstallRegistry): v
 export function addRegistryEntry(registryPath: string, entry: RegistryEntry): void {
   const registry = loadRegistry(registryPath);
   const index = registry.entries.findIndex(
-    (e) => e.name === entry.name && e.platform === entry.platform,
+    (e) => e.name === entry.name && e.platform === entry.platform && e.scope === entry.scope,
   );
   if (index >= 0) {
     registry.entries[index] = entry;
@@ -31,10 +31,10 @@ export function addRegistryEntry(registryPath: string, entry: RegistryEntry): vo
   saveRegistry(registryPath, registry);
 }
 
-export function removeRegistryEntry(registryPath: string, name: string, platform: Platform): void {
+export function removeRegistryEntry(registryPath: string, name: string, platform: Platform, scope: Scope = 'global'): void {
   const registry = loadRegistry(registryPath);
   registry.entries = registry.entries.filter(
-    (e) => !(e.name === name && e.platform === platform),
+    (e) => !(e.name === name && e.platform === platform && e.scope === scope),
   );
   saveRegistry(registryPath, registry);
 }
@@ -43,8 +43,9 @@ export function findRegistryEntry(
   registryPath: string,
   name: string,
   platform: Platform,
+  scope: Scope = 'global',
 ): RegistryEntry | undefined {
   return loadRegistry(registryPath).entries.find(
-    (e) => e.name === name && e.platform === platform,
+    (e) => e.name === name && e.platform === platform && e.scope === scope,
   );
 }

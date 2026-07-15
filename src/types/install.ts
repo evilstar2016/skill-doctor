@@ -1,10 +1,12 @@
 import type { Platform } from './skill.js';
+import type { Scope } from './skill.js';
 
 export interface RegistryEntry {
   name: string;
   platform: Platform;
-  scope: 'global';
+  scope: Scope;
   installedPath: string;
+  installedRootPath?: string;
   installedAt: string;
   contentHash: string;
   source: 'local' | 'marketplace';

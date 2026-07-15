@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { uninstallSkill } from '../../src/install/uninstallSkill.js';
 import { addRegistryEntry, loadRegistry } from '../../src/install/registry.js';
+import { hashSkillDirectory } from '../../src/library/skillDirectory.js';
 
 const tempRoots: string[] = [];
 
@@ -58,6 +59,26 @@ describe('uninstallSkill', () => {
     await expect(
       uninstallSkill({ name: 'missing', platform: 'claude', registryPath, force: false }),
     ).rejects.toThrow("Skill 'missing' is not in the registry");
+  });
+
+  it('removes the complete installed skill directory recorded by new installs', async () => {
+    const base = makeTempDir();
+    const skillDir = join(base, '.claude', 'skills', 'my-skill');
+    mkdirSync(join(skillDir, 'assets'), { recursive: true });
+    const skillPath = join(skillDir, 'SKILL.md');
+    writeFileSync(skillPath, 'skill content');
+    writeFileSync(join(skillDir, 'assets', 'prompt.txt'), 'asset');
+    const hash = hashSkillDirectory(skillDir);
+    const registryPath = join(base, 'registry.json');
+    addRegistryEntry(registryPath, {
+      name: 'my-skill', platform: 'claude', scope: 'global', installedPath: skillPath,
+      installedRootPath: skillDir, installedAt: new Date().toISOString(), contentHash: hash,
+      source: 'local', sourceRef: '/original/path',
+    });
+
+    await uninstallSkill({ name: 'my-skill', platform: 'claude', registryPath, force: false });
+
+    expect(existsSync(skillDir)).toBe(false);
   });
 
   it('errors if file was externally modified and force is false', async () => {

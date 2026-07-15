@@ -1,23 +1,25 @@
-import { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
-import type { Platform } from '../types/skill.js';
+import type { Platform, Scope } from '../types/skill.js';
 import { addRegistryEntry } from './registry.js';
 import { resolveInstallPath } from './resolveInstallPath.js';
+import { copySkillDirectory, hashSkillDirectory } from '../library/skillDirectory.js';
 
 export interface InstallSkillOptions {
   source: string;
   platform: Platform;
   globalDir: string;
   layout: 'skill-dirs' | 'files';
+  scope?: Scope;
   registryPath: string;
   link: boolean;
   sourceRef?: string;
   marketplaceSource?: boolean;
 }
 
-function extractSkillName(content: string, sourcePath: string): string {
+export function extractSkillName(content: string, sourcePath: string): string {
   const match = content.match(/^name:\s*(.+)$/m);
   if (match) return match[1].trim().replace(/^['"]|['"]$/g, '');
   return basename(sourcePath) === 'SKILL.md'
@@ -44,28 +46,39 @@ export async function installSkill(options: InstallSkillOptions): Promise<{ name
   }
 
   const installedPath = resolveInstallPath(options.globalDir, options.layout, skillName);
+  const installedRootPath = options.layout === 'skill-dirs' ? dirname(installedPath) : installedPath;
 
-  if (existsSync(installedPath)) {
+  if (existsSync(installedRootPath)) {
     throw new Error(
       `Skill '${skillName}' already exists at ${installedPath}. Remove it first or use uninstall.`,
     );
   }
 
-  mkdirSync(dirname(installedPath), { recursive: true });
+  const sourceDirectoryHash = options.layout === 'skill-dirs'
+    ? hashSkillDirectory(dirname(options.source))
+    : undefined;
+  mkdirSync(options.layout === 'skill-dirs' ? dirname(installedRootPath) : dirname(installedPath), { recursive: true });
 
-  if (options.link) {
+  if (options.layout === 'skill-dirs' && options.link) {
+    symlinkSync(dirname(options.source), installedRootPath, 'dir');
+  } else if (options.layout === 'skill-dirs') {
+    copySkillDirectory(dirname(options.source), installedRootPath);
+  } else if (options.link) {
     symlinkSync(options.source, installedPath);
   } else {
     copyFileSync(options.source, installedPath);
   }
 
-  const contentHash = await hashFile(installedPath);
+  const contentHash = options.layout === 'skill-dirs'
+    ? (options.link ? sourceDirectoryHash! : hashSkillDirectory(realpathSync(installedRootPath)))
+    : await hashFile(installedPath);
 
   addRegistryEntry(options.registryPath, {
     name: skillName,
     platform: options.platform,
-    scope: 'global',
+    scope: options.scope ?? 'global',
     installedPath,
+    ...(options.layout === 'skill-dirs' ? { installedRootPath } : {}),
     installedAt: new Date().toISOString(),
     contentHash,
     source: options.marketplaceSource ? 'marketplace' : 'local',
