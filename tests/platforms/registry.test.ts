@@ -36,6 +36,12 @@ describe('platform registry', () => {
     expect(normalizePlatformName('nonexistent')).toBeNull();
   });
 
+  it('keeps canonical names and aliases unique', () => {
+    const names = getPlatformAdapters().flatMap((adapter) => [adapter.platform, ...adapter.aliases]);
+
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('exposes CLI platform values and aliases from the registry', () => {
     expect(getPlatformCliValues({ includeUnknown: true })).toEqual([
       'claude',

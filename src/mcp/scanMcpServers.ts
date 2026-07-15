@@ -1,9 +1,9 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 
-import { getPlatformAdapters, resolvePlatformPathTemplate } from '../platforms/registry';
+import { getPlatformAdapter, getPlatformAdapters, resolvePlatformPathTemplate } from '../platforms/registry';
 import type { McpServerRecord } from '../types/mcp';
 import type { Platform, Scope } from '../types/skill';
 
@@ -142,15 +142,11 @@ function parseJsonMcpConfig(
     configs.push({ servers, baseConfig: getGlobalMcpConfig(parsed), scope: file.scope });
   }
 
-  if (file.platform === 'claude' && file.scope === 'global' && isObject(parsed.projects)) {
-    const projectKeys = getProjectKeys(projectDir);
-    for (const key of projectKeys) {
-      const projectConfig = parsed.projects[key];
-      if (isObject(projectConfig) && isObject(projectConfig.mcpServers)) {
-        configs.push({ servers: projectConfig.mcpServers, baseConfig: getGlobalMcpConfig(projectConfig), scope: 'project' });
-      }
-    }
-  }
+  const adapter = getPlatformAdapter(file.platform);
+  configs.push(...(adapter?.discoverAdditionalMcpJsonConfigs?.(parsed, {
+    projectDir,
+    scope: file.scope,
+  }) ?? []));
 
   return configs.flatMap(({ servers, baseConfig, scope }) => {
     if (!isObject(servers)) return [];
@@ -278,16 +274,6 @@ function mergeMcpConfig(config: JsonObject, baseConfig?: JsonObject): JsonObject
 
 function getGlobalMcpConfig(config: JsonObject): JsonObject | undefined {
   return isObject(config.mcp) ? config.mcp : undefined;
-}
-
-function getProjectKeys(projectDir: string): string[] {
-  const keys = new Set<string>([projectDir, basename(projectDir)]);
-  try {
-    keys.add(realpathSync(projectDir));
-  } catch {
-    // Keep the literal project path when realpath is unavailable.
-  }
-  return [...keys];
 }
 
 function isDisabled(config: unknown): boolean {

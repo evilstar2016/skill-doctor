@@ -1,9 +1,10 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, extname, join, sep } from 'node:path';
 import { homedir } from 'node:os';
 
-import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
+import type { Scope, SkillFile } from '../types/skill';
 import type { EffectiveScanSource } from '../config/scanSources';
+import { createPlatformRuntime } from '../platforms/runtime';
 import {
   UNKNOWN_PLATFORM_ADAPTER,
   getPlatformAdapter,
@@ -29,6 +30,12 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
   const appDataDir = options.appDataDir ?? join(homeDir, 'AppData', 'Roaming');
   const results: SkillFile[] = [];
   const seen = new Set<string>();
+  const adapters = getPlatformAdapters();
+  const runtimes = adapters.map((adapter) => createPlatformRuntime(adapter, {
+    projectDir: cwd,
+    homeDir,
+    appDataDir,
+  }));
 
   if (options.sources) {
     for (const source of options.sources.filter((entry) => entry.resource === 'skill' && entry.enabled)) {
@@ -41,7 +48,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
       }, source.scope, results, seen);
     }
   } else {
-    for (const definition of getPlatformAdapters()) {
+    for (const definition of adapters) {
       for (const target of definition.global) {
         if (target.costOnly && !options.includeCostPaths) continue;
         collectPath(
@@ -62,8 +69,18 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
   }
 
   if (options.includeCostPaths) {
-    collectGeminiConfiguredContextFiles(cwd, homeDir, results, seen);
-    collectNestedCopilotAgentInstructions(cwd, results, seen);
+    for (const runtime of runtimes) {
+      for (const candidate of runtime.discoverAdditionalInstructions()) {
+        collectPath(
+          candidate.filePath,
+          runtime.adapter,
+          { path: candidate.installSource, mode: 'single-file' },
+          candidate.scope,
+          results,
+          seen,
+        );
+      }
+    }
   }
 
   for (const raw of options.extraPaths ?? []) {
@@ -74,7 +91,10 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
     }
   }
 
-  return applyAgentOverridePrecedence(results);
+  return runtimes.reduce(
+    (files, runtime) => runtime.postProcessInstructions(files),
+    results,
+  );
 }
 
 function collectPath(
@@ -141,7 +161,7 @@ function collectPath(
     }
 
     if (matchingFiles.length > 0) {
-      const primary = selectPrimaryFile(matchingFiles, definition.platform, target.layout === 'skill-dirs');
+      const primary = selectPrimaryFile(matchingFiles);
       if (primary) {
         pushResult(primary, target.path, definition, scope, results, seen);
       }
@@ -186,63 +206,11 @@ function pushResult(
   });
 }
 
-function getEntryFileName(platform: Platform): string | null {
-  switch (platform) {
-    case 'claude':
-    case 'codex':
-    case 'copilot':
-    case 'gemini':
-    case 'kiro':
-    case 'trae':
-    case 'opencode':
-    case 'windsurf':
-      return 'SKILL.md';
-    default:
-      return 'SKILL.md';
-  }
-}
-
-function selectPrimaryFile(files: string[], platform: Platform, strictEntryFile: boolean): string | null {
+function selectPrimaryFile(files: string[]): string | null {
   if (files.length === 0) return null;
 
   const sorted = [...files].sort((a, b) => basename(a).localeCompare(basename(b)));
-
-  if (strictEntryFile) {
-    const entryFileName = getEntryFileName(platform);
-    if (entryFileName === null) {
-      return selectFlexiblePrimaryFile(sorted, platform);
-    }
-    return sorted.find((filePath) => basename(filePath) === entryFileName) ?? null;
-  }
-
-  return selectFlexiblePrimaryFile(sorted, platform);
-}
-
-function selectFlexiblePrimaryFile(files: string[], platform: Platform): string | null {
-  switch (platform) {
-    case 'cursor':
-      return (
-        files.find((filePath) => extname(filePath).toLowerCase() === '.mdc') ??
-        files.find((filePath) => basename(filePath) === 'SKILL.md') ??
-        files[0] ??
-        null
-      );
-    case 'copilot':
-      return (
-        files.find((filePath) => basename(filePath) === 'copilot-instructions.md') ??
-        files.find((filePath) => basename(filePath).endsWith('.instructions.md')) ??
-        files.find((filePath) => basename(filePath) === 'SKILL.md') ??
-        files[0] ??
-        null
-      );
-    default:
-      return (
-        files.find((filePath) => basename(filePath) === 'SKILL.md') ??
-        files.find((filePath) => basename(filePath) === 'README.md') ??
-        files[0] ??
-        null
-      );
-  }
+  return sorted.find((filePath) => basename(filePath) === 'SKILL.md') ?? null;
 }
 
 export function getParentDir(filePath: string): string {
@@ -268,123 +236,6 @@ function isAllowedFile(
   }
 
   return extensions.includes(extname(targetPath).toLowerCase());
-}
-
-function collectNestedCopilotAgentInstructions(cwd: string, results: SkillFile[], seen: Set<string>): void {
-  const copilotAdapter = getPlatformAdapter('copilot');
-  if (!copilotAdapter) return;
-
-  const definition: PlatformPathDefinition = {
-    ...copilotAdapter,
-    global: [],
-    project: [],
-  };
-
-  for (const filePath of findNamedFiles(cwd, 'AGENTS.md')) {
-    pushResult(filePath, 'AGENTS.md', definition, 'project', results, seen);
-  }
-}
-
-const IGNORED_RECURSIVE_DIRS = new Set([
-  '.git',
-  '.hg',
-  '.svn',
-  'node_modules',
-  'vendor',
-  'dist',
-  'build',
-  'coverage',
-]);
-
-function findNamedFiles(root: string, fileName: string): string[] {
-  if (!existsSync(root)) return [];
-
-  const results: string[] = [];
-  const visit = (dir: string) => {
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      if (entry.startsWith('.') || IGNORED_RECURSIVE_DIRS.has(entry)) continue;
-      const entryPath = join(dir, entry);
-      let stats;
-      try {
-        stats = statSync(entryPath);
-      } catch {
-        continue;
-      }
-      if (stats.isDirectory()) {
-        visit(entryPath);
-      } else if (entry === fileName) {
-        results.push(entryPath);
-      }
-    }
-  };
-
-  visit(root);
-  return results;
-}
-
-function collectGeminiConfiguredContextFiles(
-  cwd: string,
-  homeDir: string,
-  results: SkillFile[],
-  seen: Set<string>,
-): void {
-  const contextFileNames = readGeminiContextFileNames(cwd, homeDir).filter((name) => name !== 'GEMINI.md');
-  if (contextFileNames.length === 0) return;
-  const geminiAdapter = getPlatformAdapter('gemini');
-  if (!geminiAdapter) return;
-
-  const definition: PlatformPathDefinition = {
-    ...geminiAdapter,
-    global: [],
-    project: [],
-  };
-
-  for (const name of contextFileNames) {
-    collectPath(join(homeDir, '.gemini', name), definition, { path: `~/.gemini/${name}`, mode: 'single-file' }, 'global', results, seen);
-    collectPath(join(cwd, name), definition, { path: name, mode: 'single-file' }, 'project', results, seen);
-  }
-}
-
-function readGeminiContextFileNames(cwd: string, homeDir: string): string[] {
-  const names = new Set<string>(['GEMINI.md']);
-  for (const settingsPath of [join(homeDir, '.gemini', 'settings.json'), join(cwd, '.gemini', 'settings.json')]) {
-    if (!existsSync(settingsPath)) continue;
-    try {
-      const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as { contextFileName?: string | string[] };
-      const configured = settings.contextFileName;
-      if (typeof configured === 'string' && configured.trim()) {
-        names.add(configured.trim());
-      } else if (Array.isArray(configured)) {
-        for (const name of configured) {
-          if (typeof name === 'string' && name.trim()) names.add(name.trim());
-        }
-      }
-    } catch {
-      continue;
-    }
-  }
-  return [...names];
-}
-
-function applyAgentOverridePrecedence(results: SkillFile[]): SkillFile[] {
-  const overrideDirs = new Set(
-    results
-      .filter((entry) => entry.platform === 'codex' && basename(entry.filePath).toLowerCase() === 'agents.override.md')
-      .map((entry) => `${entry.platform}|${entry.scope}|${dirname(entry.filePath)}`),
-  );
-
-  return results.filter((entry) => {
-    if (entry.platform !== 'codex') return true;
-    if (basename(entry.filePath).toLowerCase() !== 'agents.md') return true;
-    return !overrideDirs.has(`${entry.platform}|${entry.scope}|${dirname(entry.filePath)}`);
-  });
 }
 
 function expandGlob(pattern: string): string[] {

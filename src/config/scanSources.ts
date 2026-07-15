@@ -2,8 +2,12 @@ import { accessSync, constants, existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, normalize } from 'node:path';
 
-import { loadCodexContextConfig, resolveCodexPath } from '../context/codexContextConfig';
-import { getPlatformAdapters, resolvePlatformPathTemplate } from '../platforms/registry';
+import {
+  getPlatformAdapters,
+  resolvePlatformPathTemplate,
+  type PlatformAdapter,
+  type PlatformRuntimeContext,
+} from '../platforms/registry';
 import type { Platform, Scope } from '../types/skill';
 import {
   loadUserConfig,
@@ -34,8 +38,9 @@ export interface LoadScanSourcesOptions {
 export function loadEffectiveScanSources(projectDir: string, options: LoadScanSourcesOptions = {}): EffectiveScanSource[] {
   const homeDir = options.homeDir ?? homedir();
   const appDataDir = options.appDataDir ?? join(homeDir, 'AppData', 'Roaming');
+  const runtimeContext = { projectDir, homeDir, appDataDir };
   const user = options.config ? (options.config.scanSources ?? {}) : (loadUserConfig(homeDir).config.scanSources ?? {});
-  const defaults = builtinSources(homeDir);
+  const defaults = builtinSources(runtimeContext);
   const results: EffectiveScanSource[] = [];
 
   for (const adapter of getPlatformAdapters()) {
@@ -54,7 +59,7 @@ export function loadEffectiveScanSources(projectDir: string, options: LoadScanSo
         });
       }
       for (const entry of byId.values()) {
-        const resolvedPath = resolveSourcePath(entry.path, entry.scope, projectDir, homeDir, appDataDir, platform);
+        const resolvedPath = resolveSourcePath(entry.path, entry.scope, adapter, runtimeContext);
         results.push({
           ...entry,
           enabled: entry.enabled !== false,
@@ -98,35 +103,26 @@ export function withScanSources(config: SkillDoctorUserConfig, scanSources: Reco
   return { ...config, scanSources };
 }
 
-function builtinSources(homeDir: string): Array<Omit<EffectiveScanSource, 'resolvedPath' | 'status'>> {
-  const codex = loadCodexContextConfig({ homeDir }).config;
+function builtinSources(context: PlatformRuntimeContext): Array<Omit<EffectiveScanSource, 'resolvedPath' | 'status'>> {
   return getPlatformAdapters().flatMap((adapter) => {
-    const skills = adapter.platform === 'codex'
-      ? codex.skillDirs.map((entry) => ({
-          id: entry.id, platform: adapter.platform, resource: 'skill' as const, scope: entry.scope,
-          path: entry.path, enabled: entry.enabled !== false, mode: 'recursive-dir' as const, layout: 'skill-dirs' as const,
-          origin: (entry.configSource?.startsWith('builtin:') ? 'builtin' : 'override') as ScanSourceOrigin,
-        }))
-      : [...adapter.global.map((target, index) => fromSkillTarget(adapter.platform, 'global', target, index)),
-          ...adapter.project.map((target, index) => fromSkillTarget(adapter.platform, 'project', target, index))];
-    const mcp = adapter.platform === 'codex'
-      ? codex.mcpConfigFiles.map((entry) => ({
-          id: entry.id, platform: adapter.platform, resource: 'mcp' as const, scope: entry.scope,
-          path: entry.path, enabled: entry.enabled !== false, format: entry.format,
-          origin: (entry.configSource?.startsWith('builtin:') ? 'builtin' : 'override') as ScanSourceOrigin,
-        }))
-      : adapter.mcpConfigFiles.map((entry, index) => ({
-          id: builtinId(adapter.platform, 'mcp', entry.scope, index), platform: adapter.platform,
-          resource: 'mcp' as const, scope: entry.scope, path: entry.path, format: entry.format,
-          enabled: true, origin: 'builtin' as const,
-        }));
-    const plugins = adapter.platform === 'codex' ? codex.pluginDirs.map((entry) => ({
-      id: entry.id, platform: adapter.platform, resource: 'plugin' as const, scope: entry.scope,
-      path: entry.manifestGlob, enabled: entry.enabled !== false, skillsField: entry.skillsField,
-      defaultSkillsDir: entry.defaultSkillsDir,
-      origin: (entry.configSource?.startsWith('builtin:') ? 'builtin' : 'override') as ScanSourceOrigin,
-    })) : [];
-    return [...skills, ...mcp, ...plugins];
+    const configured = adapter.getBuiltinScanSources?.(context);
+    if (configured) return configured;
+
+    const skills = [
+      ...adapter.global.map((target, index) => fromSkillTarget(adapter.platform, 'global', target, index)),
+      ...adapter.project.map((target, index) => fromSkillTarget(adapter.platform, 'project', target, index)),
+    ];
+    const mcp = adapter.mcpConfigFiles.map((entry, index) => ({
+      id: builtinId(adapter.platform, 'mcp', entry.scope, index),
+      platform: adapter.platform,
+      resource: 'mcp' as const,
+      scope: entry.scope,
+      path: entry.path,
+      format: entry.format,
+      enabled: true,
+      origin: 'builtin' as const,
+    }));
+    return [...skills, ...mcp];
   });
 }
 
@@ -145,10 +141,17 @@ function entriesFor(config: AgentScanSourcesUserConfig, resource: ScanSourceReso
   return resource === 'skill' ? config.skills ?? [] : resource === 'mcp' ? config.mcp ?? [] : config.plugins ?? [];
 }
 
-function resolveSourcePath(rawPath: string, scope: Scope, projectDir: string, homeDir: string, appDataDir: string, platform: Platform): string {
-  if (platform === 'codex') return resolveCodexPath(rawPath, projectDir, homeDir);
-  const expanded = resolvePlatformPathTemplate(rawPath, homeDir, appDataDir);
-  return normalize(isAbsolute(expanded) ? expanded : join(scope === 'project' ? projectDir : homeDir, expanded));
+function resolveSourcePath(
+  rawPath: string,
+  scope: Scope,
+  adapter: PlatformAdapter,
+  context: PlatformRuntimeContext,
+): string {
+  const resolved = adapter.resolveScanSourcePath?.({ path: rawPath, scope }, context);
+  if (resolved) return normalize(resolved);
+
+  const expanded = resolvePlatformPathTemplate(rawPath, context.homeDir, context.appDataDir);
+  return normalize(isAbsolute(expanded) ? expanded : join(scope === 'project' ? context.projectDir : context.homeDir, expanded));
 }
 
 function inspectSource(path: string, resource: ScanSourceResource, mode?: ScanSourceUserEntry['mode']): ScanSourceStatus {
