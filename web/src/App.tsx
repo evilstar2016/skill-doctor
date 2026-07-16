@@ -330,7 +330,7 @@ function Topbar(props: {
         <select value={scanOptions.scope} onChange={(event) => setScanOptions({ ...scanOptions, scope: event.target.value as ScanRequest['scope'] })} aria-label={t('topbar.scope')}>
           <option value="all">{t('topbar.scope.all')}</option><option value="project">{t('topbar.scope.project')}</option><option value="global">{t('topbar.scope.global')}</option>
         </select>
-        <span className="project-path" title={bootstrap?.projectDir}>{shortPath(bootstrap?.projectDir ?? '')}</span>
+        <span className="project-path" title={scanOptions.projectDir}>{shortPath(scanOptions.projectDir)}</span>
       </div>
       {scan.running && <div className="scan-progress"><span style={{ width: `${scan.progress}%` }} /></div>}
       <span className="scan-message">{scan.message || t('topbar.waiting')}</span>

@@ -119,7 +119,7 @@ describe('UI onboarding', () => {
     await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({ platform: 'claude' })));
   });
 
-  it('uses the startup directory by default and supports choosing another project directory', async () => {
+  it('uses the startup directory by default and shows the chosen project directory as the scan target', async () => {
     const claudeAgent = { platform: 'claude', displayName: 'Claude', projectDetected: true, globalDetected: false, recommended: true };
     mocks.getBootstrap.mockResolvedValue({
       version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
@@ -133,6 +133,9 @@ describe('UI onboarding', () => {
     expect((projectDirectory as HTMLInputElement).value).toBe('/tmp/project');
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '选择目录' }));
     await waitFor(() => expect((projectDirectory as HTMLInputElement).value).toBe('/tmp/selected-project'));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Codex/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始体检' }));
+    await waitFor(() => expect(screen.getByTitle('/tmp/selected-project')).toBeTruthy());
   });
 
   it('restores a valid project Agent preference and ignores legacy all preferences', async () => {
