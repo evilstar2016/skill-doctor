@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   inspectSkillSource: vi.fn(),
   installSkill: vi.fn(),
   pickSkillSourceDirectory: vi.fn(),
+  previewPhysicalAgentSkills: vi.fn(),
+  reclaimPhysicalAgentSkills: vi.fn(),
   uninstallSkill: vi.fn(),
 }));
 
@@ -29,6 +31,8 @@ describe('ManagePage skill selection', () => {
     mocks.getTargetAgentSkills.mockResolvedValue({ targetPath: '/home/.claude/skills', scope: 'global', availableScopes: ['global', 'project'], skills: [] });
     mocks.installSkill.mockResolvedValue({ name: 'beta', installedPath: '/home/.claude/skills/beta/SKILL.md' });
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
+    mocks.previewPhysicalAgentSkills.mockResolvedValue({ planId: 'empty-plan', candidates: [] });
+    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({ planId: 'empty-plan', outcomes: [], needsRescan: false });
   });
 
   it('previews a typed directory and installs only checked skills while showing target skills', async () => {
@@ -104,5 +108,48 @@ describe('ManagePage skill selection', () => {
 
     await waitFor(() => expect(mocks.pickSkillSourceDirectory).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(/操作未完成|不支持本地目录/)).toBeNull();
+  });
+
+  it('selectively returns physical Agent skills to the central library and leaves name conflicts disabled', async () => {
+    mocks.previewPhysicalAgentSkills.mockResolvedValue({
+      planId: 'reclaim-plan',
+      candidates: [
+        { id: 'new', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', sourceId: 'claude-global-skills', status: 'new', group: { root: '/home/.claude/skills/local-review' }, name: 'local-review', treeHash: 'sha256:new', allowedActions: ['keep-copy', 'replace-with-link', 'skip'], precondition: 'new' },
+        { id: 'conflict', rootPath: '/home/.claude/skills/shared', platform: 'claude', scope: 'global', sourceId: 'claude-global-skills', status: 'same-name-different-content', group: { root: '/home/.claude/skills/shared' }, name: 'shared', treeHash: 'sha256:conflict', managedSkillId: 'managed-shared', allowedActions: ['keep-separate', 'use-managed-link', 'skip'], precondition: 'conflict' },
+        { id: 'invalid', rootPath: '/home/.claude/skills/not-a-skill', platform: 'claude', scope: 'global', sourceId: 'claude-global-skills', status: 'invalid', group: { root: '/home/.claude/skills/not-a-skill' }, allowedActions: ['skip'], diagnostic: 'Missing SKILL.md', precondition: 'invalid' },
+      ],
+    });
+    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({
+      planId: 'reclaim-plan',
+      outcomes: [
+        { candidateId: 'new', status: 'linked', managedSkillId: 'managed-new', completedSteps: ['central-import', 'replace-with-directory-link'] },
+        { candidateId: 'conflict', status: 'skipped', completedSteps: ['decision'] },
+      ],
+      needsRescan: true,
+    });
+    const onChanged = vi.fn();
+    const setToast = vi.fn();
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={onChanged} setToast={setToast} />);
+
+    const localReview = await screen.findByText('local-review');
+    const shared = screen.getByText('shared');
+    expect(within(shared.closest('label')!).getByRole('checkbox')).toHaveProperty('disabled', true);
+    expect(screen.getByText('中央仓库同名冲突')).toBeTruthy();
+    fireEvent.click(within(localReview.closest('label')!).getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '收回已选 (1)' }));
+
+    await waitFor(() => expect(mocks.reclaimPhysicalAgentSkills).toHaveBeenCalledWith({
+      planId: 'reclaim-plan',
+      target: 'claude',
+      scope: 'global',
+      decisions: [
+        { candidateId: 'new', action: 'replace-with-link' },
+        { candidateId: 'conflict', action: 'skip' },
+        { candidateId: 'invalid', action: 'skip' },
+      ],
+    }));
+    expect(setToast).toHaveBeenCalledWith('已收回 1 个 Skills，并在 Agent 中挂上链接');
+    expect(onChanged).toHaveBeenCalledTimes(1);
   });
 });

@@ -5,6 +5,7 @@ import type { Platform, Scope } from '../../src/types/skill';
 import type { AgentScanSourcesUserConfig } from '../../src/config/loadUserConfig';
 import type { EffectiveScanSource } from '../../src/config/scanSources';
 import type { InstallSourceSkill, TargetAgentSkill } from '../../src/application/install';
+import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPreview } from '../../src/library/importAgentSkills';
 
 export interface ScanRequest {
   projectDir: string;
@@ -92,7 +93,7 @@ export function streamScan(scanId: string, handlers: ScanStreamHandlers): () => 
       const payload = JSON.parse(event.data);
       handlers.error(new Error(payload.message));
     } else if (source.readyState === EventSource.CLOSED) {
-      handlers.error(new Error('扫描连接已关闭'));
+      handlers.error(new Error('scan_connection_closed'));
     }
     source.close();
   });
@@ -141,6 +142,18 @@ export async function pickSkillSourceDirectory() {
 
 export async function getTargetAgentSkills(target: string, scope: Scope) {
   return request<{ targetPath: string; scope: Scope; availableScopes: Scope[]; skills: TargetAgentSkill[] }>(`/api/install/targets/${encodeURIComponent(target)}/skills?scope=${encodeURIComponent(scope)}`);
+}
+
+export async function previewPhysicalAgentSkills(target: string, scope: Scope) {
+  return request<AgentSkillImportPreview>('/api/library/import/preview', {
+    method: 'POST', body: JSON.stringify({ target, scope, physicalOnly: true }),
+  });
+}
+
+export async function reclaimPhysicalAgentSkills(input: { planId: string; target: string; scope: Scope; decisions: AgentImportDecision[] }) {
+  return request<AgentImportCommitResult>('/api/library/import/commit', {
+    method: 'POST', body: JSON.stringify({ ...input, physicalOnly: true }),
+  });
 }
 
 export async function uninstallSkill(input: { name: string; platform: Platform; scope: Scope; force: boolean }) {

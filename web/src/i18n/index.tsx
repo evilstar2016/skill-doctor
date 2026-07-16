@@ -9,7 +9,8 @@ type Translation = (key: keyof typeof zhCN, values?: TranslationValues) => strin
 
 const dictionaries: Record<Locale, Record<string, string>> = { 'zh-CN': zhCN, 'en-US': enUS };
 const storageKey = 'skill-doctor-locale';
-const I18nContext = createContext<{ locale: Locale; setLocale: (locale: Locale) => void; t: Translation } | null>(null);
+const translate = (locale: Locale): Translation => (key, values = {}) => (dictionaries[locale][key] ?? dictionaries['zh-CN'][key] ?? key).replace(/{{(\w+)}}/g, (_, name: string) => String(values[name] ?? `{{${name}}}`));
+const I18nContext = createContext<{ locale: Locale; setLocale: (locale: Locale) => void; t: Translation }>({ locale: 'zh-CN', setLocale: () => {}, t: translate('zh-CN') });
 
 function initialLocale(): Locale {
   const saved = localStorage.getItem(storageKey);
@@ -26,16 +27,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     locale,
     setLocale,
-    t: (key: keyof typeof zhCN, values: TranslationValues = {}) => {
-      const text = dictionaries[locale][key] ?? dictionaries['zh-CN'][key] ?? key;
-      return text.replace(/{{(\w+)}}/g, (_, name: string) => String(values[name] ?? `{{${name}}}`));
-    },
+    t: translate(locale),
   }), [locale]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useTranslation() {
-  const value = useContext(I18nContext);
-  if (!value) throw new Error('useTranslation must be used inside I18nProvider');
-  return value;
+  return useContext(I18nContext);
 }

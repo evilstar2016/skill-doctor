@@ -18,7 +18,7 @@ export function ContextPage({ snapshot, openResource, onToggle }: { snapshot: Do
       const resource = snapshot?.resources.find((entry) => entry.sourcePath === item.sourcePath && entry.name === item.name) ?? snapshot?.resources.find((entry) => entry.id === item.id);
       const cost = item.budgetScope === 'activation' ? item.activationEstimatedTokens : item.estimatedTokens;
       return <div className={`cost-row ${item.enabled === false ? 'disabled' : ''}`} key={`${item.id ?? item.sourcePath}:${item.enabled}`}>
-        <button className="resource-link" onClick={() => resource && openResource(resource)}><code>{item.name}</code><small>{item.platform} · {activationLabel(item.activation)}</small></button>
+        <button className="resource-link" onClick={() => resource && openResource(resource)}><code>{item.name}</code><small>{item.platform} · {activationLabel(item.activation, t)}</small></button>
         <div className="cost-bar"><span style={{ width: `${Math.max(2, cost / max * 100)}%` }} /></div><strong>{cost}</strong><span className="cost-unit">tokens</span>
         {item.controllable ? <button className="button compact" onClick={() => void onToggle(item)}>{item.enabled === false ? t('context.enable') : t('context.disable')}</button> : <span className="muted">{item.estimateStatus === 'unknown' ? t('context.unknown') : t('context.readonly')}</span>}
       </div>;

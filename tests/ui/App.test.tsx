@@ -292,7 +292,7 @@ describe('UI onboarding', () => {
     expect(screen.getAllByText('系统默认').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByRole('button', { name: '添加路径' })[0]);
-    const skillPaths = screen.getAllByLabelText('Codex Skill 路径路径');
+    const skillPaths = screen.getAllByLabelText('Codex Skill 路径');
     fireEvent.change(skillPaths[skillPaths.length - 1], { target: { value: '/tmp/custom-skills' } });
     const saveButtons = screen.getAllByRole('button', { name: /^保存$/ });
     fireEvent.click(saveButtons[saveButtons.length - 1]);
