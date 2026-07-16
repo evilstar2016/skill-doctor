@@ -42,7 +42,7 @@ export async function runHealthCheck(
     assertNotAborted(options.signal);
   };
 
-  progress('discovering', '正在发现 skills、rules、instructions 与 MCP 配置');
+  progress('discovering', 'i18n:progress.discovering');
   const scanContext = await createHealthCheckScanContext({
     projectDir,
     homeDir: options.homeDir,
@@ -62,7 +62,7 @@ export async function runHealthCheck(
     mcpServers = await discoverMcpToolsSafely(mcpServers, warnings, scanContext.discoverMcpToolsForServers);
   }
 
-  progress('conflicts', '正在检查重复安装与触发冲突');
+  progress('conflicts', 'i18n:progress.conflicts');
   const conflicts = filterConflicts(await detectConflicts(analysisSkills, {
     strategy: options.conflictStrategy ?? 'token',
     analyze: options.analyzeConflicts ?? false,
@@ -75,18 +75,18 @@ export async function runHealthCheck(
     ...options.conflictOptions,
   }), ignore);
 
-  progress('audit', '正在执行安全审计');
+  progress('audit', 'i18n:progress.audit');
   const staticAudit = runAudit(analysisSkills);
   const findings = filterFindings(staticAudit.findings, ignore);
   let aiFindings = staticAudit.aiFindings ?? [];
   if (options.useAiAudit) {
     if (!llmOptions) {
-      warnings.push(warning('audit', 'ai-not-configured', 'AI 审计未运行：尚未配置 analysis 服务。'));
+      warnings.push(warning('audit', 'ai-not-configured', 'i18n:warning.aiNotConfigured'));
     } else {
       try {
         aiFindings = await runAiAudit(analysisSkills, { llmOptions, useCache: options.aiAuditUseCache ?? true });
       } catch (error) {
-        warnings.push(warning('audit', 'ai-audit-failed', `AI 审计失败：${errorMessage(error)}`));
+        warnings.push(warning('audit', 'ai-audit-failed', `i18n:warning.aiAuditFailed|error=${encodeURIComponent(errorMessage(error))}`));
       }
     }
   }
@@ -99,7 +99,7 @@ export async function runHealthCheck(
 
   let context: DoctorSnapshot['context'];
   if (includeContext) {
-    progress('context', '正在估算固定与按需上下文成本');
+    progress('context', 'i18n:progress.context');
     try {
       const contextEntries = await loadContextEntries(projectDir, scope, platform, options, scanContext);
       context = addCodexResourceGroups(estimateContextCost(contextEntries, {
@@ -114,20 +114,20 @@ export async function runHealthCheck(
         context = { ...context, catalog: scanCodexPluginCache({ homeDir: options.homeDir }) };
       }
     } catch (error) {
-      warnings.push(warning('context', 'context-scan-failed', `上下文成本分析未完成：${errorMessage(error)}`));
+      warnings.push(warning('context', 'context-scan-failed', `i18n:warning.contextFailed|error=${encodeURIComponent(errorMessage(error))}`));
     }
   }
 
   let groups: DoctorSnapshot['groups'];
   if (options.includeGroups !== false) {
-    progress('grouping', '正在整理资源用途');
+    progress('grouping', 'i18n:progress.grouping');
     try {
       const cachePath = getDefaultGroupLabelCachePath(options.homeDir);
       const labelCache = loadGroupLabelCache(cachePath);
       groups = await groupSkills(analysisSkills, { llmOptions: undefined, labelCache });
       if (labelCache.size > 0) saveGroupLabelCache(labelCache, cachePath);
     } catch (error) {
-      warnings.push(warning('grouping', 'grouping-failed', `资源分组未完成：${errorMessage(error)}`));
+      warnings.push(warning('grouping', 'grouping-failed', `i18n:warning.groupingFailed|error=${encodeURIComponent(errorMessage(error))}`));
     }
   }
 
@@ -150,7 +150,7 @@ export async function runHealthCheck(
     embeddingConfigured: Boolean(embedding?.baseUrl && embedding.model),
     groups,
   });
-  progress('complete', snapshot.status === 'partial' ? '体检完成，部分项目需要关注' : '体检完成');
+  progress('complete', snapshot.status === 'partial' ? 'i18n:status.partial' : 'i18n:status.complete');
   return snapshot;
 }
 
@@ -210,7 +210,7 @@ async function discoverMcpToolsSafely(
   for (const server of results) {
     if (server.toolDiscoveryStatus === 'failed') {
       warnings.push({
-        ...warning('discovering', 'mcp-discovery-failed', `${server.name}: ${server.toolDiscoveryError ?? '无法读取工具列表'}`),
+        ...warning('discovering', 'mcp-discovery-failed', `i18n:warning.mcpDiscoveryFailed|error=${encodeURIComponent(`${server.name}: ${server.toolDiscoveryError ?? 'unavailable_tool_list'}`)}`),
         resourceId: server.id,
       });
     }

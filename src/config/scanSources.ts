@@ -1,6 +1,7 @@
 import { accessSync, constants, existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, normalize } from 'node:path';
+import { zhMessage } from '../i18n';
 
 import {
   getPlatformAdapters,
@@ -73,23 +74,23 @@ export function loadEffectiveScanSources(projectDir: string, options: LoadScanSo
 }
 
 export function validateScanSourcesConfig(value: unknown): Record<string, AgentScanSourcesUserConfig> {
-  if (!isObject(value)) throw new Error('scanSources 必须是对象。');
+  if (!isObject(value)) throw new Error(zhMessage('validation.scanSourcesObject'));
   const supported = new Set(getPlatformAdapters().map((adapter) => adapter.platform));
   const result: Record<string, AgentScanSourcesUserConfig> = {};
   for (const [platform, rawAgent] of Object.entries(value)) {
-    if (!supported.has(platform as Platform)) throw new Error(`不支持的 Agent: ${platform}`);
-    if (!isObject(rawAgent)) throw new Error(`${platform} 配置必须是对象。`);
+    if (!supported.has(platform as Platform)) throw new Error(zhMessage('validation.unsupportedAgent', { platform }));
+    if (!isObject(rawAgent)) throw new Error(zhMessage('validation.agentObject', { platform }));
     const unknownKey = Object.keys(rawAgent).find((key) => !['skills', 'mcp', 'plugins'].includes(key));
-    if (unknownKey) throw new Error(`${platform} 包含不支持的资源类型: ${unknownKey}`);
+    if (unknownKey) throw new Error(zhMessage('validation.unsupportedResource', { platform, resource: unknownKey }));
     const agent: AgentScanSourcesUserConfig = {};
     for (const [key, resource] of [['skills', 'skill'], ['mcp', 'mcp'], ['plugins', 'plugin']] as const) {
       const rawEntries = rawAgent[key];
       if (rawEntries === undefined) continue;
-      if (!Array.isArray(rawEntries)) throw new Error(`${platform}.${key} 必须是数组。`);
+      if (!Array.isArray(rawEntries)) throw new Error(zhMessage('validation.entriesArray', { path: `${platform}.${key}` }));
       const ids = new Set<string>();
       const entries = rawEntries.map((raw, index) => validateEntry(raw, platform, resource, index));
       for (const entry of entries) {
-        if (ids.has(entry.id)) throw new Error(`${platform}.${key} 存在重复 id: ${entry.id}`);
+        if (ids.has(entry.id)) throw new Error(zhMessage('validation.duplicateId', { path: `${platform}.${key}`, id: entry.id }));
         ids.add(entry.id);
       }
       agent[key] = entries;
@@ -172,13 +173,14 @@ function inspectSource(path: string, resource: ScanSourceResource, mode?: ScanSo
 }
 
 function validateEntry(value: unknown, platform: string, resource: ScanSourceResource, index: number): ScanSourceUserEntry {
-  if (!isObject(value)) throw new Error(`${platform}.${resource}[${index}] 必须是对象。`);
+  const entryPath = `${platform}.${resource}[${index}]`;
+  if (!isObject(value)) throw new Error(zhMessage('validation.entryObject', { path: entryPath }));
   const id = stringValue(value.id);
   const path = stringValue(value.path);
-  if (!id) throw new Error(`${platform}.${resource}[${index}] 缺少 id。`);
-  if (!path) throw new Error(`${platform}.${resource}[${index}] 缺少路径。`);
-  if (value.scope !== 'global' && value.scope !== 'project') throw new Error(`${platform}.${resource}[${index}] scope 无效。`);
-  if (resource === 'mcp' && value.format !== 'json' && value.format !== 'toml') throw new Error(`${platform}.${resource}[${index}] MCP format 必须是 json 或 toml。`);
+  if (!id) throw new Error(zhMessage('validation.missingId', { path: entryPath }));
+  if (!path) throw new Error(zhMessage('validation.missingPath', { path: entryPath }));
+  if (value.scope !== 'global' && value.scope !== 'project') throw new Error(zhMessage('validation.invalidScope', { path: entryPath }));
+  if (resource === 'mcp' && value.format !== 'json' && value.format !== 'toml') throw new Error(zhMessage('validation.invalidMcpFormat', { path: entryPath }));
   return {
     id, path, scope: value.scope,
     ...(typeof value.enabled === 'boolean' ? { enabled: value.enabled } : {}),

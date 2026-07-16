@@ -2,6 +2,7 @@ import { existsSync, statSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 
+import { zhMessage } from '../i18n';
 import type { HealthCheckOptions } from '../application/types';
 import { detectAgents } from '../discovery/detectAgents';
 import { normalizePlatformName } from '../platforms/registry';
@@ -72,8 +73,8 @@ export async function handleScanRoute(
 
 function readProjectDir(value: unknown, fallback: string): string {
   const projectDir = resolve(typeof value === 'string' && value.trim() ? value.trim() : fallback);
-  if (!existsSync(projectDir)) throw new Error(`项目目录不存在：${projectDir}`);
-  if (!statSync(projectDir).isDirectory()) throw new Error(`项目路径不是目录：${projectDir}`);
+  if (!existsSync(projectDir)) throw new Error(zhMessage('error.projectMissing', { path: projectDir }));
+  if (!statSync(projectDir).isDirectory()) throw new Error(zhMessage('error.projectNotDirectory', { path: projectDir }));
   return projectDir;
 }
 
@@ -90,4 +91,3 @@ function readPlatform(value: unknown): Platform | null {
 function positiveInt(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
 }
-

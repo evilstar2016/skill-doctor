@@ -5,6 +5,7 @@ import { saveUserConfig } from '../config/loadUserConfig';
 import { validateScanSourcesConfig, withScanSources } from '../config/scanSources';
 import { detectAgents } from '../discovery/detectAgents';
 import { getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
+import { zhMessage } from '../i18n';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 import type { ApiRequestContext } from './apiContext';
 import { pickNativeDirectory } from './nativeDirectoryPicker';
@@ -51,7 +52,7 @@ export async function handleConfigRoute(
   }
 
   if (request.method === 'POST' && url.pathname === '/api/project-directory/pick') {
-    const projectDir = await pickNativeDirectory('选择项目目录');
+    const projectDir = await pickNativeDirectory(zhMessage('picker.projectDirectory'));
     sendJson(response, 200, projectDir ? { projectDir } : { cancelled: true });
     return true;
   }

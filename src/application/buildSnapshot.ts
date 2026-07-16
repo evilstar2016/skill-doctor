@@ -102,7 +102,7 @@ export function buildIssues(
       summary: finding.summary,
       resourceIds: [resourceIdByPath.get(finding.sourcePath) ?? stableId('resource', finding.sourcePath)],
       resourceNames: [finding.skillName],
-      evidence: [{ label: '命中内容', value: finding.matchedText, path: finding.sourcePath }],
+      evidence: [{ label: 'i18n:evidence.match', value: finding.matchedText, path: finding.sourcePath }],
       recommendation: auditRecommendation(finding.ruleId),
       detectionMethod: 'static-rule',
       sourceFinding: finding,
@@ -118,8 +118,8 @@ export function buildIssues(
       summary: finding.detail,
       resourceIds: [resourceIdByPath.get(finding.sourcePath) ?? stableId('resource', finding.sourcePath)],
       resourceNames: [finding.skillName],
-      evidence: finding.evidence ? [{ label: 'AI 证据', value: finding.evidence, path: finding.sourcePath }] : [],
-      recommendation: '人工核对证据与完整指令，确认风险后再修改或停用。',
+      evidence: finding.evidence ? [{ label: 'i18n:evidence.ai', value: finding.evidence, path: finding.sourcePath }] : [],
+      recommendation: 'i18n:recommendation.aiAudit',
       detectionMethod: 'ai-audit',
       sourceFinding: finding,
     });
@@ -133,18 +133,18 @@ export function buildIssues(
       id: stableId('issue', pair.kind, pair.a.sourcePath, pair.b.sourcePath),
       kind: pair.kind,
       severity: pair.severity,
-      title: pair.kind === 'duplicate' ? `发现重复资源：${pair.a.name}` : `${pair.a.name} 与 ${pair.b.name} 可能同时触发`,
+      title: pair.kind === 'duplicate' ? `i18n:issue.duplicateTitle|name=${encodeURIComponent(pair.a.name)}` : `i18n:issue.conflictTitle|left=${encodeURIComponent(pair.a.name)}|right=${encodeURIComponent(pair.b.name)}`,
       summary: pair.kind === 'duplicate'
-        ? '同名资源安装在多个位置，可能造成版本漂移或加载顺序不明确。'
-        : pair.analysis?.summary ?? `两个资源共享 ${pair.sharedTokens.length} 个触发词或描述关键词。`,
+        ? 'i18n:issue.duplicateSummary'
+        : pair.analysis?.summary ?? `i18n:issue.conflictSummary|count=${pair.sharedTokens.length}`,
       resourceIds: [resourceIdForSkill(pair.a), resourceIdForSkill(pair.b)],
       resourceNames: [pair.a.name, pair.b.name],
       evidence: pair.kind === 'duplicate'
         ? [
-            { label: '副本 A', value: pair.a.sourcePath, path: pair.a.sourcePath },
-            { label: '副本 B', value: pair.b.sourcePath, path: pair.b.sourcePath },
+            { label: 'i18n:evidence.copyA', value: pair.a.sourcePath, path: pair.a.sourcePath },
+            { label: 'i18n:evidence.copyB', value: pair.b.sourcePath, path: pair.b.sourcePath },
           ]
-        : [{ label: '共享触发词', value: pair.sharedTokens.join('、') || '语义重叠' }],
+        : [{ label: 'i18n:evidence.sharedTriggers', value: pair.sharedTokens.join('、') || 'semantic_overlap' }],
       recommendation: pair.remediation,
       detectionMethod: pair.detectionMethod,
       similarity: pair.similarity,
@@ -162,8 +162,8 @@ export function buildIssues(
       summary: `context-over-budget-summary:${context.summary.totalEstimatedTokens}:${context.summary.budgetTokens}`,
       resourceIds: context.items.filter((item) => fixedCost(item) > 0).slice(0, 5).map(resourceIdForContextItem),
       resourceNames: context.items.filter((item) => fixedCost(item) > 0).slice(0, 5).map((item) => item.name),
-      evidence: [{ label: '预算', value: `${context.summary.totalEstimatedTokens} / ${context.summary.budgetTokens} tokens` }],
-      recommendation: '优先检查 always-on 指令、MCP 工具描述和宽泛的 skill 元数据。',
+      evidence: [{ label: 'i18n:evidence.budget', value: `${context.summary.totalEstimatedTokens} / ${context.summary.budgetTokens} tokens` }],
+      recommendation: 'i18n:recommendation.contextBudget',
       detectionMethod: 'context-budget',
     });
   }
@@ -174,11 +174,11 @@ export function buildIssues(
       id: stableId('issue', 'context-unknown', item.id, item.sourcePath),
       kind: 'context',
       severity: 'info',
-      title: `${item.name} 的上下文成本未知`,
+      title: `i18n:issue.contextUnknownTitle|name=${encodeURIComponent(item.name)}`,
       summary: item.recommendation,
       resourceIds: [resourceIdForContextItem(item)],
       resourceNames: [item.name],
-      evidence: [{ label: '资源', value: item.sourcePath, path: item.sourcePath }],
+      evidence: [{ label: 'i18n:evidence.resource', value: item.sourcePath, path: item.sourcePath }],
       recommendation: item.recommendation,
       detectionMethod: 'context-estimate',
     });
@@ -350,7 +350,7 @@ function buildResources(
         activationTokens: 0,
         issueIds: [],
         status: 'unknown',
-        recommendation: '缓存 UI 元数据；可见不代表已经启用或进入模型上下文。',
+        recommendation: 'i18n:recommendation.cachedPlugin',
         estimateStatus: 'unknown',
       });
     }
@@ -374,7 +374,7 @@ function buildResources(
         activationTokens: 0,
         issueIds: [],
         status: 'unknown',
-        recommendation: `缓存目录条目 · ${entry.invocation === 'explicit-only' ? '仅显式调用' : entry.invocation === 'implicit' ? '允许隐式调用' : '调用策略未知'} · 不计入上下文成本。`,
+        recommendation: `i18n:recommendation.cachedPluginEntry|invocation=${entry.invocation ?? 'unknown'}`,
         estimateStatus: 'unknown',
       });
     }
@@ -478,20 +478,16 @@ function labelFromContextItem(item: ContextCostItem): string {
 
 function auditTitle(ruleId: string): string {
   return ({
-    'shell-exec': '检查可能执行 Shell 的指令',
-    destructive: '检查可能造成破坏的操作',
-    'secret-leak': '避免输出或暴露敏感凭据',
-    'network-call': '确认外部网络请求是否必要',
-  } as Record<string, string>)[ruleId] ?? '检查可疑指令';
+    'shell-exec': 'i18n:audit.shellExecTitle', destructive: 'i18n:audit.destructiveTitle',
+    'secret-leak': 'i18n:audit.secretLeakTitle', 'network-call': 'i18n:audit.networkCallTitle',
+  } as Record<string, string>)[ruleId] ?? 'i18n:audit.unknownTitle';
 }
 
 function auditRecommendation(ruleId: string): string {
   return ({
-    'shell-exec': '限制可执行命令范围，并要求在执行高影响命令前获得用户确认。',
-    destructive: '删除无保护的破坏性步骤，增加预览、备份与明确确认。',
-    'secret-leak': '禁止输出密钥原文，只允许使用脱敏值或安全凭据引用。',
-    'network-call': '说明目标地址和发送字段，上传前要求用户确认。',
-  } as Record<string, string>)[ruleId] ?? '人工核对完整指令和实际使用场景。';
+    'shell-exec': 'i18n:audit.shellExecRecommendation', destructive: 'i18n:audit.destructiveRecommendation',
+    'secret-leak': 'i18n:audit.secretLeakRecommendation', 'network-call': 'i18n:audit.networkCallRecommendation',
+  } as Record<string, string>)[ruleId] ?? 'i18n:audit.unknownRecommendation';
 }
 
 function compareIssues(left: UiIssue, right: UiIssue): number {

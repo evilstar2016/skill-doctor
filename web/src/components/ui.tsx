@@ -35,6 +35,14 @@ export function activationLabel(value: string | undefined, t: ReturnType<typeof 
 }
 export function shortPath(path: string): string { if (!path) return ''; const home = path.match(/^\/Users\/[^/]+|^\/home\/[^/]+/)?.[0]; return home ? path.replace(home, '~') : path; }
 export function translateResultText(text: string, t: ReturnType<typeof useTranslation>['t']): string {
+  if (text.startsWith('i18n:')) {
+    const [key, ...pairs] = text.slice(5).split('|');
+    const values = Object.fromEntries(pairs.map((pair) => {
+      const [name, value = ''] = pair.split('=', 2);
+      return [name, decodeURIComponent(value)];
+    }));
+    return t(key as Parameters<typeof t>[0], Object.keys(values).length ? values : undefined);
+  }
   if (text === 'context-over-budget') return t('result.contextOverBudget.title');
   const match = text.match(/^context-over-budget-summary:(\d+):(\d+)$/);
   return match ? t('result.contextOverBudget.summary', { cost: match[1], budget: match[2] }) : text;

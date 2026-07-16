@@ -219,6 +219,42 @@
   "common.close": "关闭",
   "common.help": "解释{{label}}",
   "runtime.scanConnectionClosed": "扫描连接已关闭",
+  "progress.discovering": "正在发现 skills、rules、instructions 与 MCP 配置",
+  "progress.conflicts": "正在检查重复安装与触发冲突",
+  "progress.audit": "正在执行安全审计",
+  "progress.context": "正在估算固定与按需上下文成本",
+  "progress.grouping": "正在整理资源用途",
+  "warning.aiNotConfigured": "AI 审计未运行：尚未配置 analysis 服务。",
+  "warning.aiAuditFailed": "AI 审计失败：{{error}}",
+  "warning.contextFailed": "上下文成本分析未完成：{{error}}",
+  "warning.groupingFailed": "资源分组未完成：{{error}}",
+  "warning.mcpDiscoveryFailed": "无法发现 MCP 工具：{{error}}",
+  "evidence.match": "命中内容",
+  "evidence.ai": "AI 证据",
+  "evidence.copyA": "副本 A",
+  "evidence.copyB": "副本 B",
+  "evidence.sharedTriggers": "共享触发词",
+  "evidence.budget": "预算",
+  "evidence.resource": "资源",
+  "issue.duplicateTitle": "发现重复资源：{{name}}",
+  "issue.conflictTitle": "{{left}} 与 {{right}} 可能同时触发",
+  "issue.duplicateSummary": "同名资源安装在多个位置，可能造成版本漂移或加载顺序不明确。",
+  "issue.conflictSummary": "两个资源共享 {{count}} 个触发词或描述关键词。",
+  "issue.contextUnknownTitle": "{{name}} 的上下文成本未知",
+  "recommendation.aiAudit": "人工核对证据与完整指令，确认风险后再修改或停用。",
+  "recommendation.contextBudget": "优先检查 always-on 指令、MCP 工具描述和宽泛的 skill 元数据。",
+  "recommendation.cachedPlugin": "缓存 UI 元数据；可见不代表已经启用或进入模型上下文。",
+  "recommendation.cachedPluginEntry": "缓存目录条目 · {{invocation}} · 不计入上下文成本。",
+  "audit.shellExecTitle": "检查可能执行 Shell 的指令",
+  "audit.destructiveTitle": "检查可能造成破坏的操作",
+  "audit.secretLeakTitle": "避免输出或暴露敏感凭据",
+  "audit.networkCallTitle": "确认外部网络请求是否必要",
+  "audit.unknownTitle": "检查可疑指令",
+  "audit.shellExecRecommendation": "限制可执行命令范围，并要求在执行高影响命令前获得用户确认。",
+  "audit.destructiveRecommendation": "删除无保护的破坏性步骤，增加预览、备份与明确确认。",
+  "audit.secretLeakRecommendation": "禁止输出密钥原文，只允许使用脱敏值或安全凭据引用。",
+  "audit.networkCallRecommendation": "说明目标地址和发送字段，上传前要求用户确认。",
+  "audit.unknownRecommendation": "人工核对完整指令和实际使用场景。",
   "context.toggleConfirm": "{{action}} {{name}}？该修改将在新 Codex 会话中生效。",
   "context.updatedNewSession": "配置已更新，新会话后生效",
   "onboarding.eyebrow": "第一次体检",
@@ -322,4 +358,28 @@
   "compare.triggers": "触发词",
   "compare.checklist": "流程项",
   "compare.empty": "未提取到流程清单"
+  ,"cli.triggerConditions": "触发条件"
+  ,"cli.coverage": "功能覆盖"
+  ,"cli.sharedCoverage": "共同覆盖"
+  ,"cli.only": "仅 {{name}}"
+  ,"cli.prosCons": "优缺点"
+  ,"cli.advice": "分情况建议"
+  ,"cli.either": "均可"
+  ,"cli.choose": "选 {{name}}"
+  ,"error.projectMissing": "项目目录不存在：{{path}}"
+  ,"error.projectNotDirectory": "项目路径不是目录：{{path}}"
+  ,"error.directoryPicker": "无法打开系统目录选择器：{{error}}"
+  ,"picker.projectDirectory": "选择项目目录"
+  ,"picker.skillDirectory": "选择包含 Skills 的本地目录"
+  ,"validation.scanSourcesObject": "scanSources 必须是对象。"
+  ,"validation.unsupportedAgent": "不支持的 Agent: {{platform}}"
+  ,"validation.agentObject": "{{platform}} 配置必须是对象。"
+  ,"validation.unsupportedResource": "{{platform}} 包含不支持的资源类型: {{resource}}"
+  ,"validation.entriesArray": "{{path}} 必须是数组。"
+  ,"validation.duplicateId": "{{path}} 存在重复 id: {{id}}"
+  ,"validation.entryObject": "{{path}} 必须是对象。"
+  ,"validation.missingId": "{{path}} 缺少 id。"
+  ,"validation.missingPath": "{{path}} 缺少路径。"
+  ,"validation.invalidScope": "{{path}} scope 无效。"
+  ,"validation.invalidMcpFormat": "{{path}} MCP format 必须是 json 或 toml。"
 }

@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { zhMessage } from '../i18n';
 
 const execFileAsync = promisify(execFile);
 
@@ -42,7 +43,7 @@ export async function pickNativeDirectory(
     return selectedPath(stdout);
   } catch (error) {
     if (isCancellation(error)) return null;
-    throw new Error(`无法打开系统目录选择器：${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(zhMessage('error.directoryPicker', { error: error instanceof Error ? error.message : String(error) }));
   }
 }
 
