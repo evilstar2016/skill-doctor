@@ -28,6 +28,8 @@ import { I18nProvider, useTranslation } from './i18n';
 type Route = 'overview' | 'issues' | 'context' | 'resources' | 'scan-paths' | 'manage';
 type Theme = 'light' | 'dark';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
+type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
+type ScanState = { id?: string; running: boolean; message: string; progress: number; status?: ScanStatus };
 
 const DEFAULT_SCAN: ScanRequest = {
   projectDir: '', scope: 'all', platform: 'all', includeContext: true, includeDisabled: true, includeCache: true,
@@ -55,7 +57,7 @@ function AppContent() {
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [snapshot, setSnapshot] = useState<DoctorSnapshot | null>(null);
   const [scanOptions, setScanOptions] = useState<ScanRequest>(() => loadScanOptions());
-  const [scan, setScan] = useState<{ id?: string; running: boolean; message: string; progress: number }>({ running: false, message: '', progress: 0 });
+  const [scan, setScan] = useState<ScanState>({ running: false, message: '', progress: 0 });
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -90,7 +92,7 @@ function AppContent() {
     activeScanId.current = undefined;
     if (previousScanId) void cancelScan(previousScanId);
     setError(null);
-    setScan({ running: true, message: t('status.preparing'), progress: 3 });
+    setScan({ running: true, message: t('status.preparing'), progress: 3, status: 'preparing' });
     saveProjectPreference(options);
     try {
       const id = await startScan(options);
@@ -100,31 +102,31 @@ function AppContent() {
       cleanupStream.current = streamScan(id, {
         progress(event) {
           if (version !== scanVersion.current) return;
-          setScan({ id, running: true, message: translateResultText(event.message, t), progress: Math.round((event.completed / event.total) * 100) });
+          setScan({ id, running: true, message: translateResultText(event.message, t), progress: Math.round((event.completed / event.total) * 100), status: 'preparing' });
         },
         complete(nextSnapshot) {
           if (version !== scanVersion.current || nextSnapshot.target.platform !== (options.platform === 'all' ? null : options.platform)) return;
           activeScanId.current = undefined;
           setSnapshot(nextSnapshot);
-          setScan({ running: false, message: nextSnapshot.status === 'partial' ? t('status.partial') : t('status.complete'), progress: 100 });
+          setScan({ running: false, message: nextSnapshot.status === 'partial' ? t('status.partial') : t('status.complete'), progress: 100, status: nextSnapshot.status === 'partial' ? 'partial' : 'complete' });
           setToast(t('toast.updated'));
         },
         error(nextError) {
           if (version !== scanVersion.current) return;
           activeScanId.current = undefined;
           setError(localizeRuntimeMessage(nextError.message, t));
-          setScan({ running: false, message: t('status.failed'), progress: 0 });
+          setScan({ running: false, message: t('status.failed'), progress: 0, status: 'failed' });
         },
         cancelled() {
           if (version !== scanVersion.current) return;
           activeScanId.current = undefined;
-          setScan({ running: false, message: t('status.cancelled'), progress: 0 });
+          setScan({ running: false, message: t('status.cancelled'), progress: 0, status: 'cancelled' });
         },
       });
     } catch (nextError) {
       if (version !== scanVersion.current) return;
       setError(localizeRuntimeMessage(nextError instanceof Error ? nextError.message : String(nextError), t));
-      setScan({ running: false, message: t('status.failed'), progress: 0 });
+      setScan({ running: false, message: t('status.failed'), progress: 0, status: 'failed' });
     }
   }, [t]);
 
@@ -206,7 +208,7 @@ function AppContent() {
             const id = activeScanId.current;
             activeScanId.current = undefined;
             if (id) void cancelScan(id);
-            setScan({ running: false, message: t('status.cancelled'), progress: 0 });
+            setScan({ running: false, message: t('status.cancelled'), progress: 0, status: 'cancelled' });
           }}
           openSettings={() => setSettingsOpen(true)}
           detectedAgents={detectedAgents}
@@ -314,7 +316,7 @@ function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route
 }
 
 function Topbar(props: {
-  bootstrap: BootstrapPayload | null; scan: { id?: string; running: boolean; message: string; progress: number };
+  bootstrap: BootstrapPayload | null; scan: ScanState;
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
   analysisMode: AnalysisMode; setAnalysisMode: (mode: AnalysisMode) => void;
@@ -333,7 +335,7 @@ function Topbar(props: {
         <span className="project-path" title={scanOptions.projectDir}>{shortPath(scanOptions.projectDir)}</span>
       </div>
       {scan.running && <div className="scan-progress"><span style={{ width: `${scan.progress}%` }} /></div>}
-      <span className="scan-message">{scan.message || t('topbar.waiting')}</span>
+      <span className="scan-message">{scan.running ? scan.message : scanStatusMessage(scan.status, t)}</span>
     </div>
     <div className="top-actions">
       <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>
@@ -454,6 +456,11 @@ function CompareColumn({ title, profile }: { title: string; profile: DiffResult[
 
 function Drawer({ title, subtitle, close, children }: { title: string; subtitle?: string; close: () => void; children: ReactNode }) { const { t } = useTranslation(); return <div className="drawer-backdrop" onMouseDown={(event) => event.target === event.currentTarget && close()}><aside className="drawer" role="dialog" aria-modal="true"><header><div><span className="eyebrow">{subtitle}</span><h2>{title}</h2></div><button className="icon-button" onClick={close} aria-label={t('common.close')}><X size={19} /></button></header><div className="drawer-body">{children}</div></aside></div>; }
 
+function scanStatusMessage(status: ScanState['status'], t: ReturnType<typeof useTranslation>['t']): string {
+  if (!status) return t('topbar.waiting');
+  const key = { preparing: 'status.preparing', complete: 'status.complete', partial: 'status.partial', failed: 'status.failed', cancelled: 'status.cancelled' } as const;
+  return t(key[status]);
+}
 function routeFromHash(): Route { const value = window.location.hash.replace(/^#\//, '') as Route; return ROUTES.some((route) => route.id === value) ? value : 'overview'; }
 function initialScanOptions(payload: BootstrapPayload): ScanRequest {
   const preference = loadProjectPreference(payload.projectDir);
