@@ -16,6 +16,7 @@ import {
 } from '../application/actions';
 import { normalizePlatformName } from '../platforms/registry';
 import type { AgentImportDecision } from '../library/importAgentSkills';
+import { zhMessage } from '../i18n';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 import type { ApiRequestContext } from './apiContext';
 import { pickNativeDirectory } from './nativeDirectoryPicker';
@@ -120,7 +121,7 @@ export async function handleLibraryRoute(
   }
 
   if (request.method === 'POST' && url.pathname === '/api/install/source/pick') {
-    const source = await pickNativeDirectory('选择包含 Skills 的本地目录');
+    const source = await pickNativeDirectory(zhMessage('picker.skillDirectory'));
     sendJson(response, 200, source ? inspectManagedSkillSource(source) : { cancelled: true });
     return true;
   }
