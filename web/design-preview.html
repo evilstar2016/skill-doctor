@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Skill Doctor — Design Preview (clinical green v2)</title>
+<style>
+:root{
+  --bg:#f3f6f4;--surface:#fff;--surface-2:#eef2ef;--surface-3:#e5ebe6;
+  --text:#16201a;--muted:#5b6860;--faint:#8a958d;--border:#dde4dd;--border-strong:#c6d0c6;
+  --accent:#15925f;--accent-hover:#117a4e;--accent-soft:#e2f4ec;--accent-text:#0c663f;
+  --danger:#d22f2f;--danger-soft:#fdeaea;--danger-text:#a31818;
+  --warning:#b97709;--warning-soft:#fdf3df;--warning-text:#8a5700;
+  --info:#2f7da3;--info-soft:#e6f1f6;--info-text:#1f5e7d;
+  --success:#15925f;--success-soft:#e2f4ec;--success-text:#0c663f;
+  --shadow-xs:0 1px 2px rgba(20,40,30,.06);--shadow-sm:0 2px 8px rgba(20,40,30,.07);
+  --shadow-md:0 8px 24px rgba(20,40,30,.09);--shadow-lg:0 16px 48px rgba(20,40,30,.10);--shadow-xl:0 28px 70px rgba(20,40,30,.14);
+  --radius-xs:7px;--radius-sm:9px;--radius:12px;--radius-lg:16px;--radius-xl:22px;--radius-pill:999px;
+  --ring:0 0 0 3px rgba(21,146,95,.30);
+  --ease:cubic-bezier(.22,.61,.36,1);--ease-out:cubic-bezier(.16,1,.3,1);
+}
+:root[data-theme="dark"]{
+  --bg:#0e1512;--surface:#161d19;--surface-2:#1d261f;--surface-3:#253028;
+  --text:#e7efe9;--muted:#9fab9f;--faint:#7c887c;--border:#283129;--border-strong:#374237;
+  --accent:#2fbf86;--accent-hover:#3ccf93;--accent-soft:#173328;--accent-text:#83e0b6;
+  --danger:#ff7a6e;--danger-soft:#3a201d;--danger-text:#ff9d94;
+  --warning:#e7b34a;--warning-soft:#3a2f12;--warning-text:#f0c669;
+  --info:#6fb6d6;--info-soft:#16303a;--info-text:#8fcdec;
+  --success:#2fbf86;--success-soft:#173328;--success-text:#83e0b6;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.4);--shadow-sm:0 2px 8px rgba(0,0,0,.45);--shadow-md:0 8px 24px rgba(0,0,0,.5);
+  --shadow-lg:0 16px 48px rgba(0,0,0,.55);--shadow-xl:0 28px 70px rgba(0,0,0,.6);
+  --ring:0 0 0 3px rgba(47,191,134,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.sidebar{background:linear-gradient(180deg,var(--sidebar),color-mix(in srgb,var(--sidebar),#000 6%));border-right:1px solid var(--border);padding:22px 16px;display:flex;flex-direction:column;box-shadow:1px 0 0 var(--border),18px 0 40px -30px rgba(20,40,30,.5)}
+.brand{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:650;padding:0 10px 24px;letter-spacing:-.01em}
+.brand-mark{width:34px;height:34px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#0e7a4f);color:#fff;border:0;border-radius:11px;box-shadow:0 6px 16px rgba(21,146,95,.35)}
+.nav{display:grid;gap:5px}
+.nav button{border:0;background:transparent;display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:var(--radius);color:var(--muted);text-align:left;font-size:14px;font-weight:500;cursor:pointer;transition:.18s var(--ease)}
+.nav button:hover{background:var(--surface-2);color:var(--text)}
+.nav button.active{background:linear-gradient(180deg,var(--accent),var(--accent-hover));color:#fff;box-shadow:0 8px 20px rgba(21,146,95,.30)}
+.nav .count{margin-left:auto;min-width:23px;height:21px;border-radius:999px;background:rgba(255,255,255,.19);display:grid;place-items:center;font-size:12px}
+.side-foot{margin-top:auto;display:flex;gap:10px;align-items:flex-start;color:var(--muted);padding:12px 10px;font-size:12px}
+.main{min-width:0}
+.topbar{height:118px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:24px;padding:17px clamp(24px,4vw,56px);background:color-mix(in srgb,var(--bg) 90%,transparent);position:sticky;top:0;z-index:4;backdrop-filter:blur(16px);box-shadow:0 1px 0 var(--border),0 10px 30px -24px rgba(20,40,30,.5)}
+.eyebrow{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+.target{display:flex;align-items:center;gap:14px}
+select,input{font:inherit;color:inherit;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-sm);padding:8px 10px}
+select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+.actions{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);border-radius:var(--radius-sm);padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.18s var(--ease)}
+.btn:hover{box-shadow:var(--shadow-sm)}
+.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-hover));color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(21,146,95,.28)}
+.icon{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:var(--radius-sm);cursor:pointer}
+.icon:hover{background:var(--surface-2);color:var(--text)}
+.agentbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:7px clamp(24px,4vw,56px);background:var(--surface);box-shadow:0 1px 0 var(--border)}
+.agentbar>span{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tabs{display:flex;gap:6px}
+.tabs button{border:1px solid transparent;background:transparent;border-radius:9px;padding:7px 10px;font-size:12px;color:var(--muted);cursor:pointer}
+.tabs button.active{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 25%,var(--border));color:var(--accent-text);font-weight:650}
+.page{padding:clamp(24px,4vw,56px)}
+.page h1{font-size:27px;font-weight:700;letter-spacing:-.02em;margin:0}
+.page p.sub{margin:5px 0 28px;color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow-xs);transition:.22s var(--ease)}
+.stat:hover{box-shadow:var(--shadow-sm);transform:translateY(-2px);border-color:var(--border-strong)}
+.stat span{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.stat strong{display:block;font-size:30px;font-weight:700;letter-spacing:-.02em;color:var(--accent-text);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:4px}
+.stat small{font-size:12px;color:var(--faint)}
+.issues{display:grid;gap:12px}
+.issue{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;transition:.22s var(--ease)}
+.issue:hover{box-shadow:var(--shadow-sm);transform:translateY(-2px);border-color:var(--border-strong)}
+.issue .ic{width:38px;height:38px;display:grid;place-items:center;border-radius:var(--radius-sm);background:var(--danger-soft);color:var(--danger-text)}
+.issue .ic.warn{background:var(--warning-soft);color:var(--warning-text)}
+.issue strong{font-size:14px}
+.issue small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:var(--radius-pill);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.pill.high{background:var(--danger-soft);color:var(--danger-text)}
+.pill.med{background:var(--warning-soft);color:var(--warning-text)}
+.pill.low{background:var(--info-soft);color:var(--info-text)}
+.pill.info{background:var(--accent-soft);color:var(--accent-text)}
+.notice{display:flex;gap:12px;align-items:flex-start;background:var(--info-soft);color:var(--info-text);border:1px solid color-mix(in srgb,var(--info) 22%,transparent);border-radius:var(--radius);padding:14px 16px;margin-bottom:28px;font-size:13px}
+.notice b{display:block;margin-bottom:2px}
+.tag{display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px 10px;font-size:11px;color:var(--muted);margin:2px}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.page,.stat,.issue{animation:rise .5s var(--ease-out) both}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">✚</span><span>Skill Doctor</span></div>
+    <nav class="nav">
+      <button class="active">▦ Overview</button>
+      <button>Issues <span class="count">7</span></button>
+      <button>📊 Context</button>
+      <button>▣ Resources</button>
+      <button>⚙ Scan Paths</button>
+      <button>＋ Manage</button>
+    </nav>
+    <div class="side-foot">🛡 Local &amp; private</div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">TARGET</div>
+        <div class="target">
+          <select><option>All scopes</option><option>Project</option><option>Global</option></select>
+          <span>~/projects/ai-agent</span>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="icon" onclick="toggle()" id="themeBtn">🌙</div>
+        <button class="btn">⟳ Rescan</button>
+      </div>
+    </header>
+    <div class="agentbar"><span>AGENT</span><div class="tabs">
+      <button class="active">Claude</button><button>Cursor</button><button>Copilot</button><button>Codex</button><button class="active">Overview</button>
+    </div></div>
+    <div class="page">
+      <h1>Health Overview</h1>
+      <p class="sub">Diagnostics across your AI-agent skill ecosystem.</p>
+      <div class="notice"><div>ℹ</div><div><b>Cross-agent scan</b>No single agent selected — results combine all detected platforms.</div></div>
+      <div class="stats">
+        <div class="stat"><span>Total skills</span><strong>42</strong><small>across 4 platforms</small></div>
+        <div class="stat"><span>Conflicts</span><strong>5</strong><small>2 high · 3 low</small></div>
+        <div class="stat"><span>Duplicates</span><strong>2</strong><small>recommend cleanup</small></div>
+        <div class="stat"><span>Context tax</span><strong>1.2k</strong><small>tokens / turn</small></div>
+      </div>
+      <div class="issues">
+        <div class="issue"><span class="ic">⚠</span><div><strong>Shell execution in data-exporter</strong><small>data-exporter · HIGH severity · security</small></div><span class="pill high">High</span><span>→</span></div>
+        <div class="issue"><span class="ic warn">⚠</span><div><strong>ppt-master ↔ slide-builder overlap</strong><small>semantic conflict · MED severity</small></div><span class="pill med">Med</span><span>→</span></div>
+        <div class="issue"><span class="ic warn">⚠</span><div><strong>Duplicate ppt-master in two paths</strong><small>keep newer copy · LOW severity</small></div><span class="pill low">Low</span><span>→</span></div>
+      </div>
+      <p style="margin-top:20px"><span class="tag">git-workflow</span><span class="tag">github-automation</span><span class="tag">context-cost</span><span class="tag">mcp-tools</span></p>
+    </div>
+  </main>
+</div>
+<script>
+function toggle(){var r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';document.getElementById('themeBtn').textContent=r.dataset.theme==='dark'?'☀':'🌙';}
+</script>
+</body>
+</html>

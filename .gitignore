@@ -18,3 +18,5 @@ marketing/
 .codex/
 .playwright-cli/
 output/playwright/
+.workbuddy/
+analysis/
