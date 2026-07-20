@@ -265,3 +265,34 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
 .color-swatch:hover { background: var(--surface-2); }
 .color-swatch.active { background: var(--accent-soft); color: var(--accent-text); }
 .color-swatch .swatch-dot { width: 18px; height: 18px; border-radius: 999px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+
+/* —— Manage page redesign: shared context bar + task tabs —— */
+.manage-context-bar {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 22px;
+  padding: 16px 18px; margin-bottom: 18px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-xs);
+}
+.context-field { display: grid; gap: 7px; }
+.context-field > span { font-size: 11px; font-weight: 650; color: var(--muted); letter-spacing: .02em; }
+.context-field select {
+  min-width: 184px; border: 1px solid var(--border); background: var(--surface-2);
+  border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px;
+}
+.context-hint {
+  margin: 0; margin-left: auto; align-self: center; max-width: 340px;
+  color: var(--faint); font-size: 11px; text-align: right; line-height: 1.5;
+}
+.manage-tabs { margin: 2px 0 18px; }
+.manage-tabs button { display: inline-flex; align-items: center; gap: 7px; }
+.manage-tabs .tab-count {
+  margin-left: 2px; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 999px;
+  background: var(--surface-3); color: var(--muted); display: grid; place-items: center; font-size: 11px;
+}
+.manage-tab-panel { display: grid; gap: 18px; }
+.manage-tab-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 1050px) {
+  .manage-tab-grid { grid-template-columns: 1fr; }
+  .manage-context-bar { flex-direction: column; align-items: stretch; }
+  .context-hint { margin-left: 0; text-align: left; }
+}

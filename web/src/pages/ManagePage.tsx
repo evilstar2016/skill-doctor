@@ -1,4 +1,4 @@
-import { ArchiveRestore, Download, FileCode2, FolderOpen, LoaderCircle, PackagePlus, Search, Trash2 } from 'lucide-react';
+import { ArchiveRestore, Boxes, FileCode2, FolderOpen, LoaderCircle, PackagePlus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { BootstrapPayload, DoctorSnapshot } from '../../../src/application/types';
 import type { InstallSourceSkill, TargetAgentSkill } from '../../../src/application/install';
@@ -11,6 +11,8 @@ import { useTranslation } from '../i18n';
 type SelectableSkill = InstallSourceSkill;
 
 type InstallPlatform = Exclude<Platform, 'unknown'>;
+
+type ManageTab = 'install' | 'installed' | 'reclaim' | 'export';
 
 export function ManagePage({ bootstrap, snapshot, onChanged, setToast }: { bootstrap: BootstrapPayload | null; snapshot: DoctorSnapshot | null; onChanged: () => void; setToast: (message: string) => void }) {
   const { t } = useTranslation();
@@ -34,6 +36,7 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast }: { boots
   const [busy, setBusy] = useState(false);
   const [sourceBusy, setSourceBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [tab, setTab] = useState<ManageTab>('install');
 
   useEffect(() => {
     if (platforms.length > 0 && !platforms.includes(target)) setTarget(platforms[0]);
@@ -194,23 +197,81 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast }: { boots
     }
   };
 
-  return <section><PageHeading title={t('manage.title')} subtitle={t('manage.subtitle')}><a className="button secondary" href="/api/export/dashboard" download><Download size={16} />{t('manage.export')}</a></PageHeading>
-    <div className="manage-grid"><section className="panel install-panel"><div className="panel-heading"><div><h3>{t('manage.installTitle')}</h3><p>{t('manage.installSubtitle')}</p></div><PackagePlus size={20} /></div>
-      <div className="segmented"><button className={sourceType === 'local' ? 'active' : ''} onClick={() => chooseSourceType('local')}>{t('manage.local')}</button><button className={sourceType === 'marketplace' ? 'active' : ''} onClick={() => chooseSourceType('marketplace')}>Marketplace</button></div>
-      {sourceType === 'local' ? <>
-        <label className="field"><span>{t('manage.source')}</span><div className="source-input-row"><input aria-label={t('manage.source')} value={source} onChange={(event) => setSource(event.target.value)} placeholder="/path/to/skills" /><button className="button secondary compact" disabled={!source.trim() || sourceBusy} onClick={() => void inspectSource()}>{sourceBusy ? <LoaderCircle className="spin" size={15} /> : <Search size={15} />}{t('manage.read')}</button></div></label>
-        <div className="directory-choice"><span>{t('manage.or')}</span><button className="button secondary" disabled={sourceBusy} onClick={() => void chooseDirectory()}><FolderOpen size={16} />{t('manage.chooseDirectory')}</button><small>{t('manage.localOnly')}</small></div>
-        {skills.length > 0 && <div className="skill-picker"><div className="skill-picker-heading"><div><strong>{t('manage.sourceSkills')}</strong><small>{sourceLabel} · {t('manage.found', { count: skills.length })}</small></div><label><input type="checkbox" aria-label={t('manage.selectAllInstall')} checked={selectableSkills.length > 0 && selectedSkills.length === selectableSkills.length} onChange={(event) => setSelectedIds(event.target.checked ? selectableSkills.map((skill) => skill.id) : [])} />{t('manage.selectAllInstall')}</label></div><div className="skill-check-list">{skills.map((skill) => { const exists = existingNames.has(skill.name.toLowerCase()); return <label className={exists ? 'disabled' : ''} key={skill.id}><input type="checkbox" checked={!exists && selectedIds.includes(skill.id)} disabled={exists} onChange={(event) => toggleSkill(skill.id, event.target.checked)} /><span><code>{skill.name}</code><small>{skill.relativePath}</small></span>{exists && <em>{t('manage.exists')}</em>}</label>; })}</div></div>}
-        <label className="check-row"><input type="checkbox" checked={link} onChange={(event) => setLink(event.target.checked)} />{t('manage.link')}</label>
-      </> : <label className="field"><span>Skill slug</span><input value={source} onChange={(event) => setSource(event.target.value)} placeholder="owner/skill-name" /></label>}
-      <label className="field"><span>{t('manage.installTo')}</span><select value={target} onChange={(event) => setTarget(event.target.value as InstallPlatform)}>{platforms.map((value) => <option key={value} value={value}>{platformLabel(value)}</option>)}</select></label>
-      <label className="field"><span>{t('manage.installScope')}</span><select aria-label={t('manage.installScope')} value={installScope} onChange={(event) => setInstallScope(event.target.value as Scope)}><option value="global" disabled={!availableScopes.includes('global')}>{t('label.global')}</option><option value="project" disabled={!availableScopes.includes('project')}>{t('manage.currentProject')}</option></select></label>
-      {localError && <p className="form-error">{localError}</p>}
-      <button className="button primary full" disabled={busy || (sourceType === 'marketplace' ? !source.trim() : selectedSkills.length === 0)} onClick={() => void submit()}>{busy ? <LoaderCircle className="spin" size={17} /> : <PackagePlus size={17} />}{sourceType === 'marketplace' ? t('manage.install') : t('manage.installSelected', { count: selectedSkills.length })}</button>
-    </section><section className="panel target-skills-panel"><div className="panel-heading"><div><h3>{t('manage.targetTitle')}</h3><p>{t('manage.targetSubtitle')}</p></div><span className="result-count">{targetSkills.length}</span></div>{targetPath && <code className="target-path">{scopeLabel(installScope, t)}{t('manage.installDirectory')} · {shortPath(targetPath)}</code>}{targetLoading ? <div className="loading-line"><LoaderCircle className="spin" size={17} />{t('manage.reading')}</div> : <div className="target-skill-list">{targetSkills.map((skill) => <div key={skill.sourcePath}><span><code>{skill.name}</code><small>{shortPath(skill.sourcePath)}</small></span><span className="target-skill-badges"><em>{scopeLabel(skill.scope, t)}</em>{skill.managed && <em>{t('manage.registered')}</em>}</span></div>)}{targetSkills.length === 0 && <p className="muted empty-copy">{t('manage.targetEmpty')}</p>}</div>}</section></div>
-    <section className="panel reclaim-panel"><div className="panel-heading"><div><h3>{t('manage.reclaimTitle')}</h3><p>{t('manage.reclaimSubtitle')}</p></div><span className="result-count">{physicalCandidates.length}</span></div>{targetPath && <code className="target-path">{platformLabel(target)} · {scopeLabel(installScope, t)} · {shortPath(targetPath)}</code>}{targetLoading ? <div className="loading-line"><LoaderCircle className="spin" size={17} />{t('manage.discovering')}</div> : <>{physicalCandidates.length > 0 ? <div className="skill-picker reclaim-picker"><div className="skill-picker-heading"><div><strong>{t('manage.reclaimable')}</strong><small>{t('manage.reclaimableDetail')}</small></div><label><input type="checkbox" aria-label={t('manage.selectAllReclaim')} checked={reclaimableCandidates.length > 0 && selectedImportCandidates.length === reclaimableCandidates.length} onChange={(event) => setSelectedImportIds(event.target.checked ? reclaimableCandidates.map((candidate) => candidate.id) : [])} />{t('manage.selectAllReclaim')}</label></div><div className="skill-check-list">{physicalCandidates.map((candidate) => { const reclaimable = isReclaimableCandidate(candidate); return <label className={!reclaimable ? 'disabled' : ''} key={candidate.id}><input type="checkbox" checked={reclaimable && selectedImportIds.includes(candidate.id)} disabled={!reclaimable} onChange={(event) => setSelectedImportIds((current) => event.target.checked ? [...current, candidate.id] : current.filter((value) => value !== candidate.id))} /><span><code>{candidate.name}</code><small>{shortPath(candidate.rootPath)}</small></span><em>{agentImportStatusLabel(candidate, t)}</em></label>; })}</div></div> : <p className="muted empty-copy">{t('manage.reclaimEmpty')}</p>}<button className="button primary" disabled={importBusy || selectedImportCandidates.length === 0} onClick={() => void reclaimSelected()}>{importBusy ? <LoaderCircle className="spin" size={17} /> : <ArchiveRestore size={17} />}{t('manage.reclaimSelected', { count: selectedImportCandidates.length })}</button></>}</section>
-    <section className="panel report-panel"><div className="panel-heading"><div><h3>{t('manage.reportTitle')}</h3><p>{t('manage.reportSubtitle')}</p></div><FileCode2 size={20} /></div><div className="action-list"><div><span>{t('manage.staticReport')}</span><small>{t('manage.staticReportDetail')}</small></div><a className="button secondary" href="/api/export/dashboard" download>{t('manage.download')}</a><div><span>{t('manage.snapshot')}</span><small>{snapshot ? t('manage.snapshotDetail', { resources: snapshot.summary.resources, issues: snapshot.summary.issues }) : t('manage.notScanned')}</small></div><span className="muted">{snapshot ? new Date(snapshot.generatedAt).toLocaleString() : '—'}</span></div></section>
-    <section className="panel registry-panel"><div className="panel-heading"><div><h3>{t('manage.registryTitle')}</h3><p>{t('manage.registrySubtitle')}</p></div><span className="result-count">{bootstrap?.registry.length ?? 0}</span></div><div className="registry-list">{bootstrap?.registry.map((entry) => <div className="registry-row" key={`${entry.platform}:${entry.scope}:${entry.name}`}><div><code>{entry.name}</code><small>{entry.platform} · {scopeLabel(entry.scope, t)} · {entry.source} · {shortPath(entry.installedPath)}</small></div><button className="button danger compact" onClick={async () => { if (!window.confirm(t('manage.uninstallConfirm', { name: entry.name }))) return; try { await uninstallSkill({ name: entry.name, platform: entry.platform, scope: entry.scope, force: false }); setToast(t('manage.uninstalled', { name: entry.name })); onChanged(); } catch (error) { const message = error instanceof Error ? error.message : String(error); if (window.confirm(t('manage.forceUninstall', { error: message }))) { await uninstallSkill({ name: entry.name, platform: entry.platform, scope: entry.scope, force: true }); setToast(t('manage.forceUninstalled', { name: entry.name })); onChanged(); } } }}><Trash2 size={15} />{t('manage.uninstall')}</button></div>)}{!bootstrap?.registry.length && <p className="muted empty-copy">{t('manage.registryEmpty')}</p>}</div></section>
+  return <section>
+    <PageHeading title={t('manage.title')} subtitle={t('manage.subtitle')} />
+
+    <div className="manage-context-bar">
+      <div className="context-field">
+        <span>{t('manage.contextTarget')}</span>
+        <select value={target} onChange={(event) => setTarget(event.target.value as InstallPlatform)}>
+          {platforms.map((value) => <option key={value} value={value}>{platformLabel(value)}</option>)}
+        </select>
+      </div>
+      <div className="context-field">
+        <span>{t('manage.contextScope')}</span>
+        <div className="segmented">
+          <button className={installScope === 'global' ? 'active' : ''} disabled={!availableScopes.includes('global')} onClick={() => setInstallScope('global')}>{t('label.global')}</button>
+          <button className={installScope === 'project' ? 'active' : ''} disabled={!availableScopes.includes('project')} onClick={() => setInstallScope('project')}>{t('manage.currentProject')}</button>
+        </div>
+      </div>
+      <p className="context-hint">{t('manage.contextHint')}</p>
+    </div>
+
+    <div className="agent-tabs manage-tabs" role="tablist">
+      <button role="tab" aria-selected={tab === 'install'} className={tab === 'install' ? 'active' : ''} onClick={() => setTab('install')}><PackagePlus size={15} />{t('manage.tabs.install')}</button>
+      <button role="tab" aria-selected={tab === 'installed'} className={tab === 'installed' ? 'active' : ''} onClick={() => setTab('installed')}><Boxes size={15} />{t('manage.tabs.installed')}</button>
+      <button role="tab" aria-selected={tab === 'reclaim'} className={tab === 'reclaim' ? 'active' : ''} onClick={() => setTab('reclaim')}><ArchiveRestore size={15} />{t('manage.tabs.reclaim')}{physicalCandidates.length > 0 && <span className="tab-count">{physicalCandidates.length}</span>}</button>
+      <button role="tab" aria-selected={tab === 'export'} className={tab === 'export' ? 'active' : ''} onClick={() => setTab('export')}><FileCode2 size={15} />{t('manage.tabs.export')}</button>
+    </div>
+
+    {tab === 'install' && <div className="manage-tab-panel">
+      <section className="panel install-panel">
+        <div className="panel-heading"><div><h3>{t('manage.installTitle')}</h3><p>{t('manage.installSubtitle')}</p></div><PackagePlus size={20} /></div>
+        <div className="segmented"><button className={sourceType === 'local' ? 'active' : ''} onClick={() => chooseSourceType('local')}>{t('manage.local')}</button><button className={sourceType === 'marketplace' ? 'active' : ''} onClick={() => chooseSourceType('marketplace')}>{t('manage.marketplace')}</button></div>
+        {sourceType === 'local' ? <>
+          <label className="field"><span>{t('manage.source')}</span><div className="source-input-row"><input aria-label={t('manage.source')} value={source} onChange={(event) => setSource(event.target.value)} placeholder="/path/to/skills" /><button className="button secondary compact" disabled={!source.trim() || sourceBusy} onClick={() => void inspectSource()}>{sourceBusy ? <LoaderCircle className="spin" size={15} /> : <Search size={15} />}{t('manage.read')}</button></div></label>
+          <div className="directory-choice"><span>{t('manage.or')}</span><button className="button secondary" disabled={sourceBusy} onClick={() => void chooseDirectory()}><FolderOpen size={16} />{t('manage.chooseDirectory')}</button><small>{t('manage.localOnly')}</small></div>
+          {skills.length > 0 && <div className="skill-picker"><div className="skill-picker-heading"><div><strong>{t('manage.sourceSkills')}</strong><small>{sourceLabel} · {t('manage.found', { count: skills.length })}</small></div><label><input type="checkbox" aria-label={t('manage.selectAllInstall')} checked={selectableSkills.length > 0 && selectedSkills.length === selectableSkills.length} onChange={(event) => setSelectedIds(event.target.checked ? selectableSkills.map((skill) => skill.id) : [])} />{t('manage.selectAllInstall')}</label></div><div className="skill-check-list">{skills.map((skill) => { const exists = existingNames.has(skill.name.toLowerCase()); return <label className={exists ? 'disabled' : ''} key={skill.id}><input type="checkbox" checked={!exists && selectedIds.includes(skill.id)} disabled={exists} onChange={(event) => toggleSkill(skill.id, event.target.checked)} /><span><code>{skill.name}</code><small>{skill.relativePath}</small></span>{exists && <em>{t('manage.exists')}</em>}</label>; })}</div></div>}
+          <label className="check-row"><input type="checkbox" checked={link} onChange={(event) => setLink(event.target.checked)} />{t('manage.link')}</label>
+        </> : <label className="field"><span>Skill slug</span><input value={source} onChange={(event) => setSource(event.target.value)} placeholder="owner/skill-name" /></label>}
+        {localError && <p className="form-error">{localError}</p>}
+        <button className="button primary full" disabled={busy || (sourceType === 'marketplace' ? !source.trim() : selectedSkills.length === 0)} onClick={() => void submit()}>{busy ? <LoaderCircle className="spin" size={17} /> : <PackagePlus size={17} />}{sourceType === 'marketplace' ? t('manage.install') : t('manage.installSelected', { count: selectedSkills.length })}</button>
+      </section>
+    </div>}
+
+    {tab === 'installed' && <div className="manage-tab-panel manage-tab-grid">
+      <section className="panel target-skills-panel">
+        <div className="panel-heading"><div><h3>{t('manage.targetTitle')}</h3><p>{t('manage.targetSubtitle')}</p></div><span className="result-count">{targetSkills.length}</span></div>
+        {targetPath && <code className="target-path">{scopeLabel(installScope, t)}{t('manage.installDirectory')} · {shortPath(targetPath)}</code>}
+        {targetLoading ? <div className="loading-line"><LoaderCircle className="spin" size={17} />{t('manage.reading')}</div> : <div className="target-skill-list">{targetSkills.map((skill) => <div key={skill.sourcePath}><span><code>{skill.name}</code><small>{shortPath(skill.sourcePath)}</small></span><span className="target-skill-badges"><em>{scopeLabel(skill.scope, t)}</em>{skill.managed && <em>{t('manage.registered')}</em>}</span></div>)}{targetSkills.length === 0 && <p className="muted empty-copy">{t('manage.targetEmpty')}</p>}</div>}
+      </section>
+      <section className="panel registry-panel">
+        <div className="panel-heading"><div><h3>{t('manage.registryTitle')}</h3><p>{t('manage.registrySubtitle')}</p></div><span className="result-count">{bootstrap?.registry.length ?? 0}</span></div>
+        <div className="registry-list">{bootstrap?.registry.map((entry) => <div className="registry-row" key={`${entry.platform}:${entry.scope}:${entry.name}`}><div><code>{entry.name}</code><small>{entry.platform} · {scopeLabel(entry.scope, t)} · {entry.source} · {shortPath(entry.installedPath)}</small></div><button className="button danger compact" onClick={async () => { if (!window.confirm(t('manage.uninstallConfirm', { name: entry.name }))) return; try { await uninstallSkill({ name: entry.name, platform: entry.platform, scope: entry.scope, force: false }); setToast(t('manage.uninstalled', { name: entry.name })); onChanged(); } catch (error) { const message = error instanceof Error ? error.message : String(error); if (window.confirm(t('manage.forceUninstall', { error: message }))) { await uninstallSkill({ name: entry.name, platform: entry.platform, scope: entry.scope, force: true }); setToast(t('manage.forceUninstalled', { name: entry.name })); onChanged(); } } }}><Trash2 size={15} />{t('manage.uninstall')}</button></div>)}{!bootstrap?.registry.length && <p className="muted empty-copy">{t('manage.registryEmpty')}</p>}</div>
+      </section>
+    </div>}
+
+    {tab === 'reclaim' && <div className="manage-tab-panel">
+      <section className="panel reclaim-panel">
+        <div className="panel-heading"><div><h3>{t('manage.reclaimTitle')}</h3><p>{t('manage.reclaimSubtitle')}</p></div><span className="result-count">{physicalCandidates.length}</span></div>
+        {targetPath && <code className="target-path">{platformLabel(target)} · {scopeLabel(installScope, t)} · {shortPath(targetPath)}</code>}
+        {targetLoading ? <div className="loading-line"><LoaderCircle className="spin" size={17} />{t('manage.discovering')}</div> : <>{physicalCandidates.length > 0 ? <div className="skill-picker reclaim-picker"><div className="skill-picker-heading"><div><strong>{t('manage.reclaimable')}</strong><small>{t('manage.reclaimableDetail')}</small></div><label><input type="checkbox" aria-label={t('manage.selectAllReclaim')} checked={reclaimableCandidates.length > 0 && selectedImportCandidates.length === reclaimableCandidates.length} onChange={(event) => setSelectedImportIds(event.target.checked ? reclaimableCandidates.map((candidate) => candidate.id) : [])} />{t('manage.selectAllReclaim')}</label></div><div className="skill-check-list">{physicalCandidates.map((candidate) => { const reclaimable = isReclaimableCandidate(candidate); return <label className={!reclaimable ? 'disabled' : ''} key={candidate.id}><input type="checkbox" checked={reclaimable && selectedImportIds.includes(candidate.id)} disabled={!reclaimable} onChange={(event) => setSelectedImportIds((current) => event.target.checked ? [...current, candidate.id] : current.filter((value) => value !== candidate.id))} /><span><code>{candidate.name}</code><small>{shortPath(candidate.rootPath)}</small></span><em>{agentImportStatusLabel(candidate, t)}</em></label>; })}</div></div> : <p className="muted empty-copy">{t('manage.reclaimEmpty')}</p>}</>}
+        <button className="button primary" disabled={importBusy || selectedImportCandidates.length === 0} onClick={() => void reclaimSelected()}>{importBusy ? <LoaderCircle className="spin" size={17} /> : <ArchiveRestore size={17} />}{t('manage.reclaimSelected', { count: selectedImportCandidates.length })}</button>
+        {localError && <p className="form-error">{localError}</p>}
+      </section>
+    </div>}
+
+    {tab === 'export' && <div className="manage-tab-panel">
+      <section className="panel report-panel">
+        <div className="panel-heading"><div><h3>{t('manage.reportTitle')}</h3><p>{t('manage.reportSubtitle')}</p></div><FileCode2 size={20} /></div>
+        <div className="action-list">
+          <div><span>{t('manage.staticReport')}</span><small>{t('manage.staticReportDetail')}</small></div>
+          <a className="button secondary" href="/api/export/dashboard" download>{t('manage.download')}</a>
+          <div><span>{t('manage.snapshot')}</span><small>{snapshot ? t('manage.snapshotDetail', { resources: snapshot.summary.resources, issues: snapshot.summary.issues }) : t('manage.notScanned')}</small></div>
+          <span className="muted">{snapshot ? new Date(snapshot.generatedAt).toLocaleString() : '—'}</span>
+        </div>
+      </section>
+    </div>}
   </section>;
 }
 
