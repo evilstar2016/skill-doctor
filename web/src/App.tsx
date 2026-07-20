@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
   Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, Info, LayoutDashboard, LoaderCircle, Menu, Moon,
-  PackagePlus, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Sun, Trash2, X,
+  PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Sun, Trash2, X,
 } from 'lucide-react';
 import type { BootstrapPayload, DoctorSnapshot, ResourceDetailPayload, UiIssue, UiResource } from '../../src/application/types';
 import type { DetectedAgent } from '../../src/discovery/detectAgents';
@@ -27,6 +27,7 @@ import { I18nProvider, useTranslation } from './i18n';
 
 type Route = 'overview' | 'issues' | 'context' | 'resources' | 'scan-paths' | 'manage';
 type Theme = 'light' | 'dark';
+type ColorTheme = 'teal' | 'cyan';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
 type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
 type ScanState = { id?: string; running: boolean; message: string; progress: number; status?: ScanStatus };
@@ -37,14 +38,21 @@ const DEFAULT_SCAN: ScanRequest = {
   budgetTokens: 2000, tokenizer: 'openai', tokenizerModel: 'gpt-4o',
 };
 
-const ROUTES: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.scanPaths' | 'nav.manage'; icon: typeof LayoutDashboard }> = [
-  { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
-  { id: 'issues', labelKey: 'nav.issues', icon: Activity },
-  { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
-  { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
-  { id: 'scan-paths', labelKey: 'nav.scanPaths', icon: FolderCog },
-  { id: 'manage', labelKey: 'nav.manage', icon: PackagePlus },
+const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.resources' | 'nav.group.manage'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.scanPaths' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
+  { id: 'diagnose', labelKey: 'nav.group.diagnose', items: [
+    { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
+    { id: 'issues', labelKey: 'nav.issues', icon: Activity },
+    { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
+  ]},
+  { id: 'resources', labelKey: 'nav.group.resources', items: [
+    { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
+  ]},
+  { id: 'manage', labelKey: 'nav.group.manage', items: [
+    { id: 'scan-paths', labelKey: 'nav.scanPaths', icon: FolderCog },
+    { id: 'manage', labelKey: 'nav.manage', icon: PackagePlus },
+  ]},
 ];
+const ROUTES = NAV_GROUPS.flatMap((group) => group.items);
 
 export default function App() {
   return <I18nProvider><AppContent /></I18nProvider>;
@@ -54,6 +62,7 @@ function AppContent() {
   const { locale, setLocale, t } = useTranslation();
   const [route, setRoute] = useState<Route>(() => routeFromHash());
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('skill-doctor-theme') as Theme) || 'light');
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(() => (localStorage.getItem('skill-doctor-color-theme') as ColorTheme) || 'teal');
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [snapshot, setSnapshot] = useState<DoctorSnapshot | null>(null);
   const [scanOptions, setScanOptions] = useState<ScanRequest>(() => loadScanOptions());
@@ -77,6 +86,11 @@ function AppContent() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('skill-doctor-theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.color = colorTheme;
+    localStorage.setItem('skill-doctor-color-theme', colorTheme);
+  }, [colorTheme]);
 
   useEffect(() => {
     const update = () => setRoute(routeFromHash());
@@ -216,6 +230,8 @@ function AppContent() {
           setAnalysisMode={chooseAnalysisMode}
           theme={theme}
           toggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          colorTheme={colorTheme}
+          setColorTheme={setColorTheme}
           locale={locale}
           toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
@@ -303,13 +319,26 @@ function AppContent() {
 
 function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route: Route) => void; snapshot: DoctorSnapshot | null }) {
   const { t } = useTranslation();
+  const health = snapshot ? (snapshot.summary.high > 0 ? 'danger' : snapshot.summary.issues > 0 ? 'warning' : 'success') : 'idle';
+  const healthLabel = snapshot
+    ? snapshot.summary.high > 0 ? t('sidebar.health.attention')
+    : snapshot.summary.issues > 0 ? t('sidebar.health.review')
+    : t('sidebar.health.ok')
+    : t('sidebar.health.waiting');
   return <aside className="sidebar">
     <div className="brand"><span className="brand-mark"><Stethoscope size={21} /></span><span>Skill Doctor</span></div>
+    {snapshot && <div className={`sidebar-health ${health}`}>
+      <span className="health-dot" />
+      <div><strong>{healthLabel}</strong><span>{snapshot.summary.issues ? t('sidebar.health.issues', { count: snapshot.summary.issues }) : t('sidebar.health.clean')}</span></div>
+    </div>}
     <nav className="nav-list" aria-label={t('nav.overview')}>
-      {ROUTES.map(({ id, labelKey, icon: Icon }) => <button key={id} className={`nav-item ${route === id ? 'active' : ''}`} onClick={() => navigate(id)}>
-        <Icon size={18} /><span>{t(labelKey)}</span>
-        {id === 'issues' && snapshot && snapshot.summary.issues > 0 && <span className="nav-count">{snapshot.summary.issues}</span>}
-      </button>)}
+      {NAV_GROUPS.map((group) => <div className="nav-group" key={group.id}>
+        <span className="nav-group-label">{t(group.labelKey)}</span>
+        {group.items.map(({ id, labelKey, icon: Icon }) => <button key={id} className={`nav-item ${route === id ? 'active' : ''}`} onClick={() => navigate(id)}>
+          <Icon size={18} /><span>{t(labelKey)}</span>
+          {id === 'issues' && snapshot && snapshot.summary.issues > 0 && <span className="nav-count">{snapshot.summary.issues}</span>}
+        </button>)}
+      </div>)}
     </nav>
     <div className="sidebar-foot"><ShieldCheck size={16} /><div><strong>{t('sidebar.local')}</strong><span>{t('sidebar.private')}</span></div></div>
   </aside>;
@@ -320,10 +349,11 @@ function Topbar(props: {
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
   analysisMode: AnalysisMode; setAnalysisMode: (mode: AnalysisMode) => void;
-  openSettings: () => void; theme: Theme; toggleTheme: () => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
+  openSettings: () => void; theme: Theme; toggleTheme: () => void; colorTheme: ColorTheme; setColorTheme: (value: ColorTheme) => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
 }) {
   const { t } = useTranslation();
   const { bootstrap, scan, scanOptions, setScanOptions } = props;
+  const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const deepAvailable = Boolean(bootstrap?.capabilities.aiAuditConfigured || bootstrap?.capabilities.embeddingConfigured);
   return <><header className="topbar">
     <div className="target-block">
@@ -340,6 +370,22 @@ function Topbar(props: {
     <div className="top-actions">
       <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>
       <button className="icon-button" onClick={props.toggleLocale} aria-label={props.locale === 'zh-CN' ? t('language.switchToEnglish') : t('language.switchToChinese')}>{props.locale === 'zh-CN' ? 'EN' : 'ZH'}</button>
+      <div className="color-theme-control">
+        <button className="icon-button" onClick={() => setColorMenuOpen((value) => !value)} aria-label={t('topbar.themeColor')} aria-haspopup="menu" aria-expanded={colorMenuOpen}><Palette size={18} /></button>
+        {colorMenuOpen && <>
+          <button className="color-menu-backdrop" aria-hidden tabIndex={-1} onClick={() => setColorMenuOpen(false)} />
+          <div className="color-menu" role="menu" aria-label={t('topbar.themeColor')}>
+            <button className={`color-swatch ${props.colorTheme === 'teal' ? 'active' : ''}`} role="menuitemradio" aria-checked={props.colorTheme === 'teal'} onClick={() => { props.setColorTheme('teal'); setColorMenuOpen(false); }}>
+              <span className="swatch-dot" style={{ background: 'linear-gradient(135deg,#0e9e6e,#0b855c)' }} />
+              <span>{t('topbar.themeTeal')}</span>
+            </button>
+            <button className={`color-swatch ${props.colorTheme === 'cyan' ? 'active' : ''}`} role="menuitemradio" aria-checked={props.colorTheme === 'cyan'} onClick={() => { props.setColorTheme('cyan'); setColorMenuOpen(false); }}>
+              <span className="swatch-dot" style={{ background: 'linear-gradient(135deg,#0e9bc4,#0a7e9e)' }} />
+              <span>{t('topbar.themeCyan')}</span>
+            </button>
+          </div>
+        </>}
+      </div>
       <button className="icon-button" onClick={props.toggleTheme} aria-label={props.theme === 'light' ? t('topbar.theme.dark') : t('topbar.theme.light')}>{props.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
       <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>
       {scan.running
