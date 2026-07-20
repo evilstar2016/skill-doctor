@@ -239,7 +239,7 @@ function AppContent() {
         {snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{translateResultText(warning.message, t)}</InlineNotice>)}
         <div className="page-container">
-          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} />}
+          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigate('context')} />}
           {route === 'issues' && <IssuesPageView snapshot={snapshot} openIssue={setSelectedIssue} />}
           {route === 'context' && <ContextPageView snapshot={snapshot} openResource={openResource} onToggle={async (item) => {
             if (!item.id) return;

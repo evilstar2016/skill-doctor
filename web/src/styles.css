@@ -296,3 +296,73 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
   .manage-context-bar { flex-direction: column; align-items: stretch; }
   .context-hint { margin-left: 0; text-align: left; }
 }
+
+/* —— Overview Mission Control redesign —— */
+.mc-hero {
+  display: grid; grid-template-columns: minmax(260px, 320px) 1fr; gap: 18px; margin-bottom: 18px;
+}
+.mc-health {
+  display: flex; align-items: center; gap: 18px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 20px 22px; box-shadow: var(--shadow-xs);
+}
+.mc-health--warning { border-color: color-mix(in srgb, var(--warning) 32%, var(--border)); }
+.mc-health--danger { border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); }
+.mc-health-meta { display: grid; gap: 5px; align-content: center; }
+.mc-health-label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+.mc-health-status { font-size: 19px; }
+.mc-status--success { color: var(--success); }
+.mc-status--warning { color: var(--warning); }
+.mc-status--danger { color: var(--danger); }
+.mc-health-time { font-size: 11px; color: var(--faint); }
+
+.mc-ring { display: block; flex: none; }
+.mc-ring-track { stroke: var(--surface-3); }
+.mc-ring-fill { stroke: var(--success); transition: stroke-dashoffset .6s var(--ease); }
+.mc-ring--warning .mc-ring-fill { stroke: var(--warning); }
+.mc-ring--danger .mc-ring-fill { stroke: var(--danger); }
+.mc-ring-score { fill: var(--text); font-size: 30px; font-weight: 700; font-family: inherit; }
+.mc-ring-max { fill: var(--faint); font-size: 12px; font-family: inherit; }
+
+.mc-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+.mc-quadrants {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 18px;
+}
+.mc-quadrant {
+  text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 18px; display: grid; gap: 8px; box-shadow: var(--shadow-xs); cursor: pointer;
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s var(--ease);
+}
+.mc-quadrant:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.mc-quadrant:focus-visible { box-shadow: var(--ring); }
+.mc-quadrant-top { display: flex; align-items: center; gap: 9px; }
+.mc-quadrant-icon {
+  width: 32px; height: 32px; border-radius: var(--radius-sm); display: grid; place-items: center; flex: none;
+  background: var(--accent-soft); color: var(--accent-text);
+}
+.mc-quadrant--danger .mc-quadrant-icon { background: var(--danger-soft); color: var(--danger); }
+.mc-quadrant--warning .mc-quadrant-icon { background: var(--warning-soft); color: var(--warning); }
+.mc-quadrant--success .mc-quadrant-icon { background: var(--success-soft); color: var(--success); }
+.mc-quadrant--info .mc-quadrant-icon { background: var(--info-soft); color: var(--info); }
+.mc-quadrant-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.mc-quadrant-arrow { margin-left: auto; color: var(--faint); }
+.mc-quadrant-count { font-size: 30px; font-weight: 700; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+.mc-quadrant-detail { font-size: 12px; color: var(--muted); }
+.mc-quadrant-bar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.mc-quadrant-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.mc-quadrant--danger .mc-quadrant-bar > span { background: var(--danger); }
+.mc-quadrant--warning .mc-quadrant-bar > span { background: var(--warning); }
+.mc-quadrant--success .mc-quadrant-bar > span { background: var(--success); }
+
+.mc-bottom { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 18px; }
+
+@media (max-width: 1050px) {
+  .mc-hero { grid-template-columns: 1fr; }
+  .mc-metrics { grid-template-columns: repeat(2, 1fr); }
+  .mc-quadrants { grid-template-columns: 1fr; }
+  .mc-bottom { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .mc-metrics { grid-template-columns: 1fr; }
+}
