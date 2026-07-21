@@ -241,7 +241,14 @@ export function ManagePage({ bootstrap, onChanged, setToast }: { bootstrap: Boot
       </select>
     </FilterBar>
 
-    {loading ? <div className="loading-line"><LoaderCircle className="spin" size={16} />{t('common.loading')}</div> : filtered.length === 0 ? <p className="muted empty-copy">{t('center.empty')}</p> : (
+    {loading ? <div className="loading-line"><LoaderCircle className="spin" size={16} />{t('common.loading')}</div> : filtered.length === 0 ? (
+      center && center.skills.length === 0 && center.physical.length === 0 ? (
+        <div className="empty-state">
+          <p className="muted empty-copy">{t('center.empty')}</p>
+          <p className="muted">{t('center.emptyHint')}</p>
+        </div>
+      ) : <p className="muted empty-copy">{t('center.noMatch')}</p>
+    ) : (
       <div className="center-list">
         <div className="center-row center-header">
           <span /><span>{t('center.colName')}</span><span>{t('center.colSource')}</span><span>{t('center.colInstalls')}</span><span />
@@ -277,7 +284,7 @@ function CenterRowItem({ row, selected, onToggle, onOpen, onReclaim, busy }: { r
     <div className={`center-row ${selected ? 'selected' : ''} ${managed ? '' : 'physical'}`} onClick={onOpen}>
       <label className="row-check" onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected} onChange={onToggle} /></label>
       <span className="row-name"><code>{name}</code>{!managed && <em className="unmanaged-tag">{t('center.unmanaged')}</em>}</span>
-      <span className="row-source">{managed ? <SourceBadge source={row.skill.sourceType} /> : <StatusBadge status={row.candidate.status === 'new' ? 'missing' : row.candidate.status === 'identical-copy' ? 'synced' : 'conflict'} />}</span>
+      <span className="row-source">{managed ? <SourceBadge source={row.skill.sourceType} /> : <PhysicalStatusBadge status={row.candidate.status} />}</span>
       <span className="row-installs">{installations.length === 0 ? <small className="muted">{managed ? t('center.notInstalled') : t('center.physicalOnly')}</small> : installations.map((installation) => <StatusBadge key={installation.deploymentId} status={installation.status} label={platformLabel(installation.platform)} />)}</span>
       <span className="row-action" onClick={(event) => event.stopPropagation()}>{!managed && <button className="button secondary compact" disabled={busy} onClick={() => onReclaim(row.candidate)}><ArchiveRestore size={14} />{t('center.reclaim')}</button>}<ChevronRight size={16} /></span>
     </div>
@@ -329,6 +336,20 @@ function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, busy }: 
 
 function SourceBadge({ source }: { source: CenterSkillView['sourceType'] }) {
   return <span className={`source-badge source-${source}`}>{source}</span>;
+}
+
+function PhysicalStatusBadge({ status }: { status: CenterPhysicalView['status'] }) {
+  const map: Record<CenterPhysicalView['status'], { kind: 'success' | 'warning' | 'danger' | 'neutral'; text: string }> = {
+    'new': { kind: 'neutral', text: 'new' },
+    'identical-copy': { kind: 'success', text: 'synced' },
+    'external-link': { kind: 'neutral', text: 'external' },
+    'managed-link': { kind: 'success', text: 'managed' },
+    'same-name-different-content': { kind: 'warning', text: 'diverged' },
+    'invalid': { kind: 'danger', text: 'invalid' },
+    'unreadable': { kind: 'danger', text: 'unreadable' },
+  };
+  const badge = map[status];
+  return <span className={`status-badge ${badge.kind}`}>{badge.text}</span>;
 }
 
 function StatusBadge({ status, label }: { status: CenterInstallationView['status'] | 'managed-link' | 'identical-copy'; label?: string }) {

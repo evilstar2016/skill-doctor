@@ -325,6 +325,11 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
 .status-badge.success { color: var(--success); background: var(--success-soft); }
 .status-badge.warning { color: var(--warning); background: var(--warning-soft); }
 .status-badge.danger { color: var(--danger); background: var(--danger-soft); }
+.status-badge.neutral { color: var(--muted); background: var(--surface-3); border: 1px solid var(--border); }
+
+.empty-state { display: grid; gap: 8px; padding: 28px 4px; text-align: center; }
+.empty-state .empty-copy { font-size: 14px; font-weight: 600; color: var(--text); }
+.empty-state .muted { max-width: 520px; margin: 0 auto; line-height: 1.6; }
 
 .source-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-3); color: var(--muted); border: 1px solid var(--border); }
 .source-badge.source-github { color: var(--accent-text); background: var(--accent-soft); }

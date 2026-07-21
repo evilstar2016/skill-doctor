@@ -196,12 +196,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: 'same-origin',
   });
   const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await response.json() : await response.text();
   if (!response.ok) {
     const message = typeof payload === 'object' && payload && 'error' in payload
       ? String((payload as { error: { message?: string } }).error.message ?? response.statusText)
       : String(payload || response.statusText);
     throw new Error(message);
+  }
+  if (!isJson || typeof payload !== 'object' || payload === null) {
+    throw new Error('API 返回了非 JSON 响应，后端服务是否已在运行？(The API returned a non-JSON response; is the backend server running?)');
   }
   return payload as T;
 }
