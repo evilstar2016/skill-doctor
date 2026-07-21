@@ -6,13 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BootstrapPayload } from '../../src/application/types';
 
 const mocks = vi.hoisted(() => ({
-  getTargetAgentSkills: vi.fn(),
+  getCenterSkills: vi.fn(),
   inspectSkillSource: vi.fn(),
   installSkill: vi.fn(),
   pickSkillSourceDirectory: vi.fn(),
-  previewPhysicalAgentSkills: vi.fn(),
+  previewDeployment: vi.fn(),
+  commitDeployment: vi.fn(),
   reclaimPhysicalAgentSkills: vi.fn(),
-  uninstallSkill: vi.fn(),
+  syncDeployment: vi.fn(),
+  uninstallDeployment: vi.fn(),
 }));
 
 vi.mock('../../web/src/api', () => mocks);
@@ -24,23 +26,41 @@ const bootstrap = {
   registry: [],
 } as unknown as BootstrapPayload;
 
-describe('ManagePage skill selection', () => {
+describe('ManagePage unified Skill Center', () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
-    mocks.getTargetAgentSkills.mockResolvedValue({ targetPath: '/home/.claude/skills', scope: 'global', availableScopes: ['global', 'project'], skills: [] });
+    window.confirm = vi.fn(() => true);
+    mocks.getCenterSkills.mockResolvedValue({ skills: [], physical: [], importPlanId: 'plan-empty' });
+    mocks.inspectSkillSource.mockResolvedValue({ sourcePath: '/source', skills: [] });
     mocks.installSkill.mockResolvedValue({ name: 'beta', installedPath: '/home/.claude/skills/beta/SKILL.md' });
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
-    mocks.previewPhysicalAgentSkills.mockResolvedValue({ planId: 'empty-plan', candidates: [] });
-    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({ planId: 'empty-plan', outcomes: [], needsRescan: false });
+    mocks.previewDeployment.mockResolvedValue({ planId: 'preview-plan' });
+    mocks.commitDeployment.mockResolvedValue({ status: 200, outcomes: [] });
+    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({ planId: 'plan-empty', outcomes: [], needsRescan: false });
+    mocks.syncDeployment.mockResolvedValue({ status: 200 });
+    mocks.uninstallDeployment.mockResolvedValue({ status: 200 });
   });
 
-  it('previews a typed directory and installs only checked skills while showing target skills', async () => {
-    mocks.getTargetAgentSkills.mockResolvedValue({
-      targetPath: '/home/.claude/skills',
-      scope: 'global', availableScopes: ['global', 'project'],
-      skills: [{ name: 'alpha', sourcePath: '/home/.claude/skills/alpha/SKILL.md', managed: false, scope: 'global' }],
+  it('loads the center and renders managed and physical rows', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [{
+        id: 'managed-a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a',
+        addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true,
+        installations: [{ deploymentId: 'd-a', platform: 'claude', scope: 'global', mode: 'copy', installedPath: '/home/.claude/skills/alpha/SKILL.md', status: 'synced', installedAt: '2026-01-01' }],
+      }],
+      physical: [{ id: 'phys-1', name: 'local-review', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', status: 'new', managed: false }],
+      importPlanId: 'plan-1',
     });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+
+    expect(await screen.findByText('alpha')).toBeTruthy();
+    expect(screen.getByText('local-review')).toBeTruthy();
+    expect(screen.getByText('Claude synced')).toBeTruthy();
+  });
+
+  it('installs only the checked skills from an inspected directory', async () => {
     mocks.inspectSkillSource.mockResolvedValue({
       sourcePath: '/source',
       skills: [
@@ -51,105 +71,89 @@ describe('ManagePage skill selection', () => {
     const onChanged = vi.fn();
 
     render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={onChanged} setToast={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '加入中心库' }));
     fireEvent.change(screen.getByLabelText('SKILL.md 或目录地址'), { target: { value: '/source' } });
     fireEvent.click(screen.getByRole('button', { name: '读取' }));
 
     const beta = await screen.findByText('beta');
-    const alphaSource = screen.getAllByText('alpha').find((node) => node.closest('.skill-check-list'))!;
-    expect(within(alphaSource.closest('label')!).getByRole('checkbox')).toHaveProperty('disabled', true);
     fireEvent.click(within(beta.closest('label')!).getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: '安装已选 (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: '安装' }));
 
-    await waitFor(() => expect(mocks.installSkill).toHaveBeenCalledWith({
+    await waitFor(() => expect(mocks.installSkill).toHaveBeenCalledTimes(1));
+    expect(mocks.installSkill).toHaveBeenCalledWith({
       source: '/source/beta/SKILL.md', sourceType: 'local', target: 'claude', scope: 'global', link: false,
-    }));
-    expect(mocks.installSkill).toHaveBeenCalledTimes(1);
-    expect(onChanged).toHaveBeenCalledTimes(1);
-  });
-
-  it('uses the backend directory picker and installs only the checked disk path', async () => {
-    mocks.getTargetAgentSkills.mockImplementation(async (_target, scope) => ({
-      targetPath: scope === 'project' ? '/project/.claude/skills' : '/home/.claude/skills',
-      scope, availableScopes: ['global', 'project'], skills: [],
-    }));
-    mocks.pickSkillSourceDirectory.mockResolvedValue({
-      sourcePath: '/picked',
-      skills: [
-        { id: '/picked/alpha/SKILL.md', name: 'alpha', sourcePath: '/picked/alpha/SKILL.md', relativePath: 'alpha/SKILL.md' },
-        { id: '/picked/beta/SKILL.md', name: 'beta', sourcePath: '/picked/beta/SKILL.md', relativePath: 'beta/SKILL.md' },
-      ],
     });
-
-    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
-    expect(screen.getByText('后端直接读取磁盘路径，不传输文件内容')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '选择本地来源目录' }));
-
-    const betaName = await screen.findByText('beta');
-    expect(mocks.pickSkillSourceDirectory).toHaveBeenCalledTimes(1);
-    fireEvent.change(screen.getByLabelText('安装范围'), { target: { value: 'project' } });
-    await waitFor(() => expect(screen.getByText(/项目安装目录/)).toBeTruthy());
-    fireEvent.click(within(betaName.closest('label')!).getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: '安装已选 (1)' }));
-
-    await waitFor(() => expect(mocks.installSkill).toHaveBeenCalledWith({
-      source: '/picked/beta/SKILL.md',
-      sourceType: 'local',
-      target: 'claude',
-      scope: 'project',
-      link: false,
-    }));
-    expect(mocks.installSkill).toHaveBeenCalledTimes(1);
+    expect(onChanged).toHaveBeenCalled();
   });
 
-  it('leaves the current source unchanged when the system directory picker is cancelled', async () => {
-    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: '选择本地来源目录' }));
-
-    await waitFor(() => expect(mocks.pickSkillSourceDirectory).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText(/操作未完成|不支持本地目录/)).toBeNull();
-  });
-
-  it('selectively returns physical Agent skills to the central library and leaves name conflicts disabled', async () => {
-    mocks.previewPhysicalAgentSkills.mockResolvedValue({
-      planId: 'reclaim-plan',
-      candidates: [
-        { id: 'new', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', sourceId: 'claude-global-skills', status: 'new', group: { root: '/home/.claude/skills/local-review' }, name: 'local-review', treeHash: 'sha256:new', allowedActions: ['keep-copy', 'replace-with-link', 'skip'], precondition: 'new' },
-        { id: 'conflict', rootPath: '/home/.claude/skills/shared', platform: 'claude', scope: 'global', sourceId: 'claude-global-skills', status: 'same-name-different-content', group: { root: '/home/.claude/skills/shared' }, name: 'shared', treeHash: 'sha256:conflict', managedSkillId: 'managed-shared', allowedActions: ['keep-separate', 'use-managed-link', 'skip'], precondition: 'conflict' },
-        { id: 'invalid', rootPath: '/home/.claude/skills/not-a-skill', platform: 'claude', scope: 'global', sourceId: 'claude-global-skills', status: 'invalid', group: { root: '/home/.claude/skills/not-a-skill' }, allowedActions: ['skip'], diagnostic: 'Missing SKILL.md', precondition: 'invalid' },
-      ],
+  it('reclaims a physical Agent skill into the center library', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [],
+      physical: [{ id: 'phys-1', name: 'local-review', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', status: 'new', managed: false }],
+      importPlanId: 'reclaim-plan',
     });
     mocks.reclaimPhysicalAgentSkills.mockResolvedValue({
       planId: 'reclaim-plan',
-      outcomes: [
-        { candidateId: 'new', status: 'linked', managedSkillId: 'managed-new', completedSteps: ['central-import', 'replace-with-directory-link'] },
-        { candidateId: 'conflict', status: 'skipped', completedSteps: ['decision'] },
-      ],
-      needsRescan: true,
+      outcomes: [{ candidateId: 'phys-1', status: 'linked' }],
+      needsRescan: false,
     });
-    const onChanged = vi.fn();
     const setToast = vi.fn();
 
-    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={onChanged} setToast={setToast} />);
-
-    const localReview = await screen.findByText('local-review');
-    const shared = screen.getByText('shared');
-    expect(within(shared.closest('label')!).getByRole('checkbox')).toHaveProperty('disabled', true);
-    expect(screen.getByText('中央仓库同名冲突')).toBeTruthy();
-    fireEvent.click(within(localReview.closest('label')!).getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: '收回已选 (1)' }));
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={setToast} />);
+    const row = await screen.findByText('local-review');
+    fireEvent.click(within(row.closest('.center-row')!).getByRole('button', { name: '收回' }));
 
     await waitFor(() => expect(mocks.reclaimPhysicalAgentSkills).toHaveBeenCalledWith({
       planId: 'reclaim-plan',
       target: 'claude',
       scope: 'global',
-      decisions: [
-        { candidateId: 'new', action: 'replace-with-link' },
-        { candidateId: 'conflict', action: 'skip' },
-        { candidateId: 'invalid', action: 'skip' },
-      ],
+      decisions: [{ candidateId: 'phys-1', action: 'replace-with-link' }],
     }));
-    expect(setToast).toHaveBeenCalledWith('已收回 1 个 Skills，并在 Agent 中挂上链接');
-    expect(onChanged).toHaveBeenCalledTimes(1);
+    expect(setToast).toHaveBeenCalledWith('已收回 1 个 skill');
+  });
+
+  it('bulk-uninstalls selected managed skills from all targets', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [
+        { id: 'a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [{ deploymentId: 'd-a', platform: 'claude', scope: 'global', mode: 'copy', installedPath: '/home/.claude/skills/alpha/SKILL.md', status: 'synced', installedAt: '2026-01-01' }] },
+        { id: 'b', name: 'beta', sourceType: 'local', treeHash: 'sha256:b', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [{ deploymentId: 'd-b', platform: 'claude', scope: 'global', mode: 'copy', installedPath: '/home/.claude/skills/beta/SKILL.md', status: 'synced', installedAt: '2026-01-01' }] },
+      ],
+      physical: [],
+      importPlanId: 'plan-bulk',
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    const alpha = await screen.findByText('alpha');
+    const beta = screen.getByText('beta');
+    fireEvent.click(within(alpha.closest('.center-row')!).getByRole('checkbox'));
+    fireEvent.click(within(beta.closest('.center-row')!).getByRole('checkbox'));
+
+    fireEvent.click(screen.getByRole('button', { name: '卸载' }));
+
+    await waitFor(() => expect(mocks.uninstallDeployment).toHaveBeenCalledTimes(2));
+    expect(mocks.uninstallDeployment).toHaveBeenCalledWith('d-a', true);
+    expect(mocks.uninstallDeployment).toHaveBeenCalledWith('d-b', true);
+  });
+
+  it('resyncs a modified installation from the detail drawer', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [{
+        id: 'managed-a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a',
+        addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true,
+        installations: [{ deploymentId: 'd-a', platform: 'claude', scope: 'global', mode: 'copy', installedPath: '/home/.claude/skills/alpha/SKILL.md', status: 'modified', installedAt: '2026-01-01' }],
+      }],
+      physical: [],
+      importPlanId: 'plan-sync',
+    });
+    const setToast = vi.fn();
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={setToast} />);
+    const row = await screen.findByText('alpha');
+    fireEvent.click(row.closest('.center-row')!);
+
+    fireEvent.click(await screen.findByRole('button', { name: '同步' }));
+
+    await waitFor(() => expect(mocks.syncDeployment).toHaveBeenCalledWith('d-a', true));
+    expect(setToast).toHaveBeenCalledWith('已重新同步');
   });
 });

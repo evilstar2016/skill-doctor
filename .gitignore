@@ -1,5 +1,6 @@
 node_modules/
 dist/
+tsup.config.bundled_*.mjs
 coverage/
 *.tsbuildinfo
 .serena/

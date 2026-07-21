@@ -16,4 +16,5 @@ export {
   syncManagedSkillDeployment,
   uninstallManagedSkillDeployment,
 } from './deployments';
+export { getCenterView } from './center';
 export { compareResources, getResourceDetail } from './resourceQueries';

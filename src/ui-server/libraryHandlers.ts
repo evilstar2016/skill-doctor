@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   commitManagedAgentSkillImport,
   commitManagedSkillDeployment,
+  getCenterView,
   getManagedSkillDeploymentTargets,
   getManagedSkillLibrary,
   inspectManagedSkillSource,
@@ -45,6 +46,11 @@ export async function handleLibraryRoute(
 
   if (request.method === 'GET' && url.pathname === '/api/library/skills') {
     sendJson(response, 200, getManagedSkillLibrary(context.projectDir, context.homeDir));
+    return true;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/center/skills') {
+    sendJson(response, 200, getCenterView(context.projectDir, context.homeDir));
     return true;
   }
 

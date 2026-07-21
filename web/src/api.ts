@@ -5,6 +5,7 @@ import type { Platform, Scope } from '../../src/types/skill';
 import type { AgentScanSourcesUserConfig } from '../../src/config/loadUserConfig';
 import type { EffectiveScanSource } from '../../src/config/scanSources';
 import type { InstallSourceSkill, TargetAgentSkill } from '../../src/application/install';
+import type { CenterView } from '../../src/application/center';
 import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPreview } from '../../src/library/importAgentSkills';
 
 export interface ScanRequest {
@@ -158,6 +159,34 @@ export async function reclaimPhysicalAgentSkills(input: { planId: string; target
 
 export async function uninstallSkill(input: { name: string; platform: Platform; scope: Scope; force: boolean }) {
   return request<{ removed: boolean }>('/api/uninstall', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function getCenterSkills(): Promise<CenterView> {
+  return request<CenterView>('/api/center/skills');
+}
+
+export async function syncDeployment(deploymentId: string, force: boolean = false) {
+  return request<{ status: string }>(`/api/deployments/${encodeURIComponent(deploymentId)}/sync`, {
+    method: 'POST', body: JSON.stringify({ force }),
+  });
+}
+
+export async function uninstallDeployment(deploymentId: string, force: boolean = false) {
+  return request<{ removed: boolean }>(`/api/deployments/${encodeURIComponent(deploymentId)}`, {
+    method: 'DELETE', body: JSON.stringify({ force }),
+  });
+}
+
+export async function previewDeployment(skillId: string, targetIds: string[], mode: 'symlink' | 'copy') {
+  return request<{ planId: string; targets: Array<{ targetId: string; status?: string }> }>('/api/deployments/preview', {
+    method: 'POST', body: JSON.stringify({ skillId, targetIds, mode }),
+  });
+}
+
+export async function commitDeployment(skillId: string, targetIds: string[], mode: 'symlink' | 'copy', planId: string, force: boolean = false) {
+  return request<{ outcomes: Array<{ targetId: string; status: string }> }>('/api/deployments/commit', {
+    method: 'POST', body: JSON.stringify({ skillId, targetIds, mode, planId, force }),
+  });
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
