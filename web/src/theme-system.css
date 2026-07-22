@@ -1,0 +1,90 @@
+/* ============================================================
+   Skill Doctor — Theme System (additive foundation)
+   - Adds the missing "system" theme (follows OS preference)
+   - Adds ThemeToggle (light/dark/system) + unified EmptyState
+   - INTENTIONALLY additive: reuses tokens from styles.css,
+     does NOT redefine the base palette.
+   Wire by importing after styles.css, or @import in styles.css:
+     @import './theme-system.css';
+   ============================================================ */
+
+/* —— 1. System theme: follow OS when no explicit data-theme —— */
+/* Mirrors the exact dark tokens declared in styles.css
+   (:root[data-theme="dark"]) so behavior is identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color: #e7efe9; background: #0e1512;
+    --bg: #0e1512; --surface: #161d19; --surface-2: #1d261f; --surface-3: #253028;
+    --text: #e7efe9; --muted: #9fab9f; --faint: #7c887c;
+    --border: #283129; --border-strong: #374237;
+    --accent: #2bd4a0; --accent-hover: #45e0b2; --accent-soft: #0f2e25; --accent-text: #7fe9c6;
+    --danger: #ff7a6e; --danger-soft: #3a201d; --danger-text: #ff9d94;
+    --warning: #e7b34a; --warning-soft: #3a2f12; --warning-text: #f0c669;
+    --info: #6fb6d6; --info-soft: #16303a; --info-text: #8fcdec;
+    --success: #2fbf86; --success-soft: #173328; --success-text: #83e0b6;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.45);
+    --shadow-md: 0 8px 24px rgba(0,0,0,.5);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,.55);
+    --shadow-xl: 0 28px 70px rgba(0,0,0,.6);
+    --shadow: var(--shadow-lg);
+    --sidebar: #121a16; --code: #1f2922;
+    --ring: 0 0 0 3px rgba(47,191,134,.35);
+  }
+  /* cyan accent under system+dark (mirrors :root[data-theme="dark"][data-color="cyan"]) */
+  :root:not([data-theme="light"])[data-color="cyan"] {
+    --accent: #34c4e6; --accent-hover: #54d2ef; --accent-soft: #0e2a33; --accent-text: #7fdcf0;
+    --ring: 0 0 0 3px rgba(52,196,230,.35);
+  }
+}
+
+/* Smooth theme transition (respects reduced-motion via styles.css) */
+:root { transition: background-color .25s var(--ease), color .25s var(--ease); }
+
+/* —— 2. ThemeToggle: segmented light/dark/system —— */
+.theme-toggle {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-pill); padding: 3px;
+}
+.theme-toggle-option {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0; background: transparent; cursor: pointer;
+  padding: 6px 10px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  transition: background .18s var(--ease), color .18s var(--ease);
+}
+.theme-toggle-option:hover { color: var(--text); }
+.theme-toggle-option.active {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 4px 12px rgba(14,158,110,.28);
+}
+:root[data-theme="dark"] .theme-toggle-option.active,
+:root:not([data-theme="light"]) .theme-toggle-option.active { color: #10200e; }
+.theme-toggle-option svg { width: 15px; height: 15px; }
+.theme-toggle-option:focus-visible { box-shadow: var(--ring); }
+
+/* —— 3. Unified EmptyState (replaces ad-hoc empty states) —— */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 12px;
+  padding: var(--space-12) var(--space-6);
+  margin: var(--space-8) auto; max-width: 460px;
+  color: var(--muted);
+}
+.empty-state-icon {
+  width: 56px; height: 56px; display: grid; place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2); color: var(--accent-text);
+  border: 1px solid var(--border);
+}
+.empty-state-icon svg { width: 26px; height: 26px; }
+.empty-state-title { font-size: 16px; font-weight: 650; color: var(--text); margin: 0; }
+.empty-state-desc { font-size: 13px; line-height: 1.6; margin: 0; max-width: 380px; }
+.empty-state-desc code {
+  font-size: 12px; background: var(--code); padding: 2px 6px; border-radius: 6px;
+}
+.empty-state-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px; }
+.empty-state.variant-warning .empty-state-icon { color: var(--warning-text); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, var(--border)); }
+.empty-state.variant-danger .empty-state-icon { color: var(--danger-text); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, var(--border)); }
+.empty-state.variant-info .empty-state-icon { color: var(--info-text); background: var(--info-soft); border-color: color-mix(in srgb, var(--info) 25%, var(--border)); }

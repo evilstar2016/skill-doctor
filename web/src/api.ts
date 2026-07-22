@@ -177,6 +177,12 @@ export async function uninstallDeployment(deploymentId: string, force: boolean =
   });
 }
 
+export async function removeSkill(skillId: string, force: boolean = true) {
+  return request<{ removed: boolean; uninstalledDeployments: number }>(`/api/center/skills/${encodeURIComponent(skillId)}`, {
+    method: 'DELETE', body: JSON.stringify({ force }),
+  });
+}
+
 export async function previewDeployment(skillId: string, targetIds: string[], mode: 'symlink' | 'copy') {
   return request<{ planId: string; targets: Array<{ targetId: string; status?: string }> }>('/api/deployments/preview', {
     method: 'POST', body: JSON.stringify({ skillId, targetIds, mode }),

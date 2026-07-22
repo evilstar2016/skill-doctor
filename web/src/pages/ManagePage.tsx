@@ -1,4 +1,4 @@
-import { ArchiveRestore, Boxes, ChevronRight, Download, LoaderCircle, PackagePlus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { Activity, ArchiveRestore, Boxes, ChevronRight, Download, LoaderCircle, PackagePlus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { BootstrapPayload, DoctorSnapshot } from '../../../src/application/types';
 import type { CenterInstallationView, CenterPhysicalView, CenterSkillView, CenterView } from '../../../src/application/center';
@@ -11,10 +11,12 @@ import {
   previewDeployment,
   commitDeployment,
   reclaimPhysicalAgentSkills,
+  removeSkill,
   syncDeployment,
   uninstallDeployment,
 } from '../api';
 import { FilterBar, PageHeading, platformLabel, scopeLabel, shortPath } from '../components/ui';
+import { EmptyState } from '../components/EmptyState';
 import { useTranslation } from '../i18n';
 
 type InstallPlatform = Exclude<Platform, 'unknown'>;
@@ -26,7 +28,7 @@ type Row =
 type SourceFilter = 'all' | 'managed' | 'physical' | 'local' | 'github' | 'marketplace' | 'agent-import';
 type StatusFilter = 'all' | CenterInstallationView['status'];
 
-export function ManagePage({ bootstrap, onChanged, setToast }: { bootstrap: BootstrapPayload | null; snapshot: DoctorSnapshot | null; onChanged: () => void; setToast: (message: string) => void }) {
+export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIssues }: { bootstrap: BootstrapPayload | null; snapshot: DoctorSnapshot | null; onChanged: () => void; setToast: (message: string) => void; onViewIssues?: (skillName: string) => void }) {
   const { t } = useTranslation();
   const platforms = bootstrap?.supportedPlatforms.filter((value): value is InstallPlatform => value !== 'unknown') ?? [];
   const [center, setCenter] = useState<CenterView | null>(null);
@@ -181,9 +183,12 @@ export function ManagePage({ bootstrap, onChanged, setToast }: { bootstrap: Boot
     setBusy(true);
     try {
       for (const row of selectedManaged) {
+        // First uninstall all deployments
         for (const installation of row.skill.installations) {
           await uninstallDeployment(installation.deploymentId, true);
         }
+        // Then remove the skill entirely from center store + delete files
+        await removeSkill(row.skill.id, true);
       }
       setToast(t('center.bulkUninstalled', { count: selectedManaged.length }));
       reload();
@@ -243,10 +248,7 @@ export function ManagePage({ bootstrap, onChanged, setToast }: { bootstrap: Boot
 
     {loading ? <div className="loading-line"><LoaderCircle className="spin" size={16} />{t('common.loading')}</div> : filtered.length === 0 ? (
       center && center.skills.length === 0 && center.physical.length === 0 ? (
-        <div className="empty-state">
-          <p className="muted empty-copy">{t('center.empty')}</p>
-          <p className="muted">{t('center.emptyHint')}</p>
-        </div>
+        <EmptyState icon={Boxes} title={t('center.empty')} description={t('center.emptyHint')} />
       ) : <p className="muted empty-copy">{t('center.noMatch')}</p>
     ) : (
       <div className="center-list">
@@ -271,7 +273,7 @@ export function ManagePage({ bootstrap, onChanged, setToast }: { bootstrap: Boot
       </div>
     </div>}
 
-    {detail && <CenterDrawer row={detail} onClose={() => setDetail(null)} onReclaim={reclaim} onUninstall={unlinkDeployment} onResync={resync} busy={busy} />}
+    {detail && <CenterDrawer row={detail} onClose={() => setDetail(null)} onReclaim={reclaim} onUninstall={unlinkDeployment} onResync={resync} busy={busy} onViewIssues={onViewIssues} />}
   </section>;
 }
 
@@ -291,7 +293,7 @@ function CenterRowItem({ row, selected, onToggle, onOpen, onReclaim, busy }: { r
   );
 }
 
-function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, busy }: { row: Row; onClose: () => void; onReclaim: (candidate: CenterPhysicalView) => void; onUninstall: (installation: CenterInstallationView) => void; onResync: (installation: CenterInstallationView) => void; busy: boolean }) {
+function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, busy, onViewIssues }: { row: Row; onClose: () => void; onReclaim: (candidate: CenterPhysicalView) => void; onUninstall: (installation: CenterInstallationView) => void; onResync: (installation: CenterInstallationView) => void; busy: boolean; onViewIssues?: (skillName: string) => void }) {
   const { t } = useTranslation();
   const managed = row.kind === 'managed';
   const name = managed ? row.skill.name : row.candidate.name;
@@ -319,6 +321,7 @@ function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, busy }: 
                   </div>
                 </div>
               ))}
+              {onViewIssues && <div className="drawer-section"><button className="button secondary full" onClick={() => onViewIssues(name)}><Activity size={15} />{t('center.relatedIssues')}</button></div>}
             </>
           ) : (
             <>

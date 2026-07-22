@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
-  Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, Info, LayoutDashboard, LoaderCircle, Menu, Moon,
-  PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Sun, Trash2, X,
+  Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, Info, LayoutDashboard, LoaderCircle, Menu,
+  PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Trash2, X,
 } from 'lucide-react';
 import type { BootstrapPayload, DoctorSnapshot, ResourceDetailPayload, UiIssue, UiResource } from '../../src/application/types';
 import type { DetectedAgent } from '../../src/discovery/detectAgents';
@@ -24,9 +24,10 @@ import { ManagePage as ManagePageView } from './pages/ManagePage';
 import { ScanPathsPage as ScanPathsPageView } from './pages/ScanPathsPage';
 import { Detail, EmptyRows, FilterBar, HelpTip, InlineNotice, IssueCard, LaunchScreen, LoadingLine, PageHeading, PlatformIcon, ResourceStatus, ScanningEmpty, SettingSwitch, SeverityBadge, StatCard, StatusPill, activationLabel, copyText, kindLabel, platformLabel, resourceKindLabel, scopeLabel, severityLabel, shortPath, translateResultText } from './components/ui';
 import { I18nProvider, useTranslation } from './i18n';
+import { useTheme, type Theme } from './theme-manager';
+import { ThemeToggle } from './components/ThemeToggle';
 
-type Route = 'overview' | 'issues' | 'context' | 'resources' | 'scan-paths' | 'manage';
-type Theme = 'light' | 'dark';
+type Route = 'overview' | 'issues' | 'context' | 'resources' | 'manage' | 'scan-paths';
 type ColorTheme = 'teal' | 'cyan';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
 type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
@@ -38,21 +39,19 @@ const DEFAULT_SCAN: ScanRequest = {
   budgetTokens: 2000, tokenizer: 'openai', tokenizerModel: 'gpt-4o',
 };
 
-const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.resources' | 'nav.group.manage'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.scanPaths' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
+const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.library'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
   { id: 'diagnose', labelKey: 'nav.group.diagnose', items: [
     { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
     { id: 'issues', labelKey: 'nav.issues', icon: Activity },
     { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
-  ]},
-  { id: 'resources', labelKey: 'nav.group.resources', items: [
     { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
   ]},
-  { id: 'manage', labelKey: 'nav.group.manage', items: [
-    { id: 'scan-paths', labelKey: 'nav.scanPaths', icon: FolderCog },
+  { id: 'library', labelKey: 'nav.group.library', items: [
     { id: 'manage', labelKey: 'nav.manage', icon: PackagePlus },
   ]},
 ];
 const ROUTES = NAV_GROUPS.flatMap((group) => group.items);
+const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'resources', 'manage', 'scan-paths'];
 
 export default function App() {
   return <I18nProvider><AppContent /></I18nProvider>;
@@ -61,7 +60,7 @@ export default function App() {
 function AppContent() {
   const { locale, setLocale, t } = useTranslation();
   const [route, setRoute] = useState<Route>(() => routeFromHash());
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('skill-doctor-theme') as Theme) || 'light');
+  const [theme, setTheme] = useTheme();
   const [colorTheme, setColorTheme] = useState<ColorTheme>(() => (localStorage.getItem('skill-doctor-color-theme') as ColorTheme) || 'teal');
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [snapshot, setSnapshot] = useState<DoctorSnapshot | null>(null);
@@ -81,11 +80,6 @@ function AppContent() {
   const activeScanId = useRef<string | undefined>(undefined);
   const scanVersion = useRef(0);
   const startedAutomatically = useRef(false);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('skill-doctor-theme', theme);
-  }, [theme]);
 
   useEffect(() => {
     document.documentElement.dataset.color = colorTheme;
@@ -229,7 +223,7 @@ function AppContent() {
           analysisMode={analysisMode}
           setAnalysisMode={chooseAnalysisMode}
           theme={theme}
-          toggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          setTheme={setTheme}
           colorTheme={colorTheme}
           setColorTheme={setColorTheme}
           locale={locale}
@@ -260,7 +254,7 @@ function AppContent() {
               if (rescan) refresh();
             }}
           />}
-          {route === 'manage' && <ManagePageView bootstrap={bootstrap} snapshot={snapshot} onChanged={() => { void getBootstrap().then(setBootstrap); refresh(); }} setToast={setToast} />}
+          {route === 'manage' && <ManagePageView bootstrap={bootstrap} snapshot={snapshot} onChanged={() => { void getBootstrap().then(setBootstrap); refresh(); }} setToast={setToast} onViewIssues={() => navigate('issues')} />}
         </div>
       </main>
 
@@ -270,6 +264,7 @@ function AppContent() {
         capabilities={bootstrap?.capabilities}
         close={() => setSettingsOpen(false)}
         apply={() => { setSettingsOpen(false); refresh(); }}
+        onManageScanSources={() => navigate('scan-paths')}
       />}
       {onboardingOpen && bootstrap && <OnboardingDialog
         bootstrap={bootstrap}
@@ -310,6 +305,7 @@ function AppContent() {
         detail={resourceDetail}
         close={() => { setSelectedResource(null); setResourceDetail(null); }}
         openIssue={(issue) => { setSelectedResource(null); setSelectedIssue(issue); }}
+        onManageSkill={(name) => navigate('manage')}
       />}
       {compare && <CompareDialog state={compare} snapshot={snapshot} setState={setCompare} close={() => setCompare(null)} />}
       {toast && <div className="toast"><Check size={17} />{toast}</div>}
@@ -349,7 +345,7 @@ function Topbar(props: {
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
   analysisMode: AnalysisMode; setAnalysisMode: (mode: AnalysisMode) => void;
-  openSettings: () => void; theme: Theme; toggleTheme: () => void; colorTheme: ColorTheme; setColorTheme: (value: ColorTheme) => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
+  openSettings: () => void; theme: Theme; setTheme: (next: Theme) => void; colorTheme: ColorTheme; setColorTheme: (value: ColorTheme) => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
 }) {
   const { t } = useTranslation();
   const { bootstrap, scan, scanOptions, setScanOptions } = props;
@@ -386,7 +382,7 @@ function Topbar(props: {
           </div>
         </>}
       </div>
-      <button className="icon-button" onClick={props.toggleTheme} aria-label={props.theme === 'light' ? t('topbar.theme.dark') : t('topbar.theme.light')}>{props.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
+      <ThemeToggle value={props.theme} onChange={props.setTheme} />
       <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>
       {scan.running
         ? <button className="button secondary" onClick={props.cancel}><X size={17} />{t('topbar.cancel')}</button>
@@ -456,9 +452,10 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
   </section></div>;
 }
 
-function SettingsDrawer({ options, setOptions, capabilities, close, apply }: { options: ScanRequest; setOptions: (value: ScanRequest) => void; capabilities?: BootstrapPayload['capabilities']; close: () => void; apply: () => void }) {
+function SettingsDrawer({ options, setOptions, capabilities, close, apply, onManageScanSources }: { options: ScanRequest; setOptions: (value: ScanRequest) => void; capabilities?: BootstrapPayload['capabilities']; close: () => void; apply: () => void; onManageScanSources: () => void }) {
   const { t } = useTranslation();
-  return <Drawer title={t('settings.title')} subtitle={t('settings.subtitle')} close={close}><div className="drawer-section"><h4>{t('settings.platformScope')}</h4><label className="field"><span>{t('settings.platform')}</span><select value={options.platform} onChange={(event) => setOptions({ ...options, platform: event.target.value as ScanRequest['platform'] })}><option value="all">{t('settings.allPlatforms')}</option>{['claude','cursor','copilot','codex','gemini','windsurf','trae','opencode','kiro','openclaw','hermes'].map((value) => <option key={value}>{value}</option>)}</select></label></div>
+  return <Drawer title={t('settings.title')} subtitle={t('settings.subtitle')} close={close}><div className="drawer-section"><h4>{t('settings.scanSources')}</h4><p className="muted">{t('settings.scanSourcesHint')}</p><button className="button secondary" onClick={onManageScanSources}><FolderCog size={15} />{t('settings.scanSources')}</button></div>
+    <div className="drawer-section"><h4>{t('settings.platformScope')}</h4><label className="field"><span>{t('settings.platform')}</span><select value={options.platform} onChange={(event) => setOptions({ ...options, platform: event.target.value as ScanRequest['platform'] })}><option value="all">{t('settings.allPlatforms')}</option>{['claude','cursor','copilot','codex','gemini','windsurf','trae','opencode','kiro','openclaw','hermes'].map((value) => <option key={value}>{value}</option>)}</select></label></div>
     <div className="drawer-section"><h4>{t('settings.capabilities')}</h4><SettingSwitch label={t('settings.context')} description={t('settings.contextDetail')} checked={options.includeContext} onChange={(checked) => setOptions({ ...options, includeContext: checked })} /><SettingSwitch label={t('settings.disabled')} description={t('settings.disabledDetail')} checked={options.includeDisabled} onChange={(checked) => setOptions({ ...options, includeDisabled: checked })} /><SettingSwitch label={t('settings.cache')} description={t('settings.cacheDetail')} checked={options.includeCache} onChange={(checked) => setOptions({ ...options, includeCache: checked })} /><SettingSwitch label={t('settings.mcp')} description={t('settings.mcpDetail')} checked={options.discoverMcpTools} onChange={(checked) => setOptions({ ...options, discoverMcpTools: checked })} /></div>
     <div className="drawer-section"><h4>{t('settings.deep')}</h4><label className="field"><span>{t('settings.conflicts')} <HelpTip label={t('settings.conflicts')} text={t('settings.conflictsHelp')} /></span><select value={options.conflictStrategy} onChange={(event) => setOptions({ ...options, conflictStrategy: event.target.value as ScanRequest['conflictStrategy'] })}><option value="token">{t('settings.token')}</option><option value="embedding" disabled={!capabilities?.embeddingConfigured}>{t('settings.embedding')}{!capabilities?.embeddingConfigured ? t('settings.unconfigured') : ''}</option></select></label><SettingSwitch label={t('settings.aiAudit')} description={capabilities?.aiAuditConfigured ? t('settings.aiConfigured') : t('settings.aiUnavailable')} checked={options.useAiAudit} disabled={!capabilities?.aiAuditConfigured} onChange={(checked) => setOptions({ ...options, useAiAudit: checked })} /><SettingSwitch label={t('settings.aiConflict')} description={t('settings.aiConflictDetail')} checked={options.analyzeConflicts} disabled={!capabilities?.aiAuditConfigured} onChange={(checked) => setOptions({ ...options, analyzeConflicts: checked })} /></div>
     <div className="drawer-section"><h4>{t('settings.budget')}</h4><label className="field"><span>{t('settings.budgetPerTurn')} <HelpTip label={t('settings.budgetPerTurn')} text={t('settings.budgetHelp')} /></span><input type="number" min="100" value={options.budgetTokens} onChange={(event) => setOptions({ ...options, budgetTokens: Number(event.target.value) || 2000 })} /></label><label className="field"><span>Tokenizer <HelpTip label="Tokenizer" text={t('settings.tokenizerHelp')} /></span><select value={options.tokenizer} onChange={(event) => setOptions({ ...options, tokenizer: event.target.value as ScanRequest['tokenizer'] })}><option value="openai">OpenAI tokenizer</option><option value="approx">{t('settings.approx')}</option></select></label></div>
@@ -478,7 +475,7 @@ function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, s
   </Drawer>;
 }
 
-function ResourceDrawer({ resource, detail, close, openIssue }: { resource: UiResource; detail: ResourceDetailPayload | null; close: () => void; openIssue: (issue: UiIssue) => void }) {
+function ResourceDrawer({ resource, detail, close, openIssue, onManageSkill }: { resource: UiResource; detail: ResourceDetailPayload | null; close: () => void; openIssue: (issue: UiIssue) => void; onManageSkill?: (name: string) => void }) {
   const { t } = useTranslation();
   return <Drawer title={resource.name} subtitle={`${resource.kindLabel} · ${resource.shared ? t('drawer.sharedSubtitle', { count: resource.consumers.length }) : platformLabel(resource.platform)} · ${scopeLabel(resource.scope, t)}`} close={close}>
     <div className="resource-hero"><div><ResourceStatus status={resource.status} count={resource.issueIds.length} />{resource.shared && <span className="shared-badge">{t('drawer.shared')}</span>}</div><p>{translateResultText(resource.description || resource.recommendation || t('drawer.noDescription'), t)}</p></div>
@@ -488,6 +485,7 @@ function ResourceDrawer({ resource, detail, close, openIssue }: { resource: UiRe
     <div className="drawer-section"><h4>{t('drawer.triggers')}</h4><div className="tag-list">{resource.triggers.length ? resource.triggers.map((trigger) => <span key={trigger}>{trigger}</span>) : <span className="muted">{t('drawer.noTriggers')}</span>}</div></div>
     <div className="drawer-section"><h4>{t('drawer.issues')}</h4>{detail ? <div className="linked-issues">{detail.issues.map((issue) => <button key={issue.id} onClick={() => openIssue(issue)}><SeverityBadge severity={issue.severity} /><span>{translateResultText(issue.title, t)}</span><ArrowRight size={15} /></button>)}{!detail.issues.length && <p className="muted">{t('drawer.noIssues')}</p>}</div> : <LoadingLine />}</div>
     {detail?.skill?.relatedSkills?.length ? <div className="drawer-section"><h4>{t('drawer.related')}</h4><div className="related-list">{detail.skill.relatedSkills.map((related) => <div key={related.name}><code>{related.name}</code><span>{t('drawer.similar', { percent: Math.round(related.similarity * 100) })}</span></div>)}</div></div> : null}
+    {onManageSkill && <div className="drawer-section"><button className="button secondary full" onClick={() => onManageSkill(resource.name)}><PackagePlus size={15} />{t('resources.manageSkill')}</button></div>}
   </Drawer>;
 }
 
@@ -507,7 +505,7 @@ function scanStatusMessage(status: ScanState['status'], t: ReturnType<typeof use
   const key = { preparing: 'status.preparing', complete: 'status.complete', partial: 'status.partial', failed: 'status.failed', cancelled: 'status.cancelled' } as const;
   return t(key[status]);
 }
-function routeFromHash(): Route { const value = window.location.hash.replace(/^#\//, '') as Route; return ROUTES.some((route) => route.id === value) ? value : 'overview'; }
+function routeFromHash(): Route { const value = window.location.hash.replace(/^#\//, '') as Route; return (VALID_ROUTES as string[]).includes(value) ? value : 'overview'; }
 function initialScanOptions(payload: BootstrapPayload): ScanRequest {
   const preference = loadProjectPreference(payload.projectDir);
   const available = new Set(payload.detectedAgents.map((agent) => agent.platform));

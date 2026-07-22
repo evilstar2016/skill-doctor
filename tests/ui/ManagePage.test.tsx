@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   previewDeployment: vi.fn(),
   commitDeployment: vi.fn(),
   reclaimPhysicalAgentSkills: vi.fn(),
+  removeSkill: vi.fn(),
   syncDeployment: vi.fn(),
   uninstallDeployment: vi.fn(),
 }));
@@ -37,9 +38,10 @@ describe('ManagePage unified Skill Center', () => {
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
     mocks.previewDeployment.mockResolvedValue({ planId: 'preview-plan' });
     mocks.commitDeployment.mockResolvedValue({ status: 200, outcomes: [] });
-    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({ planId: 'plan-empty', outcomes: [], needsRescan: false });
-    mocks.syncDeployment.mockResolvedValue({ status: 200 });
-    mocks.uninstallDeployment.mockResolvedValue({ status: 200 });
+  mocks.reclaimPhysicalAgentSkills.mockResolvedValue({ planId: 'plan-empty', outcomes: [], needsRescan: false });
+  mocks.removeSkill.mockResolvedValue({ removed: true, uninstalledDeployments: 0 });
+  mocks.syncDeployment.mockResolvedValue({ status: 200 });
+  mocks.uninstallDeployment.mockResolvedValue({ status: 200 });
   });
 
   it('loads the center and renders managed and physical rows', async () => {
@@ -130,9 +132,11 @@ describe('ManagePage unified Skill Center', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '卸载' }));
 
-    await waitFor(() => expect(mocks.uninstallDeployment).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.removeSkill).toHaveBeenCalledTimes(2));
     expect(mocks.uninstallDeployment).toHaveBeenCalledWith('d-a', true);
     expect(mocks.uninstallDeployment).toHaveBeenCalledWith('d-b', true);
+    expect(mocks.removeSkill).toHaveBeenCalledWith('a', true);
+    expect(mocks.removeSkill).toHaveBeenCalledWith('b', true);
   });
 
   it('resyncs a modified installation from the detail drawer', async () => {
