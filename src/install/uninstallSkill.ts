@@ -3,13 +3,13 @@ import { existsSync, readdirSync, readFileSync, realpathSync, rmSync } from 'nod
 import { dirname } from 'node:path';
 
 import type { Platform, Scope } from '../types/skill.js';
-import { findRegistryEntry, removeRegistryEntry } from './registry.js';
 import { hashSkillDirectory } from '../library/skillDirectory.js';
+import { findRegistryInstall, removeRegistryInstall } from '../library/centerStore.js';
 
 export interface UninstallSkillOptions {
   name: string;
   platform: Platform;
-  registryPath: string;
+  homeDir: string;
   force: boolean;
   scope?: Scope;
 }
@@ -20,16 +20,16 @@ function computeHash(filePath: string): string {
 }
 
 export async function uninstallSkill(options: UninstallSkillOptions): Promise<void> {
-  const { name, platform, registryPath, force } = options;
+  const { name, platform, homeDir, force } = options;
   const scope = options.scope ?? 'global';
-  const entry = findRegistryEntry(registryPath, name, platform, scope);
+  const entry = findRegistryInstall(homeDir, name, platform, scope);
 
   if (!entry) {
     throw new Error(`Skill '${name}' is not in the registry for platform '${platform}'`);
   }
 
   if (!existsSync(entry.installedPath)) {
-    removeRegistryEntry(registryPath, name, platform, scope);
+    removeRegistryInstall(homeDir, name, platform, scope);
     return;
   }
 
@@ -55,5 +55,5 @@ export async function uninstallSkill(options: UninstallSkillOptions): Promise<vo
     // Parent removal is best-effort
   }
 
-  removeRegistryEntry(registryPath, name, platform, scope);
+  removeRegistryInstall(homeDir, name, platform, scope);
 }

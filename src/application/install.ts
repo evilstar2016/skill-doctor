@@ -1,15 +1,14 @@
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 
 import { fetchMarketplaceSkill } from '../install/fetchMarketplace';
 import { extractSkillName, installSkill } from '../install/installSkill';
-import { loadRegistry } from '../install/registry';
 import { listInstallTargetScopes, resolveInstallTarget } from '../install/resolveInstallPath';
 import { uninstallSkill } from '../install/uninstallSkill';
 import { loadEffectiveScanSources } from '../config/scanSources';
 import type { Platform, Scope } from '../types/skill';
-import { getRegistryPath } from './runtimePaths';
+import { loadCenterRegistry } from '../library/centerStore';
 
 export interface InstallRequest {
   source: string;
@@ -62,7 +61,7 @@ export function listTargetAgentSkills(
   const targets = listInstallTargetScopes(target, { projectDir, homeDir });
   const resolvedTarget = targets.find((entry) => entry.scope === requestedScope) ?? targets[0];
   if (!resolvedTarget) throw new Error(`Platform '${target}' does not support skill installs.`);
-  const registry = loadRegistry(getRegistryPath(homeDir));
+  const registry = loadCenterRegistry(homeDir);
   const managedPaths = new Set(registry.entries
     .filter((entry) => entry.platform === resolvedTarget.platform)
     .map((entry) => resolve(entry.installedPath)));
@@ -91,7 +90,7 @@ export async function installManagedSkill(request: InstallRequest) {
     projectDir: request.projectDir,
     scope: request.scope ?? 'global',
   });
-  const registryPath = getRegistryPath(request.homeDir);
+  const homeDir = request.homeDir ?? homedir();
 
   if (request.sourceType === 'local') {
     let sourcePath = resolve(request.source);
@@ -104,7 +103,7 @@ export async function installManagedSkill(request: InstallRequest) {
       globalDir: target.globalDir,
       layout: target.layout,
       scope: target.scope,
-      registryPath,
+      homeDir,
       link: request.link ?? false,
       sourceRef: sourcePath,
       marketplaceSource: false,
@@ -122,7 +121,7 @@ export async function installManagedSkill(request: InstallRequest) {
       globalDir: target.globalDir,
       layout: target.layout,
       scope: target.scope,
-      registryPath,
+      homeDir,
       link: false,
       sourceRef: request.source,
       marketplaceSource: true,
@@ -139,7 +138,7 @@ export async function uninstallManagedSkill(
   homeDir?: string,
   scope: Scope = 'global',
 ): Promise<void> {
-  await uninstallSkill({ name, platform, scope, force, registryPath: getRegistryPath(homeDir) });
+  await uninstallSkill({ name, platform, scope, force, homeDir: homeDir ?? homedir() });
 }
 
 function findSkillEntryPaths(sourcePath: string): string[] {

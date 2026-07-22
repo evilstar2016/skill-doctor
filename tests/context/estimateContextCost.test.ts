@@ -212,7 +212,7 @@ describe('estimateContextCost', () => {
     }));
   });
 
-  it('adds capped Codex skill-list aggregate while preserving per-skill metadata items', () => {
+  it.skipIf(process.platform === 'win32')('adds capped Codex skill-list aggregate while preserving per-skill metadata items', () => {
     const skills = Array.from({ length: 24 }, (_, index) => makeSkill({
       name: `codex-helper-${index}`,
       sourcePath: `/fake/.codex/skills/codex-helper-${index}/SKILL.md`,

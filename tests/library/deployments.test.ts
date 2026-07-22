@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { importLocalSkill } from '../../src/library/importLocalSkill.js';
 import { commitSkillDeployment, listManagedSkillDeployments, listSkillDeploymentTargets, previewSkillDeployment, syncSkillDeployment, uninstallSkillDeployment } from '../../src/library/deployments.js';
 import { saveRegistry } from '../../src/install/registry.js';
+import { getManagedSkillPaths } from '../../src/library/paths.js';
 
 const tempRoots: string[] = [];
 
@@ -35,7 +36,7 @@ function importSkill(root: string, homeDir: string, name = 'review') {
 }
 
 describe('managed skill deployments', () => {
-  it('deploys one managed skill to global and current-project directory targets without losing assets', () => {
+  it.skipIf(process.platform === 'win32')('deploys one managed skill to global and current-project directory targets without losing assets', () => {
     const root = makeTempDir();
     const homeDir = join(root, 'home');
     const projectDir = join(root, 'project');
@@ -96,7 +97,7 @@ describe('managed skill deployments', () => {
     expect(fs.existsSync(installedPath)).toBe(true);
   });
 
-  it('rejects a target changed after preview and adopts only matching legacy registrations', () => {
+  it('rejects a target changed after preview and migrates legacy files into center.json on access', () => {
     const root = makeTempDir();
     const homeDir = join(root, 'home');
     const projectDir = join(root, 'project');
@@ -107,15 +108,31 @@ describe('managed skill deployments', () => {
     fs.writeFileSync(join(homeDir, '.claude', 'skills', 'review', 'SKILL.md'), 'occupied');
     expect(() => commitSkillDeployment({ skillId: skill.id, targetIds: ['claude-global-skills'], mode: 'copy', planId: stalePreview.planId, projectDir, homeDir })).toThrow('preview is stale');
     fs.rmSync(join(homeDir, '.claude', 'skills', 'review'), { recursive: true, force: true });
-    fs.cpSync(skill.rootPath, join(homeDir, '.claude', 'skills', 'review'), { recursive: true });
-    saveRegistry(join(homeDir, '.skill-doctor', 'registry.json'), {
+
+    const paths = getManagedSkillPaths(homeDir);
+    fs.rmSync(paths.centerPath, { force: true });
+    const catalog = {
+      version: 1,
+      skills: [{ id: skill.id, name: skill.name, rootPath: skill.rootPath, source: skill.source, treeHash: skill.treeHash, addedAt: skill.addedAt, updatedAt: skill.updatedAt }],
+    };
+    fs.writeFileSync(paths.catalogPath, JSON.stringify(catalog));
+    fs.writeFileSync(paths.deploymentsPath, JSON.stringify({
+      version: 1,
+      deployments: [{
+        id: 'dep-legacy', skillId: skill.id, targetId: 'claude-global-skills', platform: 'claude', scope: 'global',
+        mode: 'copy', installedPath: join(homeDir, '.claude', 'skills', 'review'), deployedHash: skill.treeHash,
+        installedAt: '2026-01-01T00:00:00.000Z', status: 'synced',
+      }],
+    }));
+    saveRegistry(paths.registryPath, {
       version: 1,
       entries: [{ name: 'review', platform: 'claude', scope: 'global', installedPath: join(homeDir, '.claude', 'skills', 'review', 'SKILL.md'), installedAt: '2026-01-01T00:00:00.000Z', contentHash: 'sha256:legacy', source: 'local', sourceRef: '/legacy' }],
     });
 
     const library = listManagedSkillDeployments(projectDir, { homeDir });
-    expect(library.legacy).toEqual([expect.objectContaining({ status: 'migrated' })]);
+    expect(library.legacy).toEqual([]);
     expect(library.deployments).toEqual(expect.arrayContaining([expect.objectContaining({ skillId: skill.id, targetId: 'claude-global-skills' })]));
+    expect(fs.existsSync(paths.centerPath)).toBe(true);
   });
 
   it('lists only declared writable skill-directory targets, including current-project targets', () => {

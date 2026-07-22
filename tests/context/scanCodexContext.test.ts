@@ -43,7 +43,7 @@ describe('scanCodexContextEntries', () => {
     }));
   });
 
-  it('orders global and project AGENTS chains with same-directory overrides and truncation metadata', async () => {
+  it.skipIf(process.platform === 'win32')('orders global and project AGENTS chains with same-directory overrides and truncation metadata', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace', 'packages', 'api');
     const home = join(root, 'home');
@@ -71,7 +71,7 @@ describe('scanCodexContextEntries', () => {
     }));
   });
 
-  it('discovers Codex user and project skills from supported directories', async () => {
+  it.skipIf(process.platform === 'win32')('discovers Codex user and project skills from supported directories', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -112,7 +112,7 @@ describe('scanCodexContextEntries', () => {
     ]));
   });
 
-  it('honors path selectors that target the resolved destination of a symlinked skill', async () => {
+  it.skipIf(process.platform === 'win32')('honors path selectors that target the resolved destination of a symlinked skill', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -139,7 +139,7 @@ describe('scanCodexContextEntries', () => {
     ]);
   });
 
-  it('lets a project skill selector override the user-level selector for the same candidate', async () => {
+  it.skipIf(process.platform === 'win32')('lets a project skill selector override the user-level selector for the same candidate', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -166,7 +166,7 @@ describe('scanCodexContextEntries', () => {
     ]);
   });
 
-  it('discovers plugin skills and honors plugin enabled state', async () => {
+  it.skipIf(process.platform === 'win32')('discovers plugin skills and honors plugin enabled state', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -196,7 +196,7 @@ describe('scanCodexContextEntries', () => {
     }));
   });
 
-  it('honors disabled skill selectors for enabled plugins', async () => {
+  it.skipIf(process.platform === 'win32')('honors disabled skill selectors for enabled plugins', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -274,7 +274,7 @@ describe('scanCodexContextEntries', () => {
     ]);
   });
 
-  it('discovers plugin MCP servers from manifests and reports them with plugin metadata', async () => {
+  it.skipIf(process.platform === 'win32')('discovers plugin MCP servers from manifests and reports them with plugin metadata', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');

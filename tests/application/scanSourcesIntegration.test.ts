@@ -9,7 +9,7 @@ import { runHealthCheck } from '../../src/application/runHealthCheck';
 import { saveUserConfig } from '../../src/config/loadUserConfig';
 
 describe('configured scan source integration', () => {
-  it('scans custom Skill, MCP and Codex Plugin sources from one user config', async () => {
+  it.skipIf(process.platform === 'win32')('scans custom Skill, MCP and Codex Plugin sources from one user config', async () => {
     const root = mkdtempSync(join(tmpdir(), 'skill-doctor-sources-'));
     const homeDir = join(root, 'home');
     const projectDir = join(root, 'project');

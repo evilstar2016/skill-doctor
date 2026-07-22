@@ -3,9 +3,9 @@ import { basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import type { Platform, Scope } from '../types/skill.js';
-import { addRegistryEntry } from './registry.js';
 import { resolveInstallPath } from './resolveInstallPath.js';
 import { copySkillDirectory, hashSkillDirectory } from '../library/skillDirectory.js';
+import { upsertRegistryInstall } from '../library/centerStore.js';
 
 export interface InstallSkillOptions {
   source: string;
@@ -13,7 +13,7 @@ export interface InstallSkillOptions {
   globalDir: string;
   layout: 'skill-dirs' | 'files';
   scope?: Scope;
-  registryPath: string;
+  homeDir: string;
   link: boolean;
   sourceRef?: string;
   marketplaceSource?: boolean;
@@ -73,7 +73,8 @@ export async function installSkill(options: InstallSkillOptions): Promise<{ name
     ? (options.link ? sourceDirectoryHash! : hashSkillDirectory(realpathSync(installedRootPath)))
     : await hashFile(installedPath);
 
-  addRegistryEntry(options.registryPath, {
+  const homeDir = options.homeDir;
+  upsertRegistryInstall(homeDir, {
     name: skillName,
     platform: options.platform,
     scope: options.scope ?? 'global',
@@ -83,6 +84,7 @@ export async function installSkill(options: InstallSkillOptions): Promise<{ name
     contentHash,
     source: options.marketplaceSource ? 'marketplace' : 'local',
     sourceRef: options.sourceRef ?? options.source,
+    mode: options.link ? 'symlink' : 'copy',
   });
 
   return { name: skillName, installedPath };

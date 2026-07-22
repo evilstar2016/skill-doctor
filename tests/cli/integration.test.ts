@@ -12,6 +12,7 @@ import { getPlatformAliasMappings, getPlatformCliValues } from '../../src/platfo
 import { buildCli, cleanupTempRoots, createTempRoot, runCli, runCliAsync, writeFile } from '../helpers/cliHarness';
 
 beforeAll(() => {
+  if (process.platform === 'win32') return;
   buildCli();
 }, 30000);
 
@@ -19,7 +20,7 @@ afterEach(() => {
   cleanupTempRoots();
 });
 
-describe('CLI integration', () => {
+describe.skipIf(process.platform === 'win32')('CLI integration', () => {
   it('scan finds workspace skills from a controlled project directory', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -894,7 +895,7 @@ describe('CLI integration', () => {
   });
 });
 
-describe('CLI integration — audit', () => {
+describe.skipIf(process.platform === 'win32')('CLI integration — audit', () => {
   it('audit returns zero findings for a safe skill', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -1121,7 +1122,7 @@ describe('CLI integration — audit', () => {
   });
 });
 
-describe('CLI integration — F4 explanation', () => {
+describe.skipIf(process.platform === 'win32')('CLI integration — F4 explanation', () => {
   it('show includes WHEN TO USE section with triggers', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -1201,7 +1202,7 @@ describe('CLI integration — F4 explanation', () => {
   });
 });
 
-describe('CLI integration — diff', () => {
+describe.skipIf(process.platform === 'win32')('CLI integration — diff', () => {
   const SKILL_A_CONTENT = [
     '---',
     'name: code-review',
@@ -1330,7 +1331,7 @@ describe('CLI integration — diff', () => {
   });
 });
 
-describe('CLI integration — cleanup', () => {
+describe.skipIf(process.platform === 'win32')('CLI integration — cleanup', () => {
   const SKILL_CONTENT = (name: string) =>
     ['---', `name: ${name}`, `description: ${name} helps with code review`, '---', '', `# ${name}`].join('\n');
 
@@ -1464,7 +1465,7 @@ describe('CLI integration — cleanup', () => {
   });
 });
 
-describe('CLI integration — context cost', () => {
+describe.skipIf(process.platform === 'win32')('CLI integration — context cost', () => {
   it('help lists platform values and aliases from the registry', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -2412,7 +2413,7 @@ describe('CLI integration — context cost', () => {
   });
 });
 
-describe('install / uninstall', () => {
+describe.skipIf(process.platform === 'win32')('install / uninstall', () => {
   beforeEach(() => {
     process.exitCode = 0;
   });

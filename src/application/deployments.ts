@@ -1,4 +1,3 @@
-import { loadRegistry } from '../install/registry';
 import {
   commitSkillDeployment,
   listManagedSkillDeployments,
@@ -13,10 +12,12 @@ import {
   previewAgentSkillImport,
   type AgentImportDecision,
 } from '../library/importAgentSkills';
-import { getRegistryPath } from './runtimePaths';
+import { loadCenter, loadManagedSkills, removeCenterSkill, loadCenterRegistry } from '../library/centerStore';
+import { homedir } from 'node:os';
+import * as fs from 'node:fs';
 
 export function getManagedRegistry(homeDir?: string) {
-  return loadRegistry(getRegistryPath(homeDir));
+  return loadCenterRegistry(homeDir);
 }
 
 export function previewManagedAgentSkillImport(projectDir: string, homeDir?: string) {
@@ -74,4 +75,56 @@ export function uninstallManagedSkillDeployment(
   homeDir?: string,
 ) {
   return uninstallSkillDeployment({ projectDir, deploymentId, unregisterOnly, force, homeDir });
+}
+
+/**
+ * Remove a managed skill entirely from the center store:
+ * 1. Uninstall all deployments (remove files from agent dirs)
+ * 2. Delete skill files from the center library (~/.skill-doctor/skills/<id>)
+ * 3. Remove the skill record from center.json
+ *
+ * This is the "full uninstall" for skills that have zero or more installations.
+ */
+export function removeManagedSkillEntirely(
+  _projectDir: string,
+  skillId: string,
+  force: boolean,
+  homeDir?: string,
+): { removed: boolean; uninstalledDeployments: number } {
+  const resolvedHome = homeDir ?? homedir();
+  const skills = loadManagedSkills(resolvedHome);
+  const skill = skills.find((s) => s.id === skillId);
+  if (!skill) return { removed: false, uninstalledDeployments: 0 };
+
+  let uninstalled = 0;
+
+  // Step 1: Uninstall all active deployments
+  try {
+    const { deployments } = listManagedSkillDeployments(_projectDir, { homeDir: resolvedHome });
+    const skillDeployments = deployments.filter((d) => d.skillId === skillId);
+    for (const dep of skillDeployments) {
+      try {
+        uninstallSkillDeployment({ projectDir: _projectDir, deploymentId: dep.id, unregisterOnly: false, force, homeDir: resolvedHome });
+        uninstalled++;
+      } catch {
+        // Continue removing other deployments even if one fails
+      }
+    }
+  } catch {
+    // Non-fatal: proceed to delete skill files and record
+  }
+
+  // Step 2: Delete skill files from center library
+  try {
+    if (fs.existsSync(skill.rootPath)) {
+      fs.rmSync(skill.rootPath, { recursive: true, force: true });
+    }
+  } catch {
+    // Non-fatal: record removal is more important
+  }
+
+  // Step 3: Remove skill record from center.json
+  removeCenterSkill(resolvedHome, skillId);
+
+  return { removed: true, uninstalledDeployments: uninstalled };
 }

@@ -12,7 +12,7 @@ import { scanCodexPluginCache } from '../context/scanCodexPluginCache';
 import { scanCodexContextEntries } from '../context/scanCodexContext';
 import { groupSkills } from '../explain/groupSkills';
 import { getDefaultGroupLabelCachePath, loadGroupLabelCache, saveGroupLabelCache } from '../explain/groupLabelCache';
-import { loadRegistry } from '../install/registry';
+import { loadCenterRegistry } from '../library/centerStore';
 import type { LlmExplainOptions } from '../types/explain';
 import type { McpServerRecord } from '../types/mcp';
 import type { Platform, SkillRecord } from '../types/skill';
@@ -36,7 +36,7 @@ export async function runHealthCheck(
   const loaded = loadUserConfig(options.homeDir);
   const llmOptions = getAnalysisOptions(loaded.config.analysis);
   const embedding = loaded.config.embedding;
-  const registry = loadRegistry(getRegistryPath(options.homeDir));
+  const registry = loadCenterRegistry(options.homeDir);
   const progress = (phase: ScanPhase, message: string) => {
     onProgress?.({ phase, message, completed: PHASES.indexOf(phase) + 1, total: PHASES.length });
     assertNotAborted(options.signal);
@@ -236,11 +236,6 @@ function getAnalysisOptions(config: { baseUrl?: string; model?: string; apiKey?:
     ...(config.apiKey ? { apiKey: config.apiKey } : {}),
     ...(config.timeoutMs ? { timeoutMs: config.timeoutMs } : {}),
   };
-}
-
-function getRegistryPath(homeDir?: string): string {
-  const home = homeDir ?? process.env.HOME ?? process.env.USERPROFILE ?? '';
-  return resolve(home, '.skill-doctor', 'registry.json');
 }
 
 function assertNotAborted(signal: AbortSignal | undefined): void {

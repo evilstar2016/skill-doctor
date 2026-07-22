@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { loadEffectiveScanSources } from '../config/scanSources.js';
 import type { Platform, Scope } from '../types/skill.js';
-import { type ManagedSkill, loadManagedSkillCatalog, saveManagedSkillCatalog } from './catalog.js';
+import { type ManagedSkill } from './catalog.js';
 import { importLocalSkill } from './importLocalSkill.js';
+import { loadManagedSkills, removeCenterSkill } from './centerStore.js';
 import { getManagedSkillPaths } from './paths.js';
 import { inspectSkillDirectory } from './skillDirectory.js';
 
@@ -71,9 +73,8 @@ export interface AgentSkillImportOptions {
 }
 
 export function previewAgentSkillImport(options: AgentSkillImportOptions): AgentSkillImportPreview {
-  const paths = getManagedSkillPaths(options.homeDir);
-  const catalog = loadManagedSkillCatalog(paths.catalogPath);
-  const candidates = collectCandidateRoots(options).map((entry) => inspectCandidate(entry, catalog.skills));
+  const skills = loadManagedSkills(options.homeDir);
+  const candidates = collectCandidateRoots(options).map((entry) => inspectCandidate(entry, skills));
   candidates.sort((left, right) => left.rootPath.localeCompare(right.rootPath) || left.id.localeCompare(right.id));
   return { planId: hashValue(candidates), candidates };
 }
@@ -272,7 +273,7 @@ function importCandidate(candidate: AgentImportCandidate, decision: AgentImportD
 }
 
 function requireManagedSkill(candidate: AgentImportCandidate, homeDir: string | undefined): ManagedSkill {
-  const skill = loadManagedSkillCatalog(getManagedSkillPaths(homeDir).catalogPath).skills.find((entry) => entry.id === candidate.managedSkillId);
+  const skill = loadManagedSkills(homeDir).find((entry) => entry.id === candidate.managedSkillId);
   if (!skill) throw new Error('The selected managed skill no longer exists.');
   return skill;
 }
@@ -295,7 +296,7 @@ function takeOver(
     fs.renameSync(candidate.rootPath, backupPath);
     steps.push('backup-original');
     temporaryLinkPath = join(dirname(candidate.rootPath), `.skill-doctor-link-${randomUUID()}`);
-    (linkFactory ?? ((targetPath, linkPath) => fs.symlinkSync(targetPath, linkPath, 'dir')))(skill.rootPath, temporaryLinkPath);
+    (linkFactory ?? createSkillLink)(skill.rootPath, temporaryLinkPath);
     if (fs.realpathSync(temporaryLinkPath) !== fs.realpathSync(skill.rootPath)) throw new Error('Temporary link does not resolve to the managed skill.');
     fs.renameSync(temporaryLinkPath, candidate.rootPath);
     temporaryLinkPath = undefined;
@@ -335,10 +336,8 @@ function restoreOriginal(rootPath: string, backupPath: string | undefined): bool
 
 function removeManagedSkill(skill: ManagedSkill, homeDir: string | undefined): boolean {
   try {
-    const paths = getManagedSkillPaths(homeDir);
-    const catalog = loadManagedSkillCatalog(paths.catalogPath);
     fs.rmSync(skill.rootPath, { recursive: true, force: true });
-    saveManagedSkillCatalog(paths.catalogPath, { version: 1, skills: catalog.skills.filter((entry) => entry.id !== skill.id) });
+    removeCenterSkill(homeDir ?? homedir(), skill.id);
     return true;
   } catch {
     return false;
@@ -379,6 +378,15 @@ function isUnreadableError(error: unknown): boolean {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Create a platform-appropriate directory link (symlink on Unix, junction on Windows). */
+function createSkillLink(targetPath: string, linkPath: string): void {
+  if (process.platform === 'win32') {
+    fs.symlinkSync(resolve(targetPath), linkPath, 'junction');
+  } else {
+    fs.symlinkSync(targetPath, linkPath, 'dir');
+  }
 }
 
 interface CandidateRoot {

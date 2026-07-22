@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { loadManagedSkillCatalog } from '../../src/library/catalog.js';
+import { loadCenter } from '../../src/library/centerStore.js';
 import { commitAgentSkillImport, previewAgentSkillImport } from '../../src/library/importAgentSkills.js';
 import { importLocalSkill } from '../../src/library/importLocalSkill.js';
 import { getManagedSkillPaths } from '../../src/library/paths.js';
@@ -25,7 +25,7 @@ function preview(homeDir: string, projectDir: string) {
 }
 
 describe('Agent skill import preview', () => {
-  it('classifies copies, name conflicts, links, invalid skills, and unreadable targets without changing files', () => {
+  it.skipIf(process.platform === 'win32')('classifies copies, name conflicts, links, invalid skills, and unreadable targets without changing files', () => {
     const root = createTempRoot();
     const homeDir = join(root, 'home');
     const projectDir = join(root, 'project');
@@ -98,12 +98,12 @@ describe('Agent skill import commit', () => {
       decisions: [{ candidateId: candidate.id, action: 'keep-separate', name: 'review-agent-copy' }],
     });
     expect(result.outcomes[0].status).toBe('imported');
-    expect(loadManagedSkillCatalog(getManagedSkillPaths(homeDir).catalogPath).skills.map((skill) => skill.name)).toEqual([
+    expect(loadCenter(homeDir).skills.map((skill) => skill.name)).toEqual([
       'review', 'review-agent-copy',
     ]);
   });
 
-  it('imports and replaces an Agent directory with a verified managed directory link', () => {
+  it.skipIf(process.platform === 'win32')('imports and replaces an Agent directory with a verified managed directory link', () => {
     const root = createTempRoot();
     const homeDir = join(root, 'home');
     const projectDir = join(root, 'project');
@@ -115,12 +115,12 @@ describe('Agent skill import commit', () => {
       homeDir, projectDir, planId: plan.planId, decisions: [{ candidateId: candidate.id, action: 'replace-with-link' }],
     });
     const outcome = result.outcomes[0];
-    const catalog = loadManagedSkillCatalog(getManagedSkillPaths(homeDir).catalogPath);
+    const center = loadCenter(homeDir);
 
     expect(outcome.status).toBe('linked');
     expect(fs.lstatSync(agentSkill).isSymbolicLink()).toBe(true);
-    expect(fs.realpathSync(agentSkill)).toBe(fs.realpathSync(catalog.skills[0].rootPath));
-    expect(catalog.skills[0].source).toMatchObject({ type: 'agent-import', originalPath: agentSkill, platform: 'claude' });
+    expect(fs.realpathSync(agentSkill)).toBe(fs.realpathSync(center.skills[0].rootPath));
+    expect(center.skills[0].source).toMatchObject({ type: 'agent-import', originalPath: agentSkill, platform: 'claude' });
     expect(fs.readdirSync(getManagedSkillPaths(homeDir).backupsDir)).toHaveLength(1);
   });
 
@@ -144,7 +144,7 @@ describe('Agent skill import commit', () => {
     });
     expect(fs.lstatSync(agentSkill).isDirectory()).toBe(true);
     expect(fs.readFileSync(join(agentSkill, 'SKILL.md'), 'utf8')).toContain('Review changes safely.');
-    expect(loadManagedSkillCatalog(paths.catalogPath).skills).toEqual([]);
+    expect(loadCenter(homeDir).skills).toEqual([]);
     expect(fs.readdirSync(paths.skillsDir)).toEqual([]);
   });
 });

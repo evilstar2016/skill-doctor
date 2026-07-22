@@ -29,6 +29,7 @@ import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
 import { installSkill } from '../install/installSkill.js';
 import { InstallTargetError, resolveInstallTarget } from '../install/resolveInstallPath.js';
 import { uninstallSkill } from '../install/uninstallSkill.js';
+import { loadCenter, migrateToCenter } from '../library/centerStore.js';
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
 import { getPlatformAliasMappings, getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
@@ -58,10 +59,6 @@ import type {
 } from '../types/skill';
 
 type CostSourceFilter = 'skill' | 'mcp' | 'all';
-
-function getRegistryPath(): string {
-  return join(homedir(), '.skill-doctor', 'registry.json');
-}
 
 export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const [command, ...rest] = argv;
@@ -730,7 +727,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
           platform,
           globalDir,
           layout,
-          registryPath: getRegistryPath(),
+          homeDir: homedir(),
           link,
           sourceRef: sourcePath,
           marketplaceSource: false,
@@ -760,7 +757,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
           platform,
           globalDir,
           layout,
-          registryPath: getRegistryPath(),
+          homeDir: homedir(),
           link: false,
           sourceRef: source,
           marketplaceSource: true,
@@ -811,12 +808,17 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     try {
-      await uninstallSkill({ name, platform, registryPath: getRegistryPath(), force });
+      await uninstallSkill({ name, platform, homeDir: homedir(), force });
       process.stdout.write(renderUninstallSuccess(name, platform));
     } catch (err) {
       process.stderr.write(`Error: ${(err as Error).message}\n`);
       process.exitCode = 1;
     }
+    return;
+  }
+
+  if (command === 'center') {
+    await runCenterCommand(rest, { jsonOutput });
     return;
   }
 
@@ -829,6 +831,28 @@ void main().catch((error: unknown) => {
   process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 });
+
+async function runCenterCommand(args: string[], options: { jsonOutput: boolean }): Promise<void> {
+  const [sub] = args;
+  if (sub === 'migrate') {
+    const result = migrateToCenter(homedir());
+    if (options.jsonOutput) {
+      process.stdout.write(`${toJson(result)}\n`);
+    } else {
+      process.stdout.write(
+        `Migrated to center.json:\n  skills: ${result.skills}\n  installations: ${result.installations}\n` +
+          (result.backups.length ? `  backups:\n    ${result.backups.join('\n    ')}\n` : '  backups: (none)\n'),
+      );
+    }
+    return;
+  }
+  if (sub === 'show') {
+    process.stdout.write(`${toJson(loadCenter(homedir()))}\n`);
+    return;
+  }
+  process.stderr.write('Usage: skill-doctor center migrate|show\n');
+  process.exitCode = 1;
+}
 
 function getHelpText(): string {
   return [
@@ -848,6 +872,7 @@ function getHelpText(): string {
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
     '  skill-doctor uninstall <name> [--target <platform>] [--force]',
+    '  skill-doctor center migrate|show',
     '  skill-doctor --version',
     '',
     'Embedding config file:',

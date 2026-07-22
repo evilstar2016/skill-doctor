@@ -6,18 +6,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const catalogWrite = vi.hoisted(() => ({ fail: false }));
 
-vi.mock('../../src/library/catalog.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/library/catalog.js')>();
+vi.mock('../../src/library/centerStore.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/library/centerStore.js')>();
   return {
     ...actual,
-    saveManagedSkillCatalog(catalogPath: string, catalog: Parameters<typeof actual.saveManagedSkillCatalog>[1]) {
+    upsertManagedSkill(...args: Parameters<typeof actual.upsertManagedSkill>) {
       if (catalogWrite.fail) throw new Error('catalog write failed');
-      actual.saveManagedSkillCatalog(catalogPath, catalog);
+      return actual.upsertManagedSkill(...args);
     },
   };
 });
 
-import { loadManagedSkillCatalog } from '../../src/library/catalog.js';
+import { loadCenter } from '../../src/library/centerStore.js';
 import { importLocalSkill } from '../../src/library/importLocalSkill.js';
 import { getManagedSkillPaths } from '../../src/library/paths.js';
 import { hashSkillDirectory } from '../../src/library/skillDirectory.js';
@@ -56,7 +56,9 @@ function writeSkill(root: string, name = 'review-skill'): string {
 }
 
 describe('hashSkillDirectory', () => {
-  it('is stable across creation order and changes when content, paths, or modes change', () => {
+  it.skipIf(process.platform === 'win32')(
+    'is stable across creation order and changes when content, paths, or modes change',
+    () => {
     const root = makeTempRoot();
     const first = join(root, 'first');
     const second = join(root, 'second');
@@ -85,7 +87,7 @@ describe('hashSkillDirectory', () => {
 });
 
 describe('importLocalSkill', () => {
-  it('imports a complete directory and persists a restart-loadable catalog', () => {
+  it('imports a complete directory and persists a restart-loadable center store', () => {
     const root = makeTempRoot();
     const homeDir = join(root, 'home');
     const source = writeSkill(join(root, 'source'));
@@ -98,9 +100,13 @@ describe('importLocalSkill', () => {
     expect(result.duplicate).toBe(false);
     expect(fs.readFileSync(join(result.skill.rootPath, 'assets', 'checklist.txt'), 'utf8')).toBe('Review the tests.\n');
     expect(fs.readFileSync(join(result.skill.rootPath, 'scripts', 'check.sh'), 'utf8')).toContain('echo check');
-    expect(fs.statSync(join(result.skill.rootPath, 'scripts', 'check.sh')).mode & 0o111).not.toBe(0);
+    // Executable bit preservation relies on POSIX modes, which Windows does not honor.
+    if (process.platform !== 'win32') {
+      expect(fs.statSync(join(result.skill.rootPath, 'scripts', 'check.sh')).mode & 0o111).not.toBe(0);
+    }
     expect(fs.existsSync(join(result.skill.rootPath, '.git'))).toBe(false);
-    expect(loadManagedSkillCatalog(paths.catalogPath).skills).toEqual([result.skill]);
+    expect(loadCenter(homeDir).skills).toHaveLength(1);
+    expect(loadCenter(homeDir).skills[0]).toMatchObject({ id: result.skill.id, name: result.skill.name });
   });
 
   it('recognizes identical complete content without creating a second managed directory', () => {
@@ -114,7 +120,7 @@ describe('importLocalSkill', () => {
     const paths = getManagedSkillPaths(homeDir);
 
     expect(duplicate).toMatchObject({ imported: false, duplicate: true, skill: initial.skill });
-    expect(loadManagedSkillCatalog(paths.catalogPath).skills).toHaveLength(1);
+    expect(loadCenter(homeDir).skills).toHaveLength(1);
     expect(fs.readdirSync(paths.skillsDir)).toHaveLength(1);
   });
 
@@ -129,7 +135,7 @@ describe('importLocalSkill', () => {
     expect(() => importLocalSkill({ sourcePath: second, homeDir })).toThrow('different content');
 
     const paths = getManagedSkillPaths(homeDir);
-    expect(loadManagedSkillCatalog(paths.catalogPath).skills).toHaveLength(1);
+    expect(loadCenter(homeDir).skills).toHaveLength(1);
     expect(fs.readdirSync(paths.skillsDir)).toHaveLength(1);
   });
 
@@ -144,9 +150,10 @@ describe('importLocalSkill', () => {
     const paths = getManagedSkillPaths(homeDir);
     expect(fs.existsSync(paths.catalogPath)).toBe(false);
     expect(fs.existsSync(paths.skillsDir)).toBe(false);
+    expect(loadCenter(homeDir).skills).toHaveLength(0);
   });
 
-  it('rejects symlinks that escape the skill root without creating library state', () => {
+  it.skipIf(process.platform === 'win32')('rejects symlinks that escape the skill root without creating library state', () => {
     const root = makeTempRoot();
     const homeDir = join(root, 'home');
     const source = writeSkill(join(root, 'source'));
@@ -159,9 +166,10 @@ describe('importLocalSkill', () => {
     const paths = getManagedSkillPaths(homeDir);
     expect(fs.existsSync(paths.catalogPath)).toBe(false);
     expect(fs.existsSync(paths.skillsDir)).toBe(false);
+    expect(loadCenter(homeDir).skills).toHaveLength(0);
   });
 
-  it('rolls back the promoted directory when catalog persistence fails', () => {
+  it('rolls back the promoted directory when center persistence fails', () => {
     const root = makeTempRoot();
     const homeDir = join(root, 'home');
     const source = writeSkill(join(root, 'source'));
@@ -170,7 +178,7 @@ describe('importLocalSkill', () => {
 
     expect(() => importLocalSkill({ sourcePath: source, homeDir })).toThrow('catalog write failed');
 
-    expect(fs.existsSync(paths.catalogPath)).toBe(false);
+    expect(fs.existsSync(paths.centerPath)).toBe(false);
     expect(fs.existsSync(paths.skillsDir) ? fs.readdirSync(paths.skillsDir) : []).toEqual([]);
     expect(fs.existsSync(paths.stagingDir) ? fs.readdirSync(paths.stagingDir) : []).toEqual([]);
   });

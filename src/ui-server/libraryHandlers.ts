@@ -11,6 +11,7 @@ import {
   listTargetAgentSkills,
   previewManagedAgentSkillImport,
   previewManagedSkillDeployment,
+  removeManagedSkillEntirely,
   syncManagedSkillDeployment,
   uninstallManagedSkill,
   uninstallManagedSkillDeployment,
@@ -51,6 +52,18 @@ export async function handleLibraryRoute(
 
   if (request.method === 'GET' && url.pathname === '/api/center/skills') {
     sendJson(response, 200, getCenterView(context.projectDir, context.homeDir));
+    return true;
+  }
+
+  const removeSkillMatch = url.pathname.match(/^\/api\/center\/skills\/([^/]+)$/);
+  if (request.method === 'DELETE' && removeSkillMatch) {
+    const body = await readJsonBody(request);
+    sendJson(response, 200, removeManagedSkillEntirely(
+      context.projectDir,
+      decodeURIComponent(removeSkillMatch[1]),
+      body.force === true,
+      context.homeDir,
+    ));
     return true;
   }
 

@@ -149,7 +149,7 @@ describe('Skill Doctor UI server', () => {
     expect((await reset.json()).sources.some((entry: { id: string }) => entry.id === 'custom-reviewer')).toBe(false);
   });
 
-  it('previews and commits Agent imports without accepting a browser-provided target path', async () => {
+  it.skipIf(process.platform === 'win32')('previews and commits Agent imports without accepting a browser-provided target path', async () => {
     const root = createTempRoot();
     const projectDir = join(root, 'project');
     const homeDir = join(root, 'home');

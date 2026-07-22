@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { installSkill } from '../../src/install/installSkill.js';
-import { loadRegistry } from '../../src/install/registry.js';
+import { loadCenterRegistry } from '../../src/library/centerStore.js';
 
 const tempRoots: string[] = [];
 
@@ -34,14 +34,12 @@ describe('installSkill', () => {
     const globalDir = join(base, 'target', '.claude', 'skills');
     mkdirSync(globalDir, { recursive: true });
 
-    const registryPath = join(base, 'registry.json');
-
     await installSkill({
       source: join(sourceDir, 'SKILL.md'),
       platform: 'claude',
       globalDir,
       layout: 'skill-dirs',
-      registryPath,
+      homeDir: base,
       link: false,
     });
 
@@ -52,7 +50,7 @@ describe('installSkill', () => {
     expect(installedContent).toContain('name: my-skill');
     expect(readFileSync(join(globalDir, 'my-skill', 'assets', 'prompt.txt'), 'utf8')).toBe('complete skill asset');
 
-    const registry = loadRegistry(registryPath);
+    const registry = loadCenterRegistry(base);
     expect(registry.entries).toHaveLength(1);
     expect(registry.entries[0].name).toBe('my-skill');
     expect(registry.entries[0].platform).toBe('claude');
@@ -68,20 +66,18 @@ describe('installSkill', () => {
     const globalDir = join(base, 'target', '.cursor', 'rules');
     mkdirSync(globalDir, { recursive: true });
 
-    const registryPath = join(base, 'registry.json');
-
     await installSkill({
       source: sourceFile,
       platform: 'cursor',
       globalDir,
       layout: 'files',
-      registryPath,
+      homeDir: base,
       link: false,
     });
 
     const installed = readFileSync(join(globalDir, 'cursor-skill.md'), 'utf8');
     expect(installed).toContain('name: cursor-skill');
-    expect(loadRegistry(registryPath).entries[0].installedRootPath).toBeUndefined();
+    expect(loadCenterRegistry(base).entries[0].installedPath).toBe(join(globalDir, 'cursor-skill.md'));
   });
 
   it('errors if skill already installed at target path', async () => {
@@ -94,15 +90,13 @@ describe('installSkill', () => {
     mkdirSync(join(globalDir, 'my-skill'), { recursive: true });
     writeFileSync(join(globalDir, 'my-skill', 'SKILL.md'), 'existing');
 
-    const registryPath = join(base, 'registry.json');
-
     await expect(
       installSkill({
         source: join(sourceDir, 'SKILL.md'),
         platform: 'claude',
         globalDir,
         layout: 'skill-dirs',
-        registryPath,
+        homeDir: base,
         link: false,
       }),
     ).rejects.toThrow('already exists');

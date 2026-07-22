@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   type ManagedSkill,
   type ManagedSkillSource,
-  loadManagedSkillCatalog,
-  saveManagedSkillCatalog,
 } from './catalog.js';
 import { getManagedSkillPaths } from './paths.js';
 import { copySkillDirectory, inspectSkillDirectory } from './skillDirectory.js';
+import { loadManagedSkills, upsertManagedSkill } from './centerStore.js';
 
 export interface ImportLocalSkillOptions {
   sourcePath: string;
@@ -32,15 +32,16 @@ export class ManagedSkillNameConflictError extends Error {
 }
 
 export function importLocalSkill(options: ImportLocalSkillOptions): ImportLocalSkillResult {
+  const homeDir = options.homeDir ?? homedir();
   const source = inspectSkillDirectory(options.sourcePath);
-  const paths = getManagedSkillPaths(options.homeDir);
-  const catalog = loadManagedSkillCatalog(paths.catalogPath);
-  const duplicate = catalog.skills.find((skill) => skill.treeHash === source.treeHash);
+  const paths = getManagedSkillPaths(homeDir);
+  const skills = loadManagedSkills(homeDir);
+  const duplicate = skills.find((skill) => skill.treeHash === source.treeHash);
   if (duplicate) {
     return { skill: duplicate, imported: false, duplicate: true };
   }
   const name = options.name ?? source.name;
-  if (catalog.skills.some((skill) => normalizeName(skill.name) === normalizeName(name))) {
+  if (skills.some((skill) => normalizeName(skill.name) === normalizeName(name))) {
     throw new ManagedSkillNameConflictError(name);
   }
 
@@ -74,10 +75,7 @@ export function importLocalSkill(options: ImportLocalSkillOptions): ImportLocalS
     fs.renameSync(stagedSkillPath, skill.rootPath);
     promotedPath = skill.rootPath;
 
-    saveManagedSkillCatalog(paths.catalogPath, {
-      version: 1,
-      skills: [...catalog.skills, skill],
-    });
+    upsertManagedSkill(homeDir, skill);
     return { skill, imported: true, duplicate: false };
   } catch (error) {
     if (promotedPath && fs.existsSync(promotedPath)) {

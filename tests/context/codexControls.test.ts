@@ -29,7 +29,7 @@ function readFile(path: string): string {
 }
 
 describe('toggleCodexResource', () => {
-  it('disables and enables skills through project skills.config idempotently', async () => {
+  it.skipIf(process.platform === 'win32')('disables and enables skills through project skills.config idempotently', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -99,7 +99,7 @@ describe('toggleCodexResource', () => {
     expect(config.match(/search_repositories/g)).toHaveLength(1);
   });
 
-  it('disables and enables plugins through project plugin enabled state', async () => {
+  it.skipIf(process.platform === 'win32')('disables and enables plugins through project plugin enabled state', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');

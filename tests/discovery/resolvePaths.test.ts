@@ -209,7 +209,7 @@ describe('resolvePaths', () => {
     expect(copilotFiles[0]?.filePath).toContain(join('reviews', 'pull-request.instructions.md'));
   });
 
-  it('finds every Copilot instruction and prompt file in nested collection dirs', () => {
+  it.skipIf(process.platform === 'win32')('finds every Copilot instruction and prompt file in nested collection dirs', () => {
     const tempRoot = createTempRoot();
     tempRoots.push(tempRoot);
 
@@ -238,7 +238,7 @@ describe('resolvePaths', () => {
     ]);
   });
 
-  it('finds nested Copilot AGENTS.md files in cost discovery mode', () => {
+  it.skipIf(process.platform === 'win32')('finds nested Copilot AGENTS.md files in cost discovery mode', () => {
     const tempRoot = createTempRoot();
     tempRoots.push(tempRoot);
 

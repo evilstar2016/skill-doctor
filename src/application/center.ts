@@ -50,13 +50,13 @@ export interface CenterView {
 
 /**
  * Unified Skill Center view: the single read model for the management UI.
- * Composes the managed catalog (skills) with the deployment store (per-target
- * install records carrying sync status) and the physically-installed,
+ * Composes the managed skills (from the center.json single store) with their
+ * per-target install records (carrying sync status) and the physically-installed,
  * not-yet-managed agent skills (reclaim candidates).
  *
- * This is the read-side realization of the "single source of truth" from the
- * Skill Center plan: catalog + deployments are canonical; legacy `registry`
- * entries are only adopted into deployments on read (see deployments.ts).
+ * `center.json` is the single source of truth for managed skills and their
+ * installations; legacy `catalog.json` / `deployments.json` / `registry.json`
+ * are migrated into it on first access (see centerStore.ts).
  */
 export function getCenterView(projectDir: string, homeDir?: string): CenterView {
   const { skills, deployments } = listManagedSkillDeployments(projectDir, { homeDir });

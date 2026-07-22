@@ -13,6 +13,7 @@ export {
   getManagedSkillLibrary,
   previewManagedAgentSkillImport,
   previewManagedSkillDeployment,
+  removeManagedSkillEntirely,
   syncManagedSkillDeployment,
   uninstallManagedSkillDeployment,
 } from './deployments';

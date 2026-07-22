@@ -3,13 +3,13 @@ import * as fs from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-import { loadRegistry } from '../install/registry.js';
 import { getPlatformAdapters, resolvePlatformPathTemplate, type PlatformInstallTarget } from '../platforms/registry.js';
 import type { Platform, Scope } from '../types/skill.js';
 import type { RegistryEntry } from '../types/install.js';
-import { type ManagedSkill, loadManagedSkillCatalog } from './catalog.js';
+import { type ManagedSkill } from './catalog.js';
 import { getManagedSkillPaths } from './paths.js';
 import { copySkillDirectory, inspectSkillDirectory } from './skillDirectory.js';
+import { loadCenter, saveCenter, type CenterInstallation, type CenterSkill, type CenterStore } from './centerStore.js';
 
 export type DeploymentMode = 'symlink' | 'copy';
 export type DeploymentStatus = 'synced' | 'outdated' | 'modified' | 'missing' | 'conflict';
@@ -165,7 +165,7 @@ export function commitSkillDeployment(options: {
   const skill = requireSkill(context.skills, options.skillId);
   const outcomes = preview.targets.map((target) => {
     try {
-      return deployTarget(target, skill, options.mode, context.store, context.storePath, options.force === true);
+      return deployTarget(target, skill, options.mode, context, options.force === true);
     } catch (error) {
       return {
         targetId: target.targetId,
@@ -182,13 +182,12 @@ export function commitSkillDeployment(options: {
 
 export function listManagedSkillDeployments(projectDir: string, options: { homeDir?: string; appDataDir?: string } = {}): ManagedSkillDeploymentList {
   const context = loadContext(projectDir, options.homeDir, options.appDataDir);
-  const legacy = adoptLegacyRegistryEntries(context);
   const deployments = context.store.deployments.map((deployment) => withStatus(deployment, context.skills.find((skill) => skill.id === deployment.skillId))).sort((left, right) => left.id.localeCompare(right.id));
   if (JSON.stringify(deployments) !== JSON.stringify(context.store.deployments)) {
     context.store.deployments = deployments;
-    saveSkillDeploymentStore(context.storePath, context.store);
+    saveContext(context);
   }
-  return { skills: context.skills, deployments, legacy };
+  return { skills: context.skills, deployments, legacy: [] };
 }
 
 export function syncSkillDeployment(options: {
@@ -208,7 +207,7 @@ export function syncSkillDeployment(options: {
   replaceWithDeployment(deployment.installedPath, skill, 'copy', options.force === true);
   const updated: SkillDeployment = { ...deployment, deployedHash: currentSkillHash(skill), installedAt: new Date().toISOString(), status: 'synced' };
   replaceDeployment(context.store, updated);
-  saveSkillDeploymentStore(context.storePath, context.store);
+  saveContext(context);
   return updated;
 }
 
@@ -233,19 +232,100 @@ export function uninstallSkillDeployment(options: {
     removed = true;
   }
   context.store.deployments = context.store.deployments.filter((entry) => entry.id !== deployment.id);
-  saveSkillDeploymentStore(context.storePath, context.store);
+  saveContext(context);
   return { deploymentId: deployment.id, removed, unregistered: true, status };
 }
 
 function loadContext(projectDir: string, homeDir: string | undefined, appDataDir: string | undefined) {
   const paths = getManagedSkillPaths(homeDir);
+  const resolvedHome = homeDir ?? homedir();
+  const center = loadCenter(resolvedHome);
+  const { skills, deployments } = centerToContext(center);
   return {
     paths,
-    storePath: paths.deploymentsPath,
-    store: loadSkillDeploymentStore(paths.deploymentsPath),
-    skills: loadManagedSkillCatalog(paths.catalogPath).skills,
+    storePath: paths.centerPath,
+    store: { version: 1, deployments } as SkillDeploymentStore,
+    skills,
     targets: listSkillDeploymentTargets(projectDir, { homeDir, appDataDir }),
     projectDir: resolve(projectDir),
+    homeDir: resolvedHome,
+  };
+}
+
+function saveContext(context: ReturnType<typeof loadContext>): void {
+  saveCenter(context.homeDir, buildCenter(context.skills, context.store.deployments));
+}
+
+function centerToContext(center: CenterStore): { skills: ManagedSkill[]; deployments: SkillDeployment[] } {
+  const skills = center.skills.map((skill) => toManagedSkill(skill));
+  const deployments = center.skills.flatMap((skill) => skill.installations.map((installation) => toSkillDeployment(skill, installation)));
+  return { skills, deployments };
+}
+
+function buildCenter(skills: ManagedSkill[], deployments: SkillDeployment[]): CenterStore {
+  const installs = new Map<string, SkillDeployment[]>();
+  for (const deployment of deployments) {
+    if (!installs.has(deployment.skillId)) installs.set(deployment.skillId, []);
+    installs.get(deployment.skillId)!.push(deployment);
+  }
+  return {
+    version: 1,
+    skills: skills.map((skill) => toCenterSkill(skill, installs.get(skill.id) ?? [])),
+  };
+}
+
+function toManagedSkill(skill: CenterSkill): ManagedSkill {
+  return {
+    id: skill.id,
+    name: skill.name,
+    rootPath: skill.rootPath,
+    source: skill.source,
+    treeHash: skill.treeHash,
+    addedAt: skill.addedAt,
+    updatedAt: skill.updatedAt,
+  };
+}
+
+function toSkillDeployment(skill: CenterSkill, installation: CenterInstallation): SkillDeployment {
+  return {
+    id: installation.id,
+    skillId: skill.id,
+    targetId: installation.targetId,
+    platform: installation.platform,
+    scope: installation.scope,
+    ...(installation.projectDir ? { projectDir: installation.projectDir } : {}),
+    mode: installation.mode,
+    installedPath: installation.installedPath,
+    deployedHash: installation.deployedHash,
+    installedAt: installation.installedAt,
+    status: 'synced',
+  };
+}
+
+function toCenterSkill(skill: ManagedSkill, deployments: SkillDeployment[]): CenterSkill {
+  return {
+    id: skill.id,
+    name: skill.name,
+    rootPath: skill.rootPath,
+    source: skill.source,
+    treeHash: skill.treeHash,
+    addedAt: skill.addedAt,
+    updatedAt: skill.updatedAt,
+    installations: deployments.map(toCenterInstallation),
+  };
+}
+
+function toCenterInstallation(deployment: SkillDeployment): CenterInstallation {
+  return {
+    id: deployment.id,
+    targetId: deployment.targetId,
+    platform: deployment.platform,
+    scope: deployment.scope,
+    ...(deployment.projectDir ? { projectDir: deployment.projectDir } : {}),
+    mode: deployment.mode,
+    installedPath: deployment.installedPath,
+    deployedHash: deployment.deployedHash,
+    installedAt: deployment.installedAt,
   };
 }
 
@@ -313,7 +393,8 @@ function previewTarget(target: ResolvedSkillDeploymentTarget, skill: ManagedSkil
   return { ...target, installedPath, precondition: targetPrecondition(installedPath), state, ...(deployment ? { deploymentId: deployment.id, status } : {}) };
 }
 
-function deployTarget(target: DeploymentPreviewTarget, skill: ManagedSkill, mode: DeploymentMode, store: SkillDeploymentStore, storePath: string, force: boolean): DeploymentCommitOutcome {
+function deployTarget(target: DeploymentPreviewTarget, skill: ManagedSkill, mode: DeploymentMode, context: ReturnType<typeof loadContext>, force: boolean): DeploymentCommitOutcome {
+  const store = context.store;
   if (targetPrecondition(target.installedPath) !== target.precondition) throw new SkillDeploymentError('Deployment target changed after preview. Preview again before committing.');
   const existing = target.deploymentId ? store.deployments.find((entry) => entry.id === target.deploymentId) : undefined;
   if (existing && existing.skillId === skill.id && existing.mode === mode && target.status === 'synced') {
@@ -322,7 +403,7 @@ function deployTarget(target: DeploymentPreviewTarget, skill: ManagedSkill, mode
   if (target.state === 'managed-link' && mode === 'symlink' && !existing) {
     const deployment = createDeployment(target, skill, mode);
     store.deployments.push(deployment);
-    saveSkillDeploymentStore(storePath, store);
+    saveContext(context);
     return { targetId: target.targetId, deploymentId: deployment.id, status: 'registered', completedSteps: ['precondition-recheck', 'registered-existing-link'] };
   }
   if (target.state !== 'available' && !force) throw new SkillDeploymentError('Target is occupied. Force confirmation is required to replace it.');
@@ -330,7 +411,7 @@ function deployTarget(target: DeploymentPreviewTarget, skill: ManagedSkill, mode
   const deployment = createDeployment(target, skill, mode);
   store.deployments = store.deployments.filter((entry) => entry.id !== existing?.id && entry.installedPath !== target.installedPath);
   store.deployments.push(deployment);
-  saveSkillDeploymentStore(storePath, store);
+  saveContext(context);
   return { targetId: target.targetId, deploymentId: deployment.id, status: 'deployed', completedSteps: ['precondition-recheck', 'write-temporary-deployment', 'replace-target', 'save-deployment'], ...(rollback ? { rollback } : {}) };
 }
 
@@ -342,7 +423,7 @@ function replaceWithDeployment(installedPath: string, skill: ManagedSkill, mode:
   let movedOriginal = false;
   try {
     if (mode === 'symlink') {
-      fs.symlinkSync(skill.rootPath, temporaryPath, 'dir');
+      createSkillLink(skill.rootPath, temporaryPath);
       if (fs.realpathSync(temporaryPath) !== fs.realpathSync(skill.rootPath)) throw new SkillDeploymentError('Temporary deployment link does not resolve to the managed skill.');
     } else {
       copySkillDirectory(skill.rootPath, temporaryPath);
@@ -432,41 +513,6 @@ function getDeploymentStatus(deployment: SkillDeployment, skill: ManagedSkill | 
   }
 }
 
-function adoptLegacyRegistryEntries(context: ReturnType<typeof loadContext>): LegacyRegistryEntry[] {
-  if (!fs.existsSync(context.paths.registryPath)) return [];
-  const legacy: LegacyRegistryEntry[] = [];
-  for (const entry of loadRegistry(context.paths.registryPath).entries) {
-    const existing = context.store.deployments.find((deployment) => deployment.installedPath === entry.installedPath || deployment.installedPath === dirname(entry.installedPath));
-    if (existing) {
-      legacy.push({ entry, status: 'migrated', deploymentId: existing.id });
-      continue;
-    }
-    const target = context.targets.find((candidate) => candidate.platform === entry.platform && candidate.scope === entry.scope && entry.installedPath === join(candidate.directory, entry.name, 'SKILL.md'));
-    const rootPath = dirname(entry.installedPath);
-    let skill: ManagedSkill | undefined;
-    try {
-      const contentRoot = fs.lstatSync(rootPath).isSymbolicLink() ? fs.realpathSync(rootPath) : rootPath;
-      const treeHash = inspectSkillDirectory(contentRoot).treeHash;
-      skill = context.skills.find((candidate) => candidate.treeHash === treeHash);
-    } catch {
-      // A legacy record without a valid existing directory must remain pending.
-    }
-    if (!target || !skill) {
-      legacy.push({ entry, status: 'pending-adoption' });
-      continue;
-    }
-    const mode: DeploymentMode = fs.lstatSync(rootPath).isSymbolicLink() ? 'symlink' : 'copy';
-    const deployment: SkillDeployment = {
-      id: randomUUID(), skillId: skill.id, targetId: target.targetId, platform: target.platform, scope: entry.scope, mode,
-      installedPath: rootPath, deployedHash: skill.treeHash, installedAt: entry.installedAt, status: getDeploymentStatus({ id: '', skillId: skill.id, targetId: target.targetId, platform: target.platform, scope: entry.scope, mode, installedPath: rootPath, deployedHash: skill.treeHash, installedAt: entry.installedAt, status: 'synced' }, skill),
-    };
-    context.store.deployments.push(deployment);
-    saveSkillDeploymentStore(context.storePath, context.store);
-    legacy.push({ entry, status: 'migrated', deploymentId: deployment.id });
-  }
-  return legacy;
-}
-
 function requireSkill(skills: ManagedSkill[], skillId: string): ManagedSkill {
   const skill = skills.find((entry) => entry.id === skillId);
   if (!skill) throw new SkillDeploymentError(`Managed skill '${skillId}' does not exist.`);
@@ -528,3 +574,12 @@ function isSkillDeployment(value: unknown): value is SkillDeployment {
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null; }
 function isString(value: unknown): value is string { return typeof value === 'string' && value.length > 0; }
+
+/** Create a platform-appropriate directory link (symlink on Unix, junction on Windows). */
+function createSkillLink(targetPath: string, linkPath: string): void {
+  if (process.platform === 'win32') {
+    fs.symlinkSync(resolve(targetPath), linkPath, 'junction');
+  } else {
+    fs.symlinkSync(targetPath, linkPath, 'dir');
+  }
+}
