@@ -58,6 +58,18 @@ describe('Skill Doctor UI server', () => {
     expect(snapshot.summary.resources).toBe(1);
     expect(snapshot.summary.security).toBe(1);
 
+    const history = await fetch(`${baseUrl}/api/snapshots/history`, { headers: { Cookie: cookie } });
+    expect(history.status).toBe(200);
+    const [savedSnapshot] = (await history.json() as { snapshots: Array<{ id: string }> }).snapshots;
+    expect(savedSnapshot.id).toBeTruthy();
+
+    const diff = await fetch(`${baseUrl}/api/snapshots/diff`, {
+      method: 'POST', headers: { Cookie: cookie, Origin: baseUrl, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baselineId: savedSnapshot.id, currentId: savedSnapshot.id }),
+    });
+    expect(diff.status).toBe(200);
+    expect((await diff.json()).issues).toMatchObject({ added: 0, resolved: 0 });
+
     const dashboard = await fetch(`${baseUrl}/api/export/dashboard`, { headers: { Cookie: cookie } });
     expect(dashboard.status).toBe(200);
     expect(dashboard.headers.get('content-type')).toContain('text/html');
@@ -165,7 +177,7 @@ describe('Skill Doctor UI server', () => {
     const headers = { Cookie: cookie, Origin: baseUrl, 'Content-Type': 'application/json' };
 
     const preview = await fetch(`${baseUrl}/api/library/import/preview`, {
-      method: 'POST', headers, body: '{}',
+      method: 'POST', headers, body: JSON.stringify({ target: 'claude', scope: 'global', physicalOnly: true }),
     });
     expect(preview.status).toBe(200);
     const plan = await preview.json() as { planId: string; candidates: Array<{ id: string }> };
@@ -176,6 +188,9 @@ describe('Skill Doctor UI server', () => {
       body: JSON.stringify({
         planId: plan.planId,
         decisions: [{ candidateId: plan.candidates[0].id, action: 'replace-with-link' }],
+        target: 'claude',
+        scope: 'global',
+        physicalOnly: true,
         finalPath: join(root, 'must-not-be-written'),
       }),
     });

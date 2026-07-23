@@ -7,10 +7,10 @@ import { getScanSources, resetScanSources, saveScanSources, validateScanSources 
 import { InlineNotice, PageHeading, PlatformIcon, StatusPill, platformLabel, shortPath } from '../components/ui';
 import { useTranslation } from '../i18n';
 
-export function ScanPathsPage({ platforms, setToast, onSaved }: { platforms: Platform[]; setToast: (message: string) => void; onSaved: (rescan: boolean) => Promise<void> }) {
+export function ScanPathsPage({ platforms, preferredPlatform, setToast, onSaved }: { platforms: Platform[]; preferredPlatform?: Platform; setToast: (message: string) => void; onSaved: (rescan: boolean) => Promise<void> }) {
   const { t } = useTranslation();
-  const available = platforms.filter((platform) => platform !== 'unknown');
-  const [active, setActive] = useState<Platform>(available[0] ?? 'codex');
+  const available = platforms.filter((platform): platform is Exclude<Platform, 'unknown'> => platform !== 'unknown');
+  const [active, setActive] = useState<Platform>(preferredPlatform && preferredPlatform !== 'unknown' && available.includes(preferredPlatform) ? preferredPlatform : available[0] ?? 'codex');
   const [sources, setSources] = useState<EffectiveScanSource[]>([]);
   const [configPath, setConfigPath] = useState('');
   const [busy, setBusy] = useState(true);
@@ -23,7 +23,7 @@ export function ScanPathsPage({ platforms, setToast, onSaved }: { platforms: Pla
       if (!alive) return;
       setSources(payload.sources);
       setConfigPath(payload.configPath);
-      if (!payload.sources.some((entry) => entry.platform === active)) setActive(payload.sources[0]?.platform ?? available[0] ?? 'codex');
+      if (!payload.sources.some((entry) => entry.platform === active)) setActive(preferredPlatform && preferredPlatform !== 'unknown' && payload.sources.some((entry) => entry.platform === preferredPlatform) ? preferredPlatform : payload.sources[0]?.platform ?? available[0] ?? 'codex');
     }).catch((error) => setLocalError(error instanceof Error ? error.message : String(error))).finally(() => { if (alive) setBusy(false); });
     return () => { alive = false; };
   }, []);

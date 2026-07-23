@@ -78,6 +78,7 @@ export interface UiResource {
   triggers: string[];
   enabled?: boolean;
   controllable: boolean;
+  controlId?: string;
   activation?: string;
   fixedTokens: number;
   activationTokens: number;

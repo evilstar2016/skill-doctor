@@ -3,6 +3,7 @@
   "nav.issues": "待处理",
   "nav.context": "上下文成本",
   "nav.resources": "资源清单",
+  "nav.history": "历史趋势",
   "nav.scanPaths": "扫描路径",
   "nav.manage": "技能库",
   "nav.group.diagnose": "诊断",
@@ -53,6 +54,7 @@
   "sidebar.health.waiting": "等待体检",
   "sidebar.health.issues": "{{count}} 项待处理",
   "sidebar.health.clean": "未发现明显问题",
+  "sidebar.health.partial": "扫描未完全完成（{{count}} 条警告）",
   "overview.good": "配置状态良好",
   "overview.priority": "先处理这 {{count}} 件事",
   "overview.priorityDetail": "已按风险和影响排序，逐项处理后重新体检。",
@@ -80,6 +82,11 @@
   "overview.success": "状态良好",
   "overview.warning": "需要关注",
   "overview.danger": "急需处理",
+  "overview.incomplete": "扫描结果不完整",
+  "overview.incompleteDetail": "发现 {{count}} 条扫描警告，请先查看页面顶部的提示后再判断健康状态。",
+  "drawer.reduceContext": "降低上下文成本",
+  "drawer.reduceContextDetail": "禁用后会更新本地 Codex 配置；开始新会话或重启 Codex 后生效。",
+  "drawer.disableResource": "禁用 {{name}}",
   "overview.lastScan": "最后扫描",
   "overview.conflicts": "冲突检测",
   "overview.duplicates": "重复技能",
@@ -125,6 +132,10 @@
   "resources.allTypes": "全部类型",
   "resources.allPlatforms": "全部平台",
   "resources.allScopes": "全部范围",
+  "resources.activeOnly": "仅有效资产（默认）",
+  "resources.allStatuses": "全部状态",
+  "scanScope.standardTitle": "标准扫描范围",
+  "scanScope.standardDetail": "检查有效的本地资源与上下文；默认不纳入缓存/禁用资产，也不会启动 MCP 工具发现。可在扫描设置中按需开启。",
   "resources.name": "名称",
   "resources.type": "类型",
   "resources.platform": "平台",
@@ -489,4 +500,23 @@
   ,"validation.missingPath": "{{path}} 缺少路径。"
   ,"validation.invalidScope": "{{path}} scope 无效。"
   ,"validation.invalidMcpFormat": "{{path}} MCP format 必须是 json 或 toml。"
+  ,"history.title": "扫描历史与基线"
+  ,"history.detail": "所有快照仅保存于本机，可直接比较本次扫描与过去基线。"
+  ,"history.empty": "还没有历史快照"
+  ,"history.emptyDetail": "完成一次扫描后，这里会保留可比较的本地记录。"
+  ,"history.compareTitle": "与基线比较"
+  ,"history.current": "当前扫描：{{time}}"
+  ,"history.noCurrent": "请先完成一次扫描。"
+  ,"history.baseline": "基线快照"
+  ,"history.compare": "比较差异"
+  ,"history.newIssues": "新增问题"
+  ,"history.resolvedIssues": "已解决 {{count}} 项"
+  ,"history.resources": "资源变化"
+  ,"history.contextTokens": "上下文 Token 变化"
+  ,"history.fromTo": "{{before}} → {{after}}"
+  ,"history.saved": "已保存的快照"
+  ,"history.retention": "本地最多保留最近 30 条扫描记录。"
+  ,"history.crossAgent": "跨 Agent"
+  ,"history.issues": "问题"
+  ,"center.physicalCandidates": "匹配的物理候选"
 }

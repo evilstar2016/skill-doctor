@@ -319,6 +319,50 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'check') {
+    const scope = readScope(rest);
+    const threshold = readFailOn(rest) ?? 'high';
+    const budgetTokens = readBudgetTokens(rest);
+
+    if (scope === 'invalid') {
+      process.stderr.write('Invalid scope. Use --scope project|global|all\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (budgetTokens === 'invalid') {
+      process.stderr.write('Invalid budget. Use --budget-tokens <positive integer>\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const snapshot = await runHealthCheck({
+      projectDir: cwd,
+      scope,
+      includeContext: true,
+      includeGroups: false,
+      deduplicatePhysicalSkills: false,
+      preserveUnfilteredAuditSummary: true,
+      ...(budgetTokens === null ? {} : { budgetTokens }),
+    });
+    const security = snapshot.audit.findings.filter((finding) => shouldFail(finding.severity, threshold));
+    const conflicts = snapshot.conflicts.filter((conflict) => shouldFail(conflict.severity, threshold));
+    const overBudget = snapshot.context?.summary.overBudget === true;
+    const passed = security.length === 0 && conflicts.length === 0 && !overBudget;
+    const result = {
+      passed,
+      threshold,
+      generatedAt: snapshot.generatedAt,
+      failures: { security: security.length, conflicts: conflicts.length, contextOverBudget: overBudget },
+      summary: snapshot.summary,
+      context: snapshot.context?.summary,
+    };
+
+    if (jsonOutput) process.stdout.write(`${toJson(result)}\n`);
+    else process.stdout.write(`Project check: ${passed ? 'passed' : 'failed'}\nSecurity findings: ${security.length}\nConflicts: ${conflicts.length}\nContext over budget: ${overBudget ? 'yes' : 'no'}\n`);
+    if (!passed) process.exitCode = 1;
+    return;
+  }
+
   if (command === 'cleanup') {
     const scope = readScope(rest);
 
@@ -863,6 +907,7 @@ function getHelpText(): string {
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
+    '  skill-doctor check [--scope project|global|all] [--fail-on high|med|low] [--budget-tokens N] [--json]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
     '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',

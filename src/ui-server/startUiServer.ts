@@ -31,7 +31,7 @@ export async function startUiServer(options: StartUiServerOptions): Promise<UiSe
   const bundledUiDir = resolve(dirname(executablePath), 'ui');
   const uiDir = options.uiDir ?? (existsSync(bundledUiDir) ? bundledUiDir : resolve(process.cwd(), 'dist/ui'));
   const security = createUiSessionSecurity();
-  const scans = new ScanManager();
+  const scans = new ScanManager(options.homeDir);
   let port = options.port ?? 0;
 
   const server = createServer(async (request, response) => {

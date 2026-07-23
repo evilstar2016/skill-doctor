@@ -5,9 +5,10 @@ import { resolve } from 'node:path';
 import { zhMessage } from '../i18n';
 import type { HealthCheckOptions } from '../application/types';
 import { detectAgents } from '../discovery/detectAgents';
+import { diffSnapshotHistory, findSnapshotHistoryEntry, listSnapshotHistory } from '../history/snapshotHistory';
 import { normalizePlatformName } from '../platforms/registry';
 import type { Platform, Scope } from '../types/skill';
-import { readJsonBody, sendJson } from './apiPrimitives';
+import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 import type { ApiRequestContext } from './apiContext';
 
 export async function handleScanRoute(
@@ -24,9 +25,9 @@ export async function handleScanRoute(
       scope: readScope(body.scope),
       platform: readPlatform(body.platform),
       includeContext: body.includeContext !== false,
-      includeDisabled: body.includeDisabled !== false,
+      includeDisabled: body.includeDisabled === true,
       includeCache: body.includeCache === true,
-      discoverMcpTools: body.discoverMcpTools !== false,
+      discoverMcpTools: body.discoverMcpTools === true,
       useAiAudit: body.useAiAudit === true,
       conflictStrategy: body.conflictStrategy === 'embedding' ? 'embedding' : 'token',
       analyzeConflicts: body.analyzeConflicts === true,
@@ -65,6 +66,22 @@ export async function handleScanRoute(
   if (request.method === 'GET' && url.pathname === '/api/snapshots/current') {
     if (context.scans.currentSnapshot) sendJson(response, 200, context.scans.currentSnapshot);
     else sendJson(response, 404, { error: { code: 'no_snapshot', message: 'Run a scan first.' } });
+    return true;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/snapshots/history') {
+    sendJson(response, 200, { snapshots: listSnapshotHistory(context.homeDir) });
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/snapshots/diff') {
+    const body = await readJsonBody(request);
+    const baselineId = requiredString(body.baselineId, 'baselineId');
+    const currentId = requiredString(body.currentId, 'currentId');
+    const baseline = findSnapshotHistoryEntry(baselineId, context.homeDir);
+    const current = currentId === context.scans.currentSnapshot?.id ? context.scans.currentSnapshot : findSnapshotHistoryEntry(currentId, context.homeDir);
+    if (!baseline || !current) throw new Error('Requested snapshot was not found in local history.');
+    sendJson(response, 200, diffSnapshotHistory(baseline, current));
     return true;
   }
 

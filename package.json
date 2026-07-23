@@ -47,6 +47,7 @@
     "test:watch": "vitest --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "test:scenarios": "tsx scripts/testing/run-feature-scenarios.ts",
+    "check:project": "tsx src/cli/index.ts check --scope project --fail-on high --budget-tokens 7000",
     "verify:feature": "npm test && npm run test:scenarios --"
   },
   "engines": {

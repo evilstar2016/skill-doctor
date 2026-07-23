@@ -12,6 +12,7 @@ skill-doctor-*.html
 .superpowers/
 doc/*
 docs/*
+!docs/product-development-plan.md
 skill-backup/
 .env
 .vscode/

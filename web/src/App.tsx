@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
-  Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, Info, LayoutDashboard, LoaderCircle, Menu,
+  Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, History, Info, LayoutDashboard, LoaderCircle, Menu,
   PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Trash2, X,
 } from 'lucide-react';
 import type { BootstrapPayload, DoctorSnapshot, ResourceDetailPayload, UiIssue, UiResource } from '../../src/application/types';
@@ -13,8 +13,8 @@ import type { AgentScanSourcesUserConfig, ScanSourceResource } from '../../src/c
 import type { EffectiveScanSource } from '../../src/config/scanSources';
 import {
   cancelScan, cleanupDuplicate, compareResources, detectAgents, getBootstrap, getResourceDetail, installSkill,
-  getScanSources, pickProjectDirectory, resetScanSources, saveScanSources, startScan, streamScan, toggleContextResource, uninstallSkill, validateScanSources,
-  type ScanRequest,
+  getModelConfig, getScanSources, pickProjectDirectory, resetScanSources, saveModelConfig, saveScanSources, startScan, streamScan, testModelConfig, toggleContextResource, uninstallSkill, validateScanSources,
+  type ModelConfigView, type ModelServiceConfig, type ScanRequest,
 } from './api';
 import { OverviewPage as OverviewPageView } from './pages/OverviewPage';
 import { IssuesPage as IssuesPageView } from './pages/IssuesPage';
@@ -22,36 +22,38 @@ import { ContextPage as ContextPageView } from './pages/ContextPage';
 import { ResourcesPage as ResourcesPageView } from './pages/ResourcesPage';
 import { ManagePage as ManagePageView } from './pages/ManagePage';
 import { ScanPathsPage as ScanPathsPageView } from './pages/ScanPathsPage';
+import { HistoryPage as HistoryPageView } from './pages/HistoryPage';
 import { Detail, EmptyRows, FilterBar, HelpTip, InlineNotice, IssueCard, LaunchScreen, LoadingLine, PageHeading, PlatformIcon, ResourceStatus, ScanningEmpty, SettingSwitch, SeverityBadge, StatCard, StatusPill, activationLabel, copyText, kindLabel, platformLabel, resourceKindLabel, scopeLabel, severityLabel, shortPath, translateResultText } from './components/ui';
 import { I18nProvider, useTranslation } from './i18n';
 import { useTheme, type Theme } from './theme-manager';
 import { ThemeToggle } from './components/ThemeToggle';
 
-type Route = 'overview' | 'issues' | 'context' | 'resources' | 'manage' | 'scan-paths';
+type Route = 'overview' | 'issues' | 'context' | 'resources' | 'history' | 'manage' | 'scan-paths';
 type ColorTheme = 'teal' | 'cyan';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
 type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
 type ScanState = { id?: string; running: boolean; message: string; progress: number; status?: ScanStatus };
 
 const DEFAULT_SCAN: ScanRequest = {
-  projectDir: '', scope: 'all', platform: 'all', includeContext: true, includeDisabled: true, includeCache: true,
-  discoverMcpTools: true, useAiAudit: false, conflictStrategy: 'token', analyzeConflicts: false,
+  projectDir: '', scope: 'all', platform: 'all', includeContext: true, includeDisabled: false, includeCache: false,
+  discoverMcpTools: false, useAiAudit: false, conflictStrategy: 'token', analyzeConflicts: false,
   budgetTokens: 2000, tokenizer: 'openai', tokenizerModel: 'gpt-4o',
 };
 
-const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.library'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
+const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.library'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.history' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
   { id: 'diagnose', labelKey: 'nav.group.diagnose', items: [
     { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
     { id: 'issues', labelKey: 'nav.issues', icon: Activity },
     { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
     { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
+    { id: 'history', labelKey: 'nav.history', icon: History },
   ]},
   { id: 'library', labelKey: 'nav.group.library', items: [
     { id: 'manage', labelKey: 'nav.manage', icon: PackagePlus },
   ]},
 ];
 const ROUTES = NAV_GROUPS.flatMap((group) => group.items);
-const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'resources', 'manage', 'scan-paths'];
+const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'resources', 'history', 'manage', 'scan-paths'];
 
 export default function App() {
   return <I18nProvider><AppContent /></I18nProvider>;
@@ -230,6 +232,7 @@ function AppContent() {
           toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
         {error && <InlineNotice kind="danger" title={t('notice.incomplete')} onClose={() => setError(null)}>{error}</InlineNotice>}
+        {analysisMode === 'standard' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
         {snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{translateResultText(warning.message, t)}</InlineNotice>)}
         <div className="page-container">
@@ -244,8 +247,10 @@ function AppContent() {
             refresh();
           }} />}
           {route === 'resources' && <ResourcesPageView snapshot={snapshot} openResource={openResource} />}
+          {route === 'history' && <HistoryPageView snapshot={snapshot} />}
           {route === 'scan-paths' && <ScanPathsPageView
             platforms={bootstrap?.supportedPlatforms ?? []}
+            preferredPlatform={scanOptions.platform === 'all' ? undefined : scanOptions.platform}
             setToast={setToast}
             onSaved={async (rescan) => {
               const payload = await getBootstrap();
@@ -264,7 +269,8 @@ function AppContent() {
         capabilities={bootstrap?.capabilities}
         close={() => setSettingsOpen(false)}
         apply={() => { setSettingsOpen(false); refresh(); }}
-        onManageScanSources={() => navigate('scan-paths')}
+        onManageScanSources={() => { setSettingsOpen(false); navigate('scan-paths'); }}
+        onModelChanged={() => { void getBootstrap().then(setBootstrap); }}
       />}
       {onboardingOpen && bootstrap && <OnboardingDialog
         bootstrap={bootstrap}
@@ -298,6 +304,15 @@ function AppContent() {
         }}
         compare={(leftId, rightId) => setCompare({ leftId, rightId })}
         cleaned={() => { setSelectedIssue(null); refresh(); }}
+        toggleContext={async (resource) => {
+          if (!resource.controlId || !window.confirm(t('context.toggleConfirm', { action: t('context.disable'), name: resource.name }))) return;
+          try {
+            const result = await toggleContextResource(resource.controlId, false);
+            setToast(result.requiresNewSession ? t('context.updatedNewSession') : result.message);
+            setSelectedIssue(null);
+            refresh();
+          } catch (nextError) { setToast(nextError instanceof Error ? nextError.message : String(nextError)); }
+        }}
         setToast={setToast}
       />}
       {selectedResource && <ResourceDrawer
@@ -315,17 +330,18 @@ function AppContent() {
 
 function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route: Route) => void; snapshot: DoctorSnapshot | null }) {
   const { t } = useTranslation();
-  const health = snapshot ? (snapshot.summary.high > 0 ? 'danger' : snapshot.summary.issues > 0 ? 'warning' : 'success') : 'idle';
+  const incomplete = snapshot?.status === 'partial' || (snapshot?.warnings.length ?? 0) > 0;
+  const health = snapshot ? (snapshot.summary.high > 0 ? 'danger' : snapshot.summary.issues > 0 || incomplete ? 'warning' : 'success') : 'idle';
   const healthLabel = snapshot
     ? snapshot.summary.high > 0 ? t('sidebar.health.attention')
-    : snapshot.summary.issues > 0 ? t('sidebar.health.review')
+    : snapshot.summary.issues > 0 || incomplete ? t('sidebar.health.review')
     : t('sidebar.health.ok')
     : t('sidebar.health.waiting');
   return <aside className="sidebar">
     <div className="brand"><span className="brand-mark"><Stethoscope size={21} /></span><span>Skill Doctor</span></div>
     {snapshot && <div className={`sidebar-health ${health}`}>
       <span className="health-dot" />
-      <div><strong>{healthLabel}</strong><span>{snapshot.summary.issues ? t('sidebar.health.issues', { count: snapshot.summary.issues }) : t('sidebar.health.clean')}</span></div>
+      <div><strong>{healthLabel}</strong><span>{snapshot.summary.issues ? t('sidebar.health.issues', { count: snapshot.summary.issues }) : incomplete ? t('sidebar.health.partial', { count: snapshot.warnings.length }) : t('sidebar.health.clean')}</span></div>
     </div>}
     <nav className="nav-list" aria-label={t('nav.overview')}>
       {NAV_GROUPS.map((group) => <div className="nav-group" key={group.id}>
@@ -445,16 +461,16 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
   return <div className="onboarding-backdrop"><section className="onboarding-card" aria-modal="true" role="dialog" aria-labelledby="onboarding-title">
     <header><span className="brand-mark"><Stethoscope size={22} /></span><div><span className="eyebrow">{t('onboarding.eyebrow')}</span><h1 id="onboarding-title">{t('onboarding.title')}</h1><p>{t('onboarding.subtitle')}</p></div></header>
     <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.projectDirectory')}</strong><span>{t('onboarding.projectDirectoryDetail')}</span></div></div><div className="path-input-row"><input value={projectDir} onChange={(event) => setProjectDir(event.target.value)} aria-label={t('onboarding.projectDirectory')} /><button className="button secondary compact" onClick={() => void chooseProjectDirectory()} disabled={busy}><FolderOpen size={16} />{t('onboarding.chooseDirectory')}</button><button className="button secondary" onClick={() => void redetect()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Search size={16} />}{t('onboarding.detectAgents')}</button></div><p className="scope-help">{t('onboarding.scopeHelp', { project: t('onboarding.projectConfig'), global: t('onboarding.globalConfig') })}</p></div>
-    <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.agentTitle')}</strong><span>{t('onboarding.agentDetail')}</span></div></div><div className="agent-choice-grid">{[...agents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={agentChosen && options.platform === agent.platform ? 'active' : ''} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: agent.platform })); }}><PlatformIcon platform={agent.platform} /><strong>{agent.displayName}</strong><small>{agent.projectDetected ? t('onboarding.recommended') : t('onboarding.globalOnly')}</small></button>)}<button className={`agent-overview ${agentChosen && options.platform === 'all' ? 'active' : ''}`} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: 'all' })); }}><Boxes size={18} /><strong>{t('onboarding.overview')}</strong><small>{t('onboarding.overviewDetail')}</small></button></div>{agents.length === 0 && <p className="muted">{t('onboarding.noAgents')}</p>}</div>
-    <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.analysisTitle')}</strong><span>{t('onboarding.analysisDetail')}</span></div></div><div className="analysis-choice"><button className={analysisMode === 'standard' ? 'active' : ''} onClick={() => setAnalysisMode('standard')}><ShieldCheck size={19} /><span><strong>{t('onboarding.standard')}</strong><small>{t('onboarding.standardDetail')}</small></span></button><button className={analysisMode === 'deep' ? 'active' : ''} disabled={!bootstrap.capabilities.aiAuditConfigured && !bootstrap.capabilities.embeddingConfigured} onClick={() => setAnalysisMode('deep')}><Sparkles size={19} /><span><strong>{t('onboarding.deep')}</strong><small>{bootstrap.capabilities.aiAuditConfigured || bootstrap.capabilities.embeddingConfigured ? t('onboarding.deepAvailable') : t('onboarding.deepUnavailable')}</small></span></button></div></div>
+    <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.agentTitle')}</strong><span>{t('onboarding.agentDetail')}</span></div></div><div className="agent-choice-grid">{[...agents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={agentChosen && options.platform === agent.platform ? 'active' : ''} aria-pressed={agentChosen && options.platform === agent.platform} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: agent.platform })); }}><PlatformIcon platform={agent.platform} /><strong>{agent.displayName}</strong><small>{agent.projectDetected ? t('onboarding.recommended') : t('onboarding.globalOnly')}</small></button>)}<button className={`agent-overview ${agentChosen && options.platform === 'all' ? 'active' : ''}`} aria-pressed={agentChosen && options.platform === 'all'} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: 'all' })); }}><Boxes size={18} /><strong>{t('onboarding.overview')}</strong><small>{t('onboarding.overviewDetail')}</small></button></div>{agents.length === 0 && <p className="muted">{t('onboarding.noAgents')}</p>}</div>
+    <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.analysisTitle')}</strong><span>{t('onboarding.analysisDetail')}</span></div></div><div className="analysis-choice"><button className={analysisMode === 'standard' ? 'active' : ''} aria-pressed={analysisMode === 'standard'} onClick={() => setAnalysisMode('standard')}><ShieldCheck size={19} /><span><strong>{t('onboarding.standard')}</strong><small>{t('onboarding.standardDetail')}</small></span></button><button className={analysisMode === 'deep' ? 'active' : ''} aria-pressed={analysisMode === 'deep'} disabled={!bootstrap.capabilities.aiAuditConfigured && !bootstrap.capabilities.embeddingConfigured} onClick={() => setAnalysisMode('deep')}><Sparkles size={19} /><span><strong>{t('onboarding.deep')}</strong><small>{bootstrap.capabilities.aiAuditConfigured || bootstrap.capabilities.embeddingConfigured ? t('onboarding.deepAvailable') : t('onboarding.deepUnavailable')}</small></span></button></div></div>
     {localError && <p className="form-error onboarding-error">{localError}</p>}
     <footer><div><ShieldCheck size={16} /><span>{t('onboarding.private')}</span></div><button className="button primary" onClick={() => void submit()} disabled={busy || !projectDir.trim()}>{busy ? <LoaderCircle className="spin" size={17} /> : <Stethoscope size={17} />}{t('onboarding.start')}</button></footer>
   </section></div>;
 }
 
-function SettingsDrawer({ options, setOptions, capabilities, close, apply, onManageScanSources }: { options: ScanRequest; setOptions: (value: ScanRequest) => void; capabilities?: BootstrapPayload['capabilities']; close: () => void; apply: () => void; onManageScanSources: () => void }) {
+function SettingsDrawer({ options, setOptions, capabilities, close, apply, onManageScanSources, onModelChanged }: { options: ScanRequest; setOptions: (value: ScanRequest) => void; capabilities?: BootstrapPayload['capabilities']; close: () => void; apply: () => void; onManageScanSources: () => void; onModelChanged: () => void }) {
   const { t } = useTranslation();
-  return <Drawer title={t('settings.title')} subtitle={t('settings.subtitle')} close={close}><div className="drawer-section"><h4>{t('settings.scanSources')}</h4><p className="muted">{t('settings.scanSourcesHint')}</p><button className="button secondary" onClick={onManageScanSources}><FolderCog size={15} />{t('settings.scanSources')}</button></div>
+  return <Drawer title={t('settings.title')} subtitle={t('settings.subtitle')} close={close}><ModelServiceSettings onChanged={onModelChanged} /><div className="drawer-section"><h4>{t('settings.scanSources')}</h4><p className="muted">{t('settings.scanSourcesHint')}</p><button className="button secondary" onClick={onManageScanSources}><FolderCog size={15} />{t('settings.scanSources')}</button></div>
     <div className="drawer-section"><h4>{t('settings.platformScope')}</h4><label className="field"><span>{t('settings.platform')}</span><select value={options.platform} onChange={(event) => setOptions({ ...options, platform: event.target.value as ScanRequest['platform'] })}><option value="all">{t('settings.allPlatforms')}</option>{['claude','cursor','copilot','codex','gemini','windsurf','trae','opencode','kiro','openclaw','hermes'].map((value) => <option key={value}>{value}</option>)}</select></label></div>
     <div className="drawer-section"><h4>{t('settings.capabilities')}</h4><SettingSwitch label={t('settings.context')} description={t('settings.contextDetail')} checked={options.includeContext} onChange={(checked) => setOptions({ ...options, includeContext: checked })} /><SettingSwitch label={t('settings.disabled')} description={t('settings.disabledDetail')} checked={options.includeDisabled} onChange={(checked) => setOptions({ ...options, includeDisabled: checked })} /><SettingSwitch label={t('settings.cache')} description={t('settings.cacheDetail')} checked={options.includeCache} onChange={(checked) => setOptions({ ...options, includeCache: checked })} /><SettingSwitch label={t('settings.mcp')} description={t('settings.mcpDetail')} checked={options.discoverMcpTools} onChange={(checked) => setOptions({ ...options, discoverMcpTools: checked })} /></div>
     <div className="drawer-section"><h4>{t('settings.deep')}</h4><label className="field"><span>{t('settings.conflicts')} <HelpTip label={t('settings.conflicts')} text={t('settings.conflictsHelp')} /></span><select value={options.conflictStrategy} onChange={(event) => setOptions({ ...options, conflictStrategy: event.target.value as ScanRequest['conflictStrategy'] })}><option value="token">{t('settings.token')}</option><option value="embedding" disabled={!capabilities?.embeddingConfigured}>{t('settings.embedding')}{!capabilities?.embeddingConfigured ? t('settings.unconfigured') : ''}</option></select></label><SettingSwitch label={t('settings.aiAudit')} description={capabilities?.aiAuditConfigured ? t('settings.aiConfigured') : t('settings.aiUnavailable')} checked={options.useAiAudit} disabled={!capabilities?.aiAuditConfigured} onChange={(checked) => setOptions({ ...options, useAiAudit: checked })} /><SettingSwitch label={t('settings.aiConflict')} description={t('settings.aiConflictDetail')} checked={options.analyzeConflicts} disabled={!capabilities?.aiAuditConfigured} onChange={(checked) => setOptions({ ...options, analyzeConflicts: checked })} /></div>
@@ -463,13 +479,103 @@ function SettingsDrawer({ options, setOptions, capabilities, close, apply, onMan
   </Drawer>;
 }
 
-function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, setToast }: { issue: UiIssue; snapshot: DoctorSnapshot | null; close: () => void; openResource: (id: string) => void; compare: (a: string, b: string) => void; cleaned: () => void; setToast: (message: string) => void }) {
+type ModelServiceForm = {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+  clearApiKey: boolean;
+  timeoutMs: string;
+  apiKeyConfigured: boolean;
+};
+
+function ModelServiceSettings({ onChanged }: { onChanged: () => void }) {
+  const [config, setConfig] = useState<ModelConfigView | null>(null);
+  const [analysis, setAnalysis] = useState<ModelServiceForm>(emptyModelServiceForm());
+  const [embedding, setEmbedding] = useState<ModelServiceForm>(emptyModelServiceForm());
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getModelConfig().then((next) => {
+      if (!active) return;
+      setConfig(next);
+      setAnalysis(toModelServiceForm(next.analysis));
+      setEmbedding(toModelServiceForm(next.embedding));
+    }).catch((nextError) => active && setError(nextError instanceof Error ? nextError.message : String(nextError)));
+    return () => { active = false; };
+  }, []);
+
+  const save = async () => {
+    setBusy(true); setError(null); setMessage(null);
+    try {
+      const saved = await saveModelConfig({ analysis: toModelServicePayload(analysis, true), embedding: toModelServicePayload(embedding, false) });
+      setConfig(saved.config);
+      setAnalysis(toModelServiceForm(saved.config.analysis));
+      setEmbedding(toModelServiceForm(saved.config.embedding));
+      setMessage('模型服务已保存。分析模型用于 AI 审计，嵌入模型用于语义冲突分析。');
+      onChanged();
+    } catch (nextError) { setError(nextError instanceof Error ? nextError.message : String(nextError)); }
+    finally { setBusy(false); }
+  };
+  const test = async (kind: 'analysis' | 'embedding') => {
+    setBusy(true); setError(null); setMessage(null);
+    try { setMessage((await testModelConfig(kind)).message); }
+    catch (nextError) { setError(nextError instanceof Error ? nextError.message : String(nextError)); }
+    finally { setBusy(false); }
+  };
+
+  return <div className="drawer-section">
+    <h4>模型服务</h4>
+    <p className="muted">使用 OpenAI-compatible API。云端模型与已运行的本地/局域网模型服务都填写 endpoint；本应用不会下载模型或启动推理引擎。</p>
+    {!config && !error && <LoadingLine />}
+    <ModelServiceFields title="分析模型（/chat/completions）" value={analysis} setValue={setAnalysis} supportsTimeout />
+    <ModelServiceFields title="嵌入模型（/embeddings）" value={embedding} setValue={setEmbedding} />
+    {message && <InlineNotice kind="info" title="模型服务">{message}</InlineNotice>}
+    {error && <InlineNotice kind="danger" title="模型服务">{error}</InlineNotice>}
+    <div className="drawer-actions"><button className="button secondary" disabled={busy} onClick={() => void test('analysis')}>测试分析模型</button><button className="button secondary" disabled={busy} onClick={() => void test('embedding')}>测试嵌入模型</button><button className="button primary" disabled={busy} onClick={() => void save()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}保存模型服务</button></div>
+  </div>;
+}
+
+function ModelServiceFields({ title, value, setValue, supportsTimeout = false }: { title: string; value: ModelServiceForm; setValue: (next: ModelServiceForm) => void; supportsTimeout?: boolean }) {
+  const update = (next: Partial<ModelServiceForm>) => setValue({ ...value, ...next });
+  return <div className="drawer-section"><h4>{title}</h4>
+    <label className="field"><span>API Base URL</span><input value={value.baseUrl} onChange={(event) => update({ baseUrl: event.target.value })} placeholder="https://api.openai.com/v1" /></label>
+    <label className="field"><span>模型名称</span><input value={value.model} onChange={(event) => update({ model: event.target.value })} placeholder={supportsTimeout ? 'gpt-4.1-mini' : 'text-embedding-3-small'} /></label>
+    <label className="field"><span>API Key {value.apiKeyConfigured ? '（已保存；留空则保留）' : '（可选）'}</span><input type="password" value={value.apiKey} onChange={(event) => update({ apiKey: event.target.value, clearApiKey: false })} placeholder={value.apiKeyConfigured ? '输入新 Key 以替换' : '本地服务可留空'} /></label>
+    {value.apiKeyConfigured && <label className="setting-switch"><div><strong>清除保存的 API Key</strong><span>保存后将不再发送 Authorization 请求头。</span></div><input type="checkbox" checked={value.clearApiKey} onChange={(event) => update({ clearApiKey: event.target.checked })} /><span className="switch-track" /></label>}
+    {supportsTimeout && <label className="field"><span>请求超时（毫秒，可选）</span><input type="number" min="1" value={value.timeoutMs} onChange={(event) => update({ timeoutMs: event.target.value })} placeholder="30000" /></label>}
+  </div>;
+}
+
+function emptyModelServiceForm(): ModelServiceForm { return { baseUrl: '', model: '', apiKey: '', clearApiKey: false, timeoutMs: '', apiKeyConfigured: false }; }
+function toModelServiceForm(value: ModelConfigView['analysis'] | ModelConfigView['embedding'] | undefined): ModelServiceForm {
+  const timeoutMs = value && 'timeoutMs' in value ? value.timeoutMs : undefined;
+  return { baseUrl: value?.baseUrl ?? '', model: value?.model ?? '', apiKey: '', clearApiKey: false, timeoutMs: timeoutMs ? String(timeoutMs) : '', apiKeyConfigured: value?.apiKeyConfigured === true };
+}
+function toModelServicePayload(value: ModelServiceForm, supportsTimeout: boolean): ModelServiceConfig | null {
+  if (!value.baseUrl.trim() && !value.model.trim() && !value.apiKey.trim()) return null;
+  return {
+    baseUrl: value.baseUrl,
+    model: value.model,
+    ...(value.apiKey.trim() ? { apiKey: value.apiKey } : {}),
+    ...(value.clearApiKey ? { clearApiKey: true } : {}),
+    ...(supportsTimeout && value.timeoutMs ? { timeoutMs: Number(value.timeoutMs) } : {}),
+  };
+}
+
+function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, toggleContext, setToast }: { issue: UiIssue; snapshot: DoctorSnapshot | null; close: () => void; openResource: (id: string) => void; compare: (a: string, b: string) => void; cleaned: () => void; toggleContext: (resource: UiResource) => void; setToast: (message: string) => void }) {
   const { t } = useTranslation();
   const [removePath, setRemovePath] = useState(issue.cleanup?.removePath ?? issue.evidence.find((entry) => entry.path)?.path ?? ''); const [confirmation, setConfirmation] = useState(''); const [busy, setBusy] = useState(false);
+  const controllableContextResources = issue.kind === 'context'
+    ? issue.resourceIds.map((id) => snapshot?.resources.find((resource) => resource.id === id)).filter((resource): resource is UiResource => Boolean(resource?.controllable && resource.controlId && resource.enabled !== false))
+    : [];
   return <Drawer title={translateResultText(issue.title, t)} subtitle={`${kindLabel(issue.kind, t)} · ${severityLabel(issue.severity, t)}`} close={close}><div className="issue-hero"><SeverityBadge severity={issue.severity} /><p>{translateResultText(issue.summary, t)}</p></div>
     <div className="drawer-section"><h4>{t('drawer.affected')}</h4><div className="linked-resources">{issue.resourceIds.map((id, index) => <button key={id} onClick={() => openResource(id)}><code>{issue.resourceNames[index] ?? id}</code><ArrowRight size={15} /></button>)}</div></div>
     <div className="drawer-section"><h4>{t('drawer.evidence')}</h4><div className="evidence-list">{issue.evidence.map((evidence, index) => <div key={`${evidence.label}:${index}`}><span>{translateResultText(evidence.label, t)}</span><code>{evidence.value || '—'}</code>{evidence.path && <button className="copy-button" onClick={() => void copyText(evidence.path!, setToast, t)}><Clipboard size={14} />{t('drawer.copyPath')}</button>}</div>)}</div></div>
     {issue.recommendation && <div className="recommendation"><Sparkles size={18} /><div><strong>{t('drawer.recommendation')}</strong><p>{translateResultText(issue.recommendation, t)}</p></div></div>}
+    {controllableContextResources.length > 0 && <div className="drawer-section"><h4>{t('drawer.reduceContext')}</h4><p className="muted">{t('drawer.reduceContextDetail')}</p><div className="linked-resources">{controllableContextResources.map((resource) => <button key={resource.id} onClick={() => toggleContext(resource)}><span>{t('drawer.disableResource', { name: resource.name })}</span><ArrowRight size={15} /></button>)}</div></div>}
     {issue.kind === 'conflict' && issue.resourceIds.length === 2 && <button className="button secondary full" onClick={() => compare(issue.resourceIds[0], issue.resourceIds[1])}><GitCompareArrows size={16} />{t('drawer.compare')}</button>}
     {issue.kind === 'duplicate' && <div className="drawer-section destructive-zone"><h4>{t('drawer.deleteDuplicate')}</h4><p>{t('drawer.deleteWarning')}</p><label className="field"><span>{t('drawer.deletePath')}</span><select value={removePath} onChange={(event) => { setRemovePath(event.target.value); setConfirmation(''); }}>{issue.evidence.filter((entry) => entry.path).map((entry) => <option key={entry.path} value={entry.path}>{entry.path}</option>)}</select></label><label className="field"><span>{t('drawer.confirmPath')}</span><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={removePath} /></label><button className="button danger full" disabled={busy || confirmation !== removePath} onClick={async () => { setBusy(true); try { await cleanupDuplicate(issue.id, removePath, confirmation); setToast(t('drawer.deleted')); cleaned(); } catch (error) { setToast(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }}><Trash2 size={16} />{t('drawer.deleteRescan')}</button></div>}
   </Drawer>;
@@ -498,7 +604,28 @@ function CompareDialog({ state, snapshot, setState, close }: { state: { leftId: 
 
 function CompareColumn({ title, profile }: { title: string; profile: DiffResult['skillA'] }) { const { t } = useTranslation(); return <article><h3>{title}</h3><p>{profile.description}</p><h4>{t('compare.when')}</h4><p>{profile.whenToUse || t('compare.undeclared')}</p><h4>{t('compare.triggers')}</h4><div className="tag-list">{profile.triggers.map((trigger) => <span key={trigger}>{trigger}</span>)}</div><h4>{t('compare.checklist')}</h4><ul>{profile.checklistItems.map((item) => <li key={item}>{item}</li>)}{!profile.checklistItems.length && <li className="muted">{t('compare.empty')}</li>}</ul></article>; }
 
-function Drawer({ title, subtitle, close, children }: { title: string; subtitle?: string; close: () => void; children: ReactNode }) { const { t } = useTranslation(); return <div className="drawer-backdrop" onMouseDown={(event) => event.target === event.currentTarget && close()}><aside className="drawer" role="dialog" aria-modal="true"><header><div><span className="eyebrow">{subtitle}</span><h2>{title}</h2></div><button className="icon-button" onClick={close} aria-label={t('common.close')}><X size={19} /></button></header><div className="drawer-body">{children}</div></aside></div>; }
+function Drawer({ title, subtitle, close, children }: { title: string; subtitle?: string; close: () => void; children: ReactNode }) {
+  const { t } = useTranslation();
+  const drawerRef = useRef<HTMLElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () => Array.from(drawerRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? []);
+    focusable()[0]?.focus();
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const elements = focusable();
+      if (elements.length === 0) return;
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', trapFocus);
+    return () => { document.removeEventListener('keydown', trapFocus); previous?.focus(); };
+  }, []);
+  return <div className="drawer-backdrop" onMouseDown={(event) => event.target === event.currentTarget && close()}><aside ref={drawerRef} className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}><header><div><span className="eyebrow">{subtitle}</span><h2 id={titleId}>{title}</h2></div><button className="icon-button" onClick={close} aria-label={t('common.close')}><X size={19} /></button></header><div className="drawer-body">{children}</div></aside></div>;
+}
 
 function scanStatusMessage(status: ScanState['status'], t: ReturnType<typeof useTranslation>['t']): string {
   if (!status) return t('topbar.waiting');
@@ -535,6 +662,6 @@ function saveProjectPreference(options: ScanRequest): void {
 }
 function loadAnalysisMode(): AnalysisMode { const value = localStorage.getItem('skill-doctor-analysis-mode'); return value === 'deep' || value === 'custom' ? value : 'standard'; }
 function optionsForAnalysisMode(options: ScanRequest, mode: Exclude<AnalysisMode, 'custom'>, capabilities?: BootstrapPayload['capabilities']): ScanRequest {
-  if (mode === 'standard') return { ...options, includeContext: true, discoverMcpTools: true, useAiAudit: false, conflictStrategy: 'token', analyzeConflicts: false };
+  if (mode === 'standard') return { ...options, includeContext: true, includeDisabled: false, includeCache: false, discoverMcpTools: false, useAiAudit: false, conflictStrategy: 'token', analyzeConflicts: false };
   return { ...options, includeContext: true, discoverMcpTools: true, useAiAudit: capabilities?.aiAuditConfigured === true, conflictStrategy: capabilities?.embeddingConfigured ? 'embedding' : 'token', analyzeConflicts: capabilities?.aiAuditConfigured === true };
 }

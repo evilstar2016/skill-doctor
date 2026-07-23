@@ -3,6 +3,7 @@ import type { ServerResponse } from 'node:http';
 
 import { runHealthCheck } from '../application/runHealthCheck';
 import type { DoctorSnapshot, HealthCheckOptions, ScanProgressEvent } from '../application/types';
+import { saveSnapshotHistory } from '../history/snapshotHistory';
 
 export type ScanStreamEvent =
   | { type: 'progress'; data: ScanProgressEvent }
@@ -22,6 +23,8 @@ export class ScanManager {
   private readonly sessions = new Map<string, ScanSession>();
   private activeId: string | null = null;
   currentSnapshot: DoctorSnapshot | null = null;
+
+  constructor(private readonly homeDir?: string) {}
 
   start(options: HealthCheckOptions): string {
     if (this.activeId) this.cancel(this.activeId);
@@ -60,6 +63,7 @@ export class ScanManager {
     try {
       const snapshot = await runHealthCheck(options, (event) => this.emit(session, { type: 'progress', data: event }));
       this.currentSnapshot = snapshot;
+      saveSnapshotHistory(snapshot, options.homeDir ?? this.homeDir);
       this.emit(session, { type: 'complete', data: snapshot });
     } catch (error) {
       if (session.controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
@@ -93,4 +97,3 @@ export class ScanManager {
 function writeSse(response: ServerResponse, event: ScanStreamEvent): void {
   response.write(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
 }
-

@@ -62,6 +62,23 @@ describe('ManagePage unified Skill Center', () => {
     expect(screen.getByText('Claude synced')).toBeTruthy();
   });
 
+  it('shows physical candidates matched to a canonical managed skill', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [{
+        id: 'managed-a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [],
+        physicalCandidates: [{ id: 'phys-1', name: 'alpha', rootPath: '/project/.claude/skills/alpha', platform: 'claude', scope: 'project', status: 'new', managed: false }],
+      }],
+      physical: [],
+      importPlanId: 'plan-1',
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByText('alpha'));
+
+    expect(await screen.findByText('匹配的物理候选')).toBeTruthy();
+    expect(screen.getByText('/project/.claude/skills/alpha')).toBeTruthy();
+  });
+
   it('installs only the checked skills from an inspected directory', async () => {
     mocks.inspectSkillSource.mockResolvedValue({
       sourcePath: '/source',

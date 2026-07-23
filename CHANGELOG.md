@@ -9,6 +9,7 @@ All notable changes to `skill-doctor` are documented here.
 - Added a loopback-only authenticated HTTP API with scan progress streaming, Codex resource controls, managed install/uninstall actions, and explicit destructive-action confirmation.
 - Added responsive light/dark themes, local search and filtering, accessible status labels, and mobile navigation.
 - Added local skill-directory preview and selective global/project installation in the management UI, with native directory selection, complete directory copy/link installation, and a reference list of skills already available to the target Agent.
+- Added selective take-back of physical Agent skill directories into the central library, replacing approved originals with managed links while excluding existing links and blocking same-name content conflicts.
 - Added `cost --platform codex --resource plugin --include-cache` to inventory cached plugin and Skill UI metadata without adding it to estimated context token tax.
 - Added structured `catalog` JSON output with cache source, display metadata, icon paths, and implicit/explicit invocation policy.
 - Fixed MCP context-cost discovery for VS Code JSONC configs, project-relative stdio servers, and legacy SSE transports; UI scans now inspect live tool lists by default for Copilot and Codex.

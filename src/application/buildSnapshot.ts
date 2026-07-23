@@ -289,6 +289,7 @@ function buildResources(
     const existing = findMatchingResource(byId, item);
     if (existing) {
       existing.controllable = existing.controllable || item.controllable === true;
+      existing.controlId ??= item.id;
       existing.activation = item.activation;
       existing.fixedTokens = fixedCost(item);
       existing.activationTokens = item.activationEstimatedTokens;
@@ -318,6 +319,7 @@ function buildResources(
       triggers: [],
       enabled: item.enabled,
       controllable: item.controllable === true,
+      controlId: item.id,
       activation: item.activation,
       fixedTokens: fixedCost(item),
       activationTokens: item.activationEstimatedTokens,

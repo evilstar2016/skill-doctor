@@ -5,14 +5,18 @@ import { useTranslation } from '../i18n';
 
 type HealthStatus = 'success' | 'warning' | 'danger';
 
-function healthScore(s: DoctorSnapshot['summary']): number {
+function healthScore(snapshot: DoctorSnapshot): number {
+  const s = snapshot.summary;
   const penalty = s.high * 25 + s.medium * 10 + s.low * 4;
-  return Math.max(0, Math.min(100, 100 - penalty));
+  const incompletePenalty = snapshot.status === 'partial' ? 10 : 0;
+  const warningPenalty = Math.min(15, snapshot.warnings.length * 3);
+  return Math.max(0, Math.min(100, 100 - penalty - incompletePenalty - warningPenalty));
 }
-function healthStatus(score: number): HealthStatus {
+function healthStatus(snapshot: DoctorSnapshot, score: number): HealthStatus {
+  if (score < 50) return 'danger';
+  if (snapshot.status === 'partial' || snapshot.warnings.length > 0) return 'warning';
   if (score >= 80) return 'success';
-  if (score >= 50) return 'warning';
-  return 'danger';
+  return 'warning';
 }
 function fmtTokens(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k';
@@ -51,8 +55,9 @@ export function OverviewPage({ snapshot, scan, openIssue, navigateToResources, n
   if (!snapshot) return <ScanningEmpty running={scan.running} />;
 
   const s = snapshot.summary;
-  const score = healthScore(s);
-  const status = healthStatus(score);
+  const score = healthScore(snapshot);
+  const status = healthStatus(snapshot, score);
+  const incomplete = snapshot.status === 'partial' || snapshot.warnings.length > 0;
   const priority = snapshot.issues.slice(0, 3);
   const contextTokens = (s.fixedTokens || 0) + (s.activationTokens || 0);
   const totalIssues = Math.max(1, s.issues);
@@ -84,8 +89,8 @@ export function OverviewPage({ snapshot, scan, openIssue, navigateToResources, n
   ];
 
   return <section>
-    <PageHeading title={snapshot.summary.issues ? t('overview.priority', { count: Math.min(3, snapshot.summary.issues) }) : t('overview.good')}
-      subtitle={snapshot.summary.issues ? t('overview.priorityDetail') : t('overview.goodDetail')}>
+    <PageHeading title={snapshot.summary.issues ? t('overview.priority', { count: Math.min(3, snapshot.summary.issues) }) : incomplete ? t('overview.incomplete') : t('overview.good')}
+      subtitle={snapshot.summary.issues ? t('overview.priorityDetail') : incomplete ? t('overview.incompleteDetail', { count: snapshot.warnings.length }) : t('overview.goodDetail')}>
       <StatusPill kind={status}>{t(`overview.${status}`)}</StatusPill>
     </PageHeading>
 

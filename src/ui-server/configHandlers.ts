@@ -2,8 +2,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import packageJson from '../../package.json';
 import { saveUserConfig } from '../config/loadUserConfig';
+import { modelConfigView, validateModelConfig, withModelConfig } from '../config/modelConfig';
 import { validateScanSourcesConfig, withScanSources } from '../config/scanSources';
 import { detectAgents } from '../discovery/detectAgents';
+import { testOpenAiCompatibleModel } from '../models/testOpenAiCompatible';
 import { getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
 import { zhMessage } from '../i18n';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
@@ -48,6 +50,30 @@ export async function handleConfigRoute(
       configPath: context.getLoadedConfig().path,
       sources: context.getScanSources(),
     });
+    return true;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/model-config') {
+    sendJson(response, 200, modelConfigView(context.getLoadedConfig().config));
+    return true;
+  }
+
+  if (request.method === 'PUT' && url.pathname === '/api/model-config') {
+    const body = await readJsonBody(request);
+    const modelConfig = validateModelConfig(body);
+    saveUserConfig(withModelConfig(context.getLoadedConfig().config, modelConfig), context.homeDir);
+    context.invalidateConfig();
+    sendJson(response, 200, { saved: true, config: modelConfigView(context.getLoadedConfig().config) });
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/model-config/test') {
+    const body = await readJsonBody(request);
+    const kind = requiredString(body.kind, 'kind');
+    if (kind !== 'analysis' && kind !== 'embedding') throw new Error('kind must be analysis or embedding.');
+    const config = context.getLoadedConfig().config[kind];
+    if (!config) throw new Error(`${kind} model service is not configured.`);
+    sendJson(response, 200, await testOpenAiCompatibleModel(kind, config));
     return true;
   }
 

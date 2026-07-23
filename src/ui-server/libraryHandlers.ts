@@ -17,8 +17,8 @@ import {
   uninstallManagedSkillDeployment,
 } from '../application/actions';
 import { normalizePlatformName } from '../platforms/registry';
-import type { AgentImportDecision } from '../library/importAgentSkills';
 import { zhMessage } from '../i18n';
+import type { AgentImportDecision } from '../library/importAgentSkills';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 import type { ApiRequestContext } from './apiContext';
 import { pickNativeDirectory } from './nativeDirectoryPicker';
@@ -30,7 +30,8 @@ export async function handleLibraryRoute(
   context: ApiRequestContext,
 ): Promise<boolean> {
   if (request.method === 'POST' && url.pathname === '/api/library/import/preview') {
-    sendJson(response, 200, previewManagedAgentSkillImport(context.projectDir, context.homeDir));
+    const body = await readJsonBody(request);
+    sendJson(response, 200, previewManagedAgentSkillImport(context.projectDir, context.homeDir, readImportFilter(body)));
     return true;
   }
 
@@ -41,6 +42,7 @@ export async function handleLibraryRoute(
       requiredString(body.planId, 'planId'),
       readImportDecisions(body.decisions),
       context.homeDir,
+      readImportFilter(body),
     ));
     return true;
   }
@@ -166,6 +168,17 @@ export async function handleLibraryRoute(
   }
 
   return false;
+}
+
+function readImportFilter(body: Record<string, unknown>): { platform?: Exclude<ReturnType<typeof normalizePlatformName>, null>; scope?: 'global' | 'project'; physicalOnly?: boolean } {
+  const platform = body.target === undefined ? undefined : normalizePlatformName(requiredString(body.target, 'target'));
+  if (body.target !== undefined && !platform) throw new Error('Invalid platform.');
+  const scope = body.scope === undefined ? undefined : readInstallScope(body.scope);
+  return {
+    ...(platform ? { platform } : {}),
+    ...(scope ? { scope } : {}),
+    ...(body.physicalOnly === true ? { physicalOnly: true } : {}),
+  };
 }
 
 function readImportDecisions(value: unknown): AgentImportDecision[] {

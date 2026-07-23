@@ -321,6 +321,7 @@ function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, busy, on
                   </div>
                 </div>
               ))}
+              {row.skill.physicalCandidates && row.skill.physicalCandidates.length > 0 && <><h4>{t('center.physicalCandidates')}</h4>{row.skill.physicalCandidates.map((candidate) => <div className="detail" key={candidate.id}><span>{platformLabel(candidate.platform)} · {scopeLabel(candidate.scope, t)}</span><code>{shortPath(candidate.rootPath)}</code></div>)}</>}
               {onViewIssues && <div className="drawer-section"><button className="button secondary full" onClick={() => onViewIssues(name)}><Activity size={15} />{t('center.relatedIssues')}</button></div>}
             </>
           ) : (

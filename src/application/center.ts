@@ -28,6 +28,7 @@ export interface CenterSkillView {
   addedAt: string;
   updatedAt: string;
   installations: CenterInstallationView[];
+  physicalCandidates?: CenterPhysicalView[];
   managed: true;
 }
 
@@ -60,7 +61,6 @@ export interface CenterView {
  */
 export function getCenterView(projectDir: string, homeDir?: string): CenterView {
   const { skills, deployments } = listManagedSkillDeployments(projectDir, { homeDir });
-  const managedSkills: CenterSkillView[] = skills.map((skill) => toSkillView(skill, deployments));
 
   const preview = previewAgentSkillImport({ projectDir, homeDir });
   const physical: CenterPhysicalView[] = preview.candidates
@@ -76,11 +76,12 @@ export function getCenterView(projectDir: string, homeDir?: string): CenterView 
       treeHash: candidate.treeHash,
       managed: false,
     }));
+  const managedSkills: CenterSkillView[] = skills.map((skill) => toSkillView(skill, deployments, physical));
 
   return { skills: managedSkills, physical, importPlanId: preview.planId };
 }
 
-function toSkillView(skill: ManagedSkill, deployments: SkillDeployment[]): CenterSkillView {
+function toSkillView(skill: ManagedSkill, deployments: SkillDeployment[], physical: CenterPhysicalView[]): CenterSkillView {
   return {
     id: skill.id,
     name: skill.name,
@@ -93,6 +94,7 @@ function toSkillView(skill: ManagedSkill, deployments: SkillDeployment[]): Cente
       .filter((deployment) => deployment.skillId === skill.id)
       .map(toInstallationView)
       .sort((left, right) => left.platform.localeCompare(right.platform) || left.scope.localeCompare(right.scope)),
+    physicalCandidates: physical.filter((candidate) => candidate.treeHash === skill.treeHash || candidate.name === skill.name),
   };
 }
 

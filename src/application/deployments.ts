@@ -11,6 +11,7 @@ import {
   commitAgentSkillImport,
   previewAgentSkillImport,
   type AgentImportDecision,
+  type AgentSkillImportOptions,
 } from '../library/importAgentSkills';
 import { loadCenter, loadManagedSkills, removeCenterSkill, loadCenterRegistry } from '../library/centerStore';
 import { homedir } from 'node:os';
@@ -20,8 +21,10 @@ export function getManagedRegistry(homeDir?: string) {
   return loadCenterRegistry(homeDir);
 }
 
-export function previewManagedAgentSkillImport(projectDir: string, homeDir?: string) {
-  return previewAgentSkillImport({ projectDir, homeDir });
+type AgentImportFilter = Pick<AgentSkillImportOptions, 'platform' | 'scope' | 'physicalOnly'>;
+
+export function previewManagedAgentSkillImport(projectDir: string, homeDir?: string, filter: AgentImportFilter = {}) {
+  return previewAgentSkillImport({ projectDir, homeDir, ...filter });
 }
 
 export function commitManagedAgentSkillImport(
@@ -29,8 +32,9 @@ export function commitManagedAgentSkillImport(
   planId: string,
   decisions: AgentImportDecision[],
   homeDir?: string,
+  filter: AgentImportFilter = {},
 ) {
-  return commitAgentSkillImport({ projectDir, homeDir, planId, decisions });
+  return commitAgentSkillImport({ projectDir, homeDir, planId, decisions, ...filter });
 }
 
 export function getManagedSkillLibrary(projectDir: string, homeDir?: string) {

@@ -25,6 +25,29 @@ function preview(homeDir: string, projectDir: string) {
 }
 
 describe('Agent skill import preview', () => {
+  it.skipIf(process.platform === 'win32')('can discover only physical skills for one Agent and scope', () => {
+    const root = createTempRoot();
+    const homeDir = join(root, 'home');
+    const projectDir = join(root, 'project');
+    const claudeSkills = join(homeDir, '.claude', 'skills');
+    const physical = writeSkill(join(claudeSkills, 'physical'), 'physical');
+    const external = writeSkill(join(root, 'external'), 'external');
+    fs.symlinkSync(external, join(claudeSkills, 'linked'), 'dir');
+    writeSkill(join(homeDir, '.gemini', 'skills', 'gemini-only'), 'gemini-only');
+    writeSkill(join(projectDir, '.claude', 'skills', 'project-only'), 'project-only');
+
+    const plan = previewAgentSkillImport({
+      homeDir,
+      projectDir,
+      platform: 'claude',
+      scope: 'global',
+      physicalOnly: true,
+    });
+
+    expect(plan.candidates.map((candidate) => candidate.rootPath)).toEqual([physical]);
+    expect(plan.candidates[0]).toMatchObject({ platform: 'claude', scope: 'global', status: 'new' });
+  });
+
   it.skipIf(process.platform === 'win32')('classifies copies, name conflicts, links, invalid skills, and unreadable targets without changing files', () => {
     const root = createTempRoot();
     const homeDir = join(root, 'home');

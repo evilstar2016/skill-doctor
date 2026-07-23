@@ -26,6 +26,6 @@ describe('native directory picker', () => {
     const run = vi.fn<NativeDirectoryCommandRunner>().mockResolvedValue({ stdout: 'C:\\Users\\test\\skills\r\n' });
 
     await expect(pickNativeDirectory('选择项目目录', 'win32', run)).resolves.toBe('C:\\Users\\test\\skills');
-    expect(run).toHaveBeenCalledWith('cscript.exe', expect.arrayContaining(['//NoLogo', expect.stringMatching(/\\pick-folder\.vbs$/)]));
+    expect(run).toHaveBeenCalledWith('cscript.exe', expect.arrayContaining(['//NoLogo', expect.stringMatching(/[\\/]pick-folder\.vbs$/)]));
   });
 });

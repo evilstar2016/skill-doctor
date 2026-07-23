@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getBootstrap: vi.fn(),
+  getModelConfig: vi.fn(),
   detectAgents: vi.fn(),
   getResourceDetail: vi.fn(),
   startScan: vi.fn(),
@@ -14,16 +15,22 @@ const mocks = vi.hoisted(() => ({
   validateScanSources: vi.fn(),
   saveScanSources: vi.fn(),
   resetScanSources: vi.fn(),
+  saveModelConfig: vi.fn(),
+  testModelConfig: vi.fn(),
+  toggleContextResource: vi.fn(),
   getTargetAgentSkills: vi.fn(),
   inspectSkillSource: vi.fn(),
   pickProjectDirectory: vi.fn(),
   pickSkillSourceDirectory: vi.fn(),
+  getSnapshotHistory: vi.fn(),
+  diffSnapshots: vi.fn(),
 }));
 
 vi.mock('../../web/src/api', () => ({
   ...mocks,
   cancelScan: mocks.cancelScan, cleanupDuplicate: vi.fn(), compareResources: vi.fn(), getResourceDetail: mocks.getResourceDetail,
-  installSkill: vi.fn(), toggleContextResource: vi.fn(), uninstallSkill: vi.fn(),
+  getSnapshotHistory: mocks.getSnapshotHistory, diffSnapshots: mocks.diffSnapshots,
+  installSkill: vi.fn(), toggleContextResource: mocks.toggleContextResource, uninstallSkill: vi.fn(),
 }));
 
 import App from '../../web/src/App';
@@ -39,6 +46,7 @@ const snapshot = {
 
 describe('UI onboarding', () => {
   beforeEach(() => {
+    window.location.hash = '';
     cleanup();
     const values = new Map<string, string>();
     Object.defineProperty(window, 'localStorage', { configurable: true, value: {
@@ -55,6 +63,10 @@ describe('UI onboarding', () => {
       version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
       supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
     });
+    mocks.getModelConfig.mockResolvedValue({});
+    mocks.saveModelConfig.mockResolvedValue({ saved: true, config: {} });
+    mocks.testModelConfig.mockResolvedValue({ message: 'reachable' });
+    mocks.toggleContextResource.mockResolvedValue({ changed: true, requiresNewSession: true, message: 'updated' });
     mocks.detectAgents.mockResolvedValue({ projectDir: '/tmp/project', agents: [codexAgent] });
     mocks.startScan.mockResolvedValue('scan-1');
     mocks.streamScan.mockImplementation((_id, handlers) => { queueMicrotask(() => handlers.complete(snapshot)); return () => {}; });
@@ -70,6 +82,12 @@ describe('UI onboarding', () => {
     mocks.getTargetAgentSkills.mockResolvedValue({ targetPath: '/tmp/home/.codex/skills', scope: 'global', availableScopes: ['global', 'project'], skills: [] });
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
     mocks.pickProjectDirectory.mockResolvedValue({ cancelled: true });
+    mocks.getSnapshotHistory.mockResolvedValue({ snapshots: [snapshot, { ...snapshot, id: 'baseline', generatedAt: new Date(-1000).toISOString() }] });
+    mocks.diffSnapshots.mockResolvedValue({
+      issues: { added: 1, resolved: 2, unchanged: 0, addedBySeverity: {}, resolvedBySeverity: {} },
+      resources: { baseline: 1, current: 2, change: 1 },
+      contextTokens: { baseline: 0, current: 10, change: 10 },
+    });
   });
 
   it('switches the UI language and persists the selection', async () => {
@@ -84,11 +102,24 @@ describe('UI onboarding', () => {
     expect(document.documentElement.lang).toBe('en-US');
   });
 
+  it('shows locally persisted scan history and compares the current scan with a baseline', async () => {
+    render(<App />);
+
+    await screen.findByText('总览');
+    fireEvent.click(screen.getByRole('button', { name: '历史趋势' }));
+
+    await screen.findByText('扫描历史与基线');
+    expect(screen.getByText('已保存的快照')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '比较差异' }));
+    await waitFor(() => expect(mocks.diffSnapshots).toHaveBeenCalledWith('baseline', 'snapshot'));
+    expect(await screen.findByText('新增问题')).toBeTruthy();
+  });
+
   it('automatically scans the only project Agent and keeps cross-Agent overview secondary', async () => {
     render(<App />);
 
     await waitFor(() => expect(mocks.startScan).toHaveBeenCalledWith(expect.objectContaining({
-      projectDir: '/tmp/project', platform: 'codex', discoverMcpTools: true,
+      projectDir: '/tmp/project', platform: 'codex', discoverMcpTools: false,
     })));
     const agentBar = await screen.findByLabelText('选择要体检的 Agent');
     expect(within(agentBar).getByText('当前 Agent')).toBeTruthy();
@@ -100,6 +131,61 @@ describe('UI onboarding', () => {
     expect(await screen.findByText('体检设置')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('解释Tokenizer'));
     expect(screen.getByText(/OpenAI tokenizer 提供更准确的估算/)).toBeTruthy();
+  });
+
+  it('does not present a partial scan with warnings as healthy', async () => {
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [],
+      snapshot: { ...snapshot, status: 'partial', warnings: [{ id: 'mcp', phase: 'discovering', code: 'mcp_timeout', message: 'MCP discovery timed out.', recoverable: true }] },
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('扫描结果不完整')).toBeTruthy();
+    expect(screen.getByText('扫描未完全完成（1 条警告）')).toBeTruthy();
+    expect(screen.queryByText('状态良好')).toBeNull();
+  });
+
+  it('offers a direct disable action for controllable context resources in an over-budget issue', async () => {
+    const resource = {
+      id: 'resource-context', name: 'Large Skill', kind: 'skill', kindLabel: 'Skill', sourcePath: '/tmp/large-skill', platform: 'codex', scope: 'project',
+      shared: false, consumers: [], controllable: true, controlId: 'skill:large-skill', enabled: true, triggers: [], fixedTokens: 3000, activationTokens: 0,
+      issueIds: ['context-budget'], status: 'attention',
+    };
+    const issue = {
+      id: 'context-budget', kind: 'context', severity: 'med', title: 'context-over-budget', summary: 'context-over-budget-summary:3000:2000',
+      resourceIds: [resource.id], resourceNames: [resource.name], evidence: [], recommendation: 'Reduce context.',
+    };
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [],
+      snapshot: { ...snapshot, resources: [resource], issues: [issue], summary: { ...snapshot.summary, resources: 1, issues: 1, medium: 1 } },
+    });
+
+    render(<App />);
+    fireEvent.click(await screen.findByText('固定上下文成本超过预算'));
+    fireEvent.click(await screen.findByRole('button', { name: '禁用 Large Skill' }));
+
+    await waitFor(() => expect(mocks.toggleContextResource).toHaveBeenCalledWith('skill:large-skill', false));
+  });
+
+  it('shows active resources by default and keeps unknown assets available through the status filter', async () => {
+    const active = { id: 'active', name: 'Active Skill', kind: 'skill', kindLabel: 'Skill', sourcePath: '/tmp/active', platform: 'codex', scope: 'project', shared: false, consumers: [{ platform: 'codex', scope: 'project' }], controllable: false, triggers: [], fixedTokens: 0, activationTokens: 0, issueIds: [], status: 'healthy' };
+    const unknown = { ...active, id: 'unknown', name: 'Cached Plugin', sourcePath: '/tmp/cache', status: 'unknown' };
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [],
+      snapshot: { ...snapshot, resources: [active, unknown], summary: { ...snapshot.summary, resources: 2, platforms: { codex: 2 } } },
+    });
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: '资源清单' }));
+    expect(await screen.findByText('Active Skill')).toBeTruthy();
+    expect(screen.queryByText('Cached Plugin')).toBeNull();
+    fireEvent.change(screen.getByDisplayValue('仅有效资产（默认）'), { target: { value: 'all' } });
+    expect(await screen.findByText('Cached Plugin')).toBeTruthy();
   });
 
   it('requires an explicit choice when multiple project Agents are detected', async () => {
@@ -288,7 +374,8 @@ describe('UI onboarding', () => {
     });
     render(<App />);
 
-    const scanPathButtons = await screen.findAllByRole('button', { name: '扫描路径' });
+    fireEvent.click(await screen.findByRole('button', { name: '扫描设置' }));
+    const scanPathButtons = await screen.findAllByRole('button', { name: '扫描来源与路径' });
     fireEvent.click(scanPathButtons[scanPathButtons.length - 1]);
     expect(await screen.findByDisplayValue('~/.codex/skills')).toBeTruthy();
     expect(screen.getAllByText('不存在').length).toBeGreaterThan(0);

@@ -69,6 +69,9 @@ export interface AgentImportCommitOutcome {
 export interface AgentSkillImportOptions {
   projectDir: string;
   homeDir?: string;
+  platform?: Platform;
+  scope?: Scope;
+  physicalOnly?: boolean;
   linkFactory?: (targetPath: string, linkPath: string) => void;
 }
 
@@ -97,6 +100,8 @@ function collectCandidateRoots(options: AgentSkillImportOptions): CandidateRoot[
   const roots: CandidateRoot[] = [];
   for (const source of loadEffectiveScanSources(options.projectDir, { homeDir: options.homeDir })) {
     if (source.resource !== 'skill' || !source.enabled || source.mode !== 'recursive-dir' || source.layout !== 'skill-dirs') continue;
+    if (options.platform && source.platform !== options.platform) continue;
+    if (options.scope && source.scope !== options.scope) continue;
     if (source.status === 'unreadable') {
       addRoot(source.resolvedPath, source.platform, source.scope, source.id, roots, seen);
       continue;
@@ -105,6 +110,7 @@ function collectCandidateRoots(options: AgentSkillImportOptions): CandidateRoot[
     try {
       const stats = fs.lstatSync(source.resolvedPath);
       if (stats.isSymbolicLink() || !stats.isDirectory()) {
+        if (options.physicalOnly && stats.isSymbolicLink()) continue;
         addRoot(source.resolvedPath, source.platform, source.scope, source.id, roots, seen);
         continue;
       }
@@ -112,7 +118,9 @@ function collectCandidateRoots(options: AgentSkillImportOptions): CandidateRoot[
         if (name.startsWith('.')) continue;
         const child = join(source.resolvedPath, name);
         try {
-          if (fs.lstatSync(child).isDirectory() || fs.lstatSync(child).isSymbolicLink()) {
+          const childStats = fs.lstatSync(child);
+          if (childStats.isSymbolicLink() && options.physicalOnly) continue;
+          if (childStats.isDirectory() || childStats.isSymbolicLink()) {
             addRoot(child, source.platform, source.scope, source.id, roots, seen);
           }
         } catch {
@@ -128,7 +136,7 @@ function collectCandidateRoots(options: AgentSkillImportOptions): CandidateRoot[
 
 function addRoot(rootPath: string, platform: Platform, scope: Scope, sourceId: string, roots: CandidateRoot[], seen: Set<string>): void {
   const resolvedPath = resolve(rootPath);
-  const key = `${platform}|${scope}|${sourceId}|${resolvedPath}`;
+  const key = `${platform}|${scope}|${resolvedPath}`;
   if (seen.has(key)) return;
   seen.add(key);
   roots.push({ rootPath: resolvedPath, platform, scope, sourceId });

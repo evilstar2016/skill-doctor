@@ -7,6 +7,7 @@ import type { EffectiveScanSource } from '../../src/config/scanSources';
 import type { InstallSourceSkill, TargetAgentSkill } from '../../src/application/install';
 import type { CenterView } from '../../src/application/center';
 import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPreview } from '../../src/library/importAgentSkills';
+import type { SnapshotHistoryDiff, SnapshotHistoryEntry } from '../../src/history/snapshotHistory';
 
 export interface ScanRequest {
   projectDir: string;
@@ -24,6 +25,19 @@ export interface ScanRequest {
   tokenizerModel: string;
 }
 
+export interface ModelServiceConfig {
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+  clearApiKey?: boolean;
+  timeoutMs?: number;
+}
+
+export interface ModelConfigView {
+  analysis?: Omit<ModelServiceConfig, 'apiKey' | 'clearApiKey'> & { apiKeyConfigured: boolean };
+  embedding?: Omit<ModelServiceConfig, 'apiKey' | 'clearApiKey' | 'timeoutMs'> & { apiKeyConfigured: boolean };
+}
+
 export async function detectAgents(projectDir: string): Promise<{ projectDir: string; agents: DetectedAgent[] }> {
   return request('/api/agents/detect', { method: 'POST', body: JSON.stringify({ projectDir }) });
 }
@@ -37,6 +51,26 @@ export interface ScanStreamHandlers {
 
 export async function getBootstrap(): Promise<BootstrapPayload> {
   return request('/api/bootstrap');
+}
+
+export async function getSnapshotHistory(): Promise<{ snapshots: SnapshotHistoryEntry[] }> {
+  return request('/api/snapshots/history');
+}
+
+export async function diffSnapshots(baselineId: string, currentId: string): Promise<SnapshotHistoryDiff> {
+  return request('/api/snapshots/diff', { method: 'POST', body: JSON.stringify({ baselineId, currentId }) });
+}
+
+export async function getModelConfig(): Promise<ModelConfigView> {
+  return request('/api/model-config');
+}
+
+export async function saveModelConfig(config: { analysis?: ModelServiceConfig | null; embedding?: ModelServiceConfig | null }): Promise<{ saved: true; config: ModelConfigView }> {
+  return request('/api/model-config', { method: 'PUT', body: JSON.stringify(config) });
+}
+
+export async function testModelConfig(kind: 'analysis' | 'embedding'): Promise<{ message: string }> {
+  return request('/api/model-config/test', { method: 'POST', body: JSON.stringify({ kind }) });
 }
 
 export async function pickProjectDirectory() {
