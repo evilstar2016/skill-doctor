@@ -1,8 +1,11 @@
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
+import { getCenterSettingsPath, loadCenterLibrarySettings } from './centerSettings.js';
+
 export interface ManagedSkillPaths {
   baseDir: string;
+  settingsPath: string;
   skillsDir: string;
   centerPath: string;
   catalogPath: string;
@@ -13,9 +16,10 @@ export interface ManagedSkillPaths {
 }
 
 export function getManagedSkillPaths(homeDir = homedir()): ManagedSkillPaths {
-  const baseDir = resolve(homeDir, '.skill-doctor');
+  const baseDir = loadCenterLibrarySettings(homeDir).rootPath;
   return {
     baseDir,
+    settingsPath: getCenterSettingsPath(homeDir),
     skillsDir: resolve(baseDir, 'skills'),
     centerPath: resolve(baseDir, 'center.json'),
     catalogPath: resolve(baseDir, 'catalog.json'),

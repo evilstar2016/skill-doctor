@@ -232,11 +232,11 @@ function AppContent() {
           toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
         {error && <InlineNotice kind="danger" title={t('notice.incomplete')} onClose={() => setError(null)}>{error}</InlineNotice>}
-        {analysisMode === 'standard' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
+        {analysisMode === 'standard' && route !== 'overview' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
         {snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{translateResultText(warning.message, t)}</InlineNotice>)}
         <div className="page-container">
-          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigate('context')} />}
+          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} runScan={refresh} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigate('context')} />}
           {route === 'issues' && <IssuesPageView snapshot={snapshot} openIssue={setSelectedIssue} />}
           {route === 'context' && <ContextPageView snapshot={snapshot} openResource={openResource} onToggle={async (item) => {
             if (!item.id) return;

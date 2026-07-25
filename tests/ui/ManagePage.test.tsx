@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   pickSkillSourceDirectory: vi.fn(),
   previewDeployment: vi.fn(),
   commitDeployment: vi.fn(),
+  getDeploymentTargets: vi.fn(),
   reclaimPhysicalAgentSkills: vi.fn(),
   removeSkill: vi.fn(),
   syncDeployment: vi.fn(),
@@ -36,8 +37,9 @@ describe('ManagePage unified Skill Center', () => {
     mocks.inspectSkillSource.mockResolvedValue({ sourcePath: '/source', skills: [] });
     mocks.installSkill.mockResolvedValue({ name: 'beta', installedPath: '/home/.claude/skills/beta/SKILL.md' });
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
-    mocks.previewDeployment.mockResolvedValue({ planId: 'preview-plan' });
-    mocks.commitDeployment.mockResolvedValue({ status: 200, outcomes: [] });
+  mocks.previewDeployment.mockResolvedValue({ planId: 'preview-plan' });
+  mocks.commitDeployment.mockResolvedValue({ status: 200, outcomes: [] });
+  mocks.getDeploymentTargets.mockResolvedValue([]);
   mocks.reclaimPhysicalAgentSkills.mockResolvedValue({ planId: 'plan-empty', outcomes: [], needsRescan: false });
   mocks.removeSkill.mockResolvedValue({ removed: true, uninstalledDeployments: 0 });
   mocks.syncDeployment.mockResolvedValue({ status: 200 });
@@ -60,6 +62,7 @@ describe('ManagePage unified Skill Center', () => {
     expect(await screen.findByText('alpha')).toBeTruthy();
     expect(screen.getByText('local-review')).toBeTruthy();
     expect(screen.getByText('Claude synced')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '部署到 Agent' })).toBeTruthy();
   });
 
   it('shows physical candidates matched to a canonical managed skill', async () => {
@@ -79,30 +82,30 @@ describe('ManagePage unified Skill Center', () => {
     expect(screen.getByText('/project/.claude/skills/alpha')).toBeTruthy();
   });
 
-  it('installs only the checked skills from an inspected directory', async () => {
-    mocks.inspectSkillSource.mockResolvedValue({
-      sourcePath: '/source',
-      skills: [
-        { id: '/source/alpha/SKILL.md', name: 'alpha', sourcePath: '/source/alpha/SKILL.md', relativePath: 'alpha/SKILL.md' },
-        { id: '/source/beta/SKILL.md', name: 'beta', sourcePath: '/source/beta/SKILL.md', relativePath: 'beta/SKILL.md' },
-      ],
+  it('opens an explicit deployment dialog from a managed skill row', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [{ id: 'managed-a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [] }],
+      physical: [],
+      importPlanId: 'plan-1',
     });
-    const onChanged = vi.fn();
+    mocks.getDeploymentTargets.mockResolvedValue([
+      { targetId: 'claude-global', platform: 'claude', scope: 'global', directory: '/home/.claude/skills' },
+      { targetId: 'claude-project', platform: 'claude', scope: 'project', directory: '/project/.claude/skills' },
+    ]);
+    mocks.previewDeployment.mockResolvedValue({ planId: 'preview-plan', targets: [{ targetId: 'claude-project', state: 'available', installedPath: '/project/.claude/skills/alpha' }] });
 
-    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={onChanged} setToast={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: '加入中心库' }));
-    fireEvent.change(screen.getByLabelText('SKILL.md 或目录地址'), { target: { value: '/source' } });
-    fireEvent.click(screen.getByRole('button', { name: '读取' }));
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '部署到 Agent' }));
+    const path = await screen.findByText('/home/.claude/skills');
+    fireEvent.click(within(path.closest('.deployment-target-card')!).getByRole('button', { name: '项目' }));
 
-    const beta = await screen.findByText('beta');
-    fireEvent.click(within(beta.closest('label')!).getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: '安装' }));
+    await waitFor(() => expect(mocks.previewDeployment).toHaveBeenCalledWith('managed-a', ['claude-project'], 'copy'));
+  });
 
-    await waitFor(() => expect(mocks.installSkill).toHaveBeenCalledTimes(1));
-    expect(mocks.installSkill).toHaveBeenCalledWith({
-      source: '/source/beta/SKILL.md', sourceType: 'local', target: 'claude', scope: 'global', link: false,
-    });
-    expect(onChanged).toHaveBeenCalled();
+  it('removes the redundant add-to-center entry point', async () => {
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    await screen.findByText('中心仓库');
+    expect(screen.queryByRole('button', { name: '加入中心库' })).toBeNull();
   });
 
   it('reclaims a physical Agent skill into the center library', async () => {
@@ -120,15 +123,70 @@ describe('ManagePage unified Skill Center', () => {
 
     render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={setToast} />);
     const row = await screen.findByText('local-review');
-    fireEvent.click(within(row.closest('.center-row')!).getByRole('button', { name: '收回' }));
+    fireEvent.click(within(row.closest('.center-row')!).getByRole('button', { name: '纳管' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '纳管' }));
 
     await waitFor(() => expect(mocks.reclaimPhysicalAgentSkills).toHaveBeenCalledWith({
       planId: 'reclaim-plan',
-      target: 'claude',
-      scope: 'global',
       decisions: [{ candidateId: 'phys-1', action: 'replace-with-link' }],
     }));
     expect(setToast).toHaveBeenCalledWith('已收回 1 个 skill');
+  });
+
+  it('batch-adopts selected physical Agent skills', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [],
+      physical: [
+        { id: 'phys-1', name: 'local-review', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', status: 'new', managed: false },
+        { id: 'phys-2', name: 'format-docs', rootPath: '/home/.claude/skills/format-docs', platform: 'claude', scope: 'global', status: 'new', managed: false },
+      ],
+      importPlanId: 'batch-plan',
+    });
+    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({
+      planId: 'batch-plan',
+      outcomes: [{ candidateId: 'phys-1', status: 'linked' }, { candidateId: 'phys-2', status: 'linked' }],
+      needsRescan: false,
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    const first = await screen.findByText('local-review');
+    const second = screen.getByText('format-docs');
+    fireEvent.click(within(first.closest('.center-row')!).getByRole('checkbox'));
+    fireEvent.click(within(second.closest('.center-row')!).getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '批量纳管' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '批量纳管' }));
+
+    await waitFor(() => expect(mocks.reclaimPhysicalAgentSkills).toHaveBeenCalledWith({
+      planId: 'batch-plan',
+      decisions: [
+        { candidateId: 'phys-1', action: 'replace-with-link' },
+        { candidateId: 'phys-2', action: 'replace-with-link' },
+      ],
+    }));
+  });
+
+  it('requires an explicit resolution for same-name different-content conflicts', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [],
+      physical: [{ id: 'phys-conflict', name: 'review', rootPath: '/home/.claude/skills/review', platform: 'claude', scope: 'global', status: 'same-name-different-content', managed: false }],
+      importPlanId: 'conflict-plan',
+    });
+    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({
+      planId: 'conflict-plan',
+      outcomes: [{ candidateId: 'phys-conflict', status: 'linked' }],
+      needsRescan: false,
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '处理冲突' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('中心仓库中的新名称'), { target: { value: 'review-agent-copy' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '确认' }));
+
+    await waitFor(() => expect(mocks.reclaimPhysicalAgentSkills).toHaveBeenCalledWith({
+      planId: 'conflict-plan',
+      decisions: [{ candidateId: 'phys-conflict', action: 'keep-separate-and-link', name: 'review-agent-copy' }],
+    }));
   });
 
   it('bulk-uninstalls selected managed skills from all targets', async () => {
@@ -148,6 +206,7 @@ describe('ManagePage unified Skill Center', () => {
     fireEvent.click(within(beta.closest('.center-row')!).getByRole('checkbox'));
 
     fireEvent.click(screen.getByRole('button', { name: '卸载' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '卸载' }));
 
     await waitFor(() => expect(mocks.removeSkill).toHaveBeenCalledTimes(2));
     expect(mocks.uninstallDeployment).toHaveBeenCalledWith('d-a', true);

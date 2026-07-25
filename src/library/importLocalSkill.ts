@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import {
   type ManagedSkill,
@@ -62,7 +62,7 @@ export function importLocalSkill(options: ImportLocalSkillOptions): ImportLocalS
     const skill: ManagedSkill = {
       id,
       name,
-      rootPath: join(paths.skillsDir, id),
+      rootPath: join(paths.skillsDir, basename(source.rootPath)),
       treeHash: staged.treeHash,
       source: options.source ?? { type: 'local', originalPath: source.rootPath },
       addedAt: now,

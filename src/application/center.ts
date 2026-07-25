@@ -9,6 +9,7 @@ import {
   previewAgentSkillImport,
   type AgentImportCandidateStatus,
 } from '../library/importAgentSkills';
+import { getDefaultCenterLibraryPath, loadCenterLibrarySettings } from '../library/centerSettings';
 
 export interface CenterInstallationView {
   deploymentId: string;
@@ -47,6 +48,7 @@ export interface CenterView {
   skills: CenterSkillView[];
   physical: CenterPhysicalView[];
   importPlanId: string;
+  library: { rootPath: string; isDefault: boolean };
 }
 
 /**
@@ -62,7 +64,7 @@ export interface CenterView {
 export function getCenterView(projectDir: string, homeDir?: string): CenterView {
   const { skills, deployments } = listManagedSkillDeployments(projectDir, { homeDir });
 
-  const preview = previewAgentSkillImport({ projectDir, homeDir });
+  const preview = previewAgentSkillImport({ projectDir, homeDir, physicalOnly: true });
   const physical: CenterPhysicalView[] = preview.candidates
     .filter((candidate) => candidate.status !== 'managed-link')
     .filter((candidate) => Boolean(candidate.name))
@@ -78,7 +80,13 @@ export function getCenterView(projectDir: string, homeDir?: string): CenterView 
     }));
   const managedSkills: CenterSkillView[] = skills.map((skill) => toSkillView(skill, deployments, physical));
 
-  return { skills: managedSkills, physical, importPlanId: preview.planId };
+  const settings = loadCenterLibrarySettings(homeDir);
+  return {
+    skills: managedSkills,
+    physical,
+    importPlanId: preview.planId,
+    library: { rootPath: settings.rootPath, isDefault: settings.rootPath === getDefaultCenterLibraryPath(homeDir) },
+  };
 }
 
 function toSkillView(skill: ManagedSkill, deployments: SkillDeployment[], physical: CenterPhysicalView[]): CenterSkillView {

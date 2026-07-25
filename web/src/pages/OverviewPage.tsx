@@ -1,6 +1,6 @@
-import { ArrowRight, ShieldAlert, GitMerge, Copy, Coins, ShieldCheck } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowRight, BarChart3, Coins, Copy, Database, FileCode2, GitMerge, Play, ShieldAlert, ShieldCheck } from 'lucide-react';
 import type { DoctorSnapshot, UiIssue } from '../../../src/application/types';
-import { IssueCard, PageHeading, PlatformIcon, ScanningEmpty, StatCard, StatusPill, platformLabel } from '../components/ui';
+import { IssueCard, PageHeading, PlatformIcon, StatCard, StatusPill, platformLabel } from '../components/ui';
 import { useTranslation } from '../i18n';
 
 type HealthStatus = 'success' | 'warning' | 'danger';
@@ -43,16 +43,63 @@ function HealthRing({ score, status }: { score: number; status: HealthStatus }) 
   );
 }
 
-export function OverviewPage({ snapshot, scan, openIssue, navigateToResources, navigateToIssues, navigateToContext }: {
+function EmptyOverview({ running, runScan }: { running: boolean; runScan: () => void }) {
+  const { t } = useTranslation();
+  const previewRows = [
+    { key: 'health', icon: ShieldCheck, label: t('overview.preview.health'), metric: t('overview.preview.healthMetric') },
+    { key: 'skills', icon: Database, label: t('overview.preview.skills'), metric: t('overview.preview.skillsMetric') },
+    { key: 'resources', icon: FileCode2, label: t('overview.preview.resources'), metric: t('overview.preview.resourcesMetric') },
+    { key: 'context', icon: BarChart3, label: t('overview.preview.context'), metric: t('overview.preview.contextMetric') },
+    { key: 'issues', icon: AlertTriangle, label: t('overview.preview.issues'), metric: t('overview.preview.issuesMetric') },
+  ];
+
+  return <section className="overview-empty-page">
+    <PageHeading title={t('overview.emptyTitle')} subtitle={t('overview.emptySubtitle')} />
+    <section className={`overview-empty-card ${running ? 'is-running' : ''}`} aria-labelledby="overview-empty-title">
+      <div className="overview-empty-main">
+        <span className="overview-empty-icon"><Activity size={30} strokeWidth={1.7} /></span>
+        <div className="overview-empty-copy">
+          <h2 id="overview-empty-title">{running ? t('common.scanning') : t('common.noScan')}</h2>
+          <p>{running ? t('common.scanningDetail') : t('overview.emptyDetail')}</p>
+        </div>
+        <button className="button primary overview-empty-action" onClick={runScan} disabled={running}>
+          <Play size={16} fill="currentColor" />{running ? t('common.scanning') : t('overview.startScan')}
+        </button>
+      </div>
+      <div className="overview-empty-notes">
+        <span>{t('overview.emptyLocal')}</span>
+        <span>{t('overview.emptyCache')}</span>
+        <span>{t('overview.emptyRescan')}</span>
+      </div>
+    </section>
+    <section className="overview-preview" aria-labelledby="overview-preview-title">
+      <div className="overview-preview-heading">
+        <div><h2 id="overview-preview-title">{t('overview.previewTitle')}</h2><p>{t('overview.previewDetail')}</p></div>
+        <span>{t('overview.previewPending')}</span>
+      </div>
+      <div className="overview-preview-table" role="table" aria-label={t('overview.previewTitle')}>
+        <div className="overview-preview-head" role="row">
+          <span>{t('overview.previewCategory')}</span><span>{t('overview.previewStatus')}</span><span>{t('overview.previewMetric')}</span><span>{t('overview.previewIssues')}</span><span>{t('overview.previewLastScan')}</span>
+        </div>
+        {previewRows.map(({ key, icon: Icon, label, metric }) => <div className="overview-preview-row" role="row" key={key}>
+          <span><Icon size={17} strokeWidth={1.7} />{label}</span><span><i>—</i></span><span>{metric}</span><span>—</span><span>{t('overview.previewPending')}</span>
+        </div>)}
+      </div>
+    </section>
+  </section>;
+}
+
+export function OverviewPage({ snapshot, scan, runScan, openIssue, navigateToResources, navigateToIssues, navigateToContext }: {
   snapshot: DoctorSnapshot | null;
   scan: { running: boolean };
+  runScan: () => void;
   openIssue: (issue: UiIssue) => void;
   navigateToResources: () => void;
   navigateToIssues: () => void;
   navigateToContext: () => void;
 }) {
   const { t } = useTranslation();
-  if (!snapshot) return <ScanningEmpty running={scan.running} />;
+  if (!snapshot) return <EmptyOverview running={scan.running} runScan={runScan} />;
 
   const s = snapshot.summary;
   const score = healthScore(snapshot);

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -98,6 +98,7 @@ describe('importLocalSkill', () => {
 
     expect(result.imported).toBe(true);
     expect(result.duplicate).toBe(false);
+    expect(result.skill.rootPath).toBe(join(paths.skillsDir, basename(source)));
     expect(fs.readFileSync(join(result.skill.rootPath, 'assets', 'checklist.txt'), 'utf8')).toBe('Review the tests.\n');
     expect(fs.readFileSync(join(result.skill.rootPath, 'scripts', 'check.sh'), 'utf8')).toContain('echo check');
     // Executable bit preservation relies on POSIX modes, which Windows does not honor.

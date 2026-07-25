@@ -13,6 +13,7 @@ skill-doctor-*.html
 doc/*
 docs/*
 !docs/product-development-plan.md
+!docs/skill-library-recovery-plan.md
 skill-backup/
 .env
 .vscode/

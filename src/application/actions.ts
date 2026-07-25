@@ -18,4 +18,5 @@ export {
   uninstallManagedSkillDeployment,
 } from './deployments';
 export { getCenterView } from './center';
+export { loadCenterLibrarySettings, saveCenterLibrarySettings } from '../library/centerSettings';
 export { compareResources, getResourceDetail } from './resourceQueries';

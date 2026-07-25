@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCenter } from '../../src/library/centerStore.js';
+import { getCenterView } from '../../src/application/center.js';
 import { commitAgentSkillImport, previewAgentSkillImport } from '../../src/library/importAgentSkills.js';
 import { importLocalSkill } from '../../src/library/importLocalSkill.js';
 import { getManagedSkillPaths } from '../../src/library/paths.js';
@@ -76,7 +77,7 @@ describe('Agent skill import preview', () => {
       'identical-copy', 'same-name-different-content', 'managed-link', 'external-link', 'invalid', 'unreadable',
     ]));
     expect(plan.candidates.find((candidate) => candidate.rootPath === identical)?.managedSkillId).toBe(managed.id);
-    expect(plan.candidates.find((candidate) => candidate.status === 'same-name-different-content')?.allowedActions).toEqual(['keep-separate', 'use-managed-link', 'skip']);
+    expect(plan.candidates.find((candidate) => candidate.status === 'same-name-different-content')?.allowedActions).toEqual(['keep-separate', 'keep-separate-and-link', 'use-managed-link', 'skip']);
     expect(fs.lstatSync(join(skillsDir, 'external-link')).isSymbolicLink()).toBe(true);
   });
 
@@ -101,6 +102,30 @@ describe('Agent skill import preview', () => {
 });
 
 describe('Agent skill import commit', () => {
+  it.skipIf(process.platform === 'win32')('keeps the center view plan compatible with a physical-only reclaim commit', () => {
+    const root = createTempRoot();
+    const homeDir = join(root, 'home');
+    const projectDir = join(root, 'project');
+    const managed = importLocalSkill({ sourcePath: writeSkill(join(root, 'managed'), 'managed'), homeDir }).skill;
+    const agentSkills = join(homeDir, '.claude', 'skills');
+    fs.mkdirSync(agentSkills, { recursive: true });
+    fs.symlinkSync(managed.rootPath, join(agentSkills, 'managed-link'), 'dir');
+    const physical = writeSkill(join(agentSkills, 'review'), 'review');
+    const center = getCenterView(projectDir, homeDir);
+    const candidate = center.physical.find((entry) => entry.rootPath === physical);
+
+    expect(candidate).toBeDefined();
+    const result = commitAgentSkillImport({
+      homeDir,
+      projectDir,
+      planId: center.importPlanId,
+      physicalOnly: true,
+      decisions: [{ candidateId: candidate!.id, action: 'replace-with-link' }],
+    });
+
+    expect(result.outcomes).toEqual([expect.objectContaining({ candidateId: candidate!.id, status: 'linked' })]);
+  });
+
   it('requires a renamed keep-separate decision for same-name content', () => {
     const root = createTempRoot();
     const homeDir = join(root, 'home');
@@ -124,6 +149,27 @@ describe('Agent skill import commit', () => {
     expect(loadCenter(homeDir).skills.map((skill) => skill.name)).toEqual([
       'review', 'review-agent-copy',
     ]);
+  });
+
+  it.skipIf(process.platform === 'win32')('keeps a renamed conflict copy and replaces the Agent directory with its managed link', () => {
+    const root = createTempRoot();
+    const homeDir = join(root, 'home');
+    const projectDir = join(root, 'project');
+    importLocalSkill({ sourcePath: writeSkill(join(root, 'managed'), 'review'), homeDir });
+    const agentSkill = writeSkill(join(homeDir, '.claude', 'skills', 'review'), 'review', 'Different review instructions.');
+    const plan = preview(homeDir, projectDir);
+    const candidate = plan.candidates[0];
+
+    const result = commitAgentSkillImport({
+      homeDir,
+      projectDir,
+      planId: plan.planId,
+      decisions: [{ candidateId: candidate.id, action: 'keep-separate-and-link', name: 'review-agent-copy' }],
+    });
+
+    expect(result.outcomes[0]).toMatchObject({ status: 'linked', managedSkillId: expect.any(String) });
+    expect(fs.lstatSync(agentSkill).isSymbolicLink()).toBe(true);
+    expect(loadCenter(homeDir).skills.map((skill) => skill.name)).toEqual(['review', 'review-agent-copy']);
   });
 
   it.skipIf(process.platform === 'win32')('imports and replaces an Agent directory with a verified managed directory link', () => {

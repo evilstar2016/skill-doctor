@@ -185,7 +185,7 @@ export async function previewPhysicalAgentSkills(target: string, scope: Scope) {
   });
 }
 
-export async function reclaimPhysicalAgentSkills(input: { planId: string; target: string; scope: Scope; decisions: AgentImportDecision[] }) {
+export async function reclaimPhysicalAgentSkills(input: { planId: string; decisions: AgentImportDecision[] }) {
   return request<AgentImportCommitResult>('/api/library/import/commit', {
     method: 'POST', body: JSON.stringify({ ...input, physicalOnly: true }),
   });
@@ -197,6 +197,23 @@ export async function uninstallSkill(input: { name: string; platform: Platform; 
 
 export async function getCenterSkills(): Promise<CenterView> {
   return request<CenterView>('/api/center/skills');
+}
+
+export async function saveCenterLibraryPath(rootPath: string) {
+  return request<{ version: 1; rootPath: string }>('/api/center/settings', {
+    method: 'PUT', body: JSON.stringify({ rootPath }),
+  });
+}
+
+export async function pickCenterLibraryPath() {
+  return request<{ rootPath: string } | { cancelled: true }>('/api/center/settings/pick', {
+    method: 'POST', body: '{}',
+  });
+}
+
+export async function getDeploymentTargets() {
+  return request<{ targets: Array<{ targetId: string; platform: Platform; scope: Scope; directory: string }> }>('/api/deployments/targets')
+    .then((result) => result.targets);
 }
 
 export async function syncDeployment(deploymentId: string, force: boolean = false) {
@@ -218,7 +235,7 @@ export async function removeSkill(skillId: string, force: boolean = true) {
 }
 
 export async function previewDeployment(skillId: string, targetIds: string[], mode: 'symlink' | 'copy') {
-  return request<{ planId: string; targets: Array<{ targetId: string; status?: string }> }>('/api/deployments/preview', {
+  return request<{ planId: string; targets: Array<{ targetId: string; status?: string; state: 'available' | 'managed-link' | 'occupied'; installedPath: string }> }>('/api/deployments/preview', {
     method: 'POST', body: JSON.stringify({ skillId, targetIds, mode }),
   });
 }

@@ -15,6 +15,8 @@ import {
   syncManagedSkillDeployment,
   uninstallManagedSkill,
   uninstallManagedSkillDeployment,
+  loadCenterLibrarySettings,
+  saveCenterLibrarySettings,
 } from '../application/actions';
 import { normalizePlatformName } from '../platforms/registry';
 import { zhMessage } from '../i18n';
@@ -29,6 +31,22 @@ export async function handleLibraryRoute(
   url: URL,
   context: ApiRequestContext,
 ): Promise<boolean> {
+  if (request.method === 'GET' && url.pathname === '/api/center/settings') {
+    sendJson(response, 200, loadCenterLibrarySettings(context.homeDir));
+    return true;
+  }
+
+  if (request.method === 'PUT' && url.pathname === '/api/center/settings') {
+    const body = await readJsonBody(request);
+    sendJson(response, 200, saveCenterLibrarySettings(requiredString(body.rootPath, 'rootPath'), context.homeDir));
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/center/settings/pick') {
+    const selected = await pickNativeDirectory(zhMessage('picker.skillDirectory'));
+    sendJson(response, 200, selected ? { rootPath: selected } : { cancelled: true });
+    return true;
+  }
   if (request.method === 'POST' && url.pathname === '/api/library/import/preview') {
     const body = await readJsonBody(request);
     sendJson(response, 200, previewManagedAgentSkillImport(context.projectDir, context.homeDir, readImportFilter(body)));
@@ -187,7 +205,7 @@ function readImportDecisions(value: unknown): AgentImportDecision[] {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Each import decision must be an object.');
     const decision = entry as Record<string, unknown>;
     const action = decision.action;
-    if (action !== 'keep-copy' && action !== 'replace-with-link' && action !== 'keep-separate' && action !== 'use-managed-link' && action !== 'register' && action !== 'skip') {
+    if (action !== 'keep-copy' && action !== 'replace-with-link' && action !== 'keep-separate' && action !== 'keep-separate-and-link' && action !== 'use-managed-link' && action !== 'register' && action !== 'skip') {
       throw new Error('Invalid import decision action.');
     }
     return {

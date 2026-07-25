@@ -20,7 +20,7 @@ export type AgentImportCandidateStatus =
   | 'invalid'
   | 'unreadable';
 
-export type AgentImportDecisionAction = 'keep-copy' | 'replace-with-link' | 'keep-separate' | 'use-managed-link' | 'register' | 'skip';
+export type AgentImportDecisionAction = 'keep-copy' | 'replace-with-link' | 'keep-separate' | 'keep-separate-and-link' | 'use-managed-link' | 'register' | 'skip';
 
 export interface AgentImportCandidate {
   id: string;
@@ -179,7 +179,7 @@ function classifyContentCandidate(entry: CandidateRoot, contentRootPath: string,
   }
   const sameName = skills.find((skill) => normalizeName(skill.name) === normalizeName(name));
   if (sameName) {
-    return candidate(entry, id, 'same-name-different-content', name, treeHash, ['keep-separate', 'use-managed-link', 'skip'], {
+    return candidate(entry, id, 'same-name-different-content', name, treeHash, ['keep-separate', 'keep-separate-and-link', 'use-managed-link', 'skip'], {
       managedSkillId: sameName.id,
       contentRootPath,
     });
@@ -254,7 +254,7 @@ function commitCandidate(
       return takeOver(candidate, skill, false, homeDir, linkFactory);
     }
     const imported = importCandidate(candidate, decision, homeDir);
-    if (decision.action === 'replace-with-link') {
+    if (decision.action === 'replace-with-link' || decision.action === 'keep-separate-and-link') {
       return takeOver(candidate, imported.skill, imported.imported, homeDir, linkFactory);
     }
     return {
@@ -270,8 +270,8 @@ function commitCandidate(
 
 function importCandidate(candidate: AgentImportCandidate, decision: AgentImportDecision, homeDir: string | undefined) {
   if (!candidate.contentRootPath || !candidate.name) throw new Error('Candidate content is unavailable.');
-  const name = decision.action === 'keep-separate' ? decision.name?.trim() : undefined;
-  if (decision.action === 'keep-separate' && !name) throw new Error('A distinct name is required to keep same-name content separately.');
+  const name = decision.action === 'keep-separate' || decision.action === 'keep-separate-and-link' ? decision.name?.trim() : undefined;
+  if ((decision.action === 'keep-separate' || decision.action === 'keep-separate-and-link') && !name) throw new Error('A distinct name is required to keep same-name content separately.');
   return importLocalSkill({
     sourcePath: candidate.contentRootPath,
     homeDir,
