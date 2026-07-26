@@ -1,10 +1,11 @@
-import { Activity, ArchiveRestore, Boxes, CheckCircle2, ChevronRight, Download, LoaderCircle, RefreshCw, Rocket, Settings, TriangleAlert, Trash2, X } from 'lucide-react';
+import { Activity, ArchiveRestore, Boxes, CheckCircle2, ChevronRight, Download, FileCode2, GitCompareArrows, LoaderCircle, RefreshCw, Rocket, Settings, TriangleAlert, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { BootstrapPayload, DoctorSnapshot } from '../../../src/application/types';
 import type { CenterInstallationView, CenterPhysicalView, CenterSkillView, CenterView } from '../../../src/application/center';
 import type { Platform, Scope } from '../../../src/types/skill';
 import {
   getCenterSkills,
+  getManagedSkillConflictDiff,
   previewDeployment,
   commitDeployment,
   getDeploymentTargets,
@@ -45,6 +46,7 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
   const [deploySkill, setDeploySkill] = useState<CenterSkillView | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [conflictCandidate, setConflictCandidate] = useState<CenterPhysicalView | null>(null);
+  const [comparisonCandidate, setComparisonCandidate] = useState<CenterPhysicalView | null>(null);
   const [busy, setBusy] = useState(false);
   const library = center?.library ?? { rootPath: '~/.skill-doctor', isDefault: true };
 
@@ -249,11 +251,12 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
       </div>
     </div>}
 
-    {detail && <CenterDrawer row={detail} onClose={() => setDetail(null)} onReclaim={reclaim} onUninstall={unlinkDeployment} onResync={resync} onDeploy={setDeploySkill} busy={busy} onViewIssues={onViewIssues} />}
+    {detail && <CenterDrawer row={detail} onClose={() => setDetail(null)} onReclaim={reclaim} onUninstall={unlinkDeployment} onResync={resync} onDeploy={setDeploySkill} onCompare={setComparisonCandidate} busy={busy} onViewIssues={onViewIssues} />}
     {settingsOpen && center && <CenterSettingsDialog currentPath={library.rootPath} onClose={() => setSettingsOpen(false)} onSaved={() => { setSettingsOpen(false); reload(); }} />}
     {deploySkill && <DeploymentDialog skill={deploySkill} onClose={() => setDeploySkill(null)} onDeployed={() => { setDeploySkill(null); reload(); }} setToast={setToast} />}
     {confirmation && <ConfirmDialog confirmation={confirmation} busy={busy} onCancel={() => setConfirmation(null)} onConfirm={async () => { const action = confirmation.onConfirm; setConfirmation(null); await action(); }} />}
     {conflictCandidate && <ConflictResolutionDialog candidate={conflictCandidate} busy={busy} onClose={() => setConflictCandidate(null)} onResolve={async (decision) => { setConflictCandidate(null); await reclaimCandidates([decision]); }} />}
+    {comparisonCandidate && <SkillComparisonDialog candidate={comparisonCandidate} onClose={() => setComparisonCandidate(null)} />}
   </section>;
 }
 
@@ -294,14 +297,74 @@ function ConflictResolutionDialog({ candidate, busy, onClose, onResolve }: { can
   const [name, setName] = useState(`${candidate.name}-${candidate.platform}`);
   const canSubmit = action === 'use-managed-link' || Boolean(name.trim());
   return <div className="drawer-overlay confirm-overlay" onClick={busy ? undefined : onClose}>
-    <section className="conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="conflict-title" onClick={(event) => event.stopPropagation()}>
-      <div className="confirm-dialog-copy"><h3 id="conflict-title">{t('center.resolveConflict')}</h3><p>{t('center.resolveConflictHint', { name: candidate.name })}</p></div>
-      <label className="conflict-option"><input type="radio" name="conflict-action" checked={action === 'keep-separate-and-link'} onChange={() => setAction('keep-separate-and-link')} /><span><strong>{t('center.keepSeparate')}</strong><small>{t('center.keepSeparateHint')}</small></span></label>
-      {action === 'keep-separate-and-link' && <label className="field"><span>{t('center.conflictCopyName')}</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>}
-      <label className="conflict-option"><input type="radio" name="conflict-action" checked={action === 'use-managed-link'} onChange={() => setAction('use-managed-link')} /><span><strong>{t('center.useCenterVersion')}</strong><small>{t('center.useCenterVersionHint')}</small></span></label>
-      <div className="confirm-dialog-actions"><button className="button secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</button><button className="button primary" disabled={busy || !canSubmit} onClick={() => void onResolve({ candidateId: candidate.id, action, ...(action === 'keep-separate-and-link' ? { name: name.trim() } : {}) })}>{busy && <LoaderCircle className="spin" size={15} />}{t('common.confirm')}</button></div>
+    <section className="conflict-dialog conflict-diff-dialog" role="dialog" aria-modal="true" aria-labelledby="conflict-title" onClick={(event) => event.stopPropagation()}>
+      <header className="conflict-diff-head"><div><span className="conflict-kicker"><TriangleAlert size={16} />{t('center.pendingDifferent')}</span><h3 id="conflict-title">{t('center.resolveConflict')}</h3><p>{t('center.resolveConflictHint', { name: candidate.name })}</p></div><button className="button ghost compact" onClick={onClose} aria-label={t('common.close')}><X size={17} /></button></header>
+      <SkillDiffViewer candidate={candidate} />
+      <div className="conflict-decisions"><label className={`conflict-option ${action === 'keep-separate-and-link' ? 'selected' : ''}`}><input type="radio" name="conflict-action" checked={action === 'keep-separate-and-link'} onChange={() => setAction('keep-separate-and-link')} /><span><strong>{t('center.keepSeparate')}</strong><small>{t('center.keepSeparateHint')}</small>{action === 'keep-separate-and-link' && <label className="field"><span>{t('center.conflictCopyName')}</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>}</span></label><label className={`conflict-option ${action === 'use-managed-link' ? 'selected' : ''}`}><input type="radio" name="conflict-action" checked={action === 'use-managed-link'} onChange={() => setAction('use-managed-link')} /><span><strong>{t('center.useCenterVersion')}</strong><small>{t('center.useCenterVersionHint')}</small>{action === 'use-managed-link' && <em>{t('center.useCenterWarning')}</em>}</span></label></div>
+      <footer className="confirm-dialog-actions"><button className="button secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</button><button className="button primary" disabled={busy || !canSubmit} onClick={() => void onResolve({ candidateId: candidate.id, action, ...(action === 'keep-separate-and-link' ? { name: name.trim() } : {}) })}>{busy && <LoaderCircle className="spin" size={15} />}{t('common.confirm')}</button></footer>
     </section>
   </div>;
+}
+
+function SkillComparisonDialog({ candidate, onClose }: { candidate: CenterPhysicalView; onClose: () => void }) {
+  const { t } = useTranslation();
+  return <div className="drawer-overlay confirm-overlay" onClick={onClose}>
+    <section className="conflict-dialog conflict-diff-dialog" role="dialog" aria-modal="true" aria-labelledby="comparison-title" onClick={(event) => event.stopPropagation()}>
+      <header className="conflict-diff-head"><div><h3 id="comparison-title">{t('center.compareVersions')}</h3><p>{candidate.name}</p></div><button className="button ghost compact" onClick={onClose} aria-label={t('common.close')}><X size={17} /></button></header>
+      <SkillDiffViewer candidate={candidate} />
+      <footer className="confirm-dialog-actions"><button className="button secondary" onClick={onClose}>{t('common.close')}</button></footer>
+    </section>
+  </div>;
+}
+
+function SkillDiffViewer({ candidate }: { candidate: CenterPhysicalView }) {
+  const { t } = useTranslation();
+  const [diff, setDiff] = useState<Awaited<ReturnType<typeof getManagedSkillConflictDiff>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    setDiff(null); setError(null); setSelectedPath(null);
+    void getManagedSkillConflictDiff(candidate.id).then((result) => {
+      if (!active) return;
+      setDiff(result);
+      setSelectedPath(result.files[0]?.path ?? null);
+    }).catch((cause: unknown) => {
+      if (active) setError(cause instanceof Error ? cause.message : String(cause));
+    });
+    return () => { active = false; };
+  }, [candidate.id]);
+  const selectedFile = diff?.files.find((file) => file.path === selectedPath) ?? diff?.files[0];
+  return <>
+    <div className="conflict-sources"><SourceCard label={t('center.centerVersion')} path={diff?.managed.rootPath} /><SourceCard label={t('center.localVersion')} path={candidate.rootPath} detail={`${platformLabel(candidate.platform)} · ${scopeLabel(candidate.scope, t)}`} /></div>
+    {error ? <p className="form-error">{t('center.diffLoadFailed', { message: error })}</p> : !diff ? <p className="muted conflict-diff-loading">{t('center.diffLoading')}</p> : diff.files.length === 0 ? <p className="conflict-diff-empty"><CheckCircle2 size={18} />{t('center.noDifferences')}</p> : <><div className="conflict-diff-summary"><GitCompareArrows size={17} /><strong>{t('center.diffSummary', { files: diff.files.length, added: diff.added, deleted: diff.deleted })}</strong></div><div className="conflict-diff-body"><nav className="conflict-file-list" aria-label={t('center.changedFiles')}><strong>{t('center.changedFiles')}</strong>{diff.files.map((file) => <button key={file.path} type="button" className={file.path === selectedFile?.path ? 'active' : ''} onClick={() => setSelectedPath(file.path)}><FileCode2 size={15} /><span>{file.path}</span><em>+{file.added} −{file.deleted}</em></button>)}</nav>{selectedFile && <SideBySideDiff file={selectedFile} />}</div></>}
+  </>;
+}
+
+function SideBySideDiff({ file }: { file: NonNullable<Awaited<ReturnType<typeof getManagedSkillConflictDiff>>['files'][number]> }) {
+  const { t } = useTranslation();
+  return <section className="conflict-code-diff"><header><strong>{file.path}</strong><span>+{file.added} −{file.deleted}</span></header><div className="diff-side-labels"><span>{t('center.centerVersion')}</span><span>{t('center.localVersion')}</span></div><div className="conflict-code-lines side-by-side">{pairDiffLines(file.lines).map((pair, index) => <div className="conflict-comparison-row" key={index}><DiffCell line={pair.managed} side="managed" /><DiffCell line={pair.candidate} side="candidate" /></div>)}</div></section>;
+}
+
+function DiffCell({ line, side }: { line?: { type: 'context' | 'added' | 'removed'; content: string; managedLine?: number; candidateLine?: number }; side: 'managed' | 'candidate' }) {
+  const lineNumber = side === 'managed' ? line?.managedLine : line?.candidateLine;
+  return <div className={`comparison-cell ${line?.type ?? 'empty'}`}><span>{lineNumber ?? ''}</span>{line ? <code>{line.content}</code> : <i aria-hidden="true" />}</div>;
+}
+
+function pairDiffLines(lines: Array<{ type: 'context' | 'added' | 'removed'; content: string; managedLine?: number; candidateLine?: number }>) {
+  const pairs: Array<{ managed?: typeof lines[number]; candidate?: typeof lines[number] }> = [];
+  for (let index = 0; index < lines.length;) {
+    if (lines[index].type === 'context') { pairs.push({ managed: lines[index], candidate: lines[index] }); index++; continue; }
+    const managed: typeof lines[number][] = [];
+    const candidate: typeof lines[number][] = [];
+    while (index < lines.length && lines[index].type !== 'context') { (lines[index].type === 'removed' ? managed : candidate).push(lines[index]); index++; }
+    for (let offset = 0; offset < Math.max(managed.length, candidate.length); offset++) pairs.push({ managed: managed[offset], candidate: candidate[offset] });
+  }
+  return pairs;
+}
+
+function SourceCard({ label, path, detail }: { label: string; path?: string; detail?: string }) {
+  return <section className="conflict-source-card"><strong>{label}</strong><code>{path ?? '…'}</code>{detail && <small>{detail}</small>}</section>;
 }
 
 function CenterRowItem({ row, selected, onToggle, onOpen, onReclaim, onDeploy, busy }: { row: Row; selected: boolean; onToggle: () => void; onOpen: () => void; onReclaim: (candidate: CenterPhysicalView) => void; onDeploy: (skill: CenterSkillView) => void; busy: boolean }) {
@@ -320,7 +383,7 @@ function CenterRowItem({ row, selected, onToggle, onOpen, onReclaim, onDeploy, b
   );
 }
 
-function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, onDeploy, busy, onViewIssues }: { row: Row; onClose: () => void; onReclaim: (candidate: CenterPhysicalView) => void; onUninstall: (installation: CenterInstallationView) => void; onResync: (installation: CenterInstallationView) => void; onDeploy: (skill: CenterSkillView) => void; busy: boolean; onViewIssues?: (skillName: string) => void }) {
+function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, onDeploy, onCompare, busy, onViewIssues }: { row: Row; onClose: () => void; onReclaim: (candidate: CenterPhysicalView) => void; onUninstall: (installation: CenterInstallationView) => void; onResync: (installation: CenterInstallationView) => void; onDeploy: (skill: CenterSkillView) => void; onCompare: (candidate: CenterPhysicalView) => void; busy: boolean; onViewIssues?: (skillName: string) => void }) {
   const { t } = useTranslation();
   const managed = row.kind === 'managed';
   const name = managed ? row.skill.name : row.candidate.name;
@@ -349,7 +412,7 @@ function CenterDrawer({ row, onClose, onReclaim, onUninstall, onResync, onDeploy
                   </div>
                 </div>
               ))}
-              {row.skill.physicalCandidates && row.skill.physicalCandidates.length > 0 && <><h4>{t('center.physicalCandidates')}</h4>{row.skill.physicalCandidates.map((candidate) => <div className="detail" key={candidate.id}><span>{platformLabel(candidate.platform)} · {scopeLabel(candidate.scope, t)}</span><code>{shortPath(candidate.rootPath)}</code></div>)}</>}
+              {row.skill.physicalCandidates && row.skill.physicalCandidates.length > 0 && <><h4>{t('center.physicalCandidates')}</h4>{row.skill.physicalCandidates.map((candidate) => <div className="detail" key={candidate.id}><span>{platformLabel(candidate.platform)} · {scopeLabel(candidate.scope, t)}</span><code>{shortPath(candidate.rootPath)}</code><button className="button secondary compact" onClick={() => onCompare(candidate)}><GitCompareArrows size={14} />{t('center.compareVersions')}</button></div>)}</>}
               {onViewIssues && <div className="drawer-section"><button className="button secondary full" onClick={() => onViewIssues(name)}><Activity size={15} />{t('center.relatedIssues')}</button></div>}
             </>
           ) : (

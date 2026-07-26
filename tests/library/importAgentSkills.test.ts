@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCenter } from '../../src/library/centerStore.js';
 import { getCenterView } from '../../src/application/center.js';
+import { getManagedSkillConflictDiff } from '../../src/application/deployments.js';
 import { commitAgentSkillImport, previewAgentSkillImport } from '../../src/library/importAgentSkills.js';
 import { importLocalSkill } from '../../src/library/importLocalSkill.js';
 import { getManagedSkillPaths } from '../../src/library/paths.js';
@@ -26,6 +27,21 @@ function preview(homeDir: string, projectDir: string) {
 }
 
 describe('Agent skill import preview', () => {
+  it('returns an empty diff for an identical OpenClaw copy matched to a center skill', () => {
+    const root = createTempRoot();
+    const homeDir = join(root, 'home');
+    const projectDir = join(root, 'project');
+    const managed = importLocalSkill({ sourcePath: writeSkill(join(root, 'managed'), 'agent-sync'), homeDir }).skill;
+    const agentSkill = writeSkill(join(homeDir, '.openclaw', 'skills', 'agent-sync'), 'agent-sync');
+    const plan = previewAgentSkillImport({ homeDir, projectDir, platform: 'openclaw', scope: 'global', physicalOnly: true });
+    const candidate = plan.candidates.find((entry) => entry.rootPath === agentSkill);
+
+    expect(candidate).toMatchObject({ status: 'identical-copy', managedSkillId: managed.id });
+    expect(getManagedSkillConflictDiff(projectDir, candidate!.id, homeDir)).toMatchObject({
+      files: [], added: 0, deleted: 0,
+    });
+  });
+
   it.skipIf(process.platform === 'win32')('can discover only physical skills for one Agent and scope', () => {
     const root = createTempRoot();
     const homeDir = join(root, 'home');

@@ -11,6 +11,7 @@ export {
   getManagedRegistry,
   getManagedSkillDeploymentTargets,
   getManagedSkillLibrary,
+  getManagedSkillConflictDiff,
   previewManagedAgentSkillImport,
   previewManagedSkillDeployment,
   removeManagedSkillEntirely,

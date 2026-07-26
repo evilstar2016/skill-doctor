@@ -7,6 +7,7 @@ import type { BootstrapPayload } from '../../src/application/types';
 
 const mocks = vi.hoisted(() => ({
   getCenterSkills: vi.fn(),
+  getManagedSkillConflictDiff: vi.fn(),
   inspectSkillSource: vi.fn(),
   installSkill: vi.fn(),
   pickSkillSourceDirectory: vi.fn(),
@@ -34,6 +35,13 @@ describe('ManagePage unified Skill Center', () => {
     vi.clearAllMocks();
     window.confirm = vi.fn(() => true);
     mocks.getCenterSkills.mockResolvedValue({ skills: [], physical: [], importPlanId: 'plan-empty' });
+    mocks.getManagedSkillConflictDiff.mockResolvedValue({
+      managed: { name: 'review', rootPath: '/center/review' },
+      candidate: { name: 'review', rootPath: '/home/.claude/skills/review', platform: 'claude', scope: 'global' },
+      files: [{ path: 'SKILL.md', added: 1, deleted: 1, lines: [{ type: 'removed', content: 'Old instruction', managedLine: 1 }, { type: 'added', content: 'New instruction', candidateLine: 1 }] }],
+      added: 1,
+      deleted: 1,
+    });
     mocks.inspectSkillSource.mockResolvedValue({ sourcePath: '/source', skills: [] });
     mocks.installSkill.mockResolvedValue({ name: 'beta', installedPath: '/home/.claude/skills/beta/SKILL.md' });
     mocks.pickSkillSourceDirectory.mockResolvedValue({ cancelled: true });
@@ -80,6 +88,40 @@ describe('ManagePage unified Skill Center', () => {
 
     expect(await screen.findByText('匹配的物理候选')).toBeTruthy();
     expect(screen.getByText('/project/.claude/skills/alpha')).toBeTruthy();
+  });
+
+  it('opens a side-by-side comparison for a matched physical copy', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [{
+        id: 'managed-a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [],
+        physicalCandidates: [{ id: 'phys-1', name: 'alpha', rootPath: '/project/.openclaw/skills/alpha', platform: 'openclaw', scope: 'global', status: 'identical-copy', managed: false }],
+      }],
+      physical: [],
+      importPlanId: 'plan-1',
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByText('alpha'));
+    fireEvent.click(screen.getByRole('button', { name: '对比版本' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect((await within(dialog).findAllByText('中心库版本')).length).toBe(2);
+    expect((await within(dialog).findAllByText('当前 Agent 版本')).length).toBe(2);
+    expect(within(dialog).getByText('Old instruction')).toBeTruthy();
+    expect(within(dialog).getByText('New instruction')).toBeTruthy();
+  });
+
+  it('shows a read error instead of leaving the comparison loading forever', async () => {
+    mocks.getManagedSkillConflictDiff.mockRejectedValueOnce(new Error('preview expired'));
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [],
+      physical: [{ id: 'phys-conflict', name: 'review', rootPath: '/home/.claude/skills/review', platform: 'claude', scope: 'global', status: 'same-name-different-content', managed: false }],
+      importPlanId: 'conflict-plan',
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '处理冲突' }));
+    expect(await screen.findByText(/无法读取差异：preview expired/)).toBeTruthy();
   });
 
   it('opens an explicit deployment dialog from a managed skill row', async () => {
@@ -180,6 +222,8 @@ describe('ManagePage unified Skill Center', () => {
     render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: '处理冲突' }));
     const dialog = await screen.findByRole('dialog');
+    expect((await within(dialog).findAllByText('SKILL.md')).length).toBe(2);
+    expect(within(dialog).getByText('New instruction')).toBeTruthy();
     fireEvent.change(within(dialog).getByLabelText('中心仓库中的新名称'), { target: { value: 'review-agent-copy' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '确认' }));
 

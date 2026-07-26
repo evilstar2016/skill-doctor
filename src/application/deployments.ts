@@ -16,6 +16,7 @@ import {
 import { loadCenter, loadManagedSkills, removeCenterSkill, loadCenterRegistry } from '../library/centerStore';
 import { homedir } from 'node:os';
 import * as fs from 'node:fs';
+import { diffSkillDirectories } from '../library/skillConflictDiff';
 
 export function getManagedRegistry(homeDir?: string) {
   return loadCenterRegistry(homeDir);
@@ -35,6 +36,21 @@ export function commitManagedAgentSkillImport(
   filter: AgentImportFilter = {},
 ) {
   return commitAgentSkillImport({ projectDir, homeDir, planId, decisions, ...filter });
+}
+
+export function getManagedSkillConflictDiff(projectDir: string, candidateId: string, homeDir?: string) {
+  const preview = previewAgentSkillImport({ projectDir, homeDir, physicalOnly: true });
+  const candidate = preview.candidates.find((entry) => entry.id === candidateId);
+  if (!candidate || !candidate.managedSkillId || !candidate.contentRootPath) {
+    throw new Error('The selected conflict is no longer available. Scan again before resolving it.');
+  }
+  const managed = loadManagedSkills(homeDir).find((skill) => skill.id === candidate.managedSkillId);
+  if (!managed) throw new Error('The matching center skill no longer exists. Scan again before resolving it.');
+  return {
+    managed: { name: managed.name, rootPath: managed.rootPath },
+    candidate: { name: candidate.name, rootPath: candidate.rootPath, platform: candidate.platform, scope: candidate.scope },
+    ...diffSkillDirectories(managed.rootPath, candidate.contentRootPath),
+  };
 }
 
 export function getManagedSkillLibrary(projectDir: string, homeDir?: string) {

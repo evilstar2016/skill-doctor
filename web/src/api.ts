@@ -6,6 +6,7 @@ import type { AgentScanSourcesUserConfig } from '../../src/config/loadUserConfig
 import type { EffectiveScanSource } from '../../src/config/scanSources';
 import type { InstallSourceSkill, TargetAgentSkill } from '../../src/application/install';
 import type { CenterView } from '../../src/application/center';
+import type { SkillConflictDiff } from '../../src/library/skillConflictDiff';
 import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPreview } from '../../src/library/importAgentSkills';
 import type { SnapshotHistoryDiff, SnapshotHistoryEntry } from '../../src/history/snapshotHistory';
 
@@ -197,6 +198,15 @@ export async function uninstallSkill(input: { name: string; platform: Platform; 
 
 export async function getCenterSkills(): Promise<CenterView> {
   return request<CenterView>('/api/center/skills');
+}
+
+export interface ManagedSkillConflictDiff extends SkillConflictDiff {
+  managed: { name: string; rootPath: string };
+  candidate: { name?: string; rootPath: string; platform: Platform; scope: Scope };
+}
+
+export async function getManagedSkillConflictDiff(candidateId: string): Promise<ManagedSkillConflictDiff> {
+  return request<ManagedSkillConflictDiff>(`/api/center/conflicts/${encodeURIComponent(candidateId)}/diff`);
 }
 
 export async function saveCenterLibraryPath(rootPath: string) {

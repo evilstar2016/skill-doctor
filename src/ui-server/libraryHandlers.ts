@@ -4,6 +4,7 @@ import {
   commitManagedAgentSkillImport,
   commitManagedSkillDeployment,
   getCenterView,
+  getManagedSkillConflictDiff,
   getManagedSkillDeploymentTargets,
   getManagedSkillLibrary,
   inspectManagedSkillSource,
@@ -72,6 +73,12 @@ export async function handleLibraryRoute(
 
   if (request.method === 'GET' && url.pathname === '/api/center/skills') {
     sendJson(response, 200, getCenterView(context.projectDir, context.homeDir));
+    return true;
+  }
+
+  const conflictDiffMatch = url.pathname.match(/^\/api\/center\/conflicts\/([^/]+)\/diff$/);
+  if (request.method === 'GET' && conflictDiffMatch) {
+    sendJson(response, 200, getManagedSkillConflictDiff(context.projectDir, decodeURIComponent(conflictDiffMatch[1]), context.homeDir));
     return true;
   }
 
