@@ -8,11 +8,15 @@ export interface CenterLibrarySettings {
 }
 
 export function getDefaultCenterLibraryPath(homeDir = homedir()): string {
-  return resolve(homeDir, '.skill-doctor');
+  return resolve(homeDir, '.skill-doctor', 'skills');
 }
 
 export function getCenterSettingsPath(homeDir = homedir()): string {
-  return join(getDefaultCenterLibraryPath(homeDir), 'center-settings.json');
+  return resolve(homeDir, '.skill-doctor', 'center-settings.json');
+}
+
+export function getCenterStatePath(homeDir = homedir()): string {
+  return resolve(homeDir, '.skill-doctor', 'center');
 }
 
 export function loadCenterLibrarySettings(homeDir = homedir()): CenterLibrarySettings {

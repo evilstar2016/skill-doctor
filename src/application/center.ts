@@ -5,6 +5,7 @@ import {
   type DeploymentStatus,
   type SkillDeployment,
 } from '../library/deployments';
+import { syncCenterLibrarySkills } from '../library/centerStore';
 import {
   previewAgentSkillImport,
   type AgentImportCandidateStatus,
@@ -62,6 +63,7 @@ export interface CenterView {
  * are migrated into it on first access (see centerStore.ts).
  */
 export function getCenterView(projectDir: string, homeDir?: string): CenterView {
+  syncCenterLibrarySkills(homeDir);
   const { skills, deployments } = listManagedSkillDeployments(projectDir, { homeDir });
 
   const preview = previewAgentSkillImport({ projectDir, homeDir, physicalOnly: true });

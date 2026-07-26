@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import { loadRegistry } from '../install/registry.js';
 import { getPlatformAdapters } from '../platforms/registry.js';
@@ -187,6 +187,39 @@ export function loadManagedSkills(homeDir: string = homedir()): ManagedSkill[] {
     addedAt: skill.addedAt,
     updatedAt: skill.updatedAt,
   }));
+}
+
+export function syncCenterLibrarySkills(homeDir: string = homedir()): ManagedSkill[] {
+  const paths = getManagedSkillPaths(homeDir);
+  if (!fs.existsSync(paths.skillsDir)) return loadManagedSkills(homeDir);
+
+  const existing = loadManagedSkills(homeDir);
+  const existingByPath = new Map(existing.map((skill) => [resolve(skill.rootPath), skill]));
+  for (const entry of fs.readdirSync(paths.skillsDir, { withFileTypes: true })) {
+    try {
+      const rootPath = join(paths.skillsDir, entry.name);
+      if (!fs.statSync(rootPath).isDirectory()) continue;
+      const inspection = inspectSkillDirectory(rootPath);
+      const previous = existingByPath.get(inspection.rootPath);
+      if (previous && previous.name === inspection.name && previous.treeHash === inspection.treeHash) continue;
+      const now = new Date().toISOString();
+      const skill: ManagedSkill = {
+        id: previous?.id ?? randomUUID(),
+        name: inspection.name,
+        rootPath: inspection.rootPath,
+        source: previous?.source ?? { type: 'local', originalPath: inspection.rootPath },
+        treeHash: inspection.treeHash,
+        addedAt: previous?.addedAt ?? now,
+        updatedAt: now,
+      };
+      upsertManagedSkill(homeDir, skill);
+      existingByPath.set(inspection.rootPath, skill);
+    } catch {
+      // The library root may contain non-Skill folders; only directories with SKILL.md are managed.
+    }
+  }
+
+  return loadManagedSkills(homeDir);
 }
 
 export function upsertManagedSkill(homeDir: string, skill: ManagedSkill): void {
