@@ -1,3 +1,4 @@
+> from: claude-sonnet-5
 基于对 `src/` 全量结构、`ROADMAP.md`、`analysis/`、`doc/` 及最近提交历史的实际检索，以下是当前架构可优化的关键点，按影响/紧迫度排序：
 
 ## 1. Center.json 迁移遗留了三套并行的持久化代码（最值得清理）
