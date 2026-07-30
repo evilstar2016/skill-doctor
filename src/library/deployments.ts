@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { getPlatformAdapters, resolvePlatformPathTemplate, type PlatformInstallTarget } from '../platforms/registry.js';
 import type { Platform, Scope } from '../types/skill.js';
@@ -90,30 +90,6 @@ export class SkillDeploymentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'SkillDeploymentError';
-  }
-}
-
-export function loadSkillDeploymentStore(path: string): SkillDeploymentStore {
-  if (!fs.existsSync(path)) return { version: 1, deployments: [] };
-  try {
-    const value = JSON.parse(fs.readFileSync(path, 'utf8')) as unknown;
-    if (!isSkillDeploymentStore(value)) throw new SkillDeploymentError(`Invalid deployment store: ${path}`);
-    return value;
-  } catch (error) {
-    if (error instanceof SkillDeploymentError) throw error;
-    throw new SkillDeploymentError(`Unable to read deployment store: ${path}`);
-  }
-}
-
-export function saveSkillDeploymentStore(path: string, store: SkillDeploymentStore): void {
-  if (!isSkillDeploymentStore(store)) throw new SkillDeploymentError('Refusing to save an invalid deployment store.');
-  fs.mkdirSync(dirname(path), { recursive: true });
-  const temporaryPath = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
-  try {
-    fs.writeFileSync(temporaryPath, `${JSON.stringify(store, null, 2)}\n`, 'utf8');
-    fs.renameSync(temporaryPath, path);
-  } finally {
-    fs.rmSync(temporaryPath, { force: true });
   }
 }
 
@@ -560,20 +536,6 @@ function errorMessage(error: unknown): string {
 class DeploymentWriteError extends SkillDeploymentError {
   constructor(message: string, readonly originalRestored: boolean) { super(message); }
 }
-
-function isSkillDeploymentStore(value: unknown): value is SkillDeploymentStore {
-  return isRecord(value) && value.version === 1 && Array.isArray(value.deployments) && value.deployments.every(isSkillDeployment);
-}
-
-function isSkillDeployment(value: unknown): value is SkillDeployment {
-  return isRecord(value) && isString(value.id) && isString(value.skillId) && isString(value.targetId) && isString(value.platform) && (value.scope === 'global' || value.scope === 'project') &&
-    (value.mode === 'symlink' || value.mode === 'copy') && isString(value.installedPath) && isString(value.deployedHash) && isString(value.installedAt) &&
-    (value.status === 'synced' || value.status === 'outdated' || value.status === 'modified' || value.status === 'missing' || value.status === 'conflict') &&
-    (value.projectDir === undefined || isString(value.projectDir));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null; }
-function isString(value: unknown): value is string { return typeof value === 'string' && value.length > 0; }
 
 /** Create a platform-appropriate directory link (symlink on Unix, junction on Windows). */
 function createSkillLink(targetPath: string, linkPath: string): void {

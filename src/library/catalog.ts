@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
-import { basename, dirname, join } from 'node:path';
 
 import type { Platform } from '../types/skill.js';
 
@@ -52,21 +50,6 @@ export function loadManagedSkillCatalog(catalogPath: string): ManagedSkillCatalo
   } catch (error) {
     if (error instanceof ManagedSkillCatalogError) throw error;
     throw new ManagedSkillCatalogError(`Unable to read managed skill catalog: ${catalogPath}`);
-  }
-}
-
-export function saveManagedSkillCatalog(catalogPath: string, catalog: ManagedSkillCatalog): void {
-  if (!isManagedSkillCatalog(catalog)) {
-    throw new ManagedSkillCatalogError('Refusing to save an invalid managed skill catalog.');
-  }
-
-  fs.mkdirSync(dirname(catalogPath), { recursive: true });
-  const temporaryPath = join(dirname(catalogPath), `.${basename(catalogPath)}.${randomUUID()}.tmp`);
-  try {
-    fs.writeFileSync(temporaryPath, JSON.stringify(catalog, null, 2) + '\n', 'utf8');
-    fs.renameSync(temporaryPath, catalogPath);
-  } finally {
-    fs.rmSync(temporaryPath, { force: true });
   }
 }
 
