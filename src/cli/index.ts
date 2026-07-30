@@ -8,7 +8,9 @@ import packageJson from '../../package.json';
 import { runHealthCheck } from '../application/runHealthCheck';
 import { suggestCleanup } from '../cleanup/suggestCleanup';
 import { filterConflicts } from '../config/applyIgnoreList';
-import { loadUserConfig } from '../config/loadUserConfig';
+import { loadUserConfig, saveUserConfig } from '../config/loadUserConfig';
+import { modelConfigView, validateModelConfig, withModelConfig, type ModelServiceKind } from '../config/modelConfig';
+import { testOpenAiCompatibleModel } from '../models/testOpenAiCompatible';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { toggleCodexResource } from '../context/codexControls';
 import type { CodexResourceFilter } from '../context/codexContextConfig';
@@ -866,6 +868,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
+  if (command === 'config') {
+    await runConfigCommand(rest, { jsonOutput });
+    return;
+  }
+
   process.stderr.write(`Unknown command: ${command}\n\n${getHelpText()}`);
   process.exitCode = 1;
 }
@@ -898,6 +905,117 @@ async function runCenterCommand(args: string[], options: { jsonOutput: boolean }
   process.exitCode = 1;
 }
 
+async function runConfigCommand(args: string[], options: { jsonOutput: boolean }): Promise<void> {
+  const [sub, ...subArgs] = args;
+
+  if (sub === 'view') {
+    const { config } = loadUserConfig();
+    const view = modelConfigView(config);
+    if (options.jsonOutput) {
+      process.stdout.write(`${toJson(view)}\n`);
+      return;
+    }
+    const analysis = view.analysis
+      ? `  analysis:  baseUrl=${view.analysis.baseUrl ?? '-'} model=${view.analysis.model ?? '-'} apiKey=${view.analysis.apiKeyConfigured ? 'configured' : 'not set'}`
+      : '  analysis:  not configured';
+    const embedding = view.embedding
+      ? `  embedding: baseUrl=${view.embedding.baseUrl ?? '-'} model=${view.embedding.model ?? '-'} apiKey=${view.embedding.apiKeyConfigured ? 'configured' : 'not set'}`
+      : '  embedding: not configured';
+    process.stdout.write(`Model configuration (~/.skill-doctor/config.json):\n${analysis}\n${embedding}\n`);
+    return;
+  }
+
+  if (sub === 'set') {
+    const service = subArgs[0];
+    if (service !== 'analysis' && service !== 'embedding') {
+      process.stderr.write('Usage: skill-doctor config set analysis|embedding --base-url <url> --model <model> [--api-key <key>] [--timeout-ms <n>] [--clear-api-key]\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const baseUrl = readFlagValue(subArgs, '--base-url');
+    const model = readFlagValue(subArgs, '--model');
+    const apiKey = readFlagValue(subArgs, '--api-key');
+    const timeoutMsRaw = readFlagValue(subArgs, '--timeout-ms');
+    const clearApiKey = hasFlag(subArgs, '--clear-api-key');
+
+    if (!baseUrl && !model && !apiKey && !clearApiKey && timeoutMsRaw === null) {
+      process.stderr.write('Nothing to set. Provide at least one of --base-url, --model, --api-key, --timeout-ms, or --clear-api-key.\n');
+      process.exitCode = 1;
+      return;
+    }
+
+    const { config } = loadUserConfig();
+    const existingService = config[service];
+    const newService: Record<string, unknown> = {
+      baseUrl: baseUrl ?? existingService?.baseUrl,
+      model: model ?? existingService?.model,
+      ...(apiKey ? { apiKey } : {}),
+      ...(clearApiKey ? { clearApiKey: true } : {}),
+      ...(timeoutMsRaw !== null ? { timeoutMs: Number(timeoutMsRaw) } : {}),
+    };
+
+    const otherKey = service === 'analysis' ? 'embedding' : 'analysis';
+    const input: Record<string, unknown> = { [service]: newService };
+    if (config[otherKey]) input[otherKey] = config[otherKey];
+
+    let next: ReturnType<typeof validateModelConfig>;
+    try {
+      next = validateModelConfig(input);
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const merged = withModelConfig(config, next);
+    const path = saveUserConfig(merged);
+    if (options.jsonOutput) {
+      process.stdout.write(`${toJson(modelConfigView(merged))}\n`);
+    } else {
+      process.stdout.write(`Saved model config to: ${path}\n`);
+    }
+    return;
+  }
+
+  if (sub === 'test') {
+    const serviceFlag = readFlagValue(subArgs, '--service');
+    const kind: ModelServiceKind = serviceFlag === 'embedding' ? 'embedding' : 'analysis';
+    const { config } = loadUserConfig();
+    const serviceConfig = config[kind];
+    if (!serviceConfig || !serviceConfig.baseUrl || !serviceConfig.model) {
+      const message = `${kind} model service is not configured. Set it via 'skill-doctor config set ${kind} --base-url <url> --model <model>'.`;
+      if (options.jsonOutput) {
+        process.stdout.write(`${toJson({ ok: false, service: kind, message })}\n`);
+      } else {
+        process.stderr.write(`${message}\n`);
+      }
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const result = await testOpenAiCompatibleModel(kind, serviceConfig);
+      if (options.jsonOutput) {
+        process.stdout.write(`${toJson({ ok: true, service: kind, message: result.message })}\n`);
+      } else {
+        process.stdout.write(`${result.message}\n`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (options.jsonOutput) {
+        process.stdout.write(`${toJson({ ok: false, service: kind, message })}\n`);
+      } else {
+        process.stderr.write(`${message}\n`);
+      }
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  process.stderr.write('Usage: skill-doctor config view|set|test\n');
+  process.exitCode = 1;
+}
+
 function getHelpText(): string {
   return [
     'skill-doctor',
@@ -918,11 +1036,17 @@ function getHelpText(): string {
     '  skill-doctor install <path|slug> [--target <platform>] [--link]',
     '  skill-doctor uninstall <name> [--target <platform>] [--force]',
     '  skill-doctor center migrate|show',
+    '  skill-doctor config view [--json]',
+    '  skill-doctor config set analysis|embedding --base-url <url> --model <model> [--api-key <key>] [--timeout-ms <n>] [--clear-api-key]',
+    '  skill-doctor config test [--service analysis|embedding]',
     '  skill-doctor --version',
     '',
-    'Embedding config file:',
+    'Model config file:',
     '  ~/.skill-doctor/config.json',
-    '  { "embedding": { "baseUrl": "http://host/v1", "model": "bge-m3", "apiKey": "..." } }',
+    '  {',
+    '    "analysis":  { "baseUrl": "http://host/v1", "model": "gpt-4o", "apiKey": "..." },',
+    '    "embedding": { "baseUrl": "http://host/v1", "model": "bge-m3", "apiKey": "..." }',
+    '  }',
     '',
     'Platforms:',
     `  --platform values: ${formatPlatformUsage()}`,

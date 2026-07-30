@@ -1,131 +1,122 @@
 ---
 name: skill-doctor
-description: Diagnose local AI agent skills, rules, instructions, MCP tool-list cost, conflicts, duplicates, safety risks, context token tax, and HTML health reports. Use when asked to scan/list skills, check conflicts, audit safety, estimate context cost, compare skills, group skills, inspect one skill, clean duplicates, or manage skill installs.
+description: Use the `skill-doctor` CLI to analyze, audit, and diagnose AI-agent skills (duplicates, conflicts, security risks, context/token cost) on the current machine or project. Trigger when the user asks to review or audit their agent skills, find duplicate or conflicting skills, check skill safety, estimate context-token cost, diagnose agent misbehavior, or compare two skills. Prefers structured CLI JSON over reading raw SKILL.md files.
 ---
 
-# Skill Doctor
+# skill-doctor — Agent Skill Analysis via CLI
 
-Use the installed `skill-doctor` CLI. Prefer concise terminal output; use `--json` only when automation or exact fields are needed.
+`skill-doctor` is a **local-only** CLI (it never uploads your skills) that scans the
+user's installed AI-agent skills across platforms (Claude Code, Cursor, Copilot,
+Codex, Gemini CLI, Windsurf, …) and reports duplicates, conflicts, security risks,
+and context-cost. This skill wraps it: **you (the agent) drive the CLI, read its
+`--json` output, and produce the analysis.**
 
-```bash
-skill-doctor <command>
+## Core principle (read first)
+
+- **The CLI is the source of truth.** Run `skill-doctor` commands and use their
+  `--json` output as your reasoning input. Do not re-implement discovery yourself.
+- **Do NOT read raw SKILL.md files** of the user's installed skills to perform
+  analysis. `skill-doctor` already discovers, parses, and structures them. Only read
+  a specific raw skill file when the user **explicitly** asks ("show me the raw
+  SKILL.md of X") or requests a targeted edit.
+- Keep it local: never upload or exfiltrate the user's skills.
+
+## Step 0 — Mode detection (run every invocation)
+
+1. **Is the CLI present?** `skill-doctor --version`. If it fails, tell the user to
+   install (`npm i -g @evilstar2025/skill-doctor`, Node ≥ 20) and stop.
+2. **Is a backend model configured?** Run:
+   ```
+   skill-doctor config view --json
+   ```
+   Inspect `analysis.apiKeyConfigured` and `embedding.apiKeyConfigured`.
+   - Both configured → **ENHANCED mode** (CLI can do LLM grouping, LLM audit,
+     semantic conflict detection).
+   - Neither configured → **FALLBACK mode** (you analyze the static JSON yourself).
+3. **First-use prompt (optional, non-blocking).** If in FALLBACK mode and you have
+   not asked in this session, ask the user **once**:
+   > "skill-doctor can give deeper AI analysis (semantic conflict detection, LLM
+   > safety audit, plain-language explanations) if you point it at an
+   > OpenAI-compatible LLM/embedding endpoint. Configure one now? (Optional — full
+   > CLI analysis works without it.)"
+   - Yes → `skill-doctor config set analysis --base-url <url> --model <model> [--api-key <key>]`
+     and/or `skill-doctor config set embedding ...`; optionally `skill-doctor config test`.
+     Then re-run `config view`.
+   - No / no reply → proceed in FALLBACK mode. Never repeat the question this session.
+
+## Step 1 — Inventory & scan
+
+```
+skill-doctor scan --scope all --json
 ```
 
-If `skill-doctor` is not available, guide the user to install it first:
+- ENHANCED: add `--group` for LLM-derived skill groupings.
+- Feed the JSON (`summary` + `skills` + `duplicates` + `conflicts`) into your analysis.
+  Run from the project root if project-scoped findings matter; otherwise `--scope all`
+  covers the whole machine.
 
-```bash
-npm install -g @evilstar2025/skill-doctor
+## Step 2 — Conflicts & duplicates
+
+- Always (token strategy):
+  ```
+  skill-doctor conflicts --scope all --json
+  ```
+- ENHANCED (if `embedding` **and** `analysis` configured):
+  ```
+  skill-doctor conflicts --strategy embedding --analyze --json
+  ```
+
+## Step 3 — Security audit
+
+- Always (static rules):
+  ```
+  skill-doctor audit --scope all --json
+  ```
+- ENHANCED (if `analysis` configured): add `--ai` (LLM audit).
+
+## Step 4 — Context / token cost
+
+```
+skill-doctor context --json
 ```
 
-For one-off use without installing:
+Always available, needs no backend. Reports estimated tokens per skill/MCP/plugin and
+a budget grade. Use `--platform <agent>` / `--budget-tokens N` to narrow.
 
-```bash
-npx @evilstar2025/skill-doctor@latest <command>
+## Step 5 — Health gate (optional, CI-style)
+
+```
+skill-doctor check --scope all --json
 ```
 
-Do not use a repository-local `dist/index.cjs` path unless the user is developing the `skill-doctor` repo itself.
+Returns `passed` / `failures`. Useful when the user wants a go/no-go verdict.
 
-## Token-saving defaults
+## Step 6 — Deep-dive (on demand)
 
-- Run the narrowest command that answers the user.
-- Do not paste full JSON; summarize counts, top risks, and paths.
-- For broad health checks, prefer `dashboard` over running every command and narrating all output.
-- For conflicts, use `--limit N` when the user asks for a quick check.
-- For audit, use `--severity high` first when the user asks "is it safe?"
-- For context bloat, use `cost` / `context` instead of manually reading instruction files.
+- `skill-doctor show <name> --json` — single-skill detail (ENHANCED: LLM explanation).
+- `skill-doctor diff <a> <b> --json` — compare two skills.
 
-## Commands
+## Producing the analysis (output)
 
-| Need | Command |
-| --- | --- |
-| Inventory | `scan` |
-| Inventory grouped by purpose | `scan --group` |
-| One skill details | `show <name>` |
-| Conflicts/duplicates | `conflicts [--kind duplicate|conflict] [--limit N]` |
-| Safety audit | `audit [--severity high|med|low]` |
-| Context token tax | `cost [project-dir] [--platform PLATFORM] [--source skill|mcp|all]` |
-| Compare two skills | `diff <skill-a> <skill-b>` |
-| Duplicate cleanup plan | `cleanup` |
-| HTML health report | `dashboard [--report path]` |
-| Install skill | `install <path|slug> [--target PLATFORM] [--link]` |
-| Uninstall skill | `uninstall <name> [--target PLATFORM] [--force]` |
+Collect the JSON from the steps above and write the analysis:
 
-## Common workflows
+- **ENHANCED mode:** surface the CLI's AI-generated fields (LLM groupings, `--ai`
+  audit findings, semantic conflict reasons) and add a short synthesis on top.
+- **FALLBACK mode:** **you are the analysis engine.** Using only the CLI JSON, write:
+  the top issues, a severity ranking, duplicate/conflict clusters, security concerns,
+  context-cost hotspots, and concrete recommended actions. This is the
+  "analysis via the skill's LLM" path — no backend required.
+- Always end with **prioritized, actionable next steps**. Offer an export:
+  `skill-doctor dashboard --report` or `skill-doctor scan --report` produce a
+  shareable HTML file.
 
-Scan:
+## Reference
 
-```bash
-skill-doctor scan
-```
-
-Report total skills, platform/scope breakdown, duplicates, conflicts, and notable paths.
-
-Conflicts:
-
-```bash
-skill-doctor conflicts --limit 10
-```
-
-Report highest severity pairs first, with shared tokens/overlap and suggested fix. Use `--kind duplicate` for duplicate-only checks.
-
-Audit:
-
-```bash
-skill-doctor audit --severity high
-```
-
-Lead with HIGH findings. Then summarize MED/LOW counts if needed. `--ai` requires `~/.skill-doctor/config.json` analysis config.
-
-Context cost:
-
-```bash
-skill-doctor cost --budget-tokens 2000
-```
-
-Report grade, total tokens/turn, over-budget status, top costly items, and fixes. Use `--platform codex`, `--scope project`, or `--source mcp` to narrow.
-
-Dashboard:
-
-```bash
-skill-doctor dashboard --report skill-doctor-dashboard.html
-```
-
-Use for "full health check" or visual overview. Tell the user the output path. Avoid `--open` unless the user asks to open it.
-
-Show/diff:
-
-```bash
-skill-doctor show <name>
-skill-doctor diff <a> <b>
-```
-
-Use `show` for one skill's description, triggers, provenance, when-to-use, and related skills. Use `diff` for choosing between two similar skills.
-
-Cleanup/install safety:
-
-```bash
-skill-doctor cleanup
-```
-
-`cleanup --execute`, `install`, and `uninstall` modify local files. Only run them when the user explicitly asks to change installs.
-
-## Options to remember
-
-- `--scope project|global|all`
-- `--json`
-- `--report [path]`
-- `--fail-on high|med|low`
-- `conflicts --strategy token|embedding --threshold N --analyze`
-- `cost --platform-budget platform=N --fail-on-budget`
-
-Platforms: `claude`, `cursor`, `copilot`, `codex`, `gemini`, `windsurf`, `trae`, `opencode`, `kiro`, `openclaw`, `hermes`, `unknown`. Aliases: `claudecode`, `claude-code`.
-
-## Response shape
-
-Start with the actionable result:
-
-- Clean: "`N` items scanned; no conflicts/high-risk findings; context grade `X`."
-- Risky: "Top issue: `<skill>` has HIGH `<rule>` at `<path>`."
-- Costly: "Token tax is `<N>`/turn; top cost is `<file>`; fix: `<suggestion>`."
-
-Then give only the top few details and offer the exact next command when useful.
+- Config file: `~/.skill-doctor/config.json` → `analysis` / `embedding` / `ignore` /
+  `paths` / `scanSources`.
+- Provider model: **OpenAI-compatible only** — `baseUrl` + `model` + `apiKey` (no
+  vendor-specific fields). `baseUrl` must not end with a trailing slash; endpoints
+  used: `{baseUrl}/chat/completions` (analysis) and `{baseUrl}/embeddings` (embedding).
+- Scopes: `project` | `global` | `all` (default `all` for a full picture).
+- To suppress a known false positive, add it to `ignore` in `config.json` (or via the
+  UI). A future `skill-doctor config ignore` subcommand may automate this.
