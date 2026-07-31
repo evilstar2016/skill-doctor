@@ -26,11 +26,9 @@ import { parseSkill } from '../parsing/parseSkill';
 import { loadProvenanceCache, saveProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
 import { DiffError, runDiffForCwd } from '../diff/runDiff';
+import { installManagedSkill, uninstallManagedSkill } from '../application/install';
 import { detectPlatform } from '../install/detectPlatform.js';
-import { fetchMarketplaceSkill } from '../install/fetchMarketplace.js';
-import { installSkill } from '../install/installSkill.js';
 import { InstallTargetError, resolveInstallTarget } from '../install/resolveInstallPath.js';
-import { uninstallSkill } from '../install/uninstallSkill.js';
 import { loadCenter, migrateToCenter } from '../library/centerStore.js';
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
@@ -724,15 +722,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     let platform: Platform;
-    let globalDir: string;
-    let layout: 'skill-dirs' | 'files';
 
     if (targetFlag) {
       try {
-        const target = resolveInstallTarget(targetFlag);
-        platform = target.platform;
-        globalDir = target.globalDir;
-        layout = target.layout;
+        platform = resolveInstallTarget(targetFlag).platform;
       } catch (err) {
         if (err instanceof InstallTargetError) {
           process.stderr.write(`Error: ${err.message}\n`);
@@ -749,72 +742,22 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         return;
       }
       platform = detected.platform as Platform;
-      globalDir = detected.globalDir;
-      layout = detected.layout;
     }
 
     const isLocalPath = source.startsWith('/') || source.startsWith('./') || source.includes('/');
 
-    if (isLocalPath) {
-      const { statSync } = await import('node:fs');
-      const { join: pathJoin } = await import('node:path');
-      let sourcePath = source;
-      try {
-        const stat = statSync(sourcePath);
-        if (stat.isDirectory()) sourcePath = pathJoin(sourcePath, 'SKILL.md');
-      } catch {
-        process.stderr.write(`Error: Path not found: ${source}\n`);
-        process.exitCode = 1;
-        return;
-      }
-      try {
-        const result = await installSkill({
-          source: sourcePath,
-          platform,
-          globalDir,
-          layout,
-          homeDir: homedir(),
-          link,
-          sourceRef: sourcePath,
-          marketplaceSource: false,
-        });
-        process.stdout.write(renderInstallSuccess(result.name, platform, result.installedPath));
-      } catch (err) {
-        process.stderr.write(`Error: ${(err as Error).message}\n`);
-        process.exitCode = 1;
-      }
-    } else {
-      let skillContent: string;
-      try {
-        skillContent = await fetchMarketplaceSkill(source);
-      } catch (err) {
-        process.stderr.write(`Error: ${(err as Error).message}\n`);
-        process.exitCode = 1;
-        return;
-      }
-      const { mkdtempSync, writeFileSync: fsWriteFileSync, rmSync: fsRmSync } = await import('node:fs');
-      const { tmpdir } = await import('node:os');
-      const tempDir = mkdtempSync(join(tmpdir(), 'skill-doctor-install-'));
-      const tempFile = join(tempDir, 'SKILL.md');
-      try {
-        fsWriteFileSync(tempFile, skillContent, 'utf8');
-        const result = await installSkill({
-          source: tempFile,
-          platform,
-          globalDir,
-          layout,
-          homeDir: homedir(),
-          link: false,
-          sourceRef: source,
-          marketplaceSource: true,
-        });
-        process.stdout.write(renderInstallSuccess(result.name, platform, result.installedPath));
-      } catch (err) {
-        process.stderr.write(`Error: ${(err as Error).message}\n`);
-        process.exitCode = 1;
-      } finally {
-        fsRmSync(tempDir, { recursive: true, force: true });
-      }
+    try {
+      const result = await installManagedSkill({
+        source,
+        sourceType: isLocalPath ? 'local' : 'marketplace',
+        target: platform,
+        link,
+        homeDir: homedir(),
+      });
+      process.stdout.write(renderInstallSuccess(result.name, platform, result.installedPath));
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exitCode = 1;
     }
     return;
   }
@@ -854,7 +797,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     try {
-      await uninstallSkill({ name, platform, homeDir: homedir(), force });
+      await uninstallManagedSkill(name, platform, force, homedir());
       process.stdout.write(renderUninstallSuccess(name, platform));
     } catch (err) {
       process.stderr.write(`Error: ${(err as Error).message}\n`);
