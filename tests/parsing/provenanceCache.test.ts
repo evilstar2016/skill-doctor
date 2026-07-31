@@ -43,6 +43,14 @@ describe('loadProvenanceCache', () => {
       resolved: true,
     });
   });
+
+  // SD-TC-30
+  it('returns empty map instead of throwing when the cache file has malformed JSON', () => {
+    writeFileSync(cachePath, '{ not valid json', 'utf8');
+
+    expect(() => loadProvenanceCache(cachePath)).not.toThrow();
+    expect(loadProvenanceCache(cachePath).size).toBe(0);
+  });
 });
 
 describe('saveProvenanceCache', () => {

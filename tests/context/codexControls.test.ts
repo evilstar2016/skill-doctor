@@ -137,4 +137,15 @@ describe('toggleCodexResource', () => {
     }));
     expect(existsSync(configPath)).toBe(false);
   });
+
+  // CC-TC-30
+  it('throws for a resource id that does not resolve to any discovered Codex entry', async () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    writeFile(join(cwd, 'AGENTS.md'), 'Project guidance.');
+
+    await expect(toggleCodexResource(cwd, 'codex:skill:does-not-exist', false, { homeDir: home }))
+      .rejects.toThrow('Codex resource not found: codex:skill:does-not-exist');
+  });
 });

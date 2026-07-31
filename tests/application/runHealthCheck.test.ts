@@ -182,4 +182,39 @@ describe('runHealthCheck', () => {
 
     cleanupTempRoots();
   });
+
+  // SD-TC-32
+  it('emits progress events in discovering -> conflicts -> audit -> context -> grouping -> complete order', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    writeFile(
+      join(projectDir, '.claude', 'skills', 'sample-skill', 'SKILL.md'),
+      ['---', 'name: sample-skill', 'description: sample skill for progress tracking', '---'].join('\n'),
+    );
+
+    const phases: string[] = [];
+    await runHealthCheck({ projectDir, homeDir, scope: 'project' }, (event) => {
+      phases.push(event.phase);
+    });
+
+    expect(phases).toEqual(['discovering', 'conflicts', 'audit', 'context', 'grouping', 'complete']);
+
+    cleanupTempRoots();
+  });
+
+  // SD-TC-33
+  it('rejects with an AbortError when the signal is already aborted', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      runHealthCheck({ projectDir, homeDir, scope: 'project', signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    cleanupTempRoots();
+  });
 });

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -52,6 +52,47 @@ describe('parseSkill', () => {
       'Work on multi-file features',
       'Validate each slice before continuing',
     ]);
+  });
+
+  // SD-TC-26
+  it('falls back to the first 200 chars of body when no frontmatter, metadata, or heading exist', async () => {
+    const filePath = join(tmpdir(), `skill-doctor-body-only-${Date.now()}.md`);
+    const body = 'A'.repeat(250);
+    writeFileSync(filePath, body, 'utf8');
+
+    const result = await parseSkill(makeSkillFile(filePath));
+
+    expect(result).not.toBeNull();
+    expect(result?.name).toBe(basename(filePath));
+    expect(result?.description).toBe('A'.repeat(200));
+  });
+
+  // SD-TC-27
+  it('deduplicates triggers sourced from multiple frontmatter and body fields', async () => {
+    const filePath = join(tmpdir(), `skill-doctor-dedup-triggers-${Date.now()}.md`);
+    writeFileSync(
+      filePath,
+      [
+        '---',
+        'name: dedup-triggers',
+        'description: shared trigger text',
+        'when_to_use: shared trigger text',
+        '---',
+        '',
+        '## When to Use',
+        '',
+        '- shared trigger text',
+        '- unique bullet trigger',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await parseSkill(makeSkillFile(filePath));
+
+    expect(result).not.toBeNull();
+    const occurrences = result?.triggers.filter((trigger) => trigger === 'shared trigger text');
+    expect(occurrences).toHaveLength(1);
+    expect(result?.triggers).toContain('unique bullet trigger');
   });
 
   it('extracts globs and trigger lines from cursor mdc files', async () => {

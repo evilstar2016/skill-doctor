@@ -125,6 +125,40 @@ describe.skipIf(process.platform === 'win32')('CLI integration', () => {
     });
   });
 
+  // SD-TC-34
+  it('scan text output and scan --json report the same skill/duplicate/conflict counts', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow, branches, commits, and pull requests', '---', '', '## When to Use', '', '- create branch', '- write commit message', '- open pull request'].join('\n'),
+    );
+    writeFile(
+      join(cwd, '.claude', 'skills', 'github-automation', 'SKILL.md'),
+      ['---', 'name: github-automation', 'description: automate git workflow, branch creation, commit messages, and pull request handling', '---', '', '## When to Use', '', '- create branch', '- write commit message', '- open pull request'].join('\n'),
+    );
+    writeFile(
+      join(home, '.claude', 'skills', 'git-workflow', 'SKILL.md'),
+      ['---', 'name: git-workflow', 'description: manage git workflow, branches, commits, and pull requests', '---', '', '## When to Use', '', '- create branch', '- write commit message', '- open pull request'].join('\n'),
+    );
+
+    const text = runCli(['scan'], cwd, home);
+    const json = JSON.parse(runCli(['scan', '--json'], cwd, home).stdout);
+
+    expect(text.status).toBe(0);
+    expect(text.stdout).toContain(`Total skills installed: ${json.summary.totalSkillsInstalled}`);
+    expect(text.stdout).toContain(`Duplicates detected: ${json.summary.duplicatesDetected}`);
+    expect(text.stdout).toContain(`Conflicts detected: ${json.summary.conflictsDetected}`);
+    for (const [platform, count] of Object.entries(json.summary.platforms as Record<string, number>)) {
+      expect(text.stdout).toContain(`- ${platform}: ${count}`);
+    }
+    for (const skill of json.skills as { name: string }[]) {
+      expect(text.stdout).toContain(`- ${skill.name}`);
+    }
+  });
+
   it('show --json returns a single structured skill record', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
@@ -538,6 +572,19 @@ describe.skipIf(process.platform === 'win32')('CLI integration', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Total skills installed: 1');
     expect(result.stdout).not.toContain('Total skills installed: 2');
+  });
+
+  // SD-TC-05
+  it('scan rejects an invalid --scope value', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    mkdirSync(cwd, { recursive: true });
+
+    const result = runCli(['scan', '--scope', 'other'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid scope. Use --scope project|global|all');
   });
 
   it('conflicts --scope project ignores duplicates split across global and project scope', () => {
@@ -2426,6 +2473,62 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Invalid source. Use --source skill|mcp|all');
+  });
+
+  // CC-TC-31
+  it('cost rejects an invalid --resource value', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.keep'), '');
+
+    const result = runCli(['cost', '--resource', 'everything'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Invalid resource. Use --resource all|agents|skill|mcp|plugin|memory');
+  });
+
+  // CC-TC-32
+  it('cost rejects --include-cache for non-Codex platforms', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'sample', 'SKILL.md'), ['---', 'name: sample', 'description: sample skill', '---'].join('\n'));
+
+    const result = runCli(['cost', '--platform', 'claude', '--include-cache'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('--include-cache supports Codex only. Use --platform codex.');
+  });
+
+  // CC-TC-33
+  it('cost rejects --include-cache combined with an unsupported --resource filter', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.codex', 'AGENTS.md'), '# Codex Agents');
+
+    const result = runCli(['cost', '--platform', 'codex', '--resource', 'skill', '--include-cache'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('--include-cache requires --resource all or --resource plugin.');
+  });
+
+  // CC-TC-34
+  it('context enable/disable rejects a non-Codex platform', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.claude', 'skills', 'sample', 'SKILL.md'), ['---', 'name: sample', 'description: sample skill', '---'].join('\n'));
+
+    const result = runCli(['context', 'disable', '--id', 'claude:skill:sample', '--platform', 'claude'], cwd, home);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('context enable/disable currently supports --platform codex only');
   });
 });
 

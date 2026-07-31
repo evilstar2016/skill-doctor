@@ -75,4 +75,14 @@ describe('loadCodexContextConfig', () => {
       else process.env.CODEX_HOME = previous;
     }
   });
+
+  // CC-TC-29
+  it('throws a readable error when the user codex-config.json is malformed', () => {
+    const home = tempRoot();
+    const userConfigPath = join(home, '.skill-doctor', 'codex-config.json');
+    mkdirSync(dirname(userConfigPath), { recursive: true });
+    writeFileSync(userConfigPath, '{ not valid json', 'utf8');
+
+    expect(() => loadCodexContextConfig({ homeDir: home })).toThrow(/Failed to read Codex context config/);
+  });
 });
