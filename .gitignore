@@ -11,7 +11,6 @@ coverage/
 skill-doctor-*.html
 .superpowers/
 doc/*
-docs/*
 skill-backup/
 .env
 .vscode/
@@ -23,3 +22,4 @@ output/playwright/
 analysis/
 feature-list/
 UI_TECHNICAL_PLAN.zh-CN.md
+dev-doc/
