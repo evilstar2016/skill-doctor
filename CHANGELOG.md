@@ -4,6 +4,8 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-08-06
+
 - Added the complete `skill-doctor ui` local product interface with overview, issue triage, context cost, resource inventory, resource details, comparisons, install management, cleanup, and dashboard export.
 - Added a shared application layer that composes the existing discovery, conflict, audit, cleanup, grouping, and context-cost engines into a stable UI snapshot.
 - Added a loopback-only authenticated HTTP API with scan progress streaming, Codex resource controls, managed install/uninstall actions, and explicit destructive-action confirmation.
@@ -12,6 +14,11 @@ All notable changes to `skill-doctor` are documented here.
 - Added selective take-back of physical Agent skill directories into the central library, replacing approved originals with managed links while excluding existing links and blocking same-name content conflicts.
 - Added `cost --platform codex --resource plugin --include-cache` to inventory cached plugin and Skill UI metadata without adding it to estimated context token tax.
 - Added structured `catalog` JSON output with cache source, display metadata, icon paths, and implicit/explicit invocation policy.
+- Added `config view/set/test` CLI commands for LLM and embedding configuration.
+- Added side-by-side skill conflict diff view in the UI.
+- Added full internationalization (i18n) with en-US and zh-CN coverage.
+- Added managed skill deployment support across global and project scopes.
+- Refactored platform adapters into modular components for maintainability.
 - Fixed MCP context-cost discovery for VS Code JSONC configs, project-relative stdio servers, and legacy SSE transports; UI scans now inspect live tool lists by default for Copilot and Codex.
 
 ## 0.3.5 - 2026-07-08
