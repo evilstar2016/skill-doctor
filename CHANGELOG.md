@@ -4,6 +4,12 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+## 0.4.1 - 2026-08-06
+
+- Open-sourced the project: added `LICENSE` (MIT), `CODE_OF_CONDUCT.md`, and `SECURITY.md`.
+- Cleaned up the repository: moved internal working docs (`doc/`, `docs/`, `feature-list/`, `UI_TECHNICAL_PLAN.zh-CN.md`) out of version control while keeping them locally; relocated public contributor docs to the repo root (`ADDING_PLATFORM.md`, `DEMO_OUTPUT.md`, `COMPARISON.md`).
+- Fixed `README.md` / `README.zh-CN.md` version references and broken `docs/` links; added `"license": "MIT"` to `package.json`.
+
 ## 0.4.0 - 2026-08-06
 
 - Added the complete `skill-doctor ui` local product interface with overview, issue triage, context cost, resource inventory, resource details, comparisons, install management, cleanup, and dashboard export.
