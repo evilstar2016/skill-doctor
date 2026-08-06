@@ -71,6 +71,9 @@ For lightweight questions and examples before filing an issue, use [GitHub Discu
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 - [Adding a platform adapter](ADDING_PLATFORM.md)
+- [License](LICENSE)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
 
 ## What it catches
 
