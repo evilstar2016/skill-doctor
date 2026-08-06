@@ -14,7 +14,7 @@
 
 ## 30 秒试用
 
-当前版本：npm 上的 [`v0.3.5`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.5)。
+当前版本：npm 上的 [`v0.4.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.0)。
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -54,9 +54,9 @@ npx @evilstar2025/skill-doctor cost --scope project
 
 这个 demo 使用脱敏测试夹具，模拟 GitHub Copilot instructions 重叠和可疑导出措辞。
 
-预期输出见：[Safe demo output](docs/demo-output.md)。
+预期输出见：[Safe demo output](DEMO_OUTPUT.md)。
 
-如果你正在比较手工审查、grep、内部 lint 和自动扫描的取舍，见：[skill-doctor vs manual AI agent config audits](docs/comparisons/manual-agent-config-audit.md)。
+如果你正在比较手工审查、grep、内部 lint 和自动扫描的取舍，见：[skill-doctor vs manual AI agent config audits](COMPARISON.md)。
 
 ## 反馈入口
 
@@ -236,4 +236,4 @@ skill-doctor ui --port 43123
 
 ## License
 
-MIT
+MIT — 见 [LICENSE](LICENSE)。

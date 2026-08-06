@@ -7,7 +7,7 @@ Thanks for helping improve `skill-doctor`. The most useful contributions right n
 - Report a false positive from `skill-doctor conflicts`.
 - Request a missing platform path for an agent or editor.
 - Add a safe fixture that represents a real skill/rule/instruction format.
-- Add or update a platform adapter using [docs/adding-platform.md](docs/adding-platform.md).
+- Add or update a platform adapter using [ADDING_PLATFORM.md](ADDING_PLATFORM.md).
 - Improve wording for audit findings so users can act on them faster.
 - Add tests for a platform resolver or audit rule.
 
@@ -37,6 +37,6 @@ node dist/index.cjs scan --scope project
 
 - Keep changes focused.
 - Add or update tests when detection behavior changes.
-- For platform support changes, update `src/platforms/registry.ts`, `docs/adding-platform.md` if the extension path changes, and `doc/architecture-index.md`.
+- For platform support changes, update `src/platforms/registry.ts` and [ADDING_PLATFORM.md](ADDING_PLATFORM.md) if the extension path changes.
 - Update README, CHANGELOG, or ROADMAP when user-facing behavior changes.
 - Run `npm test` before opening the PR.

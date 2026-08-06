@@ -15,6 +15,7 @@
     "audit"
   ],
   "type": "module",
+  "license": "MIT",
   "bin": {
     "skill-doctor": "dist/index.cjs"
   },
@@ -25,7 +26,6 @@
     "README.md",
     "CHANGELOG.md",
     "ROADMAP.md",
-    "UI_TECHNICAL_PLAN.zh-CN.md",
     "CONTRIBUTING.md"
   ],
   "repository": {

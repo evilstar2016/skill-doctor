@@ -60,7 +60,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## Project Structure & Module Organization
 
-Core TypeScript lives in `src/`. The CLI entry point is `src/cli/index.ts`; scanning, configuration, context-cost analysis, and UI-server code are grouped under matching subdirectories such as `src/discovery/`, `src/config/`, `src/context/`, and `src/ui-server/`. The React application is in `web/src/` and is built into `dist/ui/`. Tests mirror the implementation under `tests/` (for example, `src/context/estimateContextCost.ts` is covered by `tests/context/estimateContextCost.test.ts`). Keep documentation in `docs/` or `doc/`, reusable fixtures in `examples/`, and shipped static files in `assets/`. Do not edit generated `dist/`, `coverage/`, or `node_modules/` content.
+Core TypeScript lives in `src/`. The CLI entry point is `src/cli/index.ts`; scanning, configuration, context-cost analysis, and UI-server code are grouped under matching subdirectories such as `src/discovery/`, `src/config/`, `src/context/`, and `src/ui-server/`. The React application is in `web/src/` and is built into `dist/ui/`. Tests mirror the implementation under `tests/` (for example, `src/context/estimateContextCost.ts` is covered by `tests/context/estimateContextCost.test.ts`). Keep public documentation at the repo root; internal working docs live in the ignored `doc/` and `docs/` directories. Reusable fixtures go in `examples/`, shipped static files in `assets/`. Do not edit generated `dist/`, `coverage/`, or `node_modules/` content.
 
 ## Build, Test, and Development Commands
 

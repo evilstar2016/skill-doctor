@@ -14,7 +14,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other 
 
 ## Try it in 30 seconds
 
-Current release: [`v0.3.5`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.3.5) on npm.
+Current release: [`v0.4.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.0) on npm.
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -55,9 +55,9 @@ npx @evilstar2025/skill-doctor audit --scope project
 
 The demo contains redacted test fixtures for overlapping GitHub Copilot instructions and risky export wording.
 
-See [Safe demo output](docs/demo-output.md) for the expected scan, conflicts, and audit results.
+See [Safe demo output](DEMO_OUTPUT.md) for the expected scan, conflicts, and audit results.
 
-Comparing approaches? See [skill-doctor vs manual AI agent config audits](docs/comparisons/manual-agent-config-audit.md).
+Comparing approaches? See [skill-doctor vs manual AI agent config audits](COMPARISON.md).
 
 ## Feedback wanted
 
@@ -70,7 +70,7 @@ For lightweight questions and examples before filing an issue, use [GitHub Discu
 - [Roadmap](ROADMAP.md)
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
-- [Adding a platform adapter](docs/adding-platform.md)
+- [Adding a platform adapter](ADDING_PLATFORM.md)
 
 ## What it catches
 
@@ -440,7 +440,7 @@ The dashboard shows:
 
 Additional directories can be added via `paths.extra` in config (see Configuration).
 
-Platform discovery paths, aliases, install targets, MCP config files, and context-cost policies are defined by adapter records. To add or change platform support, see [Adding a platform adapter](docs/adding-platform.md).
+Platform discovery paths, aliases, install targets, MCP config files, and context-cost policies are defined by adapter records. To add or change platform support, see [Adding a platform adapter](ADDING_PLATFORM.md).
 
 ## HTML reports
 
@@ -516,8 +516,8 @@ npm run build
 npm test
 ```
 
-Platform contributors should start with [Adding a platform adapter](docs/adding-platform.md) before changing discovery, install, MCP, or cost behavior.
+Platform contributors should start with [Adding a platform adapter](ADDING_PLATFORM.md) before changing discovery, install, MCP, or cost behavior.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

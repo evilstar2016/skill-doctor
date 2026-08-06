@@ -71,7 +71,7 @@ Update or add tests for the adapter features you changed:
 
 ## 6. Update docs
 
-Update `README.md` platform coverage and `doc/architecture-index.md` when the adapter adds new ownership or behavior. CLI help and platform validation are generated from the registry, so do not hard-code platform lists in CLI text.
+Update `README.md` platform coverage when the adapter adds new ownership or behavior. CLI help and platform validation are generated from the registry, so do not hard-code platform lists in CLI text.
 
 ## 7. Verify
 
