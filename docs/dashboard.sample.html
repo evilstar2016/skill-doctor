@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Doctor — Mission Control</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e17;color:#c8d6e5;font-family:Menlo,Monaco,'Courier New',monospace;font-size:14px;line-height:1.6}
+a{color:#00c8ff;text-decoration:none}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+
+/* header */
+.db-header{background:#0d1320;border-bottom:1px solid #1a2238;padding:20px 0}
+.db-header-inner{display:flex;align-items:center;justify-content:space-between}
+.db-brand{font-size:20px;font-weight:700;letter-spacing:2px;color:#00c8ff}
+.db-brand-sub{font-size:12px;color:#5a6a80;margin-top:2px}
+.db-version{background:#1a2238;color:#00c8ff;font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #00c8ff33}
+
+/* sections */
+.db-section{margin:32px 0}
+.db-section-title{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:#5a6a80;border-bottom:1px solid #1a2238;padding-bottom:8px;margin-bottom:16px}
+
+/* overview grid */
+.overview-grid{display:grid;grid-template-columns:240px 1fr;gap:32px;align-items:start}
+.health-ring-wrap{text-align:center}
+.health-pct{font-size:28px;font-weight:700;color:#00c8ff}
+.health-label{font-size:11px;color:#5a6a80;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.metric-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:#111827;border:1px solid #1a2238;border-radius:8px;padding:14px;text-align:center}
+.metric-val{font-size:24px;font-weight:700;color:#e2e8f0}
+.metric-lbl{font-size:11px;color:#5a6a80;text-transform:uppercase;letter-spacing:1px}
+
+/* platform bars */
+.bar-row{display:flex;align-items:center;margin:4px 0}
+.bar-label{width:80px;font-size:12px;color:#5a6a80;text-align:right;padding-right:10px}
+.bar-track{flex:1;height:18px;background:#111827;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;background:#00c8ff;border-radius:4px;transition:width .3s}
+.bar-count{width:30px;font-size:12px;color:#5a6a80;text-align:right;padding-left:6px}
+
+/* table */
+.db-table{width:100%;border-collapse:collapse}
+.db-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#5a6a80;padding:8px 12px;border-bottom:1px solid #1a2238}
+.db-table td{padding:8px 12px;border-bottom:1px solid #111827;font-size:13px}
+.db-table tr:hover td{background:#111827}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot-clean{background:#22c55e}
+.dot-conflict{background:#ef4444}
+.dot-risk{background:#f59e0b}
+.dot-dup{background:#a855f7}
+
+/* severity bar */
+.sev-bar{display:flex;height:20px;border-radius:4px;overflow:hidden;margin-bottom:16px}
+.sev-seg-high{background:#ef4444}
+.sev-seg-med{background:#f59e0b}
+.sev-seg-low{background:#22c55e}
+
+/* conflict / finding cards */
+.card{background:#111827;border:1px solid #1a2238;border-radius:8px;padding:16px;margin-bottom:12px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.card-title{font-weight:600;color:#e2e8f0;font-size:14px}
+.sev-high{background:#ef4444;color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase}
+.sev-med{background:#f59e0b;color:#0a0e17;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase}
+.sev-low{background:#22c55e;color:#0a0e17;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase}
+.score-bar{height:6px;background:#1a2238;border-radius:3px;margin:8px 0;overflow:hidden}
+.score-fill{height:100%;background:#00c8ff;border-radius:3px}
+.card-desc{font-size:12px;color:#5a6a80}
+
+/* rule heatmap */
+.rule-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.rule-cell{background:#111827;border:1px solid #1a2238;border-radius:8px;padding:14px;text-align:center}
+.rule-count{font-size:22px;font-weight:700}
+.rule-name{font-size:11px;color:#5a6a80;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.heat-0{color:#5a6a80}
+.heat-low{color:#22c55e}
+.heat-med{color:#f59e0b}
+.heat-high{color:#ef4444}
+
+/* code block */
+code.match-text{display:block;background:#0d1320;border:1px solid #1a2238;border-radius:4px;padding:8px 12px;margin-top:8px;font-size:12px;color:#c8d6e5;white-space:pre-wrap;word-break:break-all}
+
+/* cleanup */
+.suggest-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase}
+.badge-keep{background:#22c55e;color:#0a0e17}
+.badge-remove{background:#ef4444;color:#fff}
+.cleanup-pair{background:#111827;border:1px solid #1a2238;border-radius:8px;padding:14px;margin-bottom:10px}
+.cleanup-path{font-size:12px;color:#5a6a80;margin:4px 0}
+.cleanup-reason{font-size:12px;color:#c8d6e5;font-style:italic}
+
+/* empty state */
+.empty-state{text-align:center;padding:32px;color:#5a6a80;font-style:italic}
+</style>
+</head>
+<body>
+<header class="db-header">
+  <div class="container">
+    <div class="db-header-inner">
+      <div>
+        <div class="db-brand">SKILL DOCTOR</div>
+        <div class="db-brand-sub">Mission Control &middot; 3 skills &middot; Aug 7, 2026</div>
+      </div>
+      <span class="db-version">v0.4.1</span>
+    </div>
+  </div>
+</header>
+<main class="container">
+<div class="db-section">
+<div class="db-section-title">Overview</div>
+<div class="overview-grid">
+  <div class="health-ring-wrap">
+    <svg viewBox="0 0 200 200" width="180" height="180">
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#1a2238" stroke-width="16"/>
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#22c55e" stroke-width="16" stroke-dasharray="336.77873246482585 165.87609210954105" stroke-dashoffset="0" transform="rotate(-90 100 100)"/>
+  
+  
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#a855f7" stroke-width="16" stroke-dasharray="167.5516081914556 335.1032163829113" stroke-dashoffset="-336.77873246482585" transform="rotate(-90 100 100)"/>
+</svg>
+    <div class="health-pct">67%</div>
+    <div class="health-label">Health</div>
+  </div>
+  <div>
+    <div class="metric-cards">
+  <div class="metric-card"><div class="metric-val">3</div><div class="metric-lbl">Skills</div></div>
+  <div class="metric-card"><div class="metric-val">2</div><div class="metric-lbl">Platforms</div></div>
+  <div class="metric-card"><div class="metric-val">0</div><div class="metric-lbl">Global</div></div>
+  <div class="metric-card"><div class="metric-val">3</div><div class="metric-lbl">Project</div></div>
+</div>
+    <div class="bar-row"><span class="bar-label">claude</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">2</span></div>
+<div class="bar-row"><span class="bar-label">copilot</span><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div><span class="bar-count">1</span></div>
+  </div>
+</div>
+</div>
+<div class="db-section">
+<div class="db-section-title">Skills</div>
+<table class="db-table">
+<thead><tr><th>Name</th><th>Platform</th><th>Scope</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+  <td><span class="dot dot-clean"></span>code-reviewer</td>
+  <td>claude</td>
+  <td>project</td>
+  <td>Review pull requests and changed source files for security vulnerabilities, performance regressions, and style violations.</td>
+</tr>
+<tr>
+  <td><span class="dot dot-dup"></span>data-exporter</td>
+  <td>claude</td>
+  <td>project</td>
+  <td>Export database tables and SQL query results to CSV and Parquet files for downstream analysis and reporting.</td>
+</tr>
+<tr>
+  <td><span class="dot dot-dup"></span>data-exporter</td>
+  <td>copilot</td>
+  <td>project</td>
+  <td>Export database tables and SQL query results to CSV and Parquet files for downstream analysis and reporting.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="db-section"><div class="db-section-title">Conflicts</div><div class="empty-state">No conflicts detected.</div></div>
+<div class="db-section">
+<div class="db-section-title">Security Audit</div>
+<div class="rule-grid">
+  <div class="rule-cell"><div class="rule-count heat-0">0</div><div class="rule-name">shell-exec</div></div>
+  <div class="rule-cell"><div class="rule-count heat-0">0</div><div class="rule-name">destructive</div></div>
+  <div class="rule-cell"><div class="rule-count heat-0">0</div><div class="rule-name">secret-leak</div></div>
+  <div class="rule-cell"><div class="rule-count heat-0">0</div><div class="rule-name">network-call</div></div>
+</div>
+<div class="empty-state">No security risks detected.</div>
+</div>
+<div class="db-section">
+<div class="db-section-title">Cleanup</div>
+<div class="metric-cards" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+  <div class="metric-card"><div class="metric-val">0</div><div class="metric-lbl">Cross-Scope Dups</div></div>
+  <div class="metric-card"><div class="metric-val">1</div><div class="metric-lbl">Same-Scope Dups</div></div>
+</div>
+<div class="db-section-title" style="font-size:12px">Suggestions</div>
+<div class="cleanup-pair">
+  <div style="font-weight:600;color:#e2e8f0;margin-bottom:6px">data-exporter</div>
+  <div class="cleanup-path"><span class="suggest-badge badge-keep">keep</span> E:\tmp\sd-manual-demo\.claude\skills\data-exporter\SKILL.md</div>
+  <div class="cleanup-path"><span class="suggest-badge badge-remove">remove</span> E:\tmp\sd-manual-demo\.github\skills\data-exporter\SKILL.md</div>
+  <div class="cleanup-reason">newer (modified 2026-08-07)</div>
+</div>
+<div class="cleanup-pair">
+  <div style="font-weight:600;color:#e2e8f0;margin-bottom:6px">data-exporter <span style="color:#5a6a80">x2</span></div>
+  <div class="cleanup-path">E:\tmp\sd-manual-demo\.claude\skills\data-exporter\SKILL.md</div>
+  <div class="cleanup-path">E:\tmp\sd-manual-demo\.github\skills\data-exporter\SKILL.md</div>
+</div>
+</div>
+</main>
+</body>
+</html>

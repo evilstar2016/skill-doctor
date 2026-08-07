@@ -23,3 +23,6 @@ analysis/
 feature-list/
 UI_TECHNICAL_PLAN.zh-CN.md
 dev-doc/
+
+# 发布文档：docs/ 作为 GitHub Pages 源，放行其中的手册 HTML
+!docs/*.html
