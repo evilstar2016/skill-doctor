@@ -81,30 +81,30 @@
     <button type="button" data-lang="zh" class="active" aria-pressed="true">中文</button>
     <button type="button" data-lang="en" aria-pressed="false">EN</button>
   </div>
-  <h1>skill-doctor 使用手册<span class="en">skill-doctor manual</span></h1>
-  <p>本地 CLI，用于审计 AI 编码助手的技能：重复 · 冲突 · 安全风险 · 上下文成本<span class="en">A local CLI for auditing AI-coding-assistant skills: duplicates · conflicts · security risks · context cost</span></p>
-  <span class="ver">版本 v0.4.1 · 所有截图均为真实命令输出<span class="en">Version v0.4.1 · every screenshot is a real command output</span></span>
+  <h1><span class="zh">skill-doctor 使用手册</span><span class="en">skill-doctor manual</span></h1>
+  <p><span class="zh">本地 CLI，用于审计 AI 编码助手的技能：重复 · 冲突 · 安全风险 · 上下文成本</span><span class="en">A local CLI for auditing AI-coding-assistant skills: duplicates · conflicts · security risks · context cost</span></p>
+  <span class="ver"><span class="zh">版本 v0.4.1 · 所有截图均为真实命令输出</span><span class="en">Version v0.4.1 · every screenshot is a real command output</span></span>
 </header>
 <nav class="toc"><a href="#start"><span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></a><a href="#help"><span class="zh">skill-doctor --help</span><span class="en">skill-doctor --help</span></a><a href="#scan"><span class="zh">scan</span><span class="en">scan</span></a><a href="#show"><span class="zh">show &lt;name&gt;</span><span class="en">show &lt;name&gt;</span></a><a href="#conflicts"><span class="zh">conflicts</span><span class="en">conflicts</span></a><a href="#audit"><span class="zh">audit</span><span class="en">audit</span></a><a href="#check"><span class="zh">check</span><span class="en">check</span></a><a href="#cleanup"><span class="zh">cleanup</span><span class="en">cleanup</span></a><a href="#cost"><span class="zh">cost / context</span><span class="en">cost / context</span></a><a href="#diff"><span class="zh">diff &lt;a&gt; &lt;b&gt;</span><span class="en">diff &lt;a&gt; &lt;b&gt;</span></a><a href="#ui"><span class="zh">ui</span><span class="en">ui</span></a><a href="#dashboard"><span class="zh">dashboard</span><span class="en">dashboard</span></a><a href="#install"><span class="zh">install / uninstall</span><span class="en">install / uninstall</span></a><a href="#center"><span class="zh">center</span><span class="en">center</span></a><a href="#config"><span class="zh">config</span><span class="en">config</span></a></nav>
 <main>
   <section id="intro">
-    <h2>怎么用这本手册<span class="en">How to read this manual</span></h2>
+    <h2><span class="zh">怎么用这本手册</span><span class="en">How to read this manual</span></h2>
     <div class="card">
-      <p>每个命令一节，固定包含三块：<b>使用场景</b>（什么时候该用它）、<b>使用方式</b>（命令与常用参数）、<b>使用效果</b>（下方深色终端块为真实运行的彩色截图）。<span class="en">Each command gets its own section with three blocks: <b>Scenario</b> (when to reach for it), <b>Usage</b> (the command and common flags), <b>Effect</b> (the dark terminal block below is a real, colorized screenshot of the run).</span></p>
-      <p class="note">约定：<code>--scope project</code> 只看当前仓库、避免扫到全局；<code>--json</code> 输出机器可读结果便于 CI。手册示例在一个含 1 个重复技能的示例项目里运行，所以多处会出现 <code>data-exporter 有 2 份</code> 的现象。<span class="en">Conventions: <code>--scope project</code> scopes to the current repo and avoids touching global config; <code>--json</code> emits machine-readable output for CI. The example project contains 1 duplicate skill, so you will see "data-exporter has 2 copies" appear in several places.</span></p>
+      <p><span class="zh">每个命令一节，固定包含三块：<b>使用场景</b>（什么时候该用它）、<b>使用方式</b>（命令与常用参数）、<b>使用效果</b>（下方深色终端块为真实运行的彩色截图）。</span><span class="en">Each command gets its own section with three blocks: <b>Scenario</b> (when to reach for it), <b>Usage</b> (the command and common flags), <b>Effect</b> (the dark terminal block below is a real, colorized screenshot of the run).</span></p>
+      <p class="note"><span class="zh">约定：<code>--scope project</code> 只看当前仓库、避免扫到全局；<code>--json</code> 输出机器可读结果便于 CI。手册示例在一个含 1 个重复技能的示例项目里运行，所以多处会出现 <code>data-exporter 有 2 份</code> 的现象。</span><span class="en">Conventions: <code>--scope project</code> scopes to the current repo and avoids touching global config; <code>--json</code> emits machine-readable output for CI. The example project contains 1 duplicate skill, so you will see "data-exporter has 2 copies" appear in several places.</span></p>
     </div>
   </section>
   
     <section id="start">
-      <h2><span class="cmd-tag">安装与运行<span class="en">Install &amp; Run</span></span> <span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></span> <span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</span><span class="en">skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / ACA, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td><span class="zh">全局安装，之后直接用 skill-doctor 命令</span><span class="en">Install globally, then use the `skill-doctor` command directly.</span></td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td><span class="zh">不安装，临时运行某条命令</span><span class="en">Run a command on the fly without installing.</span></td></tr><tr><td class="flag">skill-doctor --version</td><td><span class="zh">查看版本（本手册基于 0.4.1）</span><span class="en">Print the version (this manual targets 0.4.1).</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">Node.js ≥ 20。所有命令都可加 --json 输出机器可读结果，便于接入 CI。手册中的示例都在一个示例项目里运行：该项目故意把同名技能 data-exporter 放进了 .claude 与 .github 两套平台目录（制造 1 个重复），并放了 code-reviewer 用于对比演示。</span><span class="en">Requires Node.js ≥ 20. Every command accepts `--json` for machine-readable output, which is convenient for CI. The examples in this manual run against a sample project that intentionally puts a skill named `data-exporter` into both `.claude` and `.github` (creating 1 duplicate) and also contains `code-reviewer` for diff demos.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td><span class="zh">全局安装，之后直接用 skill-doctor 命令</span><span class="en">Install globally, then use the `skill-doctor` command directly.</span></td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td><span class="zh">不安装，临时运行某条命令</span><span class="en">Run a command on the fly without installing.</span></td></tr><tr><td class="flag">skill-doctor --version</td><td><span class="zh">查看版本（本手册基于 0.4.1）</span><span class="en">Print the version (this manual targets 0.4.1).</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">Node.js ≥ 20。所有命令都可加 --json 输出机器可读结果，便于接入 CI。手册中的示例都在一个示例项目里运行：该项目故意把同名技能 data-exporter 放进了 .claude 与 .github 两套平台目录（制造 1 个重复），并放了 code-reviewer 用于对比演示。</span><span class="en">Requires Node.js ≥ 20. Every command accepts `--json` for machine-readable output, which is convenient for CI. The examples in this manual run against a sample project that intentionally puts a skill named `data-exporter` into both `.claude` and `.github` (creating 1 duplicate) and also contains `code-reviewer` for diff demos.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -119,15 +119,15 @@
     </section>
 
     <section id="help">
-      <h2><span class="cmd-tag">skill-doctor --help<span class="en">skill-doctor --help</span></span> <span class="zh">总览：--help</span><span class="en">Overview: --help</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">skill-doctor --help</span><span class="en">skill-doctor --help</span></span> <span class="zh">总览：--help</span><span class="en">Overview: --help</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">第一次使用或忘记子命令/参数时，先看帮助。它会列出全部命令与可选项，是最常用的「目录」。</span><span class="en">First time using it, or when you forget a sub-command or flag? Check --help first. It lists every command and option and serves as the index.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor --help</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">-h / --help</td><td><span class="zh">对任意子命令也有效，例如 skill-doctor conflicts --help</span><span class="en">Works for any sub-command, e.g. `skill-doctor conflicts --help`.</span></td></tr><tr><td class="flag">-v / --version</td><td><span class="zh">仅打印版本号</span><span class="en">Print just the version.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">下面是本机执行 --help 的真实输出，可作为命令速查表。</span><span class="en">Below is the real output of --help on this machine, which you can use as a cheat sheet.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">-h / --help</td><td><span class="zh">对任意子命令也有效，例如 skill-doctor conflicts --help</span><span class="en">Works for any sub-command, e.g. `skill-doctor conflicts --help`.</span></td></tr><tr><td class="flag">-v / --version</td><td><span class="zh">仅打印版本号</span><span class="en">Print just the version.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">下面是本机执行 --help 的真实输出，可作为命令速查表。</span><span class="en">Below is the real output of --help on this machine, which you can use as a cheat sheet.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -172,15 +172,15 @@ Platforms:
     </section>
 
     <section id="scan">
-      <h2><span class="cmd-tag">scan<span class="en">scan</span></span> <span class="zh">scan — 盘点已安装的技能</span><span class="en">scan — list installed skills</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">scan</span><span class="en">scan</span></span> <span class="zh">scan — 盘点已安装的技能</span><span class="en">scan — list installed skills</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">你想知道「当前项目到底装了哪些 skill、分布在哪些平台、有没有重复或冲突」时，先跑 scan。它是所有后续诊断的起点。</span><span class="en">When you want to know which skills are installed in the current project, on which platforms, and whether any duplicates or conflicts exist — run `scan` first. It is the starting point for all subsequent diagnostics.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor scan --scope project</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围；默认 all。手册示例用 project 只看当前仓库</span><span class="en">Scan scope; default `all`. The manual examples use `project` to limit the scan to the current repo.</span></td></tr><tr><td class="flag">--group</td><td><span class="zh">用模型把技能按主题分组（需要配置分析模型）</span><span class="en">Use an LLM to group skills by topic (requires a configured analysis model).</span></td></tr><tr><td class="flag">--strategy token|embedding</td><td><span class="zh">冲突检测策略；默认 token（本地、离线）</span><span class="en">Conflict-detection strategy; default `token` (local, offline).</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">额外导出一个可视化 HTML 报告</span><span class="en">Also export a visual HTML report.</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出结构化 JSON，便于脚本处理</span><span class="en">Emit structured JSON for script consumption.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">示例中扫描到 3 个技能（claude×2、copilot×1），并发现 1 个重复。--report 会写出 scan-report.html（本手册附录附带样例）。</span><span class="en">The example finds 3 skills (claude × 2, copilot × 1) and reports 1 duplicate. `--report` writes scan-report.html (a real sample ships with this manual).</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围；默认 all。手册示例用 project 只看当前仓库</span><span class="en">Scan scope; default `all`. The manual examples use `project` to limit the scan to the current repo.</span></td></tr><tr><td class="flag">--group</td><td><span class="zh">用模型把技能按主题分组（需要配置分析模型）</span><span class="en">Use an LLM to group skills by topic (requires a configured analysis model).</span></td></tr><tr><td class="flag">--strategy token|embedding</td><td><span class="zh">冲突检测策略；默认 token（本地、离线）</span><span class="en">Conflict-detection strategy; default `token` (local, offline).</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">额外导出一个可视化 HTML 报告</span><span class="en">Also export a visual HTML report.</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出结构化 JSON，便于脚本处理</span><span class="en">Emit structured JSON for script consumption.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">示例中扫描到 3 个技能（claude×2、copilot×1），并发现 1 个重复。--report 会写出 scan-report.html（本手册附录附带样例）。</span><span class="en">The example finds 3 skills (claude × 2, copilot × 1) and reports 1 duplicate. `--report` writes scan-report.html (a real sample ships with this manual).</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -228,15 +228,15 @@ Report written to: E:/tmp/sd-manual-demo/caps/scan-report.html
     </section>
 
     <section id="show">
-      <h2><span class="cmd-tag">show &lt;name&gt;<span class="en">show &lt;name&gt;</span></span> <span class="zh">show — 查看单个技能详情</span><span class="en">show — inspect one skill</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">show &lt;name&gt;</span><span class="en">show &lt;name&gt;</span></span> <span class="zh">show — 查看单个技能详情</span><span class="en">show — inspect one skill</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">扫出一堆技能后，想深挖某一个：它的来源路径、描述、触发条件（When to Use），以及和它语义相近的其它技能。</span><span class="en">After scanning a pile of skills, drill into one: its source path, description, trigger conditions (When to Use), and other semantically similar skills.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor show data-exporter</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">&lt;name&gt;</td><td><span class="zh">技能名（必填），例如 data-exporter</span><span class="en">Skill name (required), e.g. `data-exporter`.</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出结构化 JSON</span><span class="en">Emit structured JSON.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">下方真实输出里，RELATED SKILLS 给出了与 data-exporter 相似度 0.25 的关联技能——这正是重复/冲突排查的线索。</span><span class="en">In the real output below, RELATED SKILLS reports a similarity of 0.25 with another `data-exporter` — that is exactly the lead you follow for duplicate / conflict investigations.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">&lt;name&gt;</td><td><span class="zh">技能名（必填），例如 data-exporter</span><span class="en">Skill name (required), e.g. `data-exporter`.</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出结构化 JSON</span><span class="en">Emit structured JSON.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">下方真实输出里，RELATED SKILLS 给出了与 data-exporter 相似度 0.25 的关联技能——这正是重复/冲突排查的线索。</span><span class="en">In the real output below, RELATED SKILLS reports a similarity of 0.25 with another `data-exporter` — that is exactly the lead you follow for duplicate / conflict investigations.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -272,15 +272,15 @@ RELATED SKILLS
     </section>
 
     <section id="conflicts">
-      <h2><span class="cmd-tag">conflicts<span class="en">conflicts</span></span> <span class="zh">conflicts — 检测重复与冲突</span><span class="en">conflicts — detect duplicates &amp; conflicts</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">conflicts</span><span class="en">conflicts</span></span> <span class="zh">conflicts — 检测重复与冲突</span><span class="en">conflicts — detect duplicates &amp; conflicts</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">当你怀疑不同平台/目录里藏着同名或高度雷同的技能（会互相覆盖、浪费上下文），用 conflicts 找出它们，并给出「删哪份、留哪份」的建议。</span><span class="en">When you suspect different platforms/directories hide same-named or highly similar skills (which overwrite each other and waste context), `conflicts` finds them and suggests "delete which, keep which".</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor conflicts --scope project</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--kind duplicate|conflict|all</td><td><span class="zh">只关注某一类；duplicate=完全同名，conflict=语义雷同</span><span class="en">Filter by kind; `duplicate` = same name, `conflict` = semantically similar.</span></td></tr><tr><td class="flag">--fail-on high|med|low</td><td><span class="zh">达到阈值则以退出码 1 失败，用于 CI 卡点</span><span class="en">Exit with code 1 when severity reaches this level — for CI gating.</span></td></tr><tr><td class="flag">--limit N</td><td><span class="zh">最多显示 N 条</span><span class="en">Show at most N items.</span></td></tr><tr><td class="flag">--strategy / --threshold / --embedding-model</td><td><span class="zh">同 scan，控制冲突检测精度</span><span class="en">Same as `scan`; controls detection precision.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">真实输出中检测到 data-exporter 有 2 份副本，并建议删除较旧的一份（.github 下那份）。在 CI 里加 --fail-on high 即可把「出现重复」变成构建失败。</span><span class="en">The real output finds 2 copies of `data-exporter` and recommends removing the older one (the one under `.github`). In CI, add `--fail-on high` so any duplicate fails the build.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--kind duplicate|conflict|all</td><td><span class="zh">只关注某一类；duplicate=完全同名，conflict=语义雷同</span><span class="en">Filter by kind; `duplicate` = same name, `conflict` = semantically similar.</span></td></tr><tr><td class="flag">--fail-on high|med|low</td><td><span class="zh">达到阈值则以退出码 1 失败，用于 CI 卡点</span><span class="en">Exit with code 1 when severity reaches this level — for CI gating.</span></td></tr><tr><td class="flag">--limit N</td><td><span class="zh">最多显示 N 条</span><span class="en">Show at most N items.</span></td></tr><tr><td class="flag">--strategy / --threshold / --embedding-model</td><td><span class="zh">同 scan，控制冲突检测精度</span><span class="en">Same as `scan`; controls detection precision.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">真实输出中检测到 data-exporter 有 2 份副本，并建议删除较旧的一份（.github 下那份）。在 CI 里加 --fail-on high 即可把「出现重复」变成构建失败。</span><span class="en">The real output finds 2 copies of `data-exporter` and recommends removing the older one (the one under `.github`). In CI, add `--fail-on high` so any duplicate fails the build.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -304,15 +304,15 @@ consider removing: E:\tmp\sd-manual-demo\.github\skills\data-exporter\SKILL.md
     </section>
 
     <section id="audit">
-      <h2><span class="cmd-tag">audit<span class="en">audit</span></span> <span class="zh">audit — 安全审计</span><span class="en">audit — security audit</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">audit</span><span class="en">audit</span></span> <span class="zh">audit — 安全审计</span><span class="en">audit — security audit</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">在把技能交付给团队或 CI 之前，想知道有没有明显的安全风险（如危险的 shell 指令、可疑的网络调用等）。不带 --ai 时走本地规则，零配置即可用。</span><span class="en">Before shipping skills to the team or CI, you want to know whether they contain obvious security risks (dangerous shell commands, suspicious network calls, etc.). Without `--ai`, the audit runs on local rules with zero configuration.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor audit --scope project</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--severity high|med|low</td><td><span class="zh">只显示 ≥ 该级别的问题</span><span class="en">Only show findings of this severity or higher.</span></td></tr><tr><td class="flag">--ai</td><td><span class="zh">调用配置好的分析模型做增强扫描（需先 config set analysis）</span><span class="en">Use the configured analysis model for a deeper scan (requires `config set analysis` first).</span></td></tr><tr><td class="flag">--no-cache</td><td><span class="zh">忽略 AI 审计缓存，重新分析</span><span class="en">Ignore the AI audit cache and re-analyze.</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">导出可视化 HTML 审计报告</span><span class="en">Export a visual HTML audit report.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">本例 3 个示例技能没有命中本地规则，因此显示 No findings。一旦装了含危险指令的技能，这里会列出具体风险点与级别。</span><span class="en">The 3 example skills do not trigger any local rule, so the result is "No findings". As soon as a skill containing dangerous instructions is installed, the exact risk and severity will appear here.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--severity high|med|low</td><td><span class="zh">只显示 ≥ 该级别的问题</span><span class="en">Only show findings of this severity or higher.</span></td></tr><tr><td class="flag">--ai</td><td><span class="zh">调用配置好的分析模型做增强扫描（需先 config set analysis）</span><span class="en">Use the configured analysis model for a deeper scan (requires `config set analysis` first).</span></td></tr><tr><td class="flag">--no-cache</td><td><span class="zh">忽略 AI 审计缓存，重新分析</span><span class="en">Ignore the AI audit cache and re-analyze.</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">导出可视化 HTML 审计报告</span><span class="en">Export a visual HTML audit report.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">本例 3 个示例技能没有命中本地规则，因此显示 No findings。一旦装了含危险指令的技能，这里会列出具体风险点与级别。</span><span class="en">The 3 example skills do not trigger any local rule, so the result is "No findings". As soon as a skill containing dangerous instructions is installed, the exact risk and severity will appear here.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -329,15 +329,15 @@ No findings.
     </section>
 
     <section id="check">
-      <h2><span class="cmd-tag">check<span class="en">check</span></span> <span class="zh">check — 一键健康门禁（CI 首选）</span><span class="en">check — one-shot health gate (CI favorite)</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">check</span><span class="en">check</span></span> <span class="zh">check — 一键健康门禁（CI 首选）</span><span class="en">check — one-shot health gate (CI favorite)</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">在 CI / pre-commit 里用一条命令同时检查：安全风险、技能冲突、上下文是否超预算，并给出 pass/fail 与退出码。比分别跑 audit+conflicts+cost 更省事。</span><span class="en">In CI or pre-commit, run one command that combines: security risks, skill conflicts, and whether context budget is exceeded — and returns pass/fail with an exit code. More convenient than running audit + conflicts + cost separately.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor check --scope project --fail-on high</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--fail-on high|med|low</td><td><span class="zh">严重程度阈值，默认 high；命中则退出码 1</span><span class="en">Severity threshold (default `high`); exit 1 when reached.</span></td></tr><tr><td class="flag">--budget-tokens N</td><td><span class="zh">上下文预算（每轮 token 上限），超了算失败</span><span class="en">Per-turn token budget; exceeding it counts as failure.</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出结构化结果，便于流水线解析</span><span class="en">Emit structured output for pipelines to parse.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">真实输出显示 failed：安全 0、冲突 1、预算未超。因为发现了 1 个重复（冲突），所以未通过——非常适合作为合并前卡点。</span><span class="en">Real output: failed — security 0, conflicts 1, budget not exceeded. Because a duplicate was found, the check failed — perfect as a pre-merge gate.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--fail-on high|med|low</td><td><span class="zh">严重程度阈值，默认 high；命中则退出码 1</span><span class="en">Severity threshold (default `high`); exit 1 when reached.</span></td></tr><tr><td class="flag">--budget-tokens N</td><td><span class="zh">上下文预算（每轮 token 上限），超了算失败</span><span class="en">Per-turn token budget; exceeding it counts as failure.</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出结构化结果，便于流水线解析</span><span class="en">Emit structured output for pipelines to parse.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">真实输出显示 failed：安全 0、冲突 1、预算未超。因为发现了 1 个重复（冲突），所以未通过——非常适合作为合并前卡点。</span><span class="en">Real output: failed — security 0, conflicts 1, budget not exceeded. Because a duplicate was found, the check failed — perfect as a pre-merge gate.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -355,15 +355,15 @@ Context over budget: no
     </section>
 
     <section id="cleanup">
-      <h2><span class="cmd-tag">cleanup<span class="en">cleanup</span></span> <span class="zh">cleanup — 清理重复技能</span><span class="en">cleanup — remove duplicate skills</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">cleanup</span><span class="en">cleanup</span></span> <span class="zh">cleanup — 清理重复技能</span><span class="en">cleanup — remove duplicate skills</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">conflicts 告诉你「有重复」后，cleanup 列出所有重复副本，并可用 --execute 交互式地逐个删除，把磁盘和上下文收拾干净。</span><span class="en">Once `conflicts` tells you there are duplicates, `cleanup` lists every duplicate copy and can — with `--execute` — interactively remove them one by one, reclaiming both disk and context.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor cleanup --scope project</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--execute</td><td><span class="zh">进入交互模式，逐项选择删除哪一份（默认仅列出）</span><span class="en">Enter interactive mode (default is read-only listing only).</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出待清理清单，便于脚本</span><span class="en">Emit the cleanup list as JSON for scripts.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">不加 --execute 时是只读预览（安全）；加 --execute 后会对每个重复向你提问 [1/2/s]，按 s 可跳过。演示输出为只读预览。</span><span class="en">Without `--execute`, this is a safe read-only preview. With `--execute`, it asks you `[1/2/s]` for each duplicate (press `s` to skip). The demo output is the preview.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--execute</td><td><span class="zh">进入交互模式，逐项选择删除哪一份（默认仅列出）</span><span class="en">Enter interactive mode (default is read-only listing only).</span></td></tr><tr><td class="flag">--json</td><td><span class="zh">输出待清理清单，便于脚本</span><span class="en">Emit the cleanup list as JSON for scripts.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">不加 --execute 时是只读预览（安全）；加 --execute 后会对每个重复向你提问 [1/2/s]，按 s 可跳过。演示输出为只读预览。</span><span class="en">Without `--execute`, this is a safe read-only preview. With `--execute`, it asks you `[1/2/s]` for each duplicate (press `s` to skip). The demo output is the preview.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -383,15 +383,15 @@ DUPLICATE SKILLS
     </section>
 
     <section id="cost">
-      <h2><span class="cmd-tag">cost / context<span class="en">cost / context</span></span> <span class="zh">cost — 估算「上下文税」</span><span class="en">cost — estimate the context tax</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">cost / context</span><span class="en">cost / context</span></span> <span class="zh">cost — 估算「上下文税」</span><span class="en">cost — estimate the context tax</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">技能、MCP、Agent 配置每轮都会悄悄塞进对话上下文，吃掉 token 与钱。cost 帮你按平台/资源拆解「每轮要背多少 token」，并对照预算评级；context 子命令还能开关 Codex 的某些资源。</span><span class="en">Skills, MCP servers, and Agent config silently inflate every conversation, burning tokens and money. `cost` breaks down per-platform/per-resource "how many tokens per turn" and grades you against the budget; the `context` sub-command can also enable/disable Codex resources.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor cost --scope project</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">[project-dir]</td><td><span class="zh">要分析的项目目录，默认当前目录</span><span class="en">Project directory to analyze (default: current).</span></td></tr><tr><td class="flag">--platform &lt;p&gt;</td><td><span class="zh">只看某个平台（claude/codex/copilot/...）</span><span class="en">Limit to a single platform (claude/codex/copilot/...).</span></td></tr><tr><td class="flag">--source skill|mcp|all</td><td><span class="zh">只统计技能 / MCP / 全部</span><span class="en">Restrict to skills / MCP / everything.</span></td></tr><tr><td class="flag">--budget-tokens N</td><td><span class="zh">每轮预算，超过则标红</span><span class="en">Per-turn budget; over-budget rows are flagged.</span></td></tr><tr><td class="flag">--fail-on-budget</td><td><span class="zh">超预算时退出码 1</span><span class="en">Exit with code 1 when over budget.</span></td></tr><tr><td class="flag">--tokenizer openai|approx</td><td><span class="zh">分词器；默认 openai（精确）</span><span class="en">Tokenizer; default `openai` (precise).</span></td></tr><tr><td class="flag">context enable|disable --id &lt;id&gt;</td><td><span class="zh">启用/禁用某个 Codex 上下文资源</span><span class="en">Enable/disable a Codex context resource.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">真实输出给出每轮 392 token 的估算、按平台（copilot/claude）拆分、各技能开销，并给出 A 级（预算内）评级。这是优化「AI 越用越贵」的利器。</span><span class="en">Real output: ~392 tokens/turn, broken down per platform (copilot/claude) and per skill, graded A (within budget). A great lever to fight "AI gets more expensive the more you use it".</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">[project-dir]</td><td><span class="zh">要分析的项目目录，默认当前目录</span><span class="en">Project directory to analyze (default: current).</span></td></tr><tr><td class="flag">--platform &lt;p&gt;</td><td><span class="zh">只看某个平台（claude/codex/copilot/...）</span><span class="en">Limit to a single platform (claude/codex/copilot/...).</span></td></tr><tr><td class="flag">--source skill|mcp|all</td><td><span class="zh">只统计技能 / MCP / 全部</span><span class="en">Restrict to skills / MCP / everything.</span></td></tr><tr><td class="flag">--budget-tokens N</td><td><span class="zh">每轮预算，超过则标红</span><span class="en">Per-turn budget; over-budget rows are flagged.</span></td></tr><tr><td class="flag">--fail-on-budget</td><td><span class="zh">超预算时退出码 1</span><span class="en">Exit with code 1 when over budget.</span></td></tr><tr><td class="flag">--tokenizer openai|approx</td><td><span class="zh">分词器；默认 openai（精确）</span><span class="en">Tokenizer; default `openai` (precise).</span></td></tr><tr><td class="flag">context enable|disable --id &lt;id&gt;</td><td><span class="zh">启用/禁用某个 Codex 上下文资源</span><span class="en">Enable/disable a Codex context resource.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">真实输出给出每轮 392 token 的估算、按平台（copilot/claude）拆分、各技能开销，并给出 A 级（预算内）评级。这是优化「AI 越用越贵」的利器。</span><span class="en">Real output: ~392 tokens/turn, broken down per platform (copilot/claude) and per skill, graded A (within budget). A great lever to fight "AI gets more expensive the more you use it".</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -453,15 +453,15 @@ Highest cost items:
     </section>
 
     <section id="diff">
-      <h2><span class="cmd-tag">diff &lt;a&gt; &lt;b&gt;<span class="en">diff &lt;a&gt; &lt;b&gt;</span></span> <span class="zh">diff — 对比两个技能</span><span class="en">diff — compare two skills</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">diff &lt;a&gt; &lt;b&gt;</span><span class="en">diff &lt;a&gt; &lt;b&gt;</span></span> <span class="zh">diff — 对比两个技能</span><span class="en">diff — compare two skills</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">你想确认两个技能到底差在哪（比如要合并、要替换、还是根本是同一个东西换了个名），用 diff 并排对比它们的字段与触发条件。</span><span class="en">You want to know exactly how two skills differ (to merge, replace, or discover they are the same thing under different names). `diff` lays out their fields and trigger conditions side by side.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor diff data-exporter code-reviewer</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">&lt;skill-a&gt; &lt;skill-b&gt;</td><td><span class="zh">两个技能名（必填）</span><span class="en">Two skill names (required).</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">导出可视化 HTML 对比报告</span><span class="en">Export a visual HTML comparison report.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">未配置分析模型时，diff 会回退到「仅展示提取字段」模式（下方真实输出中的提示）。配置模型后会额外给出语义层面的差异解读。</span><span class="en">When no analysis model is configured, `diff` falls back to "fields only" mode (see the notice in the real output below). Once a model is configured, it also gives a semantic interpretation of the differences.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">&lt;skill-a&gt; &lt;skill-b&gt;</td><td><span class="zh">两个技能名（必填）</span><span class="en">Two skill names (required).</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">导出可视化 HTML 对比报告</span><span class="en">Export a visual HTML comparison report.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">未配置分析模型时，diff 会回退到「仅展示提取字段」模式（下方真实输出中的提示）。配置模型后会额外给出语义层面的差异解读。</span><span class="en">When no analysis model is configured, `diff` falls back to "fields only" mode (see the notice in the real output below). Once a model is configured, it also gives a semantic interpretation of the differences.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -488,15 +488,15 @@ Highest cost items:
     </section>
 
     <section id="ui">
-      <h2><span class="cmd-tag">ui<span class="en">ui</span></span> <span class="zh">ui — 启动 Web 仪表盘</span><span class="en">ui — launch the web dashboard</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">ui</span><span class="en">ui</span></span> <span class="zh">ui — 启动 Web 仪表盘</span><span class="en">ui — launch the web dashboard</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">比起纯终端，你更想要一个可点的网页界面：总览、冲突、上下文成本、技能库一目了然。ui 会在本地起一个带鉴权会话的 Web 服务。</span><span class="en">When you prefer a clickable web UI over the terminal — with overview, conflicts, context cost, and the skill library at a glance — `ui` starts a local web server with session-based auth.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor ui --port 4173 --no-open</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">[project-dir]</td><td><span class="zh">要分析的项目目录，默认当前目录</span><span class="en">Project directory to analyze (default: current).</span></td></tr><tr><td class="flag">--port N</td><td><span class="zh">监听端口，默认随机</span><span class="en">Listen port; default: random.</span></td></tr><tr><td class="flag">--no-open</td><td><span class="zh">不自动打开浏览器（服务器仍正常启动）</span><span class="en">Do not auto-open the browser (server still starts).</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">启动后会打印一个带 session token 的本地 URL（下方真实输出）。在浏览器打开即可使用全套可视化功能；按 Ctrl+C 停止。</span><span class="en">After starting, the CLI prints a local URL with a session token (see the real output below). Open it in a browser to use the full UI; press Ctrl+C to stop.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">[project-dir]</td><td><span class="zh">要分析的项目目录，默认当前目录</span><span class="en">Project directory to analyze (default: current).</span></td></tr><tr><td class="flag">--port N</td><td><span class="zh">监听端口，默认随机</span><span class="en">Listen port; default: random.</span></td></tr><tr><td class="flag">--no-open</td><td><span class="zh">不自动打开浏览器（服务器仍正常启动）</span><span class="en">Do not auto-open the browser (server still starts).</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">启动后会打印一个带 session token 的本地 URL（下方真实输出）。在浏览器打开即可使用全套可视化功能；按 Ctrl+C 停止。</span><span class="en">After starting, the CLI prints a local URL with a session token (see the real output below). Open it in a browser to use the full UI; press Ctrl+C to stop.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -512,15 +512,15 @@ Press Ctrl+C to stop.
     </section>
 
     <section id="dashboard">
-      <h2><span class="cmd-tag">dashboard<span class="en">dashboard</span></span> <span class="zh">dashboard — 生成静态总览报告</span><span class="en">dashboard — export a static overview report</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">dashboard</span><span class="en">dashboard</span></span> <span class="zh">dashboard — 生成静态总览报告</span><span class="en">dashboard — export a static overview report</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">你不想起服务，只想导出一份「可分享/可归档」的 HTML 总览（技能、冲突、审计、重复、清理建议一页纸），发给同事或提交到仓库。</span><span class="en">You do not want to run a server — just export a single-file HTML overview (skills, conflicts, audit, duplicates, cleanup suggestions) to share or commit.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor dashboard --scope project --report dashboard.html</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">导出 HTML；不写路径默认 dashboard.html</span><span class="en">Export HTML; default path is `dashboard.html`.</span></td></tr><tr><td class="flag">--open</td><td><span class="zh">生成后自动用浏览器打开</span><span class="en">Auto-open the report in a browser after generation.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">默认（不带 --report）也会写出 dashboard.html。本手册附录附带本次生成的 dashboard.html 样例。</span><span class="en">Even without `--report`, dashboard.html is written. A real sample of it ships as an appendix of this manual.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">--scope project|global|all</td><td><span class="zh">扫描范围，默认 all</span><span class="en">Scan scope, default `all`.</span></td></tr><tr><td class="flag">--report [path]</td><td><span class="zh">导出 HTML；不写路径默认 dashboard.html</span><span class="en">Export HTML; default path is `dashboard.html`.</span></td></tr><tr><td class="flag">--open</td><td><span class="zh">生成后自动用浏览器打开</span><span class="en">Auto-open the report in a browser after generation.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">默认（不带 --report）也会写出 dashboard.html。本手册附录附带本次生成的 dashboard.html 样例。</span><span class="en">Even without `--report`, dashboard.html is written. A real sample of it ships as an appendix of this manual.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -535,15 +535,15 @@ Dashboard written to: E:/tmp/sd-manual-demo/caps/dashboard.html
     </section>
 
     <section id="install">
-      <h2><span class="cmd-tag">install / uninstall<span class="en">install / uninstall</span></span> <span class="zh">install / uninstall — 安装与卸载技能</span><span class="en">install / uninstall — manage skills</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">install / uninstall</span><span class="en">install / uninstall</span></span> <span class="zh">install / uninstall — 安装与卸载技能</span><span class="en">install / uninstall — manage skills</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">你拿到一个本地 skill 目录（或市场 slug），想装到某个 AI 平台的技能目录里统一纳管；用完后用 uninstall 卸载。两者都写入「统一技能中心」center.json。</span><span class="en">You have a local skill directory (or a marketplace slug) and want to install it into a specific AI platform directory, then later uninstall it. Both operations are recorded in the unified skill center (center.json).</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor install ./skills/my-skill --target claude</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">&lt;path|slug&gt;</td><td><span class="zh">本地路径或市场 slug（必填）</span><span class="en">Local path or marketplace slug (required).</span></td></tr><tr><td class="flag">--target &lt;platform&gt;</td><td><span class="zh">目标平台；不写则自动探测当前活跃平台</span><span class="en">Target platform; auto-detected when omitted.</span></td></tr><tr><td class="flag">--link</td><td><span class="zh">以符号链接方式安装（便于开发调试）</span><span class="en">Install as a symlink (handy while developing).</span></td></tr><tr><td class="flag">uninstall &lt;name&gt; --target &lt;p&gt;</td><td><span class="zh">卸载指定名称的技能</span><span class="en">Uninstall a skill by name.</span></td></tr><tr><td class="flag">--force</td><td><span class="zh">强制卸载（即使仍有其它引用）</span><span class="en">Force uninstall even if other references exist.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">下方为隔离环境（临时 HOME）下的真实演示：安装本地 data-exporter 到 claude → center.json 立即登记该技能与安装记录 → 强制卸载后记录被移除。</span><span class="en">The example below uses an isolated environment (a temporary HOME) and shows: install `data-exporter` into claude → center.json immediately records the skill and its installation → force-uninstall removes the record.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">&lt;path|slug&gt;</td><td><span class="zh">本地路径或市场 slug（必填）</span><span class="en">Local path or marketplace slug (required).</span></td></tr><tr><td class="flag">--target &lt;platform&gt;</td><td><span class="zh">目标平台；不写则自动探测当前活跃平台</span><span class="en">Target platform; auto-detected when omitted.</span></td></tr><tr><td class="flag">--link</td><td><span class="zh">以符号链接方式安装（便于开发调试）</span><span class="en">Install as a symlink (handy while developing).</span></td></tr><tr><td class="flag">uninstall &lt;name&gt; --target &lt;p&gt;</td><td><span class="zh">卸载指定名称的技能</span><span class="en">Uninstall a skill by name.</span></td></tr><tr><td class="flag">--force</td><td><span class="zh">强制卸载（即使仍有其它引用）</span><span class="en">Force uninstall even if other references exist.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">下方为隔离环境（临时 HOME）下的真实演示：安装本地 data-exporter 到 claude → center.json 立即登记该技能与安装记录 → 强制卸载后记录被移除。</span><span class="en">The example below uses an isolated environment (a temporary HOME) and shows: install `data-exporter` into claude → center.json immediately records the skill and its installation → force-uninstall removes the record.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -600,15 +600,15 @@ Dashboard written to: E:/tmp/sd-manual-demo/caps/dashboard.html
     </section>
 
     <section id="center">
-      <h2><span class="cmd-tag">center<span class="en">center</span></span> <span class="zh">center — 统一技能中心</span><span class="en">center — the unified skill center</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">center</span><span class="en">center</span></span> <span class="zh">center — 统一技能中心</span><span class="en">center — the unified skill center</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">skill-doctor 用 center.json 作为「技能与安装记录的单一真相源」。老旧版本数据（catalog/deployments/registry）需要一次性迁移过来；show 则查看当前全部纳管技能与安装情况。</span><span class="en">skill-doctor uses `center.json` as the single source of truth for skills and their installation records. Older data (catalog/deployments/registry) must be migrated in once; `show` then prints the whole picture.</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor center migrate</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">center migrate</td><td><span class="zh">把旧格式数据迁移到 center.json（幂等，可重复执行）</span><span class="en">Migrate legacy data into center.json (idempotent, re-runnable).</span></td></tr><tr><td class="flag">center show</td><td><span class="zh">以 JSON 打印 center.json 全部内容</span><span class="en">Print the entire center.json as JSON.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">migrate 真实输出显示已迁移 34 个技能、1 个安装记录、无备份（说明本机早已是 center 格式）。show 输出较长，下方仅截取前若干项示意（本机共 34 个技能）。</span><span class="en">`migrate` output shows 34 skills migrated, 1 installation record, no backup (the machine was already in center format). The `show` output is long; only the first entries are shown below (34 skills in total on this machine).</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">center migrate</td><td><span class="zh">把旧格式数据迁移到 center.json（幂等，可重复执行）</span><span class="en">Migrate legacy data into center.json (idempotent, re-runnable).</span></td></tr><tr><td class="flag">center show</td><td><span class="zh">以 JSON 打印 center.json 全部内容</span><span class="en">Print the entire center.json as JSON.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">migrate 真实输出显示已迁移 34 个技能、1 个安装记录、无备份（说明本机早已是 center 格式）。show 输出较长，下方仅截取前若干项示意（本机共 34 个技能）。</span><span class="en">`migrate` output shows 34 skills migrated, 1 installation record, no backup (the machine was already in center format). The `show` output is long; only the first entries are shown below (34 skills in total on this machine).</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -665,15 +665,15 @@ Migrated to center.json:
     </section>
 
     <section id="config">
-      <h2><span class="cmd-tag">config<span class="en">config</span></span> <span class="zh">config — 配置分析 / 嵌入模型</span><span class="en">config — configure analysis / embedding models</span></h2>
+      <h2><span class="cmd-tag"><span class="zh">config</span><span class="en">config</span></span> <span class="zh">config — 配置分析 / 嵌入模型</span><span class="en">config — configure analysis / embedding models</span></h2>
       <div class="card">
-        <h3>使用场景<span class="en">Scenario</span></h3>
+        <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
         <p><span class="zh">要让 skill-doctor 的 AI 增强能力（show 的语义解读、conflicts 的 embedding 策略、audit --ai、diff 的语义差异）生效，需要先在 ~/.skill-doctor/config.json 里配置一个 OpenAI 兼容的分析模型（可选再配嵌入模型）。</span><span class="en">To unlock skill-doctor's AI-enhanced capabilities (semantic interpretation in `show`, embedding strategy in `conflicts`, `audit --ai`, semantic differences in `diff`), first configure an OpenAI-compatible analysis model in `~/.skill-doctor/config.json` (optionally an embedding model too).</span></p>
-        <h3>使用方式<span class="en">Usage</span></h3>
+        <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ skill-doctor config set analysis --base-url https://…/v1 --model gpt-4o</div>
-        <table class="flags"><thead><tr><th>选项<span class="en">Option</span></th><th>说明<span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">config view</td><td><span class="zh">查看当前模型配置状态</span><span class="en">View the current model configuration.</span></td></tr><tr><td class="flag">config set analysis|embedding --base-url &lt;url&gt; --model &lt;m&gt;</td><td><span class="zh">设置分析/嵌入模型端点与模型名</span><span class="en">Set the analysis/embedding model endpoint and name.</span></td></tr><tr><td class="flag">--api-key &lt;key&gt;</td><td><span class="zh">设置 API Key（也可不写，走环境变量）</span><span class="en">Set the API key (or rely on the environment variable).</span></td></tr><tr><td class="flag">--clear-api-key</td><td><span class="zh">清除已保存的 Key</span><span class="en">Clear a stored API key.</span></td></tr><tr><td class="flag">config test [--service analysis|embedding]</td><td><span class="zh">连通性自检</span><span class="en">Connectivity self-test.</span></td></tr></tbody></table>
-        <h3>说明<span class="en">Notes</span></h3><p class="note"><span class="zh">下方真实输出显示本机尚未配置模型（not configured）。配置后，show/conflicts --strategy embedding/audit --ai/diff 才会启用对应的智能能力。</span><span class="en">The real output below shows the machine is not configured yet. Once configured, `show`, `conflicts --strategy embedding`, `audit --ai`, and `diff` will gain the corresponding smart features.</span></p>
-        <h3>使用效果<span class="en">Effect</span></h3>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">config view</td><td><span class="zh">查看当前模型配置状态</span><span class="en">View the current model configuration.</span></td></tr><tr><td class="flag">config set analysis|embedding --base-url &lt;url&gt; --model &lt;m&gt;</td><td><span class="zh">设置分析/嵌入模型端点与模型名</span><span class="en">Set the analysis/embedding model endpoint and name.</span></td></tr><tr><td class="flag">--api-key &lt;key&gt;</td><td><span class="zh">设置 API Key（也可不写，走环境变量）</span><span class="en">Set the API key (or rely on the environment variable).</span></td></tr><tr><td class="flag">--clear-api-key</td><td><span class="zh">清除已保存的 Key</span><span class="en">Clear a stored API key.</span></td></tr><tr><td class="flag">config test [--service analysis|embedding]</td><td><span class="zh">连通性自检</span><span class="en">Connectivity self-test.</span></td></tr></tbody></table>
+        <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">下方真实输出显示本机尚未配置模型（not configured）。配置后，show/conflicts --strategy embedding/audit --ai/diff 才会启用对应的智能能力。</span><span class="en">The real output below shows the machine is not configured yet. Once configured, `show`, `conflicts --strategy embedding`, `audit --ai`, and `diff` will gain the corresponding smart features.</span></p>
+        <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
     <div class="term">
       <div class="term-bar">
@@ -699,7 +699,7 @@ Usage: skill-doctor config set analysis|embedding --base-url &lt;url&gt; --model
       </div>
     </section>
 </main>
-<footer>由 skill-doctor 真实输出生成 · 截图保留原始 ANSI 配色<span class="en">Generated from real skill-doctor output · terminal colors preserved</span></footer>
+<footer><span class="zh">由 skill-doctor 真实输出生成 · 截图保留原始 ANSI 配色</span><span class="en">Generated from real skill-doctor output · terminal colors preserved</span></footer>
 <script>
   (function () {
     var KEY = 'skill-doctor-manual-lang';
