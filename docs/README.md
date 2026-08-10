@@ -4,6 +4,8 @@
   <a href="./README.zh-CN.md"><strong>📘 中文文档 (Chinese)</strong></a>
 </p>
 
+> 👉 Want to see it in action? Open the **[interactive HTML manual](./pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command, with a 中文/EN toggle.
+
 > `skill-doctor` is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / ACA, etc.): duplicates, conflicts, security risks, and context cost. Every command accepts `--json` for machine-readable output, convenient for CI.
 
 This reference mirrors the [bilingual HTML manual](./pages/manual.html); each command below covers **Scenario / Usage / Effect**.
