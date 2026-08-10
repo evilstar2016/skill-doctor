@@ -4,11 +4,11 @@
   <a href="./README.md"><strong>📗 English</strong></a>
 </p>
 
-> 👉 想看图看效果？打开 **[图文使用手册（HTML）](./pages/manual.html)** —— 每个命令都有真实终端截图和界面走查，并支持中文/EN 切换。
+> 👉 想看图看效果？打开 **[图文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/pages/manual.html)** —— 每个命令都有真实终端截图和界面走查，并支持中文/EN 切换。
 
 > `skill-doctor` 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。所有命令都支持 `--json` 输出，便于接入 CI。
 
-本说明文档与图文并茂的 **[使用手册（HTML，中英双语）](./pages/manual.html)** 内容类似：每个命令都覆盖 **使用场景 / 使用方式 / 使用效果** 三块。
+本说明文档与图文并茂的 **[使用手册（HTML，中英双语）](https://evilstar2016.github.io/skill-doctor/pages/manual.html)** 内容类似：每个命令都覆盖 **使用场景 / 使用方式 / 使用效果** 三块。
 
 **约定**：`--scope project` 只看当前仓库、避免扫到全局；`--json` 输出机器可读结果便于 CI。手册与示例均在一个含 1 个重复技能的示例项目里运行，所以多处会出现 `data-exporter 有 2 份` 的现象。
 
@@ -245,7 +245,7 @@
   | `--port N` | 监听端口，默认随机。 |
   | `--no-open` | 不自动打开浏览器（服务器仍正常启动）。 |
 - **说明**
-  - 启动后打印一个带 session token 的本地 URL；在浏览器打开即可使用全套可视化功能，按 Ctrl+C 停止。界面样例见 [docs/index.html](./index.html)。
+  - 启动后打印一个带 session token 的本地 URL；在浏览器打开即可使用全套可视化功能，按 Ctrl+C 停止。界面样例见 [GitHub Pages 上的截图](https://evilstar2016.github.io/skill-doctor/)。
 
 ---
 
@@ -326,4 +326,4 @@
 
 ---
 
-> 更完整的图文与真实终端截图，请查看 **[使用手册（HTML）](./pages/manual.html)**。
+> 更完整的图文与真实终端截图，请查看 **[使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/pages/manual.html)**。
