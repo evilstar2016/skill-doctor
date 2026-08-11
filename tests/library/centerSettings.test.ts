@@ -54,6 +54,27 @@ describe('central library settings', () => {
     expect(fs.existsSync(join(libraryRoot, 'backups'))).toBe(false);
   });
 
+  it('shows only skills from the active library after switching roots', () => {
+    const homeDir = fs.mkdtempSync('/tmp/skill-doctor-center-settings-');
+    temporaryDirs.push(homeDir);
+    const firstLibraryRoot = join(homeDir, 'first-library');
+    const secondLibraryRoot = join(homeDir, 'second-library');
+
+    fs.mkdirSync(join(firstLibraryRoot, 'old-skill'), { recursive: true });
+    fs.writeFileSync(join(firstLibraryRoot, 'old-skill', 'SKILL.md'), '# Old Skill\n', 'utf8');
+    saveCenterLibrarySettings(firstLibraryRoot, homeDir);
+    expect(getCenterView(homeDir, homeDir).skills.map((skill) => skill.name)).toEqual(['old-skill']);
+
+    fs.mkdirSync(join(secondLibraryRoot, 'new-skill'), { recursive: true });
+    fs.writeFileSync(join(secondLibraryRoot, 'new-skill', 'SKILL.md'), '# New Skill\n', 'utf8');
+    saveCenterLibrarySettings(secondLibraryRoot, homeDir);
+
+    const view = getCenterView(homeDir, homeDir);
+
+    expect(view.skills.map((skill) => skill.name)).toEqual(['new-skill']);
+    expect(fs.existsSync(join(firstLibraryRoot, 'old-skill', 'SKILL.md'))).toBe(true);
+  });
+
   it('moves legacy management files out of a selected library root and preserves imported Skill directories', () => {
     const homeDir = fs.mkdtempSync('/tmp/skill-doctor-center-settings-');
     temporaryDirs.push(homeDir);

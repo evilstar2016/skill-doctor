@@ -1,3 +1,4 @@
+import { dirname, resolve } from 'node:path';
 import type { Platform, Scope } from '../types/skill';
 import type { ManagedSkill, ManagedSkillSource } from '../library/catalog';
 import {
@@ -63,6 +64,7 @@ export interface CenterView {
  * are migrated into it on first access (see centerStore.ts).
  */
 export function getCenterView(projectDir: string, homeDir?: string): CenterView {
+  const settings = loadCenterLibrarySettings(homeDir);
   syncCenterLibrarySkills(homeDir);
   const { skills, deployments } = listManagedSkillDeployments(projectDir, { homeDir });
 
@@ -80,15 +82,20 @@ export function getCenterView(projectDir: string, homeDir?: string): CenterView 
       treeHash: candidate.treeHash,
       managed: false,
     }));
-  const managedSkills: CenterSkillView[] = skills.map((skill) => toSkillView(skill, deployments, physical));
+  const managedSkills: CenterSkillView[] = skills
+    .filter((skill) => isDirectChildOf(skill.rootPath, settings.rootPath))
+    .map((skill) => toSkillView(skill, deployments, physical));
 
-  const settings = loadCenterLibrarySettings(homeDir);
   return {
     skills: managedSkills,
     physical,
     importPlanId: preview.planId,
     library: { rootPath: settings.rootPath, isDefault: settings.rootPath === getDefaultCenterLibraryPath(homeDir) },
   };
+}
+
+function isDirectChildOf(skillPath: string, libraryRoot: string): boolean {
+  return resolve(dirname(skillPath)) === resolve(libraryRoot);
 }
 
 function toSkillView(skill: ManagedSkill, deployments: SkillDeployment[], physical: CenterPhysicalView[]): CenterSkillView {
