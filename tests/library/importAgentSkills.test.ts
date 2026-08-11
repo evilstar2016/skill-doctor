@@ -8,6 +8,7 @@ import { getCenterView } from '../../src/application/center.js';
 import { getManagedSkillConflictDiff } from '../../src/application/deployments.js';
 import { commitAgentSkillImport, previewAgentSkillImport } from '../../src/library/importAgentSkills.js';
 import { importLocalSkill } from '../../src/library/importLocalSkill.js';
+import { saveCenterLibrarySettings } from '../../src/library/centerSettings.js';
 import { getManagedSkillPaths } from '../../src/library/paths.js';
 import { cleanupTempRoots, createTempRoot, writeFile } from '../helpers/cliHarness.js';
 
@@ -114,6 +115,38 @@ describe('Agent skill import preview', () => {
     expect(() => commitAgentSkillImport({
       homeDir, projectDir, planId: plan.planId, decisions: [{ candidateId: candidate.id, action: 'keep-copy' }],
     })).toThrow('stale');
+  });
+
+  it.skipIf(process.platform === 'win32')('reclassifies physical copies against the active center library after switching roots', () => {
+    const root = createTempRoot();
+    const homeDir = join(root, 'home');
+    const projectDir = join(root, 'project');
+    fs.mkdirSync(projectDir, { recursive: true });
+    const firstLibraryRoot = join(root, 'first-library');
+    const secondLibraryRoot = join(root, 'second-library');
+    saveCenterLibrarySettings(firstLibraryRoot, homeDir);
+    const previous = importLocalSkill({ sourcePath: writeSkill(join(root, 'managed'), 'review'), homeDir }).skill;
+    const physical = writeSkill(join(homeDir, '.claude', 'skills', 'review'), 'review');
+
+    saveCenterLibrarySettings(secondLibraryRoot, homeDir);
+    const center = getCenterView(projectDir, homeDir);
+    const candidate = center.physical.find((entry) => entry.rootPath === physical);
+
+    expect(candidate).toMatchObject({ status: 'new' });
+
+    const result = commitAgentSkillImport({
+      homeDir,
+      projectDir,
+      planId: center.importPlanId,
+      physicalOnly: true,
+      decisions: [{ candidateId: candidate!.id, action: 'replace-with-link' }],
+    });
+    const active = loadCenter(homeDir).skills.find((skill) => skill.rootPath === join(secondLibraryRoot, 'review'));
+
+    expect(result.outcomes[0]).toMatchObject({ status: 'linked' });
+    expect(active).toBeDefined();
+    expect(fs.realpathSync(physical)).toBe(fs.realpathSync(active!.rootPath));
+    expect(fs.realpathSync(physical)).not.toBe(fs.realpathSync(previous.rootPath));
   });
 });
 

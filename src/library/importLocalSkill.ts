@@ -7,7 +7,7 @@ import {
   type ManagedSkill,
   type ManagedSkillSource,
 } from './catalog.js';
-import { getManagedSkillPaths } from './paths.js';
+import { getManagedSkillPaths, isDirectChildOfLibrary } from './paths.js';
 import { copySkillDirectory, inspectSkillDirectory } from './skillDirectory.js';
 import { loadManagedSkills, upsertManagedSkill } from './centerStore.js';
 
@@ -35,7 +35,8 @@ export function importLocalSkill(options: ImportLocalSkillOptions): ImportLocalS
   const homeDir = options.homeDir ?? homedir();
   const source = inspectSkillDirectory(options.sourcePath);
   const paths = getManagedSkillPaths(homeDir);
-  const skills = loadManagedSkills(homeDir);
+  const skills = loadManagedSkills(homeDir)
+    .filter((skill) => isDirectChildOfLibrary(skill.rootPath, paths.skillsDir));
   const duplicate = skills.find((skill) => skill.treeHash === source.treeHash);
   if (duplicate) {
     return { skill: duplicate, imported: false, duplicate: true };

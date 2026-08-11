@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 
 import { getCenterSettingsPath, getCenterStatePath, loadCenterLibrarySettings } from './centerSettings.js';
 
@@ -14,6 +14,10 @@ export interface ManagedSkillPaths {
   registryPath: string;
   stagingDir: string;
   backupsDir: string;
+}
+
+export function isDirectChildOfLibrary(skillPath: string, libraryRoot: string): boolean {
+  return resolve(dirname(skillPath)) === resolve(libraryRoot);
 }
 
 export function getManagedSkillPaths(homeDir = homedir()): ManagedSkillPaths {

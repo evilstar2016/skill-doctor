@@ -8,7 +8,7 @@ import type { Platform, Scope } from '../types/skill.js';
 import { type ManagedSkill } from './catalog.js';
 import { importLocalSkill } from './importLocalSkill.js';
 import { loadManagedSkills, removeCenterSkill } from './centerStore.js';
-import { getManagedSkillPaths } from './paths.js';
+import { getManagedSkillPaths, isDirectChildOfLibrary } from './paths.js';
 import { inspectSkillDirectory } from './skillDirectory.js';
 
 export type AgentImportCandidateStatus =
@@ -76,7 +76,9 @@ export interface AgentSkillImportOptions {
 }
 
 export function previewAgentSkillImport(options: AgentSkillImportOptions): AgentSkillImportPreview {
-  const skills = loadManagedSkills(options.homeDir);
+  const paths = getManagedSkillPaths(options.homeDir);
+  const skills = loadManagedSkills(options.homeDir)
+    .filter((skill) => isDirectChildOfLibrary(skill.rootPath, paths.skillsDir));
   const candidates = collectCandidateRoots(options).map((entry) => inspectCandidate(entry, skills));
   candidates.sort((left, right) => left.rootPath.localeCompare(right.rootPath) || left.id.localeCompare(right.id));
   return { planId: hashValue(candidates), candidates };
