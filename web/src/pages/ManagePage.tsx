@@ -29,7 +29,7 @@ type StatusFilter = 'all' | CenterInstallationView['status'];
 type Confirmation = { title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => Promise<void> };
 type ReclaimDecision = { candidateId: string; action: 'replace-with-link' | 'keep-separate-and-link' | 'use-managed-link'; name?: string };
 
-export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIssues }: { bootstrap: BootstrapPayload | null; snapshot: DoctorSnapshot | null; onChanged: () => void; setToast: (message: string) => void; onViewIssues?: (skillName: string) => void }) {
+export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIssues, selectedAgent = 'all' }: { bootstrap: BootstrapPayload | null; snapshot: DoctorSnapshot | null; onChanged: () => void; setToast: (message: string) => void; onViewIssues?: (skillName: string) => void; selectedAgent?: Platform | 'all' }) {
   const { t } = useTranslation();
   const [center, setCenter] = useState<CenterView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,11 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     return () => { active = false; };
   }, [reloadKey]);
 
+  useEffect(() => {
+    setSelected(new Set());
+    setDetail(null);
+  }, [selectedAgent]);
+
   const rows = useMemo<Row[]>(() => {
     if (!center) return [];
     const managed: Row[] = center.skills.map((skill) => ({ id: skill.id, kind: 'managed', skill }));
@@ -96,10 +101,11 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     const groups = new Map<Platform, CenterPhysicalView[]>();
     for (const row of filtered) {
       if (row.kind !== 'physical') continue;
+      if (selectedAgent !== 'all' && row.candidate.platform !== selectedAgent) continue;
       groups.set(row.candidate.platform, [...(groups.get(row.candidate.platform) ?? []), row.candidate]);
     }
     return [...groups.entries()];
-  }, [filtered]);
+  }, [filtered, selectedAgent]);
   const managedRows = filtered.filter((row): row is Extract<Row, { kind: 'managed' }> => row.kind === 'managed');
 
   const reload = () => { setSelected(new Set()); setDetail(null); setReloadKey((value) => value + 1); onChanged(); };

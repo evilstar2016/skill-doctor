@@ -73,6 +73,23 @@ describe('ManagePage unified Skill Center', () => {
     expect(screen.getByRole('button', { name: '部署到 Agent' })).toBeTruthy();
   });
 
+  it('filters pending skills by the selected Agent from the top bar', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [],
+      physical: [
+        { id: 'phys-claude', name: 'local-review', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', status: 'new', managed: false },
+        { id: 'phys-codex', name: 'format-docs', rootPath: '/home/.codex/skills/format-docs', platform: 'codex', scope: 'global', status: 'new', managed: false },
+      ],
+      importPlanId: 'plan-agents',
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} selectedAgent="codex" onChanged={vi.fn()} setToast={vi.fn()} />);
+
+    expect(await screen.findByText('format-docs')).toBeTruthy();
+    expect(screen.queryByText('local-review')).toBeNull();
+    expect(screen.getByText('Agent：Codex（1）')).toBeTruthy();
+  });
+
   it('shows physical candidates matched to a canonical managed skill', async () => {
     mocks.getCenterSkills.mockResolvedValue({
       skills: [{

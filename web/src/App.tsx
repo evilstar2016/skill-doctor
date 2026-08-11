@@ -259,7 +259,7 @@ function AppContent() {
               if (rescan) refresh();
             }}
           />}
-          {route === 'manage' && <ManagePageView bootstrap={bootstrap} snapshot={snapshot} onChanged={() => { void getBootstrap().then(setBootstrap); refresh(); }} setToast={setToast} onViewIssues={() => navigate('issues')} />}
+          {route === 'manage' && <ManagePageView bootstrap={bootstrap} snapshot={snapshot} selectedAgent={scanOptions.platform} onChanged={() => { void getBootstrap().then(setBootstrap); refresh(); }} setToast={setToast} onViewIssues={() => navigate('issues')} />}
         </div>
       </main>
 
