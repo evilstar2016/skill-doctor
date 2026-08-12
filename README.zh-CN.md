@@ -16,7 +16,7 @@
 
 ## 30 秒试用
 
-当前版本：npm 上的 [`v0.4.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.0)。
+当前版本：npm 上的 [`v0.4.1`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.1)。
 
 ```bash
 npx @evilstar2025/skill-doctor scan
