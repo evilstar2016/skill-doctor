@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>skill-doctor 使用手册 v0.4.1 / skill-doctor manual v0.4.1</title>
+<title>skill-doctor 使用手册 v0.4.2 / skill-doctor manual v0.4.2</title>
 <style>
   :root{
     --bg:#f6f8fa; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280;
@@ -83,7 +83,7 @@
   </div>
   <h1><span class="zh">skill-doctor 使用手册</span><span class="en">skill-doctor manual</span></h1>
   <p><span class="zh">本地 CLI，用于审计 AI 编码助手的技能：重复 · 冲突 · 安全风险 · 上下文成本</span><span class="en">A local CLI for auditing AI-coding-assistant skills: duplicates · conflicts · security risks · context cost</span></p>
-  <span class="ver"><span class="zh">版本 v0.4.1 · 所有截图均为真实命令输出</span><span class="en">Version v0.4.1 · every screenshot is a real command output</span></span>
+  <span class="ver"><span class="zh">版本 v0.4.2 · 所有截图均为真实命令输出</span><span class="en">Version v0.4.2 · every screenshot is a real command output</span></span>
 </header>
 <nav class="toc"><a href="#start"><span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></a><a href="#help"><span class="zh">skill-doctor --help</span><span class="en">skill-doctor --help</span></a><a href="#scan"><span class="zh">scan</span><span class="en">scan</span></a><a href="#show"><span class="zh">show &lt;name&gt;</span><span class="en">show &lt;name&gt;</span></a><a href="#conflicts"><span class="zh">conflicts</span><span class="en">conflicts</span></a><a href="#audit"><span class="zh">audit</span><span class="en">audit</span></a><a href="#check"><span class="zh">check</span><span class="en">check</span></a><a href="#cleanup"><span class="zh">cleanup</span><span class="en">cleanup</span></a><a href="#cost"><span class="zh">cost / context</span><span class="en">cost / context</span></a><a href="#diff"><span class="zh">diff &lt;a&gt; &lt;b&gt;</span><span class="en">diff &lt;a&gt; &lt;b&gt;</span></a><a href="#ui"><span class="zh">ui</span><span class="en">ui</span></a><a href="#dashboard"><span class="zh">dashboard</span><span class="en">dashboard</span></a><a href="#install"><span class="zh">install / uninstall</span><span class="en">install / uninstall</span></a><a href="#center"><span class="zh">center</span><span class="en">center</span></a><a href="#config"><span class="zh">config</span><span class="en">config</span></a></nav>
 <main>
@@ -102,7 +102,7 @@
         <p><span class="zh">skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</span><span class="en">skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / ACA, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</span></p>
         <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
-        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td><span class="zh">全局安装，之后直接用 skill-doctor 命令</span><span class="en">Install globally, then use the `skill-doctor` command directly.</span></td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td><span class="zh">不安装，临时运行某条命令</span><span class="en">Run a command on the fly without installing.</span></td></tr><tr><td class="flag">skill-doctor --version</td><td><span class="zh">查看版本（本手册基于 0.4.1）</span><span class="en">Print the version (this manual targets 0.4.1).</span></td></tr></tbody></table>
+        <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td><span class="zh">全局安装，之后直接用 skill-doctor 命令</span><span class="en">Install globally, then use the `skill-doctor` command directly.</span></td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td><span class="zh">不安装，临时运行某条命令</span><span class="en">Run a command on the fly without installing.</span></td></tr><tr><td class="flag">skill-doctor --version</td><td><span class="zh">查看版本（本手册基于 0.4.2）</span><span class="en">Print the version (this manual targets 0.4.2).</span></td></tr></tbody></table>
         <h3><span class="zh">说明</span><span class="en">Notes</span></h3><p class="note"><span class="zh">Node.js ≥ 20。所有命令都可加 --json 输出机器可读结果，便于接入 CI。手册中的示例都在一个示例项目里运行：该项目故意把同名技能 data-exporter 放进了 .claude 与 .github 两套平台目录（制造 1 个重复），并放了 code-reviewer 用于对比演示。</span><span class="en">Requires Node.js ≥ 20. Every command accepts `--json` for machine-readable output, which is convenient for CI. The examples in this manual run against a sample project that intentionally puts a skill named `data-exporter` into both `.claude` and `.github` (creating 1 duplicate) and also contains `code-reviewer` for diff demos.</span></p>
         <h3><span class="zh">使用效果</span><span class="en">Effect</span></h3>
         
@@ -112,7 +112,7 @@
         <span class="term-title">skill-doctor — bash</span>
       </div>
       <pre class="term-body"><span class="prompt">$ </span><span class="cmd">skill-doctor --version</span>
-0.4.1
+0.4.2
 </pre>
     </div>
       </div>

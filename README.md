@@ -16,7 +16,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other 
 
 ## Try it in 30 seconds
 
-Current release: [`v0.4.1`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.1) on npm.
+Current release: [`v0.4.2`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.2) on npm.
 
 ```bash
 npx @evilstar2025/skill-doctor scan

@@ -456,7 +456,7 @@ describe.skipIf(process.platform === 'win32')('CLI integration', () => {
       request.on('end', () => {
         requestCount += 1;
         const payload = JSON.parse(body) as { messages?: { content?: string }[] };
-        const prompt = payload.messages?.[0]?.content ?? '';
+        const prompt = payload.messages?.map((message) => message.content ?? '').join('\n') ?? '';
 
         response.writeHead(200, {
           'content-type': 'application/json',
