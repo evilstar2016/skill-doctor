@@ -1,119 +1,31 @@
-import { useId } from 'react';
 import type { ReactNode } from 'react';
+import { ClaudeLogo } from './logos/ClaudeLogo';
+import { CursorLogo } from './logos/CursorLogo';
+import { CopilotLogo } from './logos/CopilotLogo';
+import { CodexLogo } from './logos/CodexLogo';
+import { GeminiLogo } from './logos/GeminiLogo';
+import { WindsurfLogo } from './logos/WindsurfLogo';
+import { TraeLogo } from './logos/TraeLogo';
+import { OpenCodeLogo } from './logos/OpenCodeLogo';
+import { KiroLogo } from './logos/KiroLogo';
+import { OpenClawLogo } from './logos/OpenClawLogo';
+import { HermesLogo } from './logos/HermesLogo';
 
 export type PlatformLogoProps = { size?: number };
 type LogoComponent = (props: PlatformLogoProps) => ReactNode;
 
 // Brand-logo index. Each built-in platform maps to a glyph sourced from the
-// real brand mark (mirrors cc-switch's `iconUrls` approach): Claude / Codex /
-// Gemini / OpenClaw / Copilot come from the official assets, Cursor / Windsurf
-// / Trae from Simple Icons, and OpenCode / Kiro / Hermes are authored to match
-// their real brand identity. `custom:*` platforms intentionally have no logo
-// and fall back to the monogram in <PlatformIcon>.
-
-const ClaudeLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="#D97757">
-    <path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" />
-  </svg>
-);
-
-// Codex is an OpenAI product — use the OpenAI knot.
-const CodexLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="#10A37F">
-    <path d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001zm-8.381 11.558a4.199 4.199 0 01-2.675-.954c.034-.018.093-.05.132-.074l4.44-2.53a.71.71 0 00.364-.623v-6.176l1.877 1.069c.02.01.033.029.036.05v5.115c-.003 2.274-1.87 4.118-4.174 4.123zM4.192 17.78a4.059 4.059 0 01-.498-2.763c.032.02.09.055.131.078l4.44 2.53c.225.13.504.13.73 0l5.42-3.088v2.138a.068.068 0 01-.027.057L9.9 19.288c-1.999 1.136-4.552.46-5.707-1.51h-.001zM3.023 8.216A4.15 4.15 0 015.198 6.41l-.002.151v5.06a.711.711 0 00.364.624l5.42 3.087-1.876 1.07a.067.067 0 01-.063.005l-4.489-2.559c-1.995-1.14-2.679-3.658-1.53-5.63h.001zm15.417 3.54l-5.42-3.088L14.896 7.6a.067.067 0 01.063-.006l4.489 2.557c1.998 1.14 2.683 3.662 1.529 5.633a4.163 4.163 0 01-2.174 1.807V12.38a.71.71 0 00-.363-.623zm1.867-2.773a6.04 6.04 0 00-.132-.078l-4.44-2.53a.731.731 0 00-.729 0l-5.42 3.088V7.325a.068.068 0 01.027-.057L14.1 4.713c2-1.137 4.555-.46 5.707 1.513.487.833.664 1.809.499 2.757h.001zm-11.741 3.81l-1.877-1.068a.065.065 0 01-.036-.051V6.559c.001-2.277 1.873-4.122 4.181-4.12.976 0 1.92.338 2.671.954-.034.018-.092.05-.131.073l-4.44 2.53a.71.71 0 00-.365.623l-.003 6.173v.002zm1.02-2.168L12 9.25l2.414 1.375v2.75L12 14.75l-2.415-1.375v-2.75z" />
-  </svg>
-);
-
-const GeminiLogo: LogoComponent = ({ size = 18 }) => {
-  const gid = 'gem' + useId().replace(/:/g, '');
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#4285F4" />
-          <stop offset="1" stopColor="#EA4335" />
-        </linearGradient>
-      </defs>
-      <path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill={`url(#${gid})`} />
-    </svg>
-  );
-};
-
-// OpenClaw's mascot "Molty" — a red lobster.
-const OpenClawLogo: LogoComponent = ({ size = 18 }) => {
-  const gid = 'claw' + useId().replace(/:/g, '');
-  return (
-    <svg viewBox="0 0 120 120" width={size} height={size}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ff4d4d" />
-          <stop offset="100%" stopColor="#991b1b" />
-        </linearGradient>
-      </defs>
-      <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill={`url(#${gid})`} />
-      <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill={`url(#${gid})`} />
-      <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill={`url(#${gid})`} />
-      <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <circle cx="45" cy="35" r="6" fill="#050810" />
-      <circle cx="75" cy="35" r="6" fill="#050810" />
-      <circle cx="46" cy="34" r="2.5" fill="#00e5cc" />
-      <circle cx="76" cy="34" r="2.5" fill="#00e5cc" />
-    </svg>
-  );
-};
-
-const CopilotLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
-    <path d="M19.245 5.364c1.322 1.36 1.877 3.216 2.11 5.817.622 0 1.2.135 1.592.654l.73.964c.21.278.323.61.323.955v2.62c0 .339-.173.669-.453.868C20.239 19.602 16.157 21.5 12 21.5c-4.6 0-9.205-2.583-11.547-4.258-.28-.2-.452-.53-.453-.868v-2.62c0-.345.113-.679.321-.956l.73-.963c.392-.517.974-.654 1.593-.654l.029-.297c.25-2.446.81-4.213 2.082-5.52 2.461-2.54 5.71-2.851 7.146-2.864h.198c1.436.013 4.685.323 7.146 2.864zm-7.244 4.328c-.284 0-.613.016-.962.05-.123.447-.305.85-.57 1.108-1.05 1.023-2.316 1.18-2.994 1.18-.638 0-1.306-.13-1.851-.464-.516.165-1.012.403-1.044.996a65.882 65.882 0 00-.063 2.884l-.002.48c-.002.563-.005 1.126-.013 1.69.002.326.204.63.51.765 2.482 1.102 4.83 1.657 6.99 1.657 2.156 0 4.504-.555 6.985-1.657a.854.854 0 00.51-.766c.03-1.682.006-3.372-.076-5.053-.031-.596-.528-.83-1.046-.996-.546.333-1.212.464-1.85.464-.677 0-1.942-.157-2.993-1.18-.266-.258-.447-.661-.57-1.108-.32-.032-.64-.049-.96-.05zm-2.525 4.013c.539 0 .976.426.976.95v1.753c0 .525-.437.95-.976.95a.964.964 0 01-.976-.95v-1.752c0-.525.437-.951.976-.951zm5 0c.539 0 .976.426.976.95v1.753c0 .525-.437.95-.976.95a.964.964 0 01-.976-.95v-1.752c0-.525.437-.951.976-.951zM7.635 5.087c-1.05.102-1.935.438-2.385.906-.975 1.037-.765 3.668-.21 4.224.405.394 1.17.657 1.995.657h.09c.649-.013 1.785-.176 2.73-1.11.435-.41.705-1.433.675-2.47-.03-.834-.27-1.52-.63-1.813-.39-.336-1.275-.482-2.265-.394zm6.465.394c-.36.292-.6.98-.63 1.813-.03 1.037.24 2.06.675 2.47.968.957 2.136 1.104 2.776 1.11h.044c.825 0 1.59-.263 1.995-.657.555-.556.765-3.187-.21-4.224-.45-.468-1.335-.804-2.385-.906-.99-.088-1.875.058-2.265.394zM12 7.615c-.24 0-.525.015-.84.044.03.16.045.336.06.526l-.001.159a2.94 2.94 0 01-.014.25c.225-.022.425-.027.612-.028h.366c.187 0 .387.006.612.028-.015-.146-.015-.277-.015-.409.015-.19.03-.365.06-.526a9.29 9.29 0 00-.84-.044z" />
-  </svg>
-);
-
-const CursorLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
-    <path d="M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23" />
-  </svg>
-);
-
-const WindsurfLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
-    <path d="M23.55 5.067c-1.2038-.002-2.1806.973-2.1806 2.1765v4.8676c0 .972-.8035 1.7594-1.7597 1.7594-.568 0-1.1352-.286-1.4718-.7659l-4.9713-7.1003c-.4125-.5896-1.0837-.941-1.8103-.941-1.1334 0-2.1533.9635-2.1533 2.153v4.8957c0 .972-.7969 1.7594-1.7596 1.7594-.57 0-1.1363-.286-1.4728-.7658L.4076 5.1598C.2822 4.9798 0 5.0688 0 5.2882v4.2452c0 .2147.0656.4228.1884.599l5.4748 7.8183c.3234.462.8006.8052 1.3509.9298 1.3771.313 2.6446-.747 2.6446-2.0977v-4.893c0-.972.7875-1.7593 1.7596-1.7593h.003a1.798 1.798 0 0 1 1.4718.7658l4.9723 7.0994c.4135.5905 1.05.941 1.8093.941 1.1587 0 2.1515-.9645 2.1515-2.153v-4.8948c0-.972.7875-1.7594 1.7596-1.7594h.194a.22.22 0 0 0 .2204-.2202v-4.622a.22.22 0 0 0-.2203-.2203Z" />
-  </svg>
-);
-
-const TraeLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="#32F08C">
-    <path d="M24 20.5H3.5V17H0V3.5h24ZM3.5 17h17V7h-17Zm8.5-5-2.5 2.5L7 12l2.5-2.5Zm7 0-2.5 2.5L14 12l2.5-2.5z" />
-  </svg>
-);
-
-// OpenCode — dark rounded square with an inner cutout forming the "O" mark.
-const OpenCodeLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm4 4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H9z"
-    />
-  </svg>
-);
-
-// Kiro (AWS) — green spark mark.
-const KiroLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="#12B76A">
-    <path d="M12 2l1.8 7.2L21 11l-7.2 1.8L12 20l-1.8-7.2L3 11l7.2-1.8L12 2z" />
-  </svg>
-);
-
-// Hermes — caduceus (winged, double-snake staff) in gold.
-const HermesLogo: LogoComponent = ({ size = 18 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="#B08D57" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3v17" />
-    <path d="M9.4 7c-1.5 1-1.5 3 0 4M14.6 7c1.5 1 1.5 3 0 4" />
-    <path d="M6 4.2c1.6-1 3.1-1 4.2 0M18 4.2c-1.6-1-3.1-1-4.2 0" />
-    <circle cx="12" cy="3" r="1.3" fill="#B08D57" stroke="none" />
-  </svg>
-);
+// real brand mark: Claude / Codex / Gemini / OpenClaw / Copilot come from the
+// official assets, Cursor / Windsurf / Trae from Simple Icons, and OpenCode /
+// Kiro / Hermes are authored to match their real brand identity. `custom:*`
+// platforms intentionally have no logo and fall back to the monogram in
+// <PlatformIcon>.
+//
+// Each logo now lives in its own file under ./logos so it can be edited or
+// replaced independently and reviewed in isolation. Most use their fixed brand
+// color; Cursor / Copilot / Windsurf / OpenCode are monochrome marks and keep
+// `currentColor` so they stay visible on both light and dark themes (a fixed
+// black would vanish on dark).
 
 export const PLATFORM_LOGOS: Record<string, LogoComponent> = {
   claude: ClaudeLogo,
