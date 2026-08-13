@@ -4,6 +4,21 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+## 0.4.2 - 2026-08-13
+
+### Features
+- Add opt-in debug logging for every LLM and embedding call site (explain, AI audit, conflict analysis, embedding provider), gated by `SKILL_DOCTOR_LLM_DEBUG` and streamed to stderr without exposing API keys. Load `.env` from the project root at CLI startup so the flag works from a `.env` entry instead of only a shell variable.
+- Add brand-accurate agent platform logos, shown in the topbar agent tabs and on pending-agent group headings in the Skill Library.
+
+### Bug Fixes
+- Harden LLM JSON output and recover from malformed responses: enforce a JSON-only system prompt with few-shot examples and recover the first balanced JSON object from stray braces or markdown fences, instead of silently falling back to non-LLM output.
+- Do not cache failed LLM calls so the deep health check retries the model instead of silently returning zero findings forever after one malformed response.
+- Derive AI audit / embedding capabilities from live configuration in the UI.
+- Filter pending skills by the selected agent, and scope pending imports and managed skills to the active library.
+
+### Documentation
+- Split `README` into English (`README.md`) and Chinese (`README.zh-CN.md`) with cross-links; publish a bilingual manual and UI gallery to the GitHub Pages source directory and link it prominently from each README.
+
 ## 0.4.1 - 2026-08-06
 
 - Open-sourced the project: added `LICENSE` (MIT), `CODE_OF_CONDUCT.md`, and `SECURITY.md`.
