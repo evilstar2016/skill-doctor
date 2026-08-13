@@ -29,15 +29,18 @@ export async function handleConfigRoute(
       defaultScope: 'all',
       supportedPlatforms: getPlatformCliValues(),
       detectedAgents: detectAgents(context.projectDir, { homeDir: context.homeDir, sources: scanSources }),
-      capabilities: context.scans.currentSnapshot?.capabilities ?? {
-        aiAuditConfigured: Boolean(loaded.config.analysis?.baseUrl && loaded.config.analysis.model),
-        embeddingConfigured: Boolean(loaded.config.embedding?.baseUrl && loaded.config.embedding.model),
-        canToggleCodexResources: true,
-        canExecuteCleanup: false,
-        canInstall: true,
-        canUninstall: registry.entries.length > 0,
-        canExportDashboard: true,
-      },
+      capabilities: (() => {
+        const snapshotCapabilities = context.scans.currentSnapshot?.capabilities;
+        return {
+          aiAuditConfigured: Boolean(loaded.config.analysis?.baseUrl && loaded.config.analysis.model),
+          embeddingConfigured: Boolean(loaded.config.embedding?.baseUrl && loaded.config.embedding.model),
+          canToggleCodexResources: snapshotCapabilities?.canToggleCodexResources ?? true,
+          canExecuteCleanup: snapshotCapabilities?.canExecuteCleanup ?? false,
+          canInstall: true,
+          canUninstall: registry.entries.length > 0,
+          canExportDashboard: true,
+        };
+      })(),
       registry: registry.entries,
       snapshot: context.scans.currentSnapshot,
     });
