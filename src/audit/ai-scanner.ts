@@ -4,6 +4,7 @@ import type { SkillRecord } from '../types/skill';
 import type { AiFinding } from '../types/audit';
 import { hashContent, readAuditCache, writeAuditCache } from './audit-cache';
 import { AI_AUDIT_SYSTEM_PROMPT } from './ai-prompt';
+import { debugLlm } from '../llm/logging';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -92,27 +93,44 @@ async function callLlm(content: string, options: LlmExplainOptions): Promise<Raw
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.apiKey) headers['Authorization'] = `Bearer ${options.apiKey}`;
 
+  const requestBody = {
+    model: options.modelId,
+    messages: [
+      { role: 'system', content: AI_AUDIT_SYSTEM_PROMPT },
+      { role: 'user', content: `Audit this skill:\n\n${content}` },
+    ],
+    response_format: { type: 'json_object' },
+    stream: false,
+  };
+
+  debugLlm(
+    `request -> ${url} [ai-audit]`,
+    [
+      `model: ${options.modelId}`,
+      `headers: ${JSON.stringify({ ...headers, Authorization: headers.Authorization ? '<redacted>' : undefined })}`,
+      `body:\n${JSON.stringify(requestBody, null, 2)}`,
+    ].join('\n'),
+  );
+
+  const startedAt = Date.now();
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers,
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-      body: JSON.stringify({
-        model: options.modelId,
-        messages: [
-          { role: 'system', content: AI_AUDIT_SYSTEM_PROMPT },
-          { role: 'user', content: `Audit this skill:\n\n${content}` },
-        ],
-        response_format: { type: 'json_object' },
-        stream: false,
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    debugLlm(`response <- ${url} [ai-audit] (HTTP ${response.status}, ${Date.now() - startedAt}ms)`, '');
 
     if (!response.ok) return null;
 
     const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const text = data?.choices?.[0]?.message?.content?.trim();
     if (!text) return null;
+
+    debugLlm('raw model content [ai-audit]', text);
 
     try {
       return JSON.parse(text) as RawResponse;

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+// Load .env from the current working directory before any module reads
+// process.env (e.g. the opt-in LLM debug flag in src/llm/logging.ts).
+import 'dotenv/config';
+
 import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';

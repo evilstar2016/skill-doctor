@@ -1,5 +1,6 @@
 import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
+import { debugLlm } from '../llm/logging';
 
 const warnedLlmFailures = new Set<string>();
 const DEFAULT_LLM_TIMEOUT_MS = 15000;
@@ -232,23 +233,39 @@ export async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions)
     headers['Authorization'] = `Bearer ${options.apiKey}`;
   }
 
+  const requestBody = {
+    model: options.modelId,
+    messages: [
+      { role: 'system', content: JSON_FORMAT_SYSTEM_PROMPT },
+      { role: 'user', content: prompt },
+    ],
+    response_format: {
+      type: 'json_object',
+    },
+    stream: false,
+  };
+
+  debugLlm(
+    `request -> ${url}`,
+    [
+      `model: ${options.modelId}`,
+      `headers: ${JSON.stringify({ ...headers, Authorization: headers.Authorization ? '<redacted>' : undefined })}`,
+      `body:\n${JSON.stringify(requestBody, null, 2)}`,
+    ].join('\n'),
+  );
+
+  const startedAt = Date.now();
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers,
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS),
-      body: JSON.stringify({
-        model: options.modelId,
-        messages: [
-          { role: 'system', content: JSON_FORMAT_SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        response_format: {
-          type: 'json_object',
-        },
-        stream: false,
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    const elapsedMs = Date.now() - startedAt;
+    debugLlm(`response <- ${url} (HTTP ${response.status}, ${elapsedMs}ms)`, '');
 
     if (!response.ok) {
       warnLlmFailure(await readFailureMessage(response));
@@ -262,10 +279,15 @@ export async function callJsonLlm<T>(prompt: string, options: LlmExplainOptions)
       return null;
     }
 
+    debugLlm('raw model content', content);
+
     try {
       const jsonText = extractFirstJsonObject(content);
       if (!jsonText) {
         throw new SyntaxError('no JSON object found in response');
+      }
+      if (jsonText !== content) {
+        debugLlm('recovered JSON (differs from raw content)', jsonText);
       }
       return JSON.parse(jsonText) as T;
     } catch {

@@ -1,5 +1,6 @@
 import type { ConflictAnalysis, SkillRecord } from '../../types/skill';
 import { buildAnalysisPrompt } from './buildAnalysisPrompt';
+import { debugLlm } from '../../llm/logging';
 
 export interface AnalysisClientOptions {
   baseUrl: string;
@@ -20,15 +21,33 @@ export async function analyzeConflict(
     headers['Authorization'] = `Bearer ${options.apiKey}`;
   }
 
+  const requestBody = {
+    model: options.modelId,
+    messages: [{ role: 'user', content: prompt }],
+    stream: false,
+  };
+
+  debugLlm(
+    `request -> ${url} [conflict-analysis]`,
+    [
+      `model: ${options.modelId}`,
+      `headers: ${JSON.stringify({ ...headers, Authorization: headers.Authorization ? '<redacted>' : undefined })}`,
+      `body:\n${JSON.stringify(requestBody, null, 2)}`,
+    ].join('\n'),
+  );
+
+  const startedAt = Date.now();
+
   const response = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: options.modelId,
-      messages: [{ role: 'user', content: prompt }],
-      stream: false,
-    }),
+    body: JSON.stringify(requestBody),
   });
+
+  debugLlm(
+    `response <- ${url} [conflict-analysis] (HTTP ${response.status}, ${Date.now() - startedAt}ms)`,
+    '',
+  );
 
   if (!response.ok) {
     throw new Error(`Analysis API error ${response.status}: ${await response.text()}`);
@@ -40,6 +59,8 @@ export async function analyzeConflict(
   if (!content) {
     throw new Error('Analysis API returned empty content');
   }
+
+  debugLlm('raw model content [conflict-analysis]', content);
 
   return parseAnalysis(content);
 }

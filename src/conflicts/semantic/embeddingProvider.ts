@@ -1,4 +1,5 @@
 import type { ConflictEmbeddingProvider } from '../../types/skill';
+import { debugLlm } from '../../llm/logging';
 
 export interface FetchResponseLike {
   ok: boolean;
@@ -51,6 +52,15 @@ export function createEmbeddingProvider(
         }),
       };
 
+      debugLlm(
+        `request -> ${endpoint} [embedding]`,
+        [
+          `model: ${modelId}`,
+          `headers: ${JSON.stringify({ ...request.headers, authorization: apiKey ? '<redacted>' : undefined })}`,
+          `input (preview): ${text.slice(0, 200)}${text.length > 200 ? '…' : ''}`,
+        ].join('\n'),
+      );
+
       let response: FetchResponseLike;
       try {
         response = await fetchImpl(endpoint, request);
@@ -73,6 +83,7 @@ export function createEmbeddingProvider(
         );
       }
 
+      debugLlm(`response <- ${endpoint} [embedding] (HTTP ${response.status}, dim=${embedding.length})`, '');
       return embedding;
     },
   };
