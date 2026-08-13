@@ -16,7 +16,7 @@ import {
   syncDeployment,
   uninstallDeployment,
 } from '../api';
-import { FilterBar, PageHeading, platformLabel, scopeLabel, shortPath } from '../components/ui';
+import { FilterBar, PageHeading, PlatformIcon, platformLabel, scopeLabel, shortPath } from '../components/ui';
 import { EmptyState } from '../components/EmptyState';
 import { useTranslation } from '../i18n';
 
@@ -565,7 +565,7 @@ function DeploymentDialog({ skill, onClose, onDeployed, setToast }: { skill: Cen
           const targetPreview = activeTarget ? previewByTarget.get(activeTarget.targetId) : undefined;
           const occupied = activeTarget && targetPreview?.state === 'occupied';
           return <div className={`deployment-target-card ${activeTarget ? 'selected' : ''}`} key={group.platform}>
-            <label className="deployment-target-main"><input type="checkbox" checked={Boolean(activeTarget)} onChange={() => toggleTargetGroup(group)} /><strong>{platformLabel(group.platform)}</strong></label>
+            <label className="deployment-target-main"><input type="checkbox" checked={Boolean(activeTarget)} onChange={() => toggleTargetGroup(group)} /><PlatformIcon platform={group.platform} size={20} /><strong>{platformLabel(group.platform)}</strong></label>
             <div className="deployment-scope-controls">{group.targets.map((target) => <button type="button" className={activeTarget?.targetId === target.targetId ? 'active' : ''} key={target.targetId} onClick={() => selectTargetScope(group, target)}>{scopeLabel(target.scope, t)}</button>)}</div>
             <span className="deployment-install-path"><small>{t('center.installPath')}</small><code>{targetPreview?.installedPath ?? displayedTarget.directory}</code></span>
             {occupied && <em>{t('center.targetConflict')}</em>}

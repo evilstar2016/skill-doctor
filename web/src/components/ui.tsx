@@ -6,6 +6,7 @@ import {
 import type { UiIssue, UiResource } from '../../../src/application/types';
 import type { Scope } from '../../../src/types/skill';
 import { useTranslation } from '../i18n';
+import { getPlatformLogo } from './platformLogos';
 
 export function PageHeading({ title, subtitle, children }: { title: string; subtitle: string; children?: ReactNode }) { return <div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div>{children && <div className="heading-action">{children}</div>}</div>; }
 export function StatCard({ label, value, detail }: { label: string; value: string | number; detail: string }) { return <div className="stat-card"><span>{label}</span><strong>{Number(value).toLocaleString()}</strong><small>{detail}</small></div>; }
@@ -22,12 +23,20 @@ export function EmptyRows({ icon: Icon, title }: { icon: typeof Check; title: st
 export function LoadingLine() { const { t } = useTranslation(); return <div className="loading-line"><LoaderCircle size={16} className="spin" />{t('common.loading')}</div>; }
 export function LaunchScreen() { const { t } = useTranslation(); return <div className="launch-screen"><span><Stethoscope size={30} /></span><h1>Skill Doctor</h1><p>{t('common.starting')}</p><LoaderCircle className="spin" /></div>; }
 export function ScanningEmpty({ running }: { running: boolean }) { const { t } = useTranslation(); return <div className="scanning-empty"><span>{running ? <LoaderCircle className="spin" /> : <CircleHelp />}</span><h2>{running ? t('common.scanning') : t('common.noScan')}</h2><p>{running ? t('common.scanningDetail') : t('common.noScanDetail')}</p></div>; }
-export function PlatformIcon({ platform }: { platform: string }) { return <span className="platform-icon">{platform.slice(0, 1).toUpperCase()}</span>; }
+export function PlatformIcon({ platform, size }: { platform: string; size?: number }) {
+  const resolved = size ?? 27;
+  const Logo = getPlatformLogo(platform);
+  if (Logo) {
+    return <span className="platform-logo" style={{ width: resolved, height: resolved }}><Logo size={resolved} /></span>;
+  }
+  const style = size ? { width: size, height: size, fontSize: Math.round(size * 0.42) } : undefined;
+  return <span className="platform-icon" style={style}>{platform.slice(0, 1).toUpperCase()}</span>;
+}
 
 export function severityLabel(value: UiIssue['severity'], t: ReturnType<typeof useTranslation>['t']): string { return t(({ high: 'label.high', med: 'label.medium', low: 'label.low', info: 'label.info' } as const)[value]); }
 export function kindLabel(value: UiIssue['kind'], t: ReturnType<typeof useTranslation>['t']): string { return t(({ security: 'label.security', conflict: 'label.conflict', duplicate: 'label.duplicate', context: 'label.context' } as const)[value]); }
 export function scopeLabel(value: Scope, t: ReturnType<typeof useTranslation>['t']): string { return t(value === 'project' ? 'label.project' : 'label.global'); }
-export function platformLabel(value: string): string { return ({ claude: 'Claude', cursor: 'Cursor', copilot: 'Copilot', codex: 'Codex', gemini: 'Gemini', windsurf: 'Windsurf', opencode: 'OpenCode', openclaw: 'OpenClaw' } as Record<string, string>)[value] ?? value; }
+export function platformLabel(value: string): string { return ({ claude: 'Claude', cursor: 'Cursor', copilot: 'Copilot', codex: 'Codex', gemini: 'Gemini', windsurf: 'Windsurf', opencode: 'OpenCode', openclaw: 'OpenClaw', kiro: 'Kiro', trae: 'Trae' } as Record<string, string>)[value] ?? value; }
 export function resourceKindLabel(value: string): string { return ({ skill: 'Skill', instruction: 'Instruction', rule: 'Rule', prompt: 'Prompt', agents: 'AGENTS.md', mcp: 'MCP', plugin: 'Plugin', memory: 'Memory' } as Record<string, string>)[value] ?? value; }
 export function activationLabel(value: string | undefined, t: ReturnType<typeof useTranslation>['t']): string {
   const key = ({ startup: 'activation.startup', 'always-on': 'activation.alwaysOn', 'on-demand': 'activation.onDemand', 'file-scoped': 'activation.fileScoped', manual: 'activation.manual' } as Record<string, 'activation.startup' | 'activation.alwaysOn' | 'activation.onDemand' | 'activation.fileScoped' | 'activation.manual'>)[value ?? ''];

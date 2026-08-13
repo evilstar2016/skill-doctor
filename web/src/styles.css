@@ -510,6 +510,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
 .agent-bar { height: 42px; padding: 5px clamp(24px, 4vw, 52px); background: var(--bg); }
 .agent-bar > span { font-size: 10px; }
 .agent-tabs button { border-radius: 6px; padding: 5px 8px; }
+.platform-logo { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.platform-logo svg { width: 100%; height: 100%; display: block; }
 
 .inline-notice { max-width: 1376px; margin-left: auto; margin-right: auto; border: 1px solid transparent; border-radius: 8px; }
 .page-container { max-width: 1376px; padding: 42px clamp(24px, 4vw, 52px) 80px; }
