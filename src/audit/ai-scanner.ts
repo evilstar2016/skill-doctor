@@ -49,7 +49,14 @@ export async function runAiAudit(
     }
 
     const raw = await callLlm(content, options.llmOptions);
-    const findings = raw ? parseFindings(raw, skill) : [];
+
+    // Do not cache failed LLM calls (null = HTTP error, malformed JSON, or empty
+    // content). Caching the resulting empty findings would make every subsequent
+    // run hit the cache and silently skip the LLM call, so the audit would look
+    // permanently "no findings" instead of retrying.
+    if (!raw) continue;
+
+    const findings = parseFindings(raw, skill);
 
     if (useCache) {
       cache.set(hash, { cachedAt: Date.now(), model, findings });

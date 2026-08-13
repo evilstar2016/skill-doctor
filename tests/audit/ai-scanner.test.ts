@@ -147,4 +147,24 @@ describe('runAiAudit', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
+
+  it('does not cache failed LLM calls so the next run retries', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sk-ai-test-'));
+    const skills = [makeSkill('fail-then-retry', 'hello')];
+
+    // First run: LLM returns malformed JSON → callLlm returns null.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"{"whenToUse":"broken"}' } }] }),
+    });
+    const first = await runAiAudit(skills, { llmOptions: makeLlmOptions(), useCache: true, homeDir: dir });
+    expect(first).toHaveLength(0);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // Second run: must call fetch again — the failed result must NOT be cached.
+    mockFetch.mockResolvedValueOnce(okResponse([{ code: 'test', severity: 'high', title: 't', detail: 'd' }]));
+    const second = await runAiAudit(skills, { llmOptions: makeLlmOptions(), useCache: true, homeDir: dir });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(second).toHaveLength(1);
+  });
 });
