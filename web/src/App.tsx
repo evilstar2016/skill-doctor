@@ -404,7 +404,7 @@ function Topbar(props: {
         ? <button className="button secondary" onClick={props.cancel}><X size={17} />{t('topbar.cancel')}</button>
         : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />{t('topbar.rescan')}</button>}
     </div>
-  </header><div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}>{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div></>;
+  </header><div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}><PlatformIcon platform={agent.platform} size={16} />{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div></>;
 }
 
 
