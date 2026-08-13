@@ -269,7 +269,7 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
 function PendingGroup({ platform, candidates, selected, onToggle, onReclaim, onResolveConflict, onOpen, busy }: { platform: Platform; candidates: CenterPhysicalView[]; selected: Set<string>; onToggle: (id: string) => void; onReclaim: (candidate: CenterPhysicalView) => void; onResolveConflict: (candidate: CenterPhysicalView) => void; onOpen: (candidate: CenterPhysicalView) => void; busy: boolean }) {
   const { t } = useTranslation();
   return <section className="pending-group">
-    <div className="pending-agent-heading"><Boxes size={18} /><strong>{t('center.agentGroup', { agent: platformLabel(platform), count: candidates.length })}</strong></div>
+    <div className="pending-agent-heading"><PlatformIcon platform={platform} size={18} /><strong>{t('center.agentGroup', { agent: platformLabel(platform), count: candidates.length })}</strong></div>
     <div className="pending-table" role="table">
       <div className="pending-table-head" role="row"><span /><span>{t('center.colName')}</span><span>{t('center.pendingSource')}</span><span>{t('center.pendingScope')}</span><span>{t('center.pendingConflict')}</span><span>{t('center.pendingAction')}</span></div>
       {candidates.map((candidate) => {
