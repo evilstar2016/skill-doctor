@@ -100,6 +100,25 @@ describe.skipIf(process.platform === 'win32')('CLI integration', () => {
     expect(payload.skills[0].name).toBe('karpathy-guidelines');
   });
 
+  it('scan --platform filters the result to WorkBuddy without mixing other agents', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(join(cwd, '.workbuddy', 'skills', 'workbuddy-only', 'SKILL.md'), '---\nname: workbuddy-only\ndescription: WorkBuddy only\n---\n# WorkBuddy');
+    writeFile(join(cwd, '.claude', 'skills', 'claude-only', 'SKILL.md'), '---\nname: claude-only\ndescription: Claude only\n---\n# Claude');
+
+    const result = runCli(['scan', '--platform', 'workbuddy', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.skills).toHaveLength(1);
+    expect(payload.skills[0]).toEqual(expect.objectContaining({ name: 'workbuddy-only', platform: 'workbuddy' }));
+    expect(payload.summary.platforms).toEqual({ workbuddy: 1 });
+    const text = runCli(['scan', '--platform', 'workbuddy'], cwd, home);
+    expect(text.stdout).toContain('display name: WorkBuddy');
+  });
+
   it('scan --json includes scope buckets when both global and project skills exist', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

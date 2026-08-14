@@ -1,4 +1,4 @@
-import type { SkillFile } from '../types/skill';
+import type { SkillFile, SkillRecord } from '../types/skill';
 import type {
   PlatformAdapter,
   PlatformInstructionCandidate,
@@ -9,6 +9,7 @@ export interface PlatformRuntime {
   adapter: PlatformAdapter;
   discoverAdditionalInstructions: () => PlatformInstructionCandidate[];
   postProcessInstructions: (files: SkillFile[]) => SkillFile[];
+  postProcessSkills: (skills: SkillRecord[]) => SkillRecord[];
 }
 
 export function createPlatformRuntime(
@@ -19,5 +20,6 @@ export function createPlatformRuntime(
     adapter,
     discoverAdditionalInstructions: () => adapter.discoverAdditionalInstructions?.(context) ?? [],
     postProcessInstructions: (files) => adapter.postProcessInstructions?.(files) ?? files,
+    postProcessSkills: (skills) => adapter.postProcessSkills?.(skills) ?? skills,
   };
 }

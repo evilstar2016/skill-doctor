@@ -127,10 +127,16 @@ function builtinSources(context: PlatformRuntimeContext): Array<Omit<EffectiveSc
   });
 }
 
-function fromSkillTarget(platform: Platform, scope: Scope, target: { path: string; mode: 'recursive-dir' | 'single-file'; layout?: 'files' | 'skill-dirs'; costOnly?: boolean }, index: number) {
+function fromSkillTarget(
+  platform: Platform,
+  scope: Scope,
+  target: { path: string; mode: 'recursive-dir' | 'single-file'; layout?: 'files' | 'skill-dirs'; costOnly?: boolean; maxDepth?: number },
+  index: number,
+) {
   return {
     id: builtinId(platform, 'skill', scope, index), platform, resource: 'skill' as const, scope,
-    path: target.path, mode: target.mode, layout: target.layout, costOnly: target.costOnly, enabled: true, origin: 'builtin' as const,
+    path: target.path, mode: target.mode, layout: target.layout, costOnly: target.costOnly, maxDepth: target.maxDepth,
+    enabled: true, origin: 'builtin' as const,
   };
 }
 
@@ -181,6 +187,7 @@ function validateEntry(value: unknown, platform: string, resource: ScanSourceRes
   if (!path) throw new Error(zhMessage('validation.missingPath', { path: entryPath }));
   if (value.scope !== 'global' && value.scope !== 'project') throw new Error(zhMessage('validation.invalidScope', { path: entryPath }));
   if (resource === 'mcp' && value.format !== 'json' && value.format !== 'toml') throw new Error(zhMessage('validation.invalidMcpFormat', { path: entryPath }));
+  if (value.maxDepth !== undefined && !isValidMaxDepth(value.maxDepth)) throw new Error(`${entryPath}.maxDepth 无效`);
   return {
     id, path, scope: value.scope,
     ...(typeof value.enabled === 'boolean' ? { enabled: value.enabled } : {}),
@@ -190,7 +197,12 @@ function validateEntry(value: unknown, platform: string, resource: ScanSourceRes
     ...(stringValue(value.skillsField) ? { skillsField: stringValue(value.skillsField) } : {}),
     ...(stringValue(value.defaultSkillsDir) ? { defaultSkillsDir: stringValue(value.defaultSkillsDir) } : {}),
     ...(typeof value.costOnly === 'boolean' ? { costOnly: value.costOnly } : {}),
+    ...(isValidMaxDepth(value.maxDepth) ? { maxDepth: value.maxDepth } : {}),
   };
+}
+
+function isValidMaxDepth(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 64;
 }
 
 function builtinId(platform: Platform, resource: ScanSourceResource, scope: Scope, index: number): string {

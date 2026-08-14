@@ -10,6 +10,7 @@ export type Platform =
   | 'kiro'
   | 'openclaw'
   | 'hermes'
+  | 'workbuddy'
   | 'unknown';
 
 export type Scope = 'global' | 'project';
@@ -51,6 +52,8 @@ export interface SkillRecord {
     resource?: 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
     configSource?: string;
     enabled?: boolean;
+    userInvocable?: boolean;
+    allowedTools?: string[];
     controllable?: boolean;
     controlPath?: string;
     controlMethod?: string;

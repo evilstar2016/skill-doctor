@@ -25,6 +25,7 @@ describe('platform registry', () => {
       'kiro',
       'openclaw',
       'hermes',
+      'workbuddy',
     ]);
     expect(new Set(platforms).size).toBe(platforms.length);
   });
@@ -55,6 +56,7 @@ describe('platform registry', () => {
       'kiro',
       'openclaw',
       'hermes',
+      'workbuddy',
       'unknown',
     ]);
     expect(getPlatformAliasMappings()).toEqual([
@@ -96,6 +98,10 @@ describe('platform registry', () => {
     expect(getPlatformAdapter('copilot')?.mcpConfigFiles).toEqual([
       { scope: 'project', path: '.vscode/mcp.json', format: 'json' },
       { scope: 'project', path: '.github/mcp.json', format: 'json' },
+    ]);
+    expect(getPlatformAdapter('workbuddy')?.mcpConfigFiles).toEqual([
+      { scope: 'global', path: '~/.workbuddy/mcp.json', format: 'json' },
+      { scope: 'project', path: '.workbuddy/mcp.json', format: 'json' },
     ]);
   });
 

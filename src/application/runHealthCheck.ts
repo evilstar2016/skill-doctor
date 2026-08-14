@@ -55,7 +55,8 @@ export async function runHealthCheck(
   let mcpServers = filterByPlatform(filterByScope(scanContext.mcpServers, scope), platform);
   const consumerSkills = filterByScope(scanContext.skills, scope);
   const consumerMcpServers = filterByScope(scanContext.mcpServers, scope);
-  const analysisSkills = options.deduplicatePhysicalSkills === false ? skills : uniquePhysicalSkills(skills);
+  const analysisSkills = (options.deduplicatePhysicalSkills === false ? skills : uniquePhysicalSkills(skills))
+    .filter((entry) => entry.context?.resource !== 'memory');
   const ignore = options.applyIgnore === false ? {} : (loaded.config.ignore ?? {});
 
   if (options.discoverMcpTools !== false && mcpServers.length > 0) {

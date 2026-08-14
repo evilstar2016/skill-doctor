@@ -37,6 +37,7 @@ export interface ScanSourceUserEntry {
   skillsField?: string;
   defaultSkillsDir?: string;
   costOnly?: boolean;
+  maxDepth?: number;
 }
 
 export interface AgentScanSourcesUserConfig {
@@ -195,8 +196,13 @@ function normalizeScanSourceEntries(value: unknown, resource: ScanSourceResource
       ...(readString(entry.skillsField) ? { skillsField: readString(entry.skillsField) } : {}),
       ...(readString(entry.defaultSkillsDir) ? { defaultSkillsDir: readString(entry.defaultSkillsDir) } : {}),
       ...(typeof entry.costOnly === 'boolean' ? { costOnly: entry.costOnly } : {}),
+      ...(isValidMaxDepth(entry.maxDepth) ? { maxDepth: entry.maxDepth } : {}),
     }];
   });
+}
+
+function isValidMaxDepth(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 64;
 }
 
 function readObject(value: unknown): Record<string, unknown> | null {

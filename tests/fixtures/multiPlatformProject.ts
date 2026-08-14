@@ -8,6 +8,7 @@ export const MULTI_PLATFORM_ADAPTER_PLATFORMS = [
   'codex',
   'gemini',
   'windsurf',
+  'workbuddy',
 ] as const;
 
 export type MultiPlatformAdapterPlatform = typeof MULTI_PLATFORM_ADAPTER_PLATFORMS[number];
@@ -91,6 +92,57 @@ export function writeMultiPlatformProjectFixture(cwd: string, homeDir: string): 
     ].join('\n'),
   );
 
+  writeFixtureFile(
+    join(cwd, '.workbuddy', 'skills', 'workbuddy-review', 'SKILL.md'),
+    [
+      '---',
+      'name: workbuddy-review',
+      'description: Review WorkBuddy changes for regression risk and release readiness.',
+      'when-to-use: Use before merging a WorkBuddy change.',
+      '---',
+      '',
+      '# WorkBuddy Review',
+    ].join('\n'),
+  );
+
+  writeFixtureFile(
+    join(homeDir, '.workbuddy', 'skills', 'workbuddy-review', 'SKILL.md'),
+    [
+      '---',
+      'name: workbuddy-review',
+      'description: Global WorkBuddy review fallback.',
+      '---',
+      '',
+      '# Global WorkBuddy Review',
+    ].join('\n'),
+  );
+  writeFixtureFile(
+    join(homeDir, '.workbuddy', 'connectors', 'skills', 'connector-review', 'SKILL.md'),
+    [
+      '---',
+      'name: connector-review',
+      'description: Connector-provided WorkBuddy review helper.',
+      'user-invocable: false',
+      '---',
+      '',
+      '# Connector Review',
+    ].join('\n'),
+  );
+  writeFixtureFile(
+    join(homeDir, '.workbuddy', 'skills-marketplace', 'cached-only', 'SKILL.md'),
+    [
+      '---',
+      'name: cached-only',
+      'description: This cached skill must not be scanned.',
+      '---',
+      '',
+      '# Cached Only',
+    ].join('\n'),
+  );
+  for (const file of ['IDENTITY.md', 'USER.md', 'SOUL.md', 'MEMORY.md', 'BOOTSTRAP.md']) {
+    writeFixtureFile(join(homeDir, '.workbuddy', file), `${file} fixture content.`);
+  }
+
   writeMcpFixtures(cwd, homeDir);
 }
 
@@ -132,6 +184,19 @@ function writeMcpFixtures(cwd: string, homeDir: string): void {
   writeFixtureFile(
     join(cwd, '.gemini', 'settings.json'),
     JSON.stringify({ mcpServers: { gemini_docs: unreachableHttpServer } }, null, 2),
+  );
+
+  writeFixtureFile(
+    join(cwd, '.workbuddy', 'mcp.json'),
+    JSON.stringify({ mcpServers: { workbuddy_docs: { type: 'http', url: 'http://127.0.0.1:1/mcp', timeout: 50 } } }, null, 2),
+  );
+  writeFixtureFile(
+    join(homeDir, '.workbuddy', 'mcp.json'),
+    JSON.stringify({ mcpServers: { workbuddy_user_docs: { type: 'http', url: 'http://127.0.0.1:1/mcp', timeout: 50, headers: { Authorization: 'Bearer hidden-user-token' } } } }, null, 2),
+  );
+  writeFixtureFile(
+    join(homeDir, '.workbuddy', 'connectors', 'default', 'mcp.json'),
+    JSON.stringify({ mcpServers: { dynamic_connector_docs: { command: 'node' } } }, null, 2),
   );
 
   writeFixtureFile(join(homeDir, '.keep'), '');

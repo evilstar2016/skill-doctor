@@ -545,6 +545,7 @@
   "drawer.notCalculated": "Not calculated this time",
   "drawer.sources": "Merged sources ({{count}})",
   "drawer.source": "Source",
+  "drawer.configSource": "Configuration source",
   "drawer.installSource": "Install source",
   "drawer.repository": "Repository",
   "drawer.author": "Author",

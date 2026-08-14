@@ -60,8 +60,15 @@ describe('platform adapter regression scenario', () => {
       expect(scanPayload.summary.platforms[platform]).toBeGreaterThanOrEqual(1);
     }
     expect(platformsFrom(scanPayload.skills)).toEqual(expect.arrayContaining([...MULTI_PLATFORM_ADAPTER_PLATFORMS]));
-    expect(scanPayload.skills.every((skill) => skill.scope === 'project')).toBe(true);
+    expect(scanPayload.skills.filter((skill) => skill.platform !== 'workbuddy').every((skill) => skill.scope === 'project')).toBe(true);
     expect(scanPayload.skills.every((skill) => skill.provenance?.installSource)).toBe(true);
+    expect(scanPayload.skills).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: 'workbuddy', name: 'workbuddy-review', scope: 'project' }),
+      expect.objectContaining({ platform: 'workbuddy', name: 'connector-review', scope: 'global' }),
+      expect.objectContaining({ platform: 'workbuddy', name: 'MEMORY.md', scope: 'global' }),
+    ]));
+    expect(scanPayload.skills.map((skill) => skill.name)).not.toContain('cached-only');
+    expect(scanPayload.skills.map((skill) => skill.name)).not.toContain('BOOTSTRAP.md');
 
     const conflictsResult = runCli(['conflicts', '--json'], cwd, home);
     expect(conflictsResult.status).toBe(0);
@@ -93,14 +100,16 @@ describe('platform adapter regression scenario', () => {
       expect.objectContaining({ platform: 'copilot', kind: 'copilot-instruction-file' }),
       expect.objectContaining({ platform: 'codex', kind: 'agent-skill-description' }),
       expect.objectContaining({ platform: 'windsurf', kind: 'always-on-file' }),
+      expect.objectContaining({ platform: 'workbuddy', kind: 'agent-skill-description' }),
     ]));
 
     const mcpCostResult = runCli(['cost', '--source', 'mcp', '--json'], cwd, home);
     expect(mcpCostResult.status).toBe(0);
     const mcpCostPayload = JSON.parse(mcpCostResult.stdout) as CostPayload;
-    expect(platformsFrom(mcpCostPayload.items)).toEqual(expect.arrayContaining(['claude', 'cursor', 'copilot', 'codex', 'gemini']));
+    expect(platformsFrom(mcpCostPayload.items)).toEqual(expect.arrayContaining(['claude', 'cursor', 'copilot', 'codex', 'gemini', 'workbuddy']));
     expect(mcpCostPayload.items.every((item) => item.source === 'mcp')).toBe(true);
     expect(mcpCostPayload.items.every((item) => item.kind === 'mcp-tool-list')).toBe(true);
+    expect(mcpCostPayload.items.map((item) => item.name)).not.toContain('dynamic_connector_docs');
 
     const dashboardResult = runCli(['dashboard', '--report', dashboardPath], cwd, home);
     expect(dashboardResult.status).toBe(0);
@@ -109,6 +118,7 @@ describe('platform adapter regression scenario', () => {
     expect(dashboard).toContain('shared-review-helper');
     expect(dashboard).toContain('schema-change-guard');
     expect(dashboard).toContain('windsurf-network-policy');
+    expect(dashboard).toContain('workbuddy-review');
   });
 });
 

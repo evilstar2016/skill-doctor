@@ -130,10 +130,11 @@ function formatTokenizer(tokenizer: ContextCostResult['summary']['tokenizer']): 
 }
 
 function formatSourceResource(item: ContextCostResult['items'][number]): string {
+  const configSource = item.configSource ? `  config source: ${item.configSource}` : '';
   if (item.source && item.resource && item.source === item.resource) {
-    return `  resource: ${item.resource}`;
+    return `  resource: ${item.resource}${configSource}`;
   }
-  return `${item.source ? `  source: ${item.source}` : ''}${item.resource ? `  resource: ${item.resource}` : ''}`;
+  return `${item.source ? `  source: ${item.source}` : ''}${item.resource ? `  resource: ${item.resource}` : ''}${configSource}`;
 }
 
 function buildCodexResourceLines(items: ContextCostResult['items']): string[] {

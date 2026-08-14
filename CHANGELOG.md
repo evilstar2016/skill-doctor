@@ -4,6 +4,28 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+暂无未发布变更。
+
+## 0.5.0 - 2026-08-15
+
+### Features
+- Add first-class Tencent WorkBuddy platform support with project, global, and connector Skill discovery.
+- Parse WorkBuddy Skill frontmatter, enablement state, allowed tools, loading priority, and long-term context files.
+- Discover static user/project WorkBuddy MCP configurations with disabled-state handling, malformed-config isolation, and secret redaction.
+- Add WorkBuddy project/global Skill installation targets and `--platform workbuddy` filtering for scan and context-cost commands.
+- Add WorkBuddy metadata and configuration-source provenance to CLI and Web UI results.
+- Add the official WorkBuddy app mark as an inline SVG platform logo in the Web UI, avoiding a runtime remote-image dependency.
+
+### Bug Fixes
+- Preserve platform isolation when merging WorkBuddy resources, MCP servers, context-cost entries, and duplicate/conflict candidates.
+- Keep disabled WorkBuddy Skills from incorrectly contributing effective context cost or falling back to lower-priority copies.
+- Improve generic Skill parsing and rendering so missing frontmatter, allowed-tools metadata, and human-readable platform names remain compatible across agents.
+
+### Documentation and Testing
+- Add a six-part WorkBuddy implementation plan covering registration, discovery, context cost, MCP, installation, and release acceptance.
+- Add WorkBuddy fixtures, adapter tests, installation tests, CLI integration coverage, UI regression coverage, and a multi-platform scenario regression.
+- Update the bilingual README release links and platform-support documentation for `v0.5.0`.
+
 ## 0.4.2 - 2026-08-13
 
 ### Features

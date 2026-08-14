@@ -8,7 +8,7 @@ export function ResourcesPage({ snapshot, openResource }: { snapshot: DoctorSnap
   const { t } = useTranslation();
   const [query, setQuery] = useState(''); const [kind, setKind] = useState('all'); const [platform, setPlatform] = useState('all'); const [scope, setScope] = useState('all'); const [status, setStatus] = useState('active');
   const resources = useMemo(() => (snapshot?.resources ?? []).filter((resource) => {
-    const text = `${resource.name} ${resource.sourcePath} ${resource.description ?? ''} ${resource.triggers.join(' ')}`.toLowerCase();
+    const text = `${resource.name} ${resource.sourcePath} ${resource.configSource ?? ''} ${resource.description ?? ''} ${resource.triggers.join(' ')}`.toLowerCase();
     const active = resource.enabled !== false && resource.status !== 'unknown';
     return (!query || text.includes(query.toLowerCase())) && (kind === 'all' || resource.kind === kind) && (platform === 'all' || resource.consumers.some((consumer) => consumer.platform === platform)) && (scope === 'all' || resource.consumers.some((consumer) => consumer.scope === scope)) && (status === 'all' || status === 'active' && active || status === resource.status);
   }), [snapshot, query, kind, platform, scope, status]);

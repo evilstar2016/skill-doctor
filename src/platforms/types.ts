@@ -1,5 +1,5 @@
 import type { ContextCostOfficialLimit, ContextInjectionKind } from '../types/context';
-import type { Confidence, Platform, Scope, SkillFile } from '../types/skill';
+import type { Confidence, Platform, Scope, SkillFile, SkillRecord } from '../types/skill';
 
 export interface PlatformPathTarget {
   path: string;
@@ -8,6 +8,7 @@ export interface PlatformPathTarget {
   includeFileNames?: string[];
   includeFileNameSuffixes?: string[];
   costOnly?: boolean;
+  maxDepth?: number;
 }
 
 export interface PlatformInstallTarget {
@@ -49,6 +50,7 @@ export interface PlatformScanSource {
   skillsField?: string;
   defaultSkillsDir?: string;
   costOnly?: boolean;
+  maxDepth?: number;
 }
 
 export interface PlatformMcpJsonConfig {
@@ -75,6 +77,7 @@ export interface PlatformAdapter {
   costPolicy: PlatformCostPolicy;
   discoverAdditionalInstructions?: (context: PlatformRuntimeContext) => PlatformInstructionCandidate[];
   postProcessInstructions?: (files: SkillFile[]) => SkillFile[];
+  postProcessSkills?: (skills: SkillRecord[]) => SkillRecord[];
   getBuiltinScanSources?: (context: PlatformRuntimeContext) => PlatformScanSource[];
   resolveScanSourcePath?: (
     source: { path: string; scope: Scope },

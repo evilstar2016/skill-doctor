@@ -229,6 +229,7 @@ function buildResources(
       fixedTokens: 0,
       activationTokens: 0,
       confidence: skill.provenance?.confidence,
+      configSource: skill.context?.configSource,
       installSource: skill.provenance?.installSource,
       repository: skill.provenance?.repository,
       author: skill.provenance?.author,
@@ -294,6 +295,7 @@ function buildResources(
       existing.fixedTokens = fixedCost(item);
       existing.activationTokens = item.activationEstimatedTokens;
       existing.recommendation = item.recommendation;
+      existing.configSource ??= item.configSource;
       existing.controlMethod = item.controlMethod;
       existing.estimateStatus = item.estimateStatus;
       upsertConsumer(existing, { platform: item.platform, scope: item.scope, enabled: item.enabled, activation: item.activation, fixedTokens: fixedCost(item), activationTokens: item.activationEstimatedTokens });
@@ -324,6 +326,7 @@ function buildResources(
       fixedTokens: fixedCost(item),
       activationTokens: item.activationEstimatedTokens,
       confidence: item.confidence,
+      configSource: item.configSource,
       issueIds: issueIds.get(id) ?? [],
       status: statusFor(id, item.enabled, issueIds),
       recommendation: item.recommendation,

@@ -1,8 +1,13 @@
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 import { parseSkill } from '../parsing/parseSkill';
 import type { ProvenanceCache } from '../parsing/provenanceCache';
 import type { LlmExplainOptions } from '../types/explain';
 import type { SkillRecord } from '../types/skill';
 import type { EffectiveScanSource } from '../config/scanSources';
+import { createPlatformRuntime } from '../platforms/runtime';
+import { getPlatformAdapters } from '../platforms/registry';
 import { resolvePaths } from './resolvePaths';
 
 interface ScanSkillsOptions {
@@ -34,5 +39,13 @@ export async function scanSkills(cwd: string, options: ScanSkillsOptions = {}): 
     }
   }
 
-  return skills;
+  const homeDir = options.homeDir ?? homedir();
+  const appDataDir = options.appDataDir ?? join(homeDir, 'AppData', 'Roaming');
+  const runtimes = getPlatformAdapters().map((adapter) => createPlatformRuntime(adapter, {
+    projectDir: cwd,
+    homeDir,
+    appDataDir,
+  }));
+
+  return runtimes.reduce((records, runtime) => runtime.postProcessSkills(records), skills);
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { getPlatformAdapter } from '../../src/platforms/registry';
 import { createPlatformRuntime } from '../../src/platforms/runtime';
 import type { SkillFile } from '../../src/types/skill';
+import type { SkillRecord } from '../../src/types/skill';
 
 const context = {
   projectDir: '/project',
@@ -20,6 +21,8 @@ describe('platform runtime', () => {
 
     expect(runtime.discoverAdditionalInstructions()).toEqual([]);
     expect(runtime.postProcessInstructions(files)).toBe(files);
+    const skills: SkillRecord[] = [];
+    expect(runtime.postProcessSkills(skills)).toBe(skills);
   });
 
   it('runs platform-specific instruction post-processing through the adapter', () => {

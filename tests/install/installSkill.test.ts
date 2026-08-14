@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { installSkill } from '../../src/install/installSkill.js';
 import { loadCenterRegistry } from '../../src/library/centerStore.js';
+import { loadEffectiveScanSources } from '../../src/config/scanSources';
+import { scanSkills } from '../../src/discovery/scanSkills';
 
 const tempRoots: string[] = [];
 
@@ -100,5 +102,65 @@ describe('installSkill', () => {
         link: false,
       }),
     ).rejects.toThrow('already exists');
+  });
+
+  it('installs WorkBuddy skills to global and project targets and discovers both after rescan', async () => {
+    const base = makeTempDir();
+    const homeDir = join(base, 'home');
+    const projectDir = join(base, 'project');
+    const sourceDir = join(base, 'source', 'workbuddy-skill');
+    mkdirSync(sourceDir, { recursive: true });
+    mkdirSync(projectDir, { recursive: true });
+    writeFileSync(join(sourceDir, 'SKILL.md'), '---\nname: workbuddy-skill\ndescription: WorkBuddy install test\n---\n# WorkBuddy Skill');
+    const projectSourceDir = join(base, 'source', 'workbuddy-project-skill');
+    mkdirSync(projectSourceDir, { recursive: true });
+    writeFileSync(join(projectSourceDir, 'SKILL.md'), '---\nname: workbuddy-project-skill\ndescription: WorkBuddy project install test\n---\n# WorkBuddy Project Skill');
+
+    await installSkill({
+      source: join(sourceDir, 'SKILL.md'),
+      platform: 'workbuddy',
+      globalDir: join(homeDir, '.workbuddy', 'skills'),
+      layout: 'skill-dirs',
+      scope: 'global',
+      homeDir,
+      link: false,
+    });
+    await installSkill({
+      source: join(projectSourceDir, 'SKILL.md'),
+      platform: 'workbuddy',
+      globalDir: join(projectDir, '.workbuddy', 'skills'),
+      layout: 'skill-dirs',
+      scope: 'project',
+      homeDir,
+      link: false,
+    });
+
+    const skills = await scanSkills(projectDir, {
+      homeDir,
+      sources: loadEffectiveScanSources(projectDir, { homeDir }),
+    });
+    expect(skills.filter((entry) => entry.platform === 'workbuddy').map((entry) => [entry.name, entry.scope])).toEqual(expect.arrayContaining([
+      ['workbuddy-skill', 'global'],
+      ['workbuddy-project-skill', 'project'],
+    ]));
+    expect(skills.some((entry) => entry.sourcePath.includes('/connectors/'))).toBe(false);
+  });
+
+  it('rejects path traversal names before writing outside the target', async () => {
+    const base = makeTempDir();
+    const sourceDir = join(base, 'source', 'unsafe');
+    const targetDir = join(base, 'home', '.workbuddy', 'skills');
+    mkdirSync(sourceDir, { recursive: true });
+    writeFileSync(join(sourceDir, 'SKILL.md'), '---\nname: ../escape\ndescription: unsafe\n---\n# Unsafe');
+
+    await expect(installSkill({
+      source: join(sourceDir, 'SKILL.md'),
+      platform: 'workbuddy',
+      globalDir: targetDir,
+      layout: 'skill-dirs',
+      homeDir: join(base, 'home'),
+      link: false,
+    })).rejects.toThrow('must not contain path separators');
+    expect(() => readFileSync(join(base, 'home', 'escape', 'SKILL.md'), 'utf8')).toThrow();
   });
 });

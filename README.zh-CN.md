@@ -8,7 +8,7 @@
 
 `skill-doctor` 是一个本地 CLI，用来诊断 AI Agent 的 skills、rules、instructions：重复安装、触发冲突、安全风险、上下文成本和多工具漂移。
 
-当 Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf 等工具因为配置重叠而表现不一致时，可以先用它做一次本地体检。
+当 Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、WorkBuddy 等工具因为配置重叠而表现不一致时，可以先用它做一次本地体检。
 
 ![skill-doctor terminal demo](assets/terminal-demo.svg)
 
@@ -16,7 +16,7 @@
 
 ## 30 秒试用
 
-当前版本：npm 上的 [`v0.4.2`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.2)。
+当前版本：npm 上的 [`v0.5.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.5.0)。
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -78,7 +78,7 @@ npx @evilstar2025/skill-doctor cost --scope project
 - 多个 skills 触发词或描述重叠，导致 Agent 抢任务或行为不稳定
 - 可疑指令，例如 shell 执行、破坏性命令、凭据暴露、网络上传
 - Claude skill 描述和 always-on instruction 文件带来的每轮上下文 token 成本
-- Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Kiro、Trae、OpenCode、OpenClaw、Hermes 等生态之间的配置漂移
+- Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Kiro、Trae、OpenCode、OpenClaw、Hermes、WorkBuddy 等生态之间的配置漂移
 
 ## 为什么需要它
 
@@ -208,6 +208,8 @@ Codex 控制能力：
 - live MCP 检查依赖当前 server 可访问，并且 `tools/list` 返回的工具与之后 Codex runtime 看到的一致。
 - runtime dynamic context 仍可能在启动后增加或减少 instructions、tool schemas、memories 或 plugin 内容。
 - Memories 可能显示为 `memory-context-unknown`，因为 Codex memory storage 会影响未来会话，但不一定暴露可确定的注入文本给 preview。
+
+WorkBuddy 支持扫描用户级 `~/.workbuddy/skills/`、连接器 `~/.workbuddy/connectors/skills/`、项目级 `.workbuddy/skills/`，以及 `IDENTITY.md`、`USER.md`、`SOUL.md`、`MEMORY.md` 四个长期上下文文件。静态 MCP 配置来自 `~/.workbuddy/mcp.json` 和 `.workbuddy/mcp.json`；安装目标为 `workbuddy-global-skills` 与 `workbuddy-project-skills`。市场缓存、动态连接器 MCP 和插件/内置运行时状态不会被当作已启用资源。
 
 ### `dashboard`
 

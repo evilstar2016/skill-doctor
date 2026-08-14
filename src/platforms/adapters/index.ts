@@ -10,6 +10,7 @@ import { openclawAdapter } from './openclaw';
 import { opencodeAdapter } from './opencode';
 import { traeAdapter } from './trae';
 import { windsurfAdapter } from './windsurf';
+import { workbuddyAdapter } from './workbuddy';
 
 export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
   claudeAdapter,
@@ -23,4 +24,5 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
   kiroAdapter,
   openclawAdapter,
   hermesAdapter,
+  workbuddyAdapter,
 ];

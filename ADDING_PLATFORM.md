@@ -19,6 +19,7 @@ Required decisions:
 - `aliases`: CLI aliases accepted by `--platform`, `--platform-budget`, install `--target`, and cost positional filters.
 - `confidence`: `high` for documented paths, `low` for best-effort/community paths.
 - `global` and `project`: discovery paths, scope, layout, and file filters.
+- `maxDepth`: optional recursion limit for nested `skill-dirs` locations; leave unset to preserve the legacy scanner behavior.
 - `extensions`: file extensions allowed in those paths.
 - `installTargets`: stable, explicitly scoped destinations. Each needs a unique `targetId`, `scope`, and `layout`. Only declare documented writable `skill-dirs` locations that Skill Doctor may deploy to; discovery-only, `costOnly`, single-file, and system-owned paths must not become deployment targets. Add a project target only when its relative path is safe to resolve under the current project.
 - `mcpConfigFiles`: local MCP config files to scan for `cost --source mcp`.
@@ -34,6 +35,7 @@ The runtime created by `createPlatformRuntime` binds instruction hooks to the cu
 
 - `discoverAdditionalInstructions`: instruction files derived from Agent configuration or recursive discovery.
 - `postProcessInstructions`: precedence and override rules after generic discovery.
+- `postProcessSkills`: platform-specific Skill metadata, enablement, or precedence after parsing and before context-cost estimation.
 - `getBuiltinScanSources`: dynamic Skill, plugin, or MCP scan sources.
 - `resolveScanSourcePath`: platform-specific path expansion.
 - `discoverAdditionalMcpJsonConfigs`: additional MCP server collections inside a JSON configuration.
@@ -67,7 +69,7 @@ Update or add tests for the adapter features you changed:
 - `tests/library/deployments.test.ts`: stable target IDs, global/current-project resolution, and managed directory deployment behavior when `skill-dirs` targets change.
 - `tests/cli/integration.test.ts`: CLI help/validation, cost filtering, install target aliases, and stable JSON output when user-facing behavior changes.
 - `tests/render/render.test.ts` and `tests/render/renderDashboard.test.ts`: renderer compatibility if visible output changes.
-- `tests/scenarios/platform-adapter-regression/multi-platform-regression.scenario.ts`: end-to-end coverage for Claude Code, Cursor, Copilot, Codex, Gemini CLI, and Windsurf together. Keep this scenario focused on shared `SkillRecord`, `McpServerRecord`, and `ContextCostItem` behavior rather than adapter internals.
+- `tests/scenarios/platform-adapter-regression/multi-platform-regression.scenario.ts`: end-to-end coverage for Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, and WorkBuddy together. Keep this scenario focused on shared `SkillRecord`, `McpServerRecord`, and `ContextCostItem` behavior rather than adapter internals.
 
 ## 6. Update docs
 

@@ -170,7 +170,9 @@ export { estimateApproxTokens, estimateTokens };
 function estimateSkillCost(skill: SkillRecord, tokenCounter: TokenCounter): ContextCostItem {
   const raw = readRawFile(skill.sourcePath);
   const frontmatter = parseFrontmatter(raw ?? '');
-  const profile = classifySkillCost(skill, raw, frontmatter);
+  const profile = skill.context?.resource === 'memory'
+    ? memoryContextProfile(skill, raw)
+    : classifySkillCost(skill, raw, frontmatter);
   const budgetText = applyOfficialBudgetLimit(profile.budgetText, profile.officialLimit);
   const estimatedTokens = tokenCounter.count(budgetText);
   const activationEstimatedTokens = tokenCounter.count(profile.activationText);
@@ -181,7 +183,13 @@ function estimateSkillCost(skill: SkillRecord, tokenCounter: TokenCounter): Cont
     sourcePath: skill.sourcePath,
     platform: skill.platform,
     scope: skill.scope,
-    source: skill.context?.resource === 'agents' ? 'agents' : skill.context?.resource === 'plugin' ? 'plugin' : 'skill',
+    source: skill.context?.resource === 'agents'
+      ? 'agents'
+      : skill.context?.resource === 'plugin'
+        ? 'plugin'
+        : skill.context?.resource === 'memory'
+          ? 'memory'
+          : 'skill',
     ...(skill.context?.resource ? { resource: skill.context.resource } : {}),
     ...(skill.context?.configSource ? { configSource: skill.context.configSource } : {}),
     kind: profile.kind,
@@ -199,6 +207,17 @@ function estimateSkillCost(skill: SkillRecord, tokenCounter: TokenCounter): Cont
     ...(skill.context?.estimateStatus ? { estimateStatus: skill.context.estimateStatus } : {}),
     ...(profile.officialLimit ? { officialLimit: profile.officialLimit } : {}),
     recommendation: getRecommendation(skill, profile, estimatedTokens, activationEstimatedTokens),
+  };
+}
+
+function memoryContextProfile(skill: SkillRecord, raw: string | null): CostProfile {
+  const text = raw ?? buildMetadataText(skill);
+  return {
+    kind: 'memory-context-unknown',
+    activation: 'always-on',
+    budgetScope: 'always-on',
+    budgetText: text,
+    activationText: text,
   };
 }
 

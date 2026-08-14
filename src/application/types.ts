@@ -83,6 +83,7 @@ export interface UiResource {
   fixedTokens: number;
   activationTokens: number;
   confidence?: 'high' | 'low';
+  configSource?: string;
   installSource?: string;
   repository?: string;
   author?: string;

@@ -53,6 +53,27 @@ describe('scan source configuration', () => {
     expect(() => validateScanSourcesConfig({ claude: { skills: [
       { id: 'x', path: '/x', scope: 'global' }, { id: 'x', path: '/y', scope: 'global' },
     ] } })).toThrow('重复 id');
+    expect(() => validateScanSourcesConfig({ workbuddy: { skills: [{ id: 'x', path: '/x', scope: 'global', maxDepth: 65 }] } })).toThrow('maxDepth 无效');
+  });
+
+  it('round-trips WorkBuddy maxDepth through user configuration', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'skill-doctor-home-'));
+    const projectDir = join(homeDir, 'project');
+    mkdirSync(projectDir);
+    const config = withScanSources({}, {
+      workbuddy: {
+        skills: [{ id: 'workbuddy-custom', scope: 'project', path: '.workbuddy/skills', mode: 'recursive-dir', layout: 'skill-dirs', maxDepth: 5 }],
+      },
+    });
+
+    saveUserConfig(config, homeDir);
+    const loaded = loadUserConfig(homeDir);
+    const sources = loadEffectiveScanSources(projectDir, { homeDir, config: loaded.config });
+
+    expect(loaded.config.scanSources?.workbuddy?.skills?.[0]?.maxDepth).toBe(5);
+    expect(sources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'workbuddy-custom', maxDepth: 5, resolvedPath: join(projectDir, '.workbuddy/skills') }),
+    ]));
   });
 
   it('atomically saves scanSources without dropping other user settings', () => {

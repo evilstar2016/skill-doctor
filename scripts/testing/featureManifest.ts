@@ -21,14 +21,30 @@ export interface FeatureScenarioManifest {
 }
 
 const repoRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)));
-const scenariosRoot = resolve(repoRoot, 'doc', 'scenarios');
+const scenariosRoot = [
+  resolve(repoRoot, 'doc', 'scenarios'),
+  resolve(repoRoot, 'dev-doc', 'scenarios'),
+].find((candidate) => existsSync(candidate)) ?? resolve(repoRoot, 'doc', 'scenarios');
 
 export function getRepoRoot(): string {
   return repoRoot;
 }
 
 export function resolveRepoPath(relativePath: string): string {
-  return resolve(repoRoot, relativePath);
+  const direct = resolve(repoRoot, relativePath);
+  if (existsSync(direct)) return direct;
+
+  if (relativePath.startsWith('doc/')) {
+    const migrated = resolve(repoRoot, 'dev-doc', relativePath.slice('doc/'.length));
+    if (existsSync(migrated)) return migrated;
+  }
+
+  if (relativePath.startsWith('docs/')) {
+    const migrated = resolve(repoRoot, 'dev-doc', relativePath.slice('docs/'.length));
+    if (existsSync(migrated)) return migrated;
+  }
+
+  return direct;
 }
 
 export function getFeatureManifestPath(feature: string): string {

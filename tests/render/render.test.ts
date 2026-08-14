@@ -86,6 +86,7 @@ describe('renderers', () => {
     expect(output).toContain('Conflicts detected: 1');
     expect(output).toContain('claude');
     expect(output).toContain('cursor');
+    expect(output).toContain('display name: Claude');
     expect(output).toContain('install source: .claude/skills');
     expect(output).toContain('repository: https://github.com/example/git-workflow.git');
   });
@@ -103,7 +104,7 @@ describe('renderers', () => {
         tokenizer: { mode: 'approx' },
         byPlatform: [
           {
-            platform: 'claude',
+            platform: 'workbuddy',
             items: 1,
             estimatedTokens: 240,
             estimatedChars: 960,
@@ -120,9 +121,10 @@ describe('renderers', () => {
         {
           name: 'git-workflow',
           sourcePath: 'E:/skills/git-workflow/SKILL.md',
-          platform: 'claude',
+          platform: 'workbuddy',
           scope: 'project',
-          kind: 'claude-skill-description',
+          configSource: 'workbuddy-project-skills',
+          kind: 'agent-skill-description',
           estimatedTokens: 240,
           estimatedChars: 960,
           activationEstimatedTokens: 0,
@@ -130,7 +132,7 @@ describe('renderers', () => {
           activation: 'startup',
           budgetScope: 'startup-selection',
           confidence: 'high',
-          recommendation: 'Shorten the Claude skill description; every turn pays for it.',
+          recommendation: 'Shorten the WorkBuddy skill description; every turn pays for it.',
         },
       ],
     });
@@ -142,9 +144,10 @@ describe('renderers', () => {
     expect(output).toContain('Tokenizer: approx');
     expect(output).toContain('Grade: A');
     expect(output).toContain('By coding agent:');
-    expect(output).toContain('claude: 240 tokens/turn (1 items)');
+    expect(output).toContain('workbuddy: 240 tokens/turn (1 items)');
     expect(output).toContain('git-workflow');
-    expect(output).toContain('claude-skill-description');
+    expect(output).toContain('agent-skill-description');
+    expect(output).toContain('config source: workbuddy-project-skills');
   });
 
   it('renders Codex resource summaries when resource metadata is present', () => {

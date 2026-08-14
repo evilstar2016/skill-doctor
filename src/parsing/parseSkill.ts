@@ -11,9 +11,15 @@ import { extractBulletLines, uniqueStrings } from './extractTriggers';
 interface FrontmatterData {
   name?: string;
   description?: string;
+  description_zh?: string;
+  description_en?: string;
   when_to_use?: string;
   author?: string;
   repository?: string;
+  disable?: boolean;
+  disableModelInvocation?: boolean;
+  userInvocable?: boolean;
+  allowedTools: string[];
   /** Official Claude field name; `globs` kept for backward compat */
   paths: string[];
   globs: string[];
@@ -33,14 +39,23 @@ interface ParseSkillOptions {
   provenanceCache?: ProvenanceCache;
 }
 
-type ListField = 'globs' | 'paths';
-type BlockScalarField = 'description' | 'when_to_use' | 'applyTo';
+type ListField = 'globs' | 'paths' | 'allowedTools';
+type BlockScalarField = 'description' | 'description_zh' | 'description_en' | 'when_to_use' | 'applyTo';
 type BlockScalarStyle = 'folded' | 'literal';
 type GitProvenance = Pick<SkillProvenance, 'author' | 'repository'>;
 
 const gitRepoCache = new Map<string, string | null>();
 const gitAuthorCache = new Map<string, string | null>();
-const SKILL_METADATA_FILE_NAMES = ['manifest.json', 'meta.json', 'metadata.json'] as const;
+const SKILL_METADATA_FILE_NAMES = [
+  'manifest.json',
+  'meta.json',
+  'metadata.json',
+  '_skillhub_meta.json',
+  '_marketplace_meta.json',
+  '_knot_meta.json',
+  '_builtin_market_meta.json',
+  '_user_meta.json',
+] as const;
 
 export async function parseSkill(file: SkillFile, options: ParseSkillOptions = {}): Promise<SkillRecord | null> {
   const raw = readFileSync(file.filePath, 'utf8');
@@ -55,6 +70,8 @@ export async function parseSkill(file: SkillFile, options: ParseSkillOptions = {
   const heading = extractHeading(body);
   const description =
     frontmatter.description ??
+    frontmatter.description_zh ??
+    frontmatter.description_en ??
     metadata.description ??
     extractNamedSection(body, 'Description')?.replace(/\s+/g, ' ').trim() ??
     body.trim().slice(0, 200);
@@ -81,6 +98,20 @@ export async function parseSkill(file: SkillFile, options: ParseSkillOptions = {
     options.provenanceCache,
   );
 
+  const context = file.platform === 'workbuddy' && (frontmatter.disable === true || frontmatter.disableModelInvocation === true || typeof frontmatter.userInvocable === 'boolean' || frontmatter.allowedTools.length > 0)
+    ? {
+        ...(typeof frontmatter.userInvocable === 'boolean' ? { userInvocable: frontmatter.userInvocable } : {}),
+        ...(frontmatter.allowedTools.length > 0 ? { allowedTools: frontmatter.allowedTools } : {}),
+        ...(frontmatter.disable === true || frontmatter.disableModelInvocation === true
+          ? {
+              enabled: false,
+              controllable: false,
+              controlMethod: frontmatter.disable === true ? 'workbuddy-disable' : 'workbuddy-disable-model-invocation',
+            }
+          : {}),
+      }
+    : undefined;
+
   return {
     name: frontmatter.name ?? metadata.name ?? heading ?? getFallbackName(file.filePath),
     sourcePath: file.filePath,
@@ -89,6 +120,7 @@ export async function parseSkill(file: SkillFile, options: ParseSkillOptions = {
     description,
     triggers,
     provenance,
+    ...(context ? { context } : {}),
   };
 }
 
@@ -149,7 +181,7 @@ async function resolveProvenance(
 function splitFrontmatter(content: string): { frontmatter: FrontmatterData; body: string } {
   if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) {
     return {
-      frontmatter: { globs: [], paths: [] },
+      frontmatter: { globs: [], paths: [], allowedTools: [] },
       body: content,
     };
   }
@@ -158,7 +190,7 @@ function splitFrontmatter(content: string): { frontmatter: FrontmatterData; body
 
   if (!match) {
     return {
-      frontmatter: { globs: [], paths: [] },
+      frontmatter: { globs: [], paths: [], allowedTools: [] },
       body: content,
     };
   }
@@ -171,7 +203,7 @@ function splitFrontmatter(content: string): { frontmatter: FrontmatterData; body
 
 function parseFrontmatter(raw: string): FrontmatterData {
   const lines = raw.split(/\r?\n/);
-  const parsed: FrontmatterData = { paths: [], globs: [] };
+  const parsed: FrontmatterData = { paths: [], globs: [], allowedTools: [] };
   let activeList: ListField | null = null;
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -185,7 +217,8 @@ function parseFrontmatter(raw: string): FrontmatterData {
     if (trimmed.startsWith('- ') && activeList !== null) {
       const value = stripQuotes(trimmed.slice(2).trim());
       if (activeList === 'globs') parsed.globs.push(value);
-      else parsed.paths.push(value);
+      else if (activeList === 'paths') parsed.paths.push(value);
+      else parsed.allowedTools.push(value);
       continue;
     }
 
@@ -219,10 +252,27 @@ function parseFrontmatter(raw: string): FrontmatterData {
       continue;
     }
 
+    if (key === 'allowed-tools' || key === 'allowed_tools') {
+      const inlineValues = parseInlineArray(value);
+      if (inlineValues) {
+        parsed.allowedTools.push(...inlineValues);
+      } else {
+        activeList = 'allowedTools';
+      }
+      continue;
+    }
+
     const blockScalarStyle = parseBlockScalarStyle(value);
-    if (blockScalarStyle && isBlockScalarField(key)) {
+    const blockScalarKey = key === 'when-to-use'
+      ? 'when_to_use'
+      : key === 'description-zh'
+        ? 'description_zh'
+        : key === 'description-en'
+          ? 'description_en'
+          : key;
+    if (blockScalarStyle && isBlockScalarField(blockScalarKey)) {
       const blockScalar = readBlockScalar(lines, index + 1, blockScalarStyle);
-      parsed[key] = blockScalar.value;
+      parsed[blockScalarKey] = blockScalar.value;
       index = blockScalar.nextIndex - 1;
       continue;
     }
@@ -235,8 +285,28 @@ function parseFrontmatter(raw: string): FrontmatterData {
       parsed.description = stripQuotes(value);
     }
 
-    if (key === 'when_to_use') {
+    if (key === 'description_zh' || key === 'description-zh') {
+      parsed.description_zh = stripQuotes(value);
+    }
+
+    if (key === 'description_en' || key === 'description-en') {
+      parsed.description_en = stripQuotes(value);
+    }
+
+    if (key === 'when_to_use' || key === 'when-to-use') {
       parsed.when_to_use = stripQuotes(value);
+    }
+
+    if (key === 'disable') {
+      parsed.disable = parseBoolean(value);
+    }
+
+    if (key === 'disable-model-invocation') {
+      parsed.disableModelInvocation = parseBoolean(value);
+    }
+
+    if (key === 'user-invocable') {
+      parsed.userInvocable = parseBoolean(value);
     }
 
     if (key === 'author') {
@@ -281,7 +351,11 @@ function parseBlockScalarStyle(value: string): BlockScalarStyle | null {
 }
 
 function isBlockScalarField(key: string): key is BlockScalarField {
-  return key === 'description' || key === 'when_to_use' || key === 'applyTo';
+  return key === 'description'
+    || key === 'description_zh'
+    || key === 'description_en'
+    || key === 'when_to_use'
+    || key === 'applyTo';
 }
 
 function readBlockScalar(
@@ -510,4 +584,11 @@ function extractNamedSection(content: string, sectionName: string): string | nul
 
 function stripQuotes(value: string): string {
   return value.replace(/^['"]|['"]$/g, '');
+}
+
+function parseBoolean(value: string): boolean | undefined {
+  const normalized = stripQuotes(value).toLowerCase();
+  if (normalized === 'true' || normalized === 'yes') return true;
+  if (normalized === 'false' || normalized === 'no') return false;
+  return undefined;
 }

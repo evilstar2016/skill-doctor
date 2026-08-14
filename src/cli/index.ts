@@ -87,6 +87,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
   if (command === 'scan') {
     const scope = readScope(rest);
+    const platform = readPlatform(rest);
     const groupMode = hasFlag(rest, '--group');
 
     if (scope === 'invalid') {
@@ -95,10 +96,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
 
+    if (platform === 'invalid') {
+      process.stderr.write('Invalid platform. Use --platform <supported-platform>\n');
+      process.exitCode = 1;
+      return;
+    }
+
     const llmOptions = readAnalysisLlmOptions();
 
     if (groupMode) {
-      const skills = filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope);
+      const skills = filterEntriesByPlatform(filterSkillsByScope(await scanSkills(cwd, { extraPaths }), scope), platform);
       const labelCache = loadGroupLabelCache();
       const groupResult = await groupSkills(skills, { llmOptions: llmOptions ?? undefined, labelCache });
       saveGroupLabelCache(labelCache);
@@ -122,6 +129,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const snapshot = await runHealthCheck({
       projectDir: cwd,
       scope,
+      platform,
       includeContext: false,
       includeGroups: false,
       applyIgnore: false,
@@ -968,7 +976,7 @@ function getHelpText(): string {
     'skill-doctor',
     '',
     'Usage:',
-    '  skill-doctor scan [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
+    '  skill-doctor scan [--platform PLATFORM] [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',

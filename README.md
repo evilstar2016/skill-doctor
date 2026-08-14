@@ -8,7 +8,7 @@
 
 Local CLI for diagnosing AI agent skills: conflicts, security risks, duplicates, and drift.
 
-Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other agent tooling starts behaving inconsistently because skills/rules/instructions overlap.
+Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, WorkBuddy, or other agent tooling starts behaving inconsistently because skills/rules/instructions overlap.
 
 ![skill-doctor terminal demo](assets/terminal-demo.svg)
 
@@ -16,7 +16,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, or other 
 
 ## Try it in 30 seconds
 
-Current release: [`v0.4.2`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.4.2) on npm.
+Current release: [`v0.5.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.5.0) on npm.
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -83,7 +83,7 @@ For lightweight questions and examples before filing an issue, use [GitHub Discu
 - Overlapping skills that may compete for the same trigger
 - Suspicious instructions such as shell execution, destructive commands, credential exposure, or network upload patterns
 - Estimated context token tax across Claude, Cursor, Copilot, Codex, Gemini CLI, Windsurf, and other coding agent instruction modes
-- Drift across agent ecosystems as your Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, and Hermes setup grows
+- Drift across agent ecosystems as your Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, OpenClaw, Hermes, and WorkBuddy setup grows
 
 ```
 $ skill-doctor scan
@@ -333,12 +333,12 @@ npm run dev -- cost --platform codex
 | Mode | Applies to | Estimate basis |
 |------|------------|----------------|
 | `claude-skill-description` | Claude Code `SKILL.md` files | Name, description, and trigger metadata |
-| `agent-skill-description` | Gemini, Windsurf, Kiro, Trae, OpenCode, OpenClaw, Hermes, and Copilot skill dirs | Name, description, and trigger metadata |
+| `agent-skill-description` | Gemini, Windsurf, Kiro, Trae, OpenCode, OpenClaw, Hermes, WorkBuddy, and Copilot skill dirs | Name, description, and trigger metadata |
 | `cursor-rule-file` | Cursor `.cursor/rules/*.mdc` and rule files | Local rule file content |
 | `copilot-instruction-file` | GitHub Copilot `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` | Local instruction file content |
 | `copilot-prompt-file` | GitHub Copilot `.github/prompts/**/*.prompt.md` | Prompt file content, counted as manual activation context |
 | `always-on-file` | `AGENTS.md`, `.codex/AGENTS.md`, `GEMINI.md`, `.windsurfrules`, `.cursorrules`, and similar always-on files | Local file content |
-| `mcp-tool-list` | MCP servers for Copilot, Codex, Claude Code, Gemini CLI, and Cursor | Live `tools/list` names, descriptions, and schemas when the server can be reached |
+| `mcp-tool-list` | MCP servers for Copilot, Codex, Claude Code, Gemini CLI, Cursor, and WorkBuddy | Live `tools/list` names, descriptions, and schemas when the server can be reached |
 
 This keeps Claude's token-tax behavior as one mode inside a broader coding-agent configuration health check.
 
@@ -442,6 +442,9 @@ The dashboard shows:
 | **OpenCode** | `~/.config/opencode/skills/` | `skills/`, `AGENTS.md` |
 | **OpenClaw** | `~/.openclaw/skills/` | — |
 | **Hermes** | `~/.config/hermes/skills/` | — |
+| **WorkBuddy** | `~/.workbuddy/skills/`, `~/.workbuddy/connectors/skills/`, `~/.workbuddy/IDENTITY.md`, `~/.workbuddy/USER.md`, `~/.workbuddy/SOUL.md`, `~/.workbuddy/MEMORY.md` | `.workbuddy/skills/` |
+
+WorkBuddy also supports static MCP discovery from `~/.workbuddy/mcp.json` and `.workbuddy/mcp.json`, plus Skill installation into its global/project Skill directories. Dynamic connector MCP aggregation, marketplace caches, and plugin/builtin runtime state are intentionally not treated as active resources.
 
 Additional directories can be added via `paths.extra` in config (see Configuration).
 

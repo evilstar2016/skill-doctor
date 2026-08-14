@@ -36,6 +36,19 @@ describe('detectPlatform', () => {
     expect(result?.layout).toBe('files');
   });
 
+  it('detects WorkBuddy from its declared global Skill target', () => {
+    const homeDir = makeTempDir();
+    mkdirSync(join(homeDir, '.workbuddy', 'skills'), { recursive: true });
+
+    const result = detectPlatform({ homeDir });
+
+    expect(result).toEqual({
+      platform: 'workbuddy',
+      globalDir: join(homeDir, '.workbuddy', 'skills'),
+      layout: 'skill-dirs',
+    });
+  });
+
   it('prefers claude over cursor when both exist (high confidence first)', () => {
     const homeDir = makeTempDir();
     mkdirSync(join(homeDir, '.claude', 'skills'), { recursive: true });

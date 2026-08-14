@@ -10,6 +10,7 @@ import { OpenCodeLogo } from './logos/OpenCodeLogo';
 import { KiroLogo } from './logos/KiroLogo';
 import { OpenClawLogo } from './logos/OpenClawLogo';
 import { HermesLogo } from './logos/HermesLogo';
+import { WorkBuddyLogo } from './logos/WorkBuddyLogo';
 
 export type PlatformLogoProps = { size?: number };
 type LogoComponent = (props: PlatformLogoProps) => ReactNode;
@@ -39,6 +40,7 @@ export const PLATFORM_LOGOS: Record<string, LogoComponent> = {
   kiro: KiroLogo,
   openclaw: OpenClawLogo,
   hermes: HermesLogo,
+  workbuddy: WorkBuddyLogo,
 };
 
 export function getPlatformLogo(platform: string): LogoComponent | undefined {

@@ -545,6 +545,7 @@
   "drawer.notCalculated": "本次未计算",
   "drawer.sources": "聚合来源（{{count}}）",
   "drawer.source": "来源",
+  "drawer.configSource": "配置来源",
   "drawer.installSource": "安装来源",
   "drawer.repository": "仓库",
   "drawer.author": "作者",

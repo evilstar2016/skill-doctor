@@ -34,8 +34,10 @@ vi.mock('../../web/src/api', () => ({
 }));
 
 import App from '../../web/src/App';
+import { getPlatformLogo } from '../../web/src/components/platformLogos';
 
 const codexAgent = { platform: 'codex', displayName: 'Codex', projectDetected: true, globalDetected: false, recommended: true };
+const workbuddyAgent = { platform: 'workbuddy', displayName: 'WorkBuddy', projectDetected: true, globalDetected: true, recommended: true };
 const snapshot = {
   id: 'snapshot', generatedAt: new Date(0).toISOString(), durationMs: 1, status: 'complete',
   target: { projectDir: '/tmp/project', scope: 'all', platform: 'codex' },
@@ -131,6 +133,32 @@ describe('UI onboarding', () => {
     expect(await screen.findByText('体检设置')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('解释Tokenizer'));
     expect(screen.getByText(/OpenAI tokenizer 提供更准确的估算/)).toBeTruthy();
+  });
+
+  it('shows WorkBuddy as a selectable platform and distinguishes its configuration source', async () => {
+    expect(getPlatformLogo('workbuddy')).toBeDefined();
+    const resource = {
+      id: 'workbuddy-resource', name: 'WorkBuddy Skill', kind: 'skill', kindLabel: 'Skill', sourcePath: '/tmp/project/.workbuddy/skills/review/SKILL.md',
+      platform: 'workbuddy', scope: 'project', shared: false, consumers: [{ platform: 'workbuddy', scope: 'project' }],
+      configSource: 'workbuddy-project-skills', controllable: false, triggers: [], fixedTokens: 10, activationTokens: 0, issueIds: [], status: 'healthy',
+    };
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['workbuddy'], detectedAgents: [workbuddyAgent], capabilities: snapshot.capabilities, registry: [],
+      snapshot: { ...snapshot, target: { ...snapshot.target, platform: 'workbuddy' }, resources: [resource], summary: { ...snapshot.summary, resources: 1, platforms: { workbuddy: 1 } } },
+    });
+    mocks.detectAgents.mockResolvedValue({ projectDir: '/tmp/project', agents: [workbuddyAgent] });
+    mocks.streamScan.mockImplementation((_id, handlers) => { queueMicrotask(() => handlers.complete({ ...snapshot, target: { ...snapshot.target, platform: 'workbuddy' }, resources: [resource], summary: { ...snapshot.summary, resources: 1, platforms: { workbuddy: 1 } } })); return () => {}; });
+
+    render(<App />);
+
+    const agentBar = await screen.findByLabelText('选择要体检的 Agent');
+    const workbuddyButton = within(agentBar).getByRole('button', { name: /WorkBuddy.*项目/ });
+    expect(workbuddyButton.querySelector('svg')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '资源清单' }));
+    fireEvent.click(await screen.findByRole('button', { name: /WorkBuddy Skill/ }));
+    expect(await screen.findByText('配置来源')).toBeTruthy();
+    expect(screen.getByText('workbuddy-project-skills')).toBeTruthy();
   });
 
   it('does not present a partial scan with warnings as healthy', async () => {

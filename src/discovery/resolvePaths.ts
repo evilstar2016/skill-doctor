@@ -45,6 +45,7 @@ export function resolvePaths(cwd: string, options: ResolvePathsOptions = {}): Sk
         path: source.path,
         mode: source.mode ?? 'recursive-dir',
         layout: source.layout ?? 'skill-dirs',
+        maxDepth: source.maxDepth,
       }, source.scope, results, seen);
     }
   } else {
@@ -164,6 +165,14 @@ function collectPath(
       const primary = selectPrimaryFile(matchingFiles);
       if (primary) {
         pushResult(primary, target.path, definition, scope, results, seen);
+      }
+      return;
+    }
+
+    if (target.maxDepth !== undefined) {
+      if (depth >= target.maxDepth) return;
+      for (const subdir of subdirs) {
+        collectPath(subdir, definition, target, scope, results, seen, depth + 1);
       }
       return;
     }
