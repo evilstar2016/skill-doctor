@@ -15,6 +15,7 @@ skill-backup/
 .env
 .vscode/
 marketing/
+assets/promotion
 .codex/
 .playwright-cli/
 output/playwright/
