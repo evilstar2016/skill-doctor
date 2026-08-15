@@ -13,6 +13,8 @@ a{color:#00c8ff;text-decoration:none}
 /* header */
 .db-header{background:#0d1320;border-bottom:1px solid #1a2238;padding:20px 0}
 .db-header-inner{display:flex;align-items:center;justify-content:space-between}
+.db-brand-wrap{display:flex;align-items:center;gap:12px}
+.db-brand-logo{width:34px;height:34px;display:block}
 .db-brand{font-size:20px;font-weight:700;letter-spacing:2px;color:#00c8ff}
 .db-brand-sub{font-size:12px;color:#5a6a80;margin-top:2px}
 .db-version{background:#1a2238;color:#00c8ff;font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #00c8ff33}
@@ -95,9 +97,12 @@ code.match-text{display:block;background:#0d1320;border:1px solid #1a2238;border
 <header class="db-header">
   <div class="container">
     <div class="db-header-inner">
-      <div>
-        <div class="db-brand">SKILL DOCTOR</div>
-        <div class="db-brand-sub">Mission Control &middot; 3 skills &middot; Aug 7, 2026</div>
+      <div class="db-brand-wrap">
+        <img class="db-brand-logo" src="../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
+        <div>
+          <div class="db-brand">SKILL DOCTOR</div>
+          <div class="db-brand-sub">Mission Control &middot; 3 skills &middot; Aug 7, 2026</div>
+        </div>
       </div>
       <span class="db-version">v0.4.2</span>
     </div>

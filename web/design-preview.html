@@ -36,7 +36,7 @@ body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI","P
 .shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
 .sidebar{background:linear-gradient(180deg,var(--sidebar),color-mix(in srgb,var(--sidebar),#000 6%));border-right:1px solid var(--border);padding:22px 16px;display:flex;flex-direction:column;box-shadow:1px 0 0 var(--border),18px 0 40px -30px rgba(20,40,30,.5)}
 .brand{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:650;padding:0 10px 24px;letter-spacing:-.01em}
-.brand-mark{width:34px;height:34px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#0e7a4f);color:#fff;border:0;border-radius:11px;box-shadow:0 6px 16px rgba(21,146,95,.35)}
+.brand-mark{width:34px;height:34px;display:block}
 .nav{display:grid;gap:5px}
 .nav button{border:0;background:transparent;display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:var(--radius);color:var(--muted);text-align:left;font-size:14px;font-weight:500;cursor:pointer;transition:.18s var(--ease)}
 .nav button:hover{background:var(--surface-2);color:var(--text)}
@@ -91,7 +91,7 @@ select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:var(
 <body>
 <div class="shell">
   <aside class="sidebar">
-    <div class="brand"><span class="brand-mark">✚</span><span>Skill Doctor</span></div>
+    <div class="brand"><img class="brand-mark" src="../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo"><span>Skill Doctor</span></div>
     <nav class="nav">
       <button class="active">▦ Overview</button>
       <button>Issues <span class="count">7</span></button>

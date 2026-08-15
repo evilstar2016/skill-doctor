@@ -1,6 +1,10 @@
 # skill-doctor Reference
 
 <p align="center">
+  <img src="../assets/brand/skill-doctor-logo.svg" alt="Skill Doctor" width="360">
+</p>
+
+<p align="center">
   <a href="./README.zh-CN.md"><strong>📘 中文文档 (Chinese)</strong></a>
 </p>
 

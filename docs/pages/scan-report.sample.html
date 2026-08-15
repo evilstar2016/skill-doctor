@@ -50,7 +50,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .container{max-width:1080px;margin:0 auto;padding:0 32px}
 .site-header{border-bottom:var(--border);padding:28px 0 22px;margin-bottom:52px}
 .header-inner{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
-.brand-name{font-size:22px;font-weight:300;letter-spacing:-0.3px}
+.brand-name{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:300;letter-spacing:-0.3px}
+.brand-mark{width:32px;height:32px;display:block}
 .brand-name span{color:var(--accent)}
 .brand-sub{margin-top:5px;font-size:12px;color:var(--muted);font-weight:300}
 .theme-btn{background:var(--surface);border:var(--border);color:var(--muted);font-family:var(--font);font-size:11px;padding:6px 13px;border-radius:var(--radius);cursor:pointer;flex-shrink:0;margin-top:3px;letter-spacing:0.5px;transition:color 0.2s}
@@ -139,7 +140,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="container">
     <div class="header-inner">
       <div>
-        <div class="brand-name">skill<span>·</span>doctor</div>
+        <div class="brand-name"><img class="brand-mark" src="../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo"><span>skill<span>·</span>doctor</span></div>
         <div class="brand-sub">3 skills &middot; 2 platforms &middot; 1 issue &middot; Aug 7, 2026</div>
       </div>
       <button class="theme-btn" id="themeToggle">&#9680; Dark</button>

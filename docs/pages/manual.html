@@ -18,6 +18,7 @@
   /* bilingual: hide EN by default (zh view), and zh when data-lang=en */
   body[data-lang="en"] .zh{display:none}
   body:not([data-lang="en"]) .en{display:none}
+  .brand-mark{display:block;width:54px;height:54px;margin:0 0 14px;filter:brightness(0) invert(1)}
   header.hero{background:linear-gradient(135deg,#2f6feb,#5b8def);color:#fff;padding:38px 28px 30px;position:relative;}
   header.hero h1{margin:0 0 6px;font-size:28px;letter-spacing:.5px;}
   header.hero p{margin:0;opacity:.92;font-size:14px;}
@@ -81,6 +82,7 @@
     <button type="button" data-lang="zh" class="active" aria-pressed="true">中文</button>
     <button type="button" data-lang="en" aria-pressed="false">EN</button>
   </div>
+  <img class="brand-mark" src="../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1><span class="zh">skill-doctor 使用手册</span><span class="en">skill-doctor manual</span></h1>
   <p><span class="zh">本地 CLI，用于审计 AI 编码助手的技能：重复 · 冲突 · 安全风险 · 上下文成本</span><span class="en">A local CLI for auditing AI-coding-assistant skills: duplicates · conflicts · security risks · context cost</span></p>
   <span class="ver"><span class="zh">版本 v0.4.2 · 所有截图均为真实命令输出</span><span class="en">Version v0.4.2 · every screenshot is a real command output</span></span>

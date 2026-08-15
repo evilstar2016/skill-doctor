@@ -1,5 +1,9 @@
 # Conflicted Agent Project
 
+<p align="center">
+  <img src="../../assets/brand/skill-doctor-logo.svg" alt="Skill Doctor" width="320">
+</p>
+
 This is a safe demo workspace for `skill-doctor`. It contains redacted GitHub Copilot instruction files that intentionally trigger duplicate-style overlap and audit findings.
 
 Run from this directory:

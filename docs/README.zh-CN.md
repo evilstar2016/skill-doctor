@@ -1,6 +1,10 @@
 # skill-doctor 使用说明
 
 <p align="center">
+  <img src="../assets/brand/skill-doctor-logo.svg" alt="Skill Doctor" width="360">
+</p>
+
+<p align="center">
   <a href="./README.md"><strong>📗 English</strong></a>
 </p>
 
