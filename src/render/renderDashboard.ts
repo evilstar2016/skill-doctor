@@ -1,6 +1,7 @@
 import type { AuditFinding, AuditResult, RuleId } from '../types/audit';
 import type { CleanupSuggestion } from '../types/cleanup';
 import type { ConflictPair, Platform, SkillRecord } from '../types/skill';
+import { SKILL_DOCTOR_MARK_SVG } from './brand';
 import { esc } from './theme';
 import packageJson from '../../package.json';
 
@@ -25,6 +26,9 @@ a{color:#00c8ff;text-decoration:none}
 /* header */
 .db-header{background:#0d1320;border-bottom:1px solid #1a2238;padding:20px 0}
 .db-header-inner{display:flex;align-items:center;justify-content:space-between}
+.db-brand-wrap{display:flex;align-items:center;gap:12px}
+.db-brand-logo{width:34px;height:34px;display:block;flex:none}
+.db-brand-logo svg{display:block;width:100%;height:100%}
 .db-brand{font-size:20px;font-weight:700;letter-spacing:2px;color:#00c8ff}
 .db-brand-sub{font-size:12px;color:#5a6a80;margin-top:2px}
 .db-version{background:#1a2238;color:#00c8ff;font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #00c8ff33}
@@ -119,9 +123,12 @@ function dashboardPage(brandSub: string, body: string): string {
 <header class="db-header">
   <div class="container">
     <div class="db-header-inner">
-      <div>
-        <div class="db-brand">SKILL DOCTOR</div>
-        <div class="db-brand-sub">${brandSub}</div>
+      <div class="db-brand-wrap">
+        <span class="db-brand-logo">${SKILL_DOCTOR_MARK_SVG}</span>
+        <div>
+          <div class="db-brand">SKILL DOCTOR</div>
+          <div class="db-brand-sub">${brandSub}</div>
+        </div>
       </div>
       <span class="db-version">v${esc(version)}</span>
     </div>

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import {
   AlertTriangle, ArrowRight, BarChart3, Check, CircleHelp, Filter, GitCompareArrows, LoaderCircle,
-  Search, ShieldCheck, Stethoscope, X,
+  Search, ShieldCheck, X,
 } from 'lucide-react';
 import type { UiIssue, UiResource } from '../../../src/application/types';
 import type { Scope } from '../../../src/types/skill';
 import { useTranslation } from '../i18n';
+import { SkillDoctorLogo } from './SkillDoctorLogo';
 import { getPlatformLogo } from './platformLogos';
 
 export function PageHeading({ title, subtitle, children }: { title: string; subtitle: string; children?: ReactNode }) { return <div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div>{children && <div className="heading-action">{children}</div>}</div>; }
@@ -21,7 +22,7 @@ export function HelpTip({ label, text }: { label: string; text: string }) { cons
 export function Detail({ label, value }: { label: string; value: string }) { return <div className="detail"><span>{label}</span><strong>{value}</strong></div>; }
 export function EmptyRows({ icon: Icon, title }: { icon: typeof Check; title: string }) { return <div className="empty-rows"><Icon size={22} /><span>{title}</span></div>; }
 export function LoadingLine() { const { t } = useTranslation(); return <div className="loading-line"><LoaderCircle size={16} className="spin" />{t('common.loading')}</div>; }
-export function LaunchScreen() { const { t } = useTranslation(); return <div className="launch-screen"><span><Stethoscope size={30} /></span><h1>Skill Doctor</h1><p>{t('common.starting')}</p><LoaderCircle className="spin" /></div>; }
+export function LaunchScreen() { const { t } = useTranslation(); return <div className="launch-screen"><span><SkillDoctorLogo size={38} alt="" /></span><h1>Skill Doctor</h1><p>{t('common.starting')}</p><LoaderCircle className="spin" /></div>; }
 export function ScanningEmpty({ running }: { running: boolean }) { const { t } = useTranslation(); return <div className="scanning-empty"><span>{running ? <LoaderCircle className="spin" /> : <CircleHelp />}</span><h2>{running ? t('common.scanning') : t('common.noScan')}</h2><p>{running ? t('common.scanningDetail') : t('common.noScanDetail')}</p></div>; }
 export function PlatformIcon({ platform, size }: { platform: string; size?: number }) {
   const resolved = size ?? 27;

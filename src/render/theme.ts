@@ -1,5 +1,7 @@
 /* Shared design system for all HTML reports — gstack-decoder aesthetic */
 
+import { SKILL_DOCTOR_MARK_SVG } from './brand';
+
 export function esc(s: string): string {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -25,7 +27,7 @@ export function htmlPage(title: string, brandSub: string, body: string): string 
   <div class="container">
     <div class="header-inner">
       <div>
-        <div class="brand-name">skill<span>·</span>doctor</div>
+        <div class="brand-name"><span class="brand-mark">${SKILL_DOCTOR_MARK_SVG}</span><span>skill<span>·</span>doctor</span></div>
         <div class="brand-sub">${brandSub}</div>
       </div>
       <button class="theme-btn" id="themeToggle">&#9680; Dark</button>
@@ -109,8 +111,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .container{max-width:1080px;margin:0 auto;padding:0 32px}
 .site-header{border-bottom:var(--border);padding:28px 0 22px;margin-bottom:52px}
 .header-inner{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
-.brand-name{font-size:22px;font-weight:300;letter-spacing:-0.3px}
-.brand-name span{color:var(--accent)}
+.brand-name{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:300;letter-spacing:-0.3px}
+.brand-mark{width:32px;height:32px;display:block;flex:none}
+.brand-mark svg{display:block;width:100%;height:100%}
+.brand-name > span:last-child > span{color:var(--accent)}
 .brand-sub{margin-top:5px;font-size:12px;color:var(--muted);font-weight:300}
 .theme-btn{background:var(--surface);border:var(--border);color:var(--muted);font-family:var(--font);font-size:11px;padding:6px 13px;border-radius:var(--radius);cursor:pointer;flex-shrink:0;margin-top:3px;letter-spacing:0.5px;transition:color 0.2s}
 .theme-btn:hover{color:var(--text)}

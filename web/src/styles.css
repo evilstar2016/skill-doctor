@@ -206,8 +206,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
   }
   .brand { letter-spacing: -.01em; }
   .brand-mark {
-    background: linear-gradient(135deg, var(--accent), #0b855c);
-    color: #fff; border: 0; box-shadow: 0 6px 16px rgba(14,158,110,.35);
+    display: block; flex: none; object-fit: contain; background: transparent;
+    border: 0; border-radius: 0; color: inherit;
   }
   .nav-item.active {
     background: linear-gradient(180deg, var(--accent), var(--accent-hover));
@@ -245,7 +245,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
 /* —— Color theme B overrides: recolor hard-coded accents to cyan —— */
 :root[data-color="cyan"] .button.primary { box-shadow: 0 6px 16px rgba(14,155,196,.28); }
 :root[data-color="cyan"] .button.primary:hover { box-shadow: 0 9px 24px rgba(14,155,196,.36); }
-:root[data-color="cyan"] .brand-mark { background: linear-gradient(135deg, var(--accent), #0a7e9e); box-shadow: 0 6px 16px rgba(14,155,196,.35); }
+:root[data-color="cyan"] .brand-mark { background: transparent; box-shadow: none; }
 :root[data-color="cyan"] .nav-item.active { box-shadow: 0 8px 20px rgba(14,155,196,.30); }
 
 /* —— Color theme switcher (topbar) —— */
@@ -479,7 +479,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); box-sha
 .app-shell { grid-template-columns: 264px minmax(0, 1fr); }
 .sidebar { padding: 22px 14px 16px; background: var(--sidebar); box-shadow: none; }
 .brand { padding: 0 10px 30px; font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
-.brand-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--text); border-color: var(--text); color: var(--surface); }
+.brand-mark { width: 32px; height: 32px; display: block; flex: none; object-fit: contain; border-radius: 0; background: transparent; border: 0; color: inherit; }
+.onboarding-brand-mark { flex: none; object-fit: contain; }
 .nav-group-label { padding: 13px 12px 7px; font-size: 10px; letter-spacing: .08em; }
 .nav-list { gap: 2px; }
 .nav-item { min-height: 42px; padding: 10px 12px; border-radius: 8px; font-size: 14px; }

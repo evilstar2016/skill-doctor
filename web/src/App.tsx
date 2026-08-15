@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
   Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, History, Info, LayoutDashboard, LoaderCircle, Menu,
-  PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Stethoscope, Trash2, X,
+  PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Trash2, X,
 } from 'lucide-react';
 import type { BootstrapPayload, DoctorSnapshot, ResourceDetailPayload, UiIssue, UiResource } from '../../src/application/types';
 import type { DetectedAgent } from '../../src/discovery/detectAgents';
@@ -27,6 +27,7 @@ import { Detail, EmptyRows, FilterBar, HelpTip, InlineNotice, IssueCard, LaunchS
 import { I18nProvider, useTranslation } from './i18n';
 import { useTheme, type Theme } from './theme-manager';
 import { ThemeToggle } from './components/ThemeToggle';
+import { SkillDoctorLogo } from './components/SkillDoctorLogo';
 
 type Route = 'overview' | 'issues' | 'context' | 'resources' | 'history' | 'manage' | 'scan-paths';
 type ColorTheme = 'teal' | 'cyan';
@@ -338,7 +339,7 @@ function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route
     : t('sidebar.health.ok')
     : t('sidebar.health.waiting');
   return <aside className="sidebar">
-    <div className="brand"><span className="brand-mark"><Stethoscope size={21} /></span><span>Skill Doctor</span></div>
+    <div className="brand"><SkillDoctorLogo className="brand-mark" size={32} alt="" /><span>Skill Doctor</span></div>
     {snapshot && <div className={`sidebar-health ${health}`}>
       <span className="health-dot" />
       <div><strong>{healthLabel}</strong><span>{snapshot.summary.issues ? t('sidebar.health.issues', { count: snapshot.summary.issues }) : incomplete ? t('sidebar.health.partial', { count: snapshot.warnings.length }) : t('sidebar.health.clean')}</span></div>
@@ -459,12 +460,12 @@ function OnboardingDialog({ bootstrap, options, agents, analysisMode, setAnalysi
     } catch (error) { setLocalError(error instanceof Error ? error.message : String(error)); setBusy(false); }
   };
   return <div className="onboarding-backdrop"><section className="onboarding-card" aria-modal="true" role="dialog" aria-labelledby="onboarding-title">
-    <header><span className="brand-mark"><Stethoscope size={22} /></span><div><span className="eyebrow">{t('onboarding.eyebrow')}</span><h1 id="onboarding-title">{t('onboarding.title')}</h1><p>{t('onboarding.subtitle')}</p></div></header>
+    <header><SkillDoctorLogo className="onboarding-brand-mark" size={34} alt="" /><div><span className="eyebrow">{t('onboarding.eyebrow')}</span><h1 id="onboarding-title">{t('onboarding.title')}</h1><p>{t('onboarding.subtitle')}</p></div></header>
     <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.projectDirectory')}</strong><span>{t('onboarding.projectDirectoryDetail')}</span></div></div><div className="path-input-row"><input value={projectDir} onChange={(event) => setProjectDir(event.target.value)} aria-label={t('onboarding.projectDirectory')} /><button className="button secondary compact" onClick={() => void chooseProjectDirectory()} disabled={busy}><FolderOpen size={16} />{t('onboarding.chooseDirectory')}</button><button className="button secondary" onClick={() => void redetect()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Search size={16} />}{t('onboarding.detectAgents')}</button></div><p className="scope-help">{t('onboarding.scopeHelp', { project: t('onboarding.projectConfig'), global: t('onboarding.globalConfig') })}</p></div>
     <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.agentTitle')}</strong><span>{t('onboarding.agentDetail')}</span></div></div><div className="agent-choice-grid">{[...agents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={agentChosen && options.platform === agent.platform ? 'active' : ''} aria-pressed={agentChosen && options.platform === agent.platform} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: agent.platform })); }}><PlatformIcon platform={agent.platform} /><strong>{agent.displayName}</strong><small>{agent.projectDetected ? t('onboarding.recommended') : t('onboarding.globalOnly')}</small></button>)}<button className={`agent-overview ${agentChosen && options.platform === 'all' ? 'active' : ''}`} aria-pressed={agentChosen && options.platform === 'all'} onClick={() => { setAgentChosen(true); setOptions((current) => ({ ...current, platform: 'all' })); }}><Boxes size={18} /><strong>{t('onboarding.overview')}</strong><small>{t('onboarding.overviewDetail')}</small></button></div>{agents.length === 0 && <p className="muted">{t('onboarding.noAgents')}</p>}</div>
     <div className="onboarding-section"><div className="section-title"><div><strong>{t('onboarding.analysisTitle')}</strong><span>{t('onboarding.analysisDetail')}</span></div></div><div className="analysis-choice"><button className={analysisMode === 'standard' ? 'active' : ''} aria-pressed={analysisMode === 'standard'} onClick={() => setAnalysisMode('standard')}><ShieldCheck size={19} /><span><strong>{t('onboarding.standard')}</strong><small>{t('onboarding.standardDetail')}</small></span></button><button className={analysisMode === 'deep' ? 'active' : ''} aria-pressed={analysisMode === 'deep'} disabled={!bootstrap.capabilities.aiAuditConfigured && !bootstrap.capabilities.embeddingConfigured} onClick={() => setAnalysisMode('deep')}><Sparkles size={19} /><span><strong>{t('onboarding.deep')}</strong><small>{bootstrap.capabilities.aiAuditConfigured || bootstrap.capabilities.embeddingConfigured ? t('onboarding.deepAvailable') : t('onboarding.deepUnavailable')}</small></span></button></div></div>
     {localError && <p className="form-error onboarding-error">{localError}</p>}
-    <footer><div><ShieldCheck size={16} /><span>{t('onboarding.private')}</span></div><button className="button primary" onClick={() => void submit()} disabled={busy || !projectDir.trim()}>{busy ? <LoaderCircle className="spin" size={17} /> : <Stethoscope size={17} />}{t('onboarding.start')}</button></footer>
+    <footer><div><ShieldCheck size={16} /><span>{t('onboarding.private')}</span></div><button className="button primary" onClick={() => void submit()} disabled={busy || !projectDir.trim()}>{busy ? <LoaderCircle className="spin" size={17} /> : <Activity size={17} />}{t('onboarding.start')}</button></footer>
   </section></div>;
 }
 
