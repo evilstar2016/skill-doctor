@@ -1,7 +1,7 @@
 {
   "name": "@evilstar2025/skill-doctor",
   "version": "0.5.0",
-  "description": "Local CLI for auditing AI agent skills, conflicts, duplicates, and safety risks.",
+  "description": "Local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration for duplicates, conflicts, security risks, and context cost.",
   "keywords": [
     "ai-agent",
     "agent-skills",
@@ -9,6 +9,13 @@
     "codex",
     "cursor",
     "github-copilot",
+    "gemini-cli",
+    "windsurf",
+    "mcp",
+    "context-cost",
+    "claude-skills",
+    "copilot-instructions",
+    "agent-security",
     "developer-tools",
     "cli",
     "security",
@@ -32,7 +39,7 @@
     "type": "git",
     "url": "git+https://github.com/evilstar2016/skill-doctor.git"
   },
-  "homepage": "https://github.com/evilstar2016/skill-doctor#readme",
+  "homepage": "https://evilstar2016.github.io/skill-doctor/",
   "bugs": {
     "url": "https://github.com/evilstar2016/skill-doctor/issues"
   },

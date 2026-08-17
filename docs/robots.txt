@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://evilstar2016.github.io/skill-doctor/sitemap.xml
