@@ -47,6 +47,7 @@
     "build": "npm run build:cli && npm run build:ui",
     "build:cli": "tsup",
     "build:ui": "vite build --config web/vite.config.ts",
+    "build:docs-languages": "node scripts/build-docs-languages.mjs",
     "dev": "tsx src/cli/index.ts",
     "dev:ui": "vite --config web/vite.config.ts",
     "typecheck:ui": "tsc -p web/tsconfig.json",

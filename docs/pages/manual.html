@@ -6,6 +6,9 @@
 <meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
+<link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
+<link rel="alternate" hreflang="zh-CN" href="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html">
+<link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
 <meta property="og:title" content="skill-doctor 使用手册 / Manual">
@@ -40,10 +43,10 @@
   .lang-switch{position:absolute;top:18px;right:22px;display:inline-flex;align-items:center;gap:4px;
     background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);border-radius:18px;
     padding:3px;backdrop-filter:blur(6px);}
-  .lang-switch button{appearance:none;background:transparent;color:#fff;border:0;
+  .lang-switch a{appearance:none;background:transparent;color:#fff;border:0;
     font:inherit;font-size:12px;font-weight:600;letter-spacing:.4px;
-    padding:4px 10px;border-radius:14px;cursor:pointer;opacity:.85;}
-  .lang-switch button.active{background:rgba(255,255,255,.95);color:#1f4cb8;opacity:1;}
+    padding:4px 10px;border-radius:14px;cursor:pointer;opacity:.85;text-decoration:none;}
+  .lang-switch a.active{background:rgba(255,255,255,.95);color:#1f4cb8;opacity:1;}
   nav.toc{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
     backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 22px;
     display:flex;flex-wrap:wrap;gap:8px;}
@@ -92,8 +95,8 @@
 <body>
 <header class="hero">
   <div class="lang-switch" role="group" aria-label="Language">
-    <button type="button" data-lang="zh" class="active" aria-pressed="true">中文</button>
-    <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    <a href="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html" class="active">中文</a>
+    <a href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">EN</a>
   </div>
   <img class="brand-mark" src="../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1><span class="zh">skill-doctor 使用手册</span><span class="en">skill-doctor manual</span></h1>
@@ -715,27 +718,5 @@ Usage: skill-doctor config set analysis|embedding --base-url &lt;url&gt; --model
     </section>
 </main>
 <footer><span class="zh">由 skill-doctor 真实输出生成 · 截图保留原始 ANSI 配色</span><span class="en">Generated from real skill-doctor output · terminal colors preserved</span></footer>
-<script>
-  (function () {
-    var KEY = 'skill-doctor-manual-lang';
-    var saved = null;
-    try { saved = localStorage.getItem(KEY); } catch (_) {}
-    var btn = document.querySelectorAll('.lang-switch button');
-    function setLang(lang) {
-      document.body.dataset.lang = lang === 'en' ? 'en' : 'zh';
-      document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
-      btn.forEach(function (b) {
-        var active = b.dataset.lang === (lang === 'en' ? 'en' : 'zh');
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
-      try { localStorage.setItem(KEY, lang === 'en' ? 'en' : 'zh'); } catch (_) {}
-    }
-    btn.forEach(function (b) {
-      b.addEventListener('click', function () { setLang(b.dataset.lang); });
-    });
-    setLang(saved === 'en' ? 'en' : 'zh');
-  })();
-</script>
 </body>
 </html>

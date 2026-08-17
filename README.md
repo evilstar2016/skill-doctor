@@ -16,7 +16,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, WorkBuddy
 
 ![skill-doctor terminal demo](assets/terminal-demo.svg)
 
-> 👉 Want to see it in action? Open the **[interactive HTML manual](https://evilstar2016.github.io/skill-doctor/pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command, with a 中文/EN toggle.
+> 👉 Want to see it in action? Open the **[English interactive HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command.
 
 ## Try it in 30 seconds
 

@@ -4,7 +4,19 @@
     <loc>https://evilstar2016.github.io/skill-doctor/</loc>
   </url>
   <url>
+    <loc>https://evilstar2016.github.io/skill-doctor/en/</loc>
+  </url>
+  <url>
+    <loc>https://evilstar2016.github.io/skill-doctor/zh-CN/</loc>
+  </url>
+  <url>
     <loc>https://evilstar2016.github.io/skill-doctor/pages/manual.html</loc>
+  </url>
+  <url>
+    <loc>https://evilstar2016.github.io/skill-doctor/en/pages/manual.html</loc>
+  </url>
+  <url>
+    <loc>https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html</loc>
   </url>
   <url>
     <loc>https://evilstar2016.github.io/skill-doctor/pages/scan-report.sample.html</loc>

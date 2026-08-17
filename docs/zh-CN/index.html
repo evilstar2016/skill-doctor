@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Skill Doctor 是一个本地 CLI，用于审计 AI Agent 的 skills、rules、instructions 和 MCP 配置，发现重复、冲突、安全风险与上下文成本。">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/zh-CN/">
+<link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/">
+<link rel="alternate" hreflang="zh-CN" href="https://evilstar2016.github.io/skill-doctor/zh-CN/">
+<link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="skill-doctor">
+<meta property="og:title" content="skill-doctor — AI Agent Skills 审计工具">
+<meta property="og:description" content="Skill Doctor 是一个本地 CLI，用于审计 AI Agent 的 skills、rules、instructions 和 MCP 配置，发现重复、冲突、安全风险与上下文成本。">
+<meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/zh-CN/">
+<meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="skill-doctor — AI Agent Skills 审计工具">
+<meta name="twitter:description" content="Skill Doctor 是一个本地 CLI，用于审计 AI Agent 的 skills、rules、instructions 和 MCP 配置，发现重复、冲突、安全风险与上下文成本。">
+<meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
+<title>skill-doctor — AI Agent Skills 审计工具</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://evilstar2016.github.io/skill-doctor/#software",
+  "name": "skill-doctor",
+  "applicationCategory": "DeveloperApplication",
+  "description": "Skill Doctor 是一个本地 CLI，用于审计 AI Agent 的 skills、rules、instructions 和 MCP 配置，发现重复、冲突、安全风险与上下文成本。",
+  "softwareVersion": "0.5.0",
+  "url": "https://evilstar2016.github.io/skill-doctor/",
+  "downloadUrl": "https://www.npmjs.com/package/@evilstar2025/skill-doctor",
+  "codeRepository": "https://github.com/evilstar2016/skill-doctor",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<style>
+  :root{--bg:#f6f8fa;--panel:#fff;--ink:#1f2430;--muted:#5b6472;--line:#e4e8ee;--accent:#3b6ef5;--accent2:#7a5af5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7}
+header{background:linear-gradient(135deg,#3b6ef5,#7a5af5);color:#fff;padding:46px 24px 38px;position:relative}
+  header .wrap{max-width:920px;margin:0 auto}
+  .brand-mark{display:block;width:54px;height:54px;margin:0 0 18px;filter:brightness(0) invert(1)}
+  header h1{margin:0 0 8px;font-size:28px}
+  header p{margin:0;opacity:.92;font-size:15px}
+  .lang-switch{position:absolute;top:16px;right:20px;display:inline-flex;align-items:center;gap:4px;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);border-radius:18px;padding:3px}
+  .lang-switch a{appearance:none;background:transparent;color:#fff;border:0;font:inherit;font-size:12px;
+    font-weight:600;letter-spacing:.4px;padding:4px 11px;border-radius:14px;cursor:pointer;opacity:.85;text-decoration:none}
+  .lang-switch a.active{background:rgba(255,255,255,.95);color:#1f4cb8;opacity:1}
+  main{max-width:920px;margin:0 auto;padding:28px 24px 60px}
+  h2.section{font-size:20px;margin:34px 0 14px;display:flex;align-items:center;gap:8px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  a.card{display:block;text-decoration:none;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:18px 20px;box-shadow:0 1px 2px rgba(20,30,60,.04);transition:.15s}
+  a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  a.card h3{margin:0 0 6px;font-size:16px;color:var(--ink);display:flex;align-items:center;gap:8px}
+  a.card p{margin:0;color:var(--muted);font-size:14px}
+  .tag{font-size:11px;background:var(--ink);color:#fff;padding:2px 8px;border-radius:6px;font-weight:600}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-top:8px}
+  figure.shot{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  figure.shot img{display:block;width:100%;height:auto}
+  figure.shot figcaption{padding:10px 12px;font-size:13.5px;color:var(--muted);border-top:1px solid var(--line)}
+  .note{background:#fff8e6;border:1px solid #ffe2a8;color:#7a5b00;border-radius:10px;
+    padding:12px 14px;font-size:13.5px;margin-top:22px}
+  .note code{background:#fdeccb;padding:1px 6px;border-radius:5px}
+  footer{max-width:920px;margin:0 auto;padding:0 24px 50px;color:var(--muted);font-size:13px}
+  code{font-family:"SFMono-Regular",Consolas,monospace}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="lang-switch" role="group" aria-label="Language">
+    <a href="https://evilstar2016.github.io/skill-doctor/zh-CN/" class="active">中文</a>
+    <a href="https://evilstar2016.github.io/skill-doctor/en/">EN</a>
+  </div>
+  <img class="brand-mark" src="../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
+  <h1>skill-doctor 文档</h1>
+  <p>本地 CLI，用于审计 AI 编码助手的技能：重复、冲突、安全风险与上下文成本。
+     </p>
+</div></header>
+<main>
+  <h2 class="section">文档入口</h2>
+  <div class="cards">
+    <a class="card" href="./pages/manual.html">
+      <h3><span class="tag">手册</span> 使用手册（真实截图）</h3>
+      <p>每个命令覆盖「使用场景 / 使用方式 / 使用效果」，终端截图原样保留配色，并提供独立中文页面。
+         </p>
+    </a>
+    <a class="card" href="../README.zh-CN.md">
+      <h3><span class="tag">Markdown</span> 命令说明文档</h3>
+      <p>纯文本版中文说明，便于在仓库或编辑器里阅读。
+         </p>
+    </a>
+    <a class="card" href="../pages/scan-report.sample.html">
+      <h3><span class="tag">样例</span> scan 报告（HTML）</h3>
+      <p><code>skill-doctor scan --report</code> 真实生成的技能盘点报告。</p>
+    </a>
+    <a class="card" href="../pages/dashboard.sample.html">
+      <h3><span class="tag">样例</span> dashboard 报告（HTML）</h3>
+      <p><code>skill-doctor dashboard --report</code> 真实生成的单文件总览报告。</p>
+    </a>
+  </div>
+
+  <h2 class="section">skill-doctor ui 界面样例</h2>
+  <p style="margin-top:0;color:var(--muted)">以下是 <code>skill-doctor ui</code> 启动的本地 Web 仪表盘在各视图下的真实截图。首次启动会有一个引导对话框（Onboarding），帮你选择要分析的 AI 平台。</p>
+
+  <div class="gallery">
+    <figure class="shot"><img src="../pages/ui-overview.png" alt="overview">
+      <figcaption>总览（Overview）— 技能、冲突、成本一眼掌握</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-onboarding.png" alt="onboarding">
+      <figcaption>引导（Onboarding）— 首次启动选择平台</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-issues.png" alt="issues">
+      <figcaption>待处理（Issues）— 安全 / 冲突 / 预算问题清单</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-context.png" alt="context">
+      <figcaption>上下文成本（Context）— 每轮 token 拆解与评级</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-resources.png" alt="resources">
+      <figcaption>资源清单（Resources）— 各平台技能 / MCP 盘点</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-manage.png" alt="manage">
+      <figcaption>技能库（Manage）— 统一技能中心与安装记录</figcaption></figure>
+  </div>
+
+  <div class="note">
+    <strong>如何在线浏览：</strong>
+    本目录已配置为 GitHub Pages 源。在仓库 <code>Settings → Pages</code> 中将 Source 设为 <code>Deploy from a branch</code>、分支选 <code>main</code>、目录选 <code>/docs</code> 并保存后，即可访问 <code>https://&lt;用户名&gt;.github.io/&lt;仓库名&gt;/</code>。中文手册位于 <code>/zh-CN/pages/manual.html</code>。若未启用 Pages，也可通过 <code>https://htmlpreview.github.io/?https://github.com/&lt;用户名&gt;/&lt;仓库名&gt;/blob/main/docs/zh-CN/pages/manual.html</code> 临时预览。
+
+  </div>
+</main>
+<footer>skill-doctor 文档站点 · 由项目脚本自动生成</footer>
+</body>
+</html>

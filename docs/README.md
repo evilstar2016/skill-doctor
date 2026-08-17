@@ -8,11 +8,11 @@
   <a href="./README.zh-CN.md"><strong>📘 中文文档 (Chinese)</strong></a>
 </p>
 
-> 👉 Want to see it in action? Open the **[interactive HTML manual](https://evilstar2016.github.io/skill-doctor/pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command, with a 中文/EN toggle.
+> 👉 Want to see it in action? Open the **[English interactive HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command.
 
 > `skill-doctor` is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / ACA, etc.): duplicates, conflicts, security risks, and context cost. Every command accepts `--json` for machine-readable output, convenient for CI.
 
-This reference mirrors the [bilingual HTML manual](https://evilstar2016.github.io/skill-doctor/pages/manual.html); each command below covers **Scenario / Usage / Effect**.
+This reference mirrors the [English HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html); each command below covers **Scenario / Usage / Effect**.
 
 **Conventions:** use `--scope project` to limit the scan to the current repo; `--json` emits machine-readable output. The examples run against a sample project that contains 1 duplicate skill, so "data-exporter has 2 copies" appears in several places.
 
@@ -330,4 +330,4 @@ This reference mirrors the [bilingual HTML manual](https://evilstar2016.github.i
 
 ---
 
-> For full screenshots and real terminal output, see the [HTML manual](https://evilstar2016.github.io/skill-doctor/pages/manual.html).
+> For full screenshots and real terminal output, see the [English HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html).

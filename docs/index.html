@@ -6,6 +6,9 @@
 <meta name="description" content="Skill Doctor 是一个本地 CLI，用于审计 Claude Code、Codex、Cursor、GitHub Copilot 等 AI Agent 的 skills、rules、instructions 和 MCP 配置：重复、冲突、安全风险与上下文成本。">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/">
+<link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/">
+<link rel="alternate" hreflang="zh-CN" href="https://evilstar2016.github.io/skill-doctor/zh-CN/">
+<link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="skill-doctor">
 <meta property="og:title" content="skill-doctor — AI Agent Skills 审计工具">
@@ -52,9 +55,9 @@
   header p{margin:0;opacity:.92;font-size:15px}
   .lang-switch{position:absolute;top:16px;right:20px;display:inline-flex;align-items:center;gap:4px;
     background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);border-radius:18px;padding:3px}
-  .lang-switch button{appearance:none;background:transparent;color:#fff;border:0;font:inherit;font-size:12px;
-    font-weight:600;letter-spacing:.4px;padding:4px 11px;border-radius:14px;cursor:pointer;opacity:.85}
-  .lang-switch button.active{background:rgba(255,255,255,.95);color:#1f4cb8;opacity:1}
+  .lang-switch a{appearance:none;background:transparent;color:#fff;border:0;font:inherit;font-size:12px;
+    font-weight:600;letter-spacing:.4px;padding:4px 11px;border-radius:14px;cursor:pointer;opacity:.85;text-decoration:none}
+  .lang-switch a.active{background:rgba(255,255,255,.95);color:#1f4cb8;opacity:1}
   main{max-width:920px;margin:0 auto;padding:28px 24px 60px}
   h2.section{font-size:20px;margin:34px 0 14px;display:flex;align-items:center;gap:8px}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
@@ -79,8 +82,8 @@
 <body data-lang="zh">
 <header><div class="wrap">
   <div class="lang-switch" role="group" aria-label="Language">
-    <button type="button" data-lang="zh" class="active" aria-pressed="true">中文</button>
-    <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    <a href="https://evilstar2016.github.io/skill-doctor/zh-CN/" class="active">中文</a>
+    <a href="https://evilstar2016.github.io/skill-doctor/en/">EN</a>
   </div>
   <img class="brand-mark" src="../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1><span class="zh">skill-doctor 文档</span><span class="en">skill-doctor Docs</span></h1>
@@ -91,21 +94,21 @@
   <h2 class="section"><span class="zh">文档入口</span><span class="en">Documentation</span></h2>
   <div class="cards">
     <a class="card" href="./pages/manual.html">
-      <h3><span class="tag">手册</span> <span class="zh">使用手册（真实截图）</span><span class="en">Manual (real screenshots)</span></h3>
-      <p><span class="zh">每个命令覆盖「使用场景 / 使用方式 / 使用效果」，终端截图原样保留配色，支持中英切换。</span>
-         <span class="en">Each command covers Scenario / Usage / Effect with faithful terminal colors; bilingual toggle.</span></p>
+      <h3><span class="tag"><span class="zh">手册</span><span class="en">Manual</span></span> <span class="zh">使用手册（真实截图）</span><span class="en">Manual (real screenshots)</span></h3>
+      <p><span class="zh">每个命令覆盖「使用场景 / 使用方式 / 使用效果」，终端截图原样保留配色，并提供独立中文页面。</span>
+         <span class="en">Each command covers Scenario / Usage / Effect with faithful terminal colors, with a dedicated English page.</span></p>
     </a>
     <a class="card" href="./README.md">
       <h3><span class="tag">Markdown</span> <span class="zh">命令说明文档</span><span class="en">Command reference</span></h3>
-      <p><span class="zh">纯文本版说明，内容与手册类似，便于在仓库或编辑器里阅读，同样中英对照。</span>
-         <span class="en">Plain-text reference, similar to the manual, bilingual; easy to read in-repo or in an editor.</span></p>
+      <p><span class="zh">纯文本版中文说明，便于在仓库或编辑器里阅读。</span>
+         <span class="en">Plain-text English reference, easy to read in the repository or an editor.</span></p>
     </a>
     <a class="card" href="./pages/scan-report.sample.html">
-      <h3><span class="tag">样例</span> <span class="zh">scan 报告（HTML）</span><span class="en">scan report (HTML)</span></h3>
+      <h3><span class="tag"><span class="zh">样例</span><span class="en">Sample</span></span> <span class="zh">scan 报告（HTML）</span><span class="en">scan report (HTML)</span></h3>
       <p><code>skill-doctor scan --report</code> <span class="zh">真实生成的技能盘点报告。</span><span class="en">— a real skill inventory report.</span></p>
     </a>
     <a class="card" href="./pages/dashboard.sample.html">
-      <h3><span class="tag">样例</span> <span class="zh">dashboard 报告（HTML）</span><span class="en">dashboard report (HTML)</span></h3>
+      <h3><span class="tag"><span class="zh">样例</span><span class="en">Sample</span></span> <span class="zh">dashboard 报告（HTML）</span><span class="en">dashboard report (HTML)</span></h3>
       <p><code>skill-doctor dashboard --report</code> <span class="zh">真实生成的单文件总览报告。</span><span class="en">— a real single-file overview report.</span></p>
     </a>
   </div>
@@ -130,32 +133,10 @@
 
   <div class="note">
     <strong><span class="zh">如何在线浏览：</span><span class="en">How to browse online:</span></strong>
-    <span class="zh">本目录已配置为 GitHub Pages 源。在仓库 <code>Settings → Pages</code> 中将 Source 设为 <code>Deploy from a branch</code>、分支选 <code>main</code>、目录选 <code>/docs</code> 并保存后，即可访问 <code>https://&lt;用户名&gt;.github.io/&lt;仓库名&gt;/</code>。手册位于 <code>/pages/manual.html</code>。若未启用 Pages，也可通过 <code>https://htmlpreview.github.io/?https://github.com/&lt;用户名&gt;/&lt;仓库名&gt;/blob/main/docs/pages/manual.html</code> 临时预览。</span>
-    <span class="en">This directory is set as the GitHub Pages source. In the repo <code>Settings → Pages</code>, set Source to <code>Deploy from a branch</code>, branch <code>main</code>, folder <code>/docs</code>, and save. Then visit <code>https://&lt;user&gt;.github.io/&lt;repo&gt;/</code> (manual at <code>/pages/manual.html</code>). If Pages is off, preview via <code>https://htmlpreview.github.io/?https://github.com/&lt;user&gt;/&lt;repo&gt;/blob/main/docs/pages/manual.html</code>.</span>
+    <span class="zh">本目录已配置为 GitHub Pages 源。在仓库 <code>Settings → Pages</code> 中将 Source 设为 <code>Deploy from a branch</code>、分支选 <code>main</code>、目录选 <code>/docs</code> 并保存后，即可访问 <code>https://&lt;用户名&gt;.github.io/&lt;仓库名&gt;/</code>。中文手册位于 <code>/zh-CN/pages/manual.html</code>。若未启用 Pages，也可通过 <code>https://htmlpreview.github.io/?https://github.com/&lt;用户名&gt;/&lt;仓库名&gt;/blob/main/docs/zh-CN/pages/manual.html</code> 临时预览。</span>
+    <span class="en">This directory is set as the GitHub Pages source. In the repo <code>Settings → Pages</code>, set Source to <code>Deploy from a branch</code>, branch <code>main</code>, folder <code>/docs</code>, and save. Then visit <code>https://&lt;user&gt;.github.io/&lt;repo&gt;/</code> (English manual at <code>/en/pages/manual.html</code>). If Pages is off, preview via <code>https://htmlpreview.github.io/?https://github.com/&lt;user&gt;/&lt;repo&gt;/blob/main/docs/en/pages/manual.html</code>.</span>
   </div>
 </main>
-<footer>skill-doctor 文档站点 · 由项目脚本自动生成</footer>
-<script>
-  (function () {
-    var KEY = 'skill-doctor-docs-lang';
-    var saved = null;
-    try { saved = localStorage.getItem(KEY); } catch (_) {}
-    var btn = document.querySelectorAll('.lang-switch button');
-    function setLang(lang) {
-      document.body.dataset.lang = lang === 'en' ? 'en' : 'zh';
-      document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
-      btn.forEach(function (b) {
-        var active = b.dataset.lang === (lang === 'en' ? 'en' : 'zh');
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
-      try { localStorage.setItem(KEY, lang === 'en' ? 'en' : 'zh'); } catch (_) {}
-    }
-    btn.forEach(function (b) {
-      b.addEventListener('click', function () { setLang(b.dataset.lang); });
-    });
-    setLang(saved === 'en' ? 'en' : 'zh');
-  })();
-</script>
+<footer><span class="zh">skill-doctor 文档站点 · 由项目脚本自动生成</span><span class="en">skill-doctor documentation · generated from the project sources</span></footer>
 </body>
 </html>

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Skill Doctor is a local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration for duplicates, conflicts, security risks, and context cost.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/en/">
+<link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/">
+<link rel="alternate" hreflang="zh-CN" href="https://evilstar2016.github.io/skill-doctor/zh-CN/">
+<link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="skill-doctor">
+<meta property="og:title" content="skill-doctor — AI Agent Skills Audit Tool">
+<meta property="og:description" content="Skill Doctor is a local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration for duplicates, conflicts, security risks, and context cost.">
+<meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/en/">
+<meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="skill-doctor — AI Agent Skills Audit Tool">
+<meta name="twitter:description" content="Skill Doctor is a local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration for duplicates, conflicts, security risks, and context cost.">
+<meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
+<title>skill-doctor — AI Agent Skills Audit Tool</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://evilstar2016.github.io/skill-doctor/#software",
+  "name": "skill-doctor",
+  "applicationCategory": "DeveloperApplication",
+  "description": "Skill Doctor is a local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration for duplicates, conflicts, security risks, and context cost.",
+  "softwareVersion": "0.5.0",
+  "url": "https://evilstar2016.github.io/skill-doctor/",
+  "downloadUrl": "https://www.npmjs.com/package/@evilstar2025/skill-doctor",
+  "codeRepository": "https://github.com/evilstar2016/skill-doctor",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<style>
+  :root{--bg:#f6f8fa;--panel:#fff;--ink:#1f2430;--muted:#5b6472;--line:#e4e8ee;--accent:#3b6ef5;--accent2:#7a5af5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7}
+header{background:linear-gradient(135deg,#3b6ef5,#7a5af5);color:#fff;padding:46px 24px 38px;position:relative}
+  header .wrap{max-width:920px;margin:0 auto}
+  .brand-mark{display:block;width:54px;height:54px;margin:0 0 18px;filter:brightness(0) invert(1)}
+  header h1{margin:0 0 8px;font-size:28px}
+  header p{margin:0;opacity:.92;font-size:15px}
+  .lang-switch{position:absolute;top:16px;right:20px;display:inline-flex;align-items:center;gap:4px;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);border-radius:18px;padding:3px}
+  .lang-switch a{appearance:none;background:transparent;color:#fff;border:0;font:inherit;font-size:12px;
+    font-weight:600;letter-spacing:.4px;padding:4px 11px;border-radius:14px;cursor:pointer;opacity:.85;text-decoration:none}
+  .lang-switch a.active{background:rgba(255,255,255,.95);color:#1f4cb8;opacity:1}
+  main{max-width:920px;margin:0 auto;padding:28px 24px 60px}
+  h2.section{font-size:20px;margin:34px 0 14px;display:flex;align-items:center;gap:8px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  a.card{display:block;text-decoration:none;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:18px 20px;box-shadow:0 1px 2px rgba(20,30,60,.04);transition:.15s}
+  a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  a.card h3{margin:0 0 6px;font-size:16px;color:var(--ink);display:flex;align-items:center;gap:8px}
+  a.card p{margin:0;color:var(--muted);font-size:14px}
+  .tag{font-size:11px;background:var(--ink);color:#fff;padding:2px 8px;border-radius:6px;font-weight:600}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-top:8px}
+  figure.shot{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  figure.shot img{display:block;width:100%;height:auto}
+  figure.shot figcaption{padding:10px 12px;font-size:13.5px;color:var(--muted);border-top:1px solid var(--line)}
+  .note{background:#fff8e6;border:1px solid #ffe2a8;color:#7a5b00;border-radius:10px;
+    padding:12px 14px;font-size:13.5px;margin-top:22px}
+  .note code{background:#fdeccb;padding:1px 6px;border-radius:5px}
+  footer{max-width:920px;margin:0 auto;padding:0 24px 50px;color:var(--muted);font-size:13px}
+  code{font-family:"SFMono-Regular",Consolas,monospace}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="lang-switch" role="group" aria-label="Language">
+    <a href="https://evilstar2016.github.io/skill-doctor/zh-CN/">中文</a>
+    <a href="https://evilstar2016.github.io/skill-doctor/en/" class="active">EN</a>
+  </div>
+  <img class="brand-mark" src="../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
+  <h1>skill-doctor Docs</h1>
+  <p>
+     A local CLI for auditing AI-coding-assistant skills: duplicates, conflicts, security risks, and context cost.</p>
+</div></header>
+<main>
+  <h2 class="section">Documentation</h2>
+  <div class="cards">
+    <a class="card" href="./pages/manual.html">
+      <h3><span class="tag">Manual</span> Manual (real screenshots)</h3>
+      <p>
+         Each command covers Scenario / Usage / Effect with faithful terminal colors, with a dedicated English page.</p>
+    </a>
+    <a class="card" href="../README.md">
+      <h3><span class="tag">Markdown</span> Command reference</h3>
+      <p>
+         Plain-text English reference, easy to read in the repository or an editor.</p>
+    </a>
+    <a class="card" href="../pages/scan-report.sample.html">
+      <h3><span class="tag">Sample</span> scan report (HTML)</h3>
+      <p><code>skill-doctor scan --report</code> — a real skill inventory report.</p>
+    </a>
+    <a class="card" href="../pages/dashboard.sample.html">
+      <h3><span class="tag">Sample</span> dashboard report (HTML)</h3>
+      <p><code>skill-doctor dashboard --report</code> — a real single-file overview report.</p>
+    </a>
+  </div>
+
+  <h2 class="section">skill-doctor UI screenshots</h2>
+
+  <p style="margin-top:0;color:var(--muted)">Real screenshots of the local web dashboard launched by <code>skill-doctor ui</code>, across its views. The first launch shows an onboarding dialog to pick which AI platform to analyze.</p>
+  <div class="gallery">
+    <figure class="shot"><img src="../pages/ui-overview.png" alt="overview">
+      <figcaption>Overview — skills, conflicts, and cost at a glance</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-onboarding.png" alt="onboarding">
+      <figcaption>Onboarding — pick a platform on first launch</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-issues.png" alt="issues">
+      <figcaption>Issues — security / conflict / budget findings</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-context.png" alt="context">
+      <figcaption>Context — per-turn token breakdown and grades</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-resources.png" alt="resources">
+      <figcaption>Resources — per-platform skills / MCP inventory</figcaption></figure>
+    <figure class="shot"><img src="../pages/ui-manage.png" alt="manage">
+      <figcaption>Manage — the unified skill center &amp; install records</figcaption></figure>
+  </div>
+
+  <div class="note">
+    <strong>How to browse online:</strong>
+
+    This directory is set as the GitHub Pages source. In the repo <code>Settings → Pages</code>, set Source to <code>Deploy from a branch</code>, branch <code>main</code>, folder <code>/docs</code>, and save. Then visit <code>https://&lt;user&gt;.github.io/&lt;repo&gt;/</code> (English manual at <code>/en/pages/manual.html</code>). If Pages is off, preview via <code>https://htmlpreview.github.io/?https://github.com/&lt;user&gt;/&lt;repo&gt;/blob/main/docs/en/pages/manual.html</code>.
+  </div>
+</main>
+<footer>skill-doctor documentation · generated from the project sources</footer>
+</body>
+</html>

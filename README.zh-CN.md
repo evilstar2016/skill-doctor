@@ -16,7 +16,7 @@
 
 ![skill-doctor terminal demo](assets/terminal-demo.svg)
 
-> 👉 想看图看效果？打开 **[图文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/pages/manual.html)** —— 每个命令都有真实终端截图和界面走查，并支持中文/EN 切换。
+> 👉 想看图看效果？打开 **[中文图文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html)** —— 每个命令都有真实终端截图和界面走查。
 
 ## 30 秒试用
 
