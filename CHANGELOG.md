@@ -4,7 +4,9 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
-暂无未发布变更。
+### Documentation
+- Refresh `skills/skill-doctor` to cover the v0.5.0 command surface, supported platforms, structured diagnostic workflows, UI/reporting, managed Skill operations, central-library migration, and Codex resource controls.
+- Correct the Skill's model capability checks and `diff` usage, and document when configured analysis, embedding, or MCP discovery can send data or start external processes.
 
 ## 0.5.0 - 2026-08-15
 
