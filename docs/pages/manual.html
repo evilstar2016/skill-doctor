@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置，包括 WorkBuddy。">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
@@ -12,12 +12,12 @@
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
 <meta property="og:title" content="skill-doctor 使用手册 / Manual">
-<meta property="og:description" content="安装、扫描、审计、比较和管理 AI Agent skills、rules、instructions 与 MCP 配置。">
+<meta property="og:description" content="安装、扫描、审计、比较和管理 AI Agent skills、rules、instructions 与 MCP 配置，包括 WorkBuddy。">
 <meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="skill-doctor 使用手册 / Manual">
-<meta name="twitter:description" content="安装、扫描、审计、比较和管理 AI Agent skills、rules、instructions 与 MCP 配置。">
+<meta name="twitter:description" content="安装、扫描、审计、比较和管理 AI Agent skills、rules、instructions 与 MCP 配置，包括 WorkBuddy。">
 <meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <title>skill-doctor 使用手册 v0.5.0 / skill-doctor manual v0.5.0</title>
 <style>
@@ -117,7 +117,7 @@
       <h2><span class="cmd-tag"><span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></span> <span class="zh">安装与运行</span><span class="en">Install &amp; Run</span></h2>
       <div class="card">
         <h3><span class="zh">使用场景</span><span class="en">Scenario</span></h3>
-        <p><span class="zh">skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</span><span class="en">skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / ACA, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</span></p>
+        <p><span class="zh">skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</span><span class="en">skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</span></p>
         <h3><span class="zh">使用方式</span><span class="en">Usage</span></h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
         <table class="flags"><thead><tr><th><span class="zh">选项</span><span class="en">Option</span></th><th><span class="zh">说明</span><span class="en">Description</span></th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td><span class="zh">全局安装，之后直接用 skill-doctor 命令</span><span class="en">Install globally, then use the `skill-doctor` command directly.</span></td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td><span class="zh">不安装，临时运行某条命令</span><span class="en">Run a command on the fly without installing.</span></td></tr><tr><td class="flag">skill-doctor --version</td><td><span class="zh">查看版本（本手册基于 0.5.0）</span><span class="en">Print the version (this manual targets 0.5.0).</span></td></tr></tbody></table>
@@ -184,7 +184,7 @@ Model config file:
   }
 
 Platforms:
-  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
+  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|workbuddy|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
     </div>
       </div>
     </section>

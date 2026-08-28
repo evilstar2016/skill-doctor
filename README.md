@@ -43,6 +43,13 @@ npx @evilstar2025/skill-doctor cost
 npx @evilstar2025/skill-doctor dashboard
 ```
 
+For WorkBuddy users, target the platform explicitly:
+
+```bash
+npx @evilstar2025/skill-doctor@0.5.0 scan --platform workbuddy
+npx @evilstar2025/skill-doctor@0.5.0 cost --platform workbuddy
+```
+
 If it reports `0` project skills, try the safe demo below first. That gives you known duplicate/conflict/audit findings before you scan private local setup.
 
 `skill-doctor` does not upload your skills. It reads local skill/rule/instruction files and reports problems on your machine.

@@ -10,7 +10,7 @@
 
 > 👉 想看图看效果？打开 **[中文图文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html)** —— 每个命令都有真实终端截图和界面走查。
 
-> `skill-doctor` 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。所有命令都支持 `--json` 输出，便于接入 CI。
+> `skill-doctor` 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。所有命令都支持 `--json` 输出，便于接入 CI。
 
 本说明文档与图文并茂的 **[中文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html)** 内容类似：每个命令都覆盖 **使用场景 / 使用方式 / 使用效果** 三块。
 
@@ -58,6 +58,18 @@
   | `skill-doctor --version` | 查看版本号。 |
 - **说明**
   - 需要 Node.js ≥ 20。所有命令都可加 `--json` 输出机器可读结果，便于接入 CI。
+
+## WorkBuddy 快速开始
+
+- **使用场景**
+  - WorkBuddy 用户可以只检查平台自己的 Skills 与上下文成本，不必先扫描其它 Agent 平台。
+- **使用方式**
+  ```bash
+  npx @evilstar2025/skill-doctor@0.5.0 scan --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.5.0 cost --platform workbuddy
+  ```
+- **说明**
+  - 命令会读取本地 WorkBuddy Skills、长期上下文文件和静态 MCP 配置；没有证据时不会把动态连接器状态当成已启用资源。
 
 ---
 

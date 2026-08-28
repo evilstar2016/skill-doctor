@@ -43,6 +43,13 @@ npx @evilstar2025/skill-doctor cost
 npx @evilstar2025/skill-doctor dashboard
 ```
 
+如果你使用 WorkBuddy，可以直接指定平台：
+
+```bash
+npx @evilstar2025/skill-doctor@0.5.0 scan --platform workbuddy
+npx @evilstar2025/skill-doctor@0.5.0 cost --platform workbuddy
+```
+
 如果结果显示 `0` 个 project skills，建议先跑下面的安全 demo。demo 会展示已知的重复、冲突和审计结果，不需要先扫描你的私人配置。
 
 `skill-doctor` 不会上传你的 skills。它只读取本地 skill/rule/instruction 文件，并在你的机器上输出诊断结果。

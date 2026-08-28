@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html">
 <link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
@@ -12,12 +12,12 @@
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
 <meta property="og:title" content="skill-doctor 使用手册 v0.5.0">
-<meta property="og:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta property="og:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html">
 <meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="skill-doctor 使用手册 v0.5.0">
-<meta name="twitter:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta name="twitter:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <title>skill-doctor 使用手册 v0.5.0</title>
 <style>
@@ -114,7 +114,7 @@
       <h2><span class="cmd-tag">安装与运行</span> 安装与运行</h2>
       <div class="card">
         <h3>使用场景</h3>
-        <p>skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</p>
+        <p>skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</p>
         <h3>使用方式</h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
         <table class="flags"><thead><tr><th>选项</th><th>说明</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>全局安装，之后直接用 skill-doctor 命令</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>不安装，临时运行某条命令</td></tr><tr><td class="flag">skill-doctor --version</td><td>查看版本（本手册基于 0.5.0）</td></tr></tbody></table>
@@ -181,7 +181,7 @@ Model config file:
   }
 
 Platforms:
-  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
+  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|workbuddy|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
     </div>
       </div>
     </section>
