@@ -24,8 +24,10 @@ export function detectAgents(
   return getPlatformAdapters().flatMap((adapter) => {
     if (options.sources) {
       const enabled = options.sources.filter((entry) => entry.platform === adapter.platform && entry.enabled);
-      const projectDetected = enabled.some((entry) => entry.scope === 'project' && entry.status === 'exists');
-      const globalDetected = enabled.some((entry) => entry.scope === 'global' && entry.status === 'exists');
+      const projectDetected = enabled.some((entry) => entry.scope === 'project' && entry.status === 'exists')
+        || (adapter.detectionPaths?.project ?? []).some((path) => existsSync(join(projectDir, path)));
+      const globalDetected = enabled.some((entry) => entry.scope === 'global' && entry.status === 'exists')
+        || (adapter.detectionPaths?.global ?? []).some((path) => existsSync(resolvePlatformPathTemplate(path, homeDir, appDataDir)));
       if (!projectDetected && !globalDetected) return [];
       return [{
         platform: adapter.platform,
@@ -37,10 +39,12 @@ export function detectAgents(
     }
     const projectPaths = [
       ...adapter.project.map((target) => join(projectDir, target.path)),
+      ...(adapter.detectionPaths?.project ?? []).map((path) => join(projectDir, path)),
       ...adapter.mcpConfigFiles.filter((source) => source.scope === 'project').map((source) => join(projectDir, source.path)),
     ];
     const globalPaths = [
       ...adapter.global.map((target) => resolvePlatformPathTemplate(target.path, homeDir, appDataDir)),
+      ...(adapter.detectionPaths?.global ?? []).map((path) => resolvePlatformPathTemplate(path, homeDir, appDataDir)),
       ...adapter.mcpConfigFiles
         .filter((source) => source.scope === 'global')
         .map((source) => resolvePlatformPathTemplate(source.path, homeDir, appDataDir)),

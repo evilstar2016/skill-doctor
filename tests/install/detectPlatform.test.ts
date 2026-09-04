@@ -49,6 +49,32 @@ describe('detectPlatform', () => {
     });
   });
 
+  it('detects InfCode from its declared global Skill target', () => {
+    const homeDir = makeTempDir();
+    mkdirSync(join(homeDir, '.infcode', 'skills'), { recursive: true });
+
+    const result = detectPlatform({ homeDir });
+
+    expect(result).toEqual({
+      platform: 'infcode',
+      globalDir: join(homeDir, '.infcode', 'skills'),
+      layout: 'skill-dirs',
+    });
+  });
+
+  it('detects InfCode from its global installation root before skills are created', () => {
+    const homeDir = makeTempDir();
+    mkdirSync(join(homeDir, '.infcode'), { recursive: true });
+
+    const result = detectPlatform({ homeDir });
+
+    expect(result).toEqual({
+      platform: 'infcode',
+      globalDir: join(homeDir, '.infcode', 'skills'),
+      layout: 'skill-dirs',
+    });
+  });
+
   it('prefers claude over cursor when both exist (high confidence first)', () => {
     const homeDir = makeTempDir();
     mkdirSync(join(homeDir, '.claude', 'skills'), { recursive: true });

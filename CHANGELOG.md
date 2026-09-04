@@ -8,6 +8,17 @@ All notable changes to `skill-doctor` are documented here.
 - Refresh `skills/skill-doctor` to cover the v0.5.0 command surface, supported platforms, structured diagnostic workflows, UI/reporting, managed Skill operations, central-library migration, and Codex resource controls.
 - Correct the Skill's model capability checks and `diff` usage, and document when configured analysis, embedding, or MCP discovery can send data or start external processes.
 
+## 0.6.0 - 2026-09-04
+
+### Features
+- Add first-class InfCode platform support for global/project Skills, Rules, project MCP configuration, installation targets, and context-cost estimation.
+- Recognize InfCode's `~/.infcode` and `.infcode` roots during startup detection, including installations that have not created their Skills directories yet.
+- Add an inline SVG InfCode brand mark to the Web UI Agent selector and platform resource views.
+
+### Documentation and Testing
+- Add InfCode coverage to the bilingual README, platform registry, scan-source fixtures, MCP fixtures, context-cost tests, install tests, UI regression tests, and the multi-platform scenario.
+- Document InfCode invocation modes, scan paths, MCP coverage, and the `--platform infcode` quick start.
+
 ## 0.5.0 - 2026-08-15
 
 ### Features

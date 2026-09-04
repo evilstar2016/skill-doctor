@@ -25,11 +25,22 @@ export function detectPlatform(options: DetectOptions = {}): DetectedPlatform | 
   ];
 
   for (const def of sorted) {
-    for (const target of def.installTargets.filter((entry) => entry.scope === 'global')) {
+    const globalTargets = def.installTargets.filter((entry) => entry.scope === 'global');
+    for (const target of globalTargets) {
       const resolvedDir = resolvePlatformPathTemplate(target.path, homeDir, appDataDir);
       if (existsSync(resolvedDir)) {
         return { platform: def.platform, globalDir: resolvedDir, layout: target.layout };
       }
+    }
+    const detectedByMarker = (def.detectionPaths?.global ?? [])
+      .some((path) => existsSync(resolvePlatformPathTemplate(path, homeDir, appDataDir)));
+    const defaultTarget = globalTargets[0];
+    if (detectedByMarker && defaultTarget) {
+      return {
+        platform: def.platform,
+        globalDir: resolvePlatformPathTemplate(defaultTarget.path, homeDir, appDataDir),
+        layout: defaultTarget.layout,
+      };
     }
   }
 

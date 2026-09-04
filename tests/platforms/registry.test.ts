@@ -26,6 +26,7 @@ describe('platform registry', () => {
       'openclaw',
       'hermes',
       'workbuddy',
+      'infcode',
     ]);
     expect(new Set(platforms).size).toBe(platforms.length);
   });
@@ -57,6 +58,7 @@ describe('platform registry', () => {
       'openclaw',
       'hermes',
       'workbuddy',
+      'infcode',
       'unknown',
     ]);
     expect(getPlatformAliasMappings()).toEqual([
@@ -103,10 +105,17 @@ describe('platform registry', () => {
       { scope: 'global', path: '~/.workbuddy/mcp.json', format: 'json' },
       { scope: 'project', path: '.workbuddy/mcp.json', format: 'json' },
     ]);
+    expect(getPlatformAdapter('infcode')?.installTargets).toEqual([
+      { targetId: 'infcode-global-skills', scope: 'global', path: '~/.infcode/skills', layout: 'skill-dirs' },
+      { targetId: 'infcode-project-skills', scope: 'project', path: '.infcode/skills', layout: 'skill-dirs' },
+    ]);
+    expect(getPlatformAdapter('infcode')?.mcpConfigFiles).toEqual([
+      { scope: 'project', path: '.infcode/mcpServers/mcp.json', format: 'json' },
+    ]);
   });
 
   it('keeps context cost policies on platform adapters', () => {
-    for (const platform of ['claude', 'codex', 'copilot', 'cursor', 'gemini', 'windsurf'] as const) {
+    for (const platform of ['claude', 'codex', 'copilot', 'cursor', 'gemini', 'windsurf', 'infcode'] as const) {
       const adapter = getPlatformAdapter(platform);
 
       expect(adapter?.costPolicy.defaultProfile).toBeDefined();

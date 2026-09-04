@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta name="description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html">
 <link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
@@ -11,15 +11,15 @@
 <link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
-<meta property="og:title" content="skill-doctor 使用手册 v0.5.0">
-<meta property="og:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta property="og:title" content="skill-doctor 使用手册 v0.6.0">
+<meta property="og:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html">
 <meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="skill-doctor 使用手册 v0.5.0">
-<meta name="twitter:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
+<meta name="twitter:title" content="skill-doctor 使用手册 v0.6.0">
+<meta name="twitter:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
-<title>skill-doctor 使用手册 v0.5.0</title>
+<title>skill-doctor 使用手册 v0.6.0</title>
 <style>
   :root{
     --bg:#f6f8fa; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280;
@@ -98,7 +98,7 @@
   <img class="brand-mark" src="../../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1>skill-doctor 使用手册</h1>
   <p>本地 CLI，用于审计 AI 编码助手的技能：重复 · 冲突 · 安全风险 · 上下文成本</p>
-  <span class="ver">版本 v0.5.0 · 所有截图均为真实命令输出</span>
+  <span class="ver">版本 v0.6.0 · 所有截图均为真实命令输出</span>
 </header>
 <nav class="toc"><a href="#start">安装与运行</a><a href="#help">skill-doctor --help</a><a href="#scan">scan</a><a href="#show">show &lt;name&gt;</a><a href="#conflicts">conflicts</a><a href="#audit">audit</a><a href="#check">check</a><a href="#cleanup">cleanup</a><a href="#cost">cost / context</a><a href="#diff">diff &lt;a&gt; &lt;b&gt;</a><a href="#ui">ui</a><a href="#dashboard">dashboard</a><a href="#install">install / uninstall</a><a href="#center">center</a><a href="#config">config</a></nav>
 <main>
@@ -114,10 +114,10 @@
       <h2><span class="cmd-tag">安装与运行</span> 安装与运行</h2>
       <div class="card">
         <h3>使用场景</h3>
-        <p>skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</p>
+        <p>skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</p>
         <h3>使用方式</h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
-        <table class="flags"><thead><tr><th>选项</th><th>说明</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>全局安装，之后直接用 skill-doctor 命令</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>不安装，临时运行某条命令</td></tr><tr><td class="flag">skill-doctor --version</td><td>查看版本（本手册基于 0.5.0）</td></tr></tbody></table>
+        <table class="flags"><thead><tr><th>选项</th><th>说明</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>全局安装，之后直接用 skill-doctor 命令</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>不安装，临时运行某条命令</td></tr><tr><td class="flag">skill-doctor --version</td><td>查看版本（本手册基于 0.6.0）</td></tr></tbody></table>
         <h3>说明</h3><p class="note">Node.js ≥ 20。所有命令都可加 --json 输出机器可读结果，便于接入 CI。手册中的示例都在一个示例项目里运行：该项目故意把同名技能 data-exporter 放进了 .claude 与 .github 两套平台目录（制造 1 个重复），并放了 code-reviewer 用于对比演示。</p>
         <h3>使用效果</h3>
 
@@ -127,7 +127,7 @@
         <span class="term-title">skill-doctor — bash</span>
       </div>
       <pre class="term-body"><span class="prompt">$ </span><span class="cmd">skill-doctor --version</span>
-0.5.0
+0.6.0
 </pre>
     </div>
       </div>
@@ -181,7 +181,7 @@ Model config file:
   }
 
 Platforms:
-  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|workbuddy|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
+  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|workbuddy|infcode|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
     </div>
       </div>
     </section>

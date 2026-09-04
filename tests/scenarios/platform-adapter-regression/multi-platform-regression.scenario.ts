@@ -101,12 +101,13 @@ describe('platform adapter regression scenario', () => {
       expect.objectContaining({ platform: 'codex', kind: 'agent-skill-description' }),
       expect.objectContaining({ platform: 'windsurf', kind: 'always-on-file' }),
       expect.objectContaining({ platform: 'workbuddy', kind: 'agent-skill-description' }),
+      expect.objectContaining({ platform: 'infcode', kind: 'agent-skill-description' }),
     ]));
 
     const mcpCostResult = runCli(['cost', '--source', 'mcp', '--json'], cwd, home);
     expect(mcpCostResult.status).toBe(0);
     const mcpCostPayload = JSON.parse(mcpCostResult.stdout) as CostPayload;
-    expect(platformsFrom(mcpCostPayload.items)).toEqual(expect.arrayContaining(['claude', 'cursor', 'copilot', 'codex', 'gemini', 'workbuddy']));
+    expect(platformsFrom(mcpCostPayload.items)).toEqual(expect.arrayContaining(['claude', 'cursor', 'copilot', 'codex', 'gemini', 'workbuddy', 'infcode']));
     expect(mcpCostPayload.items.every((item) => item.source === 'mcp')).toBe(true);
     expect(mcpCostPayload.items.every((item) => item.kind === 'mcp-tool-list')).toBe(true);
     expect(mcpCostPayload.items.map((item) => item.name)).not.toContain('dynamic_connector_docs');
@@ -119,6 +120,7 @@ describe('platform adapter regression scenario', () => {
     expect(dashboard).toContain('schema-change-guard');
     expect(dashboard).toContain('windsurf-network-policy');
     expect(dashboard).toContain('workbuddy-review');
+    expect(dashboard).toContain('infcode-review');
   });
 });
 

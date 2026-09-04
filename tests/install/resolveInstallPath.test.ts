@@ -48,6 +48,17 @@ describe('resolveInstallPath', () => {
     });
   });
 
+  it.skipIf(process.platform === 'win32')('resolves InfCode global and project skill targets', () => {
+    expect(resolveInstallTarget('infcode', { homeDir: '/home/user' })).toEqual({
+      platform: 'infcode', scope: 'global', globalDir: '/home/user/.infcode/skills', layout: 'skill-dirs',
+    });
+    expect(resolveInstallTarget('infcode', {
+      homeDir: '/home/user', projectDir: '/work/project', scope: 'project',
+    })).toEqual({
+      platform: 'infcode', scope: 'project', globalDir: '/work/project/.infcode/skills', layout: 'skill-dirs',
+    });
+  });
+
   it('rejects project scope for Agents without a project install target', () => {
     expect(() => resolveInstallTarget('cursor', {
       homeDir: '/home/user', projectDir: '/work/project', scope: 'project',

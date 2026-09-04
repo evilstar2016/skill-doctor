@@ -11,6 +11,7 @@ export type Platform =
   | 'openclaw'
   | 'hermes'
   | 'workbuddy'
+  | 'infcode'
   | 'unknown';
 
 export type Scope = 'global' | 'project';

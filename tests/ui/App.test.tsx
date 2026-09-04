@@ -38,6 +38,7 @@ import { getPlatformLogo } from '../../web/src/components/platformLogos';
 
 const codexAgent = { platform: 'codex', displayName: 'Codex', projectDetected: true, globalDetected: false, recommended: true };
 const workbuddyAgent = { platform: 'workbuddy', displayName: 'WorkBuddy', projectDetected: true, globalDetected: true, recommended: true };
+const infcodeAgent = { platform: 'infcode', displayName: 'InfCode', projectDetected: false, globalDetected: true, recommended: false };
 const snapshot = {
   id: 'snapshot', generatedAt: new Date(0).toISOString(), durationMs: 1, status: 'complete',
   target: { projectDir: '/tmp/project', scope: 'all', platform: 'codex' },
@@ -159,6 +160,23 @@ describe('UI onboarding', () => {
     fireEvent.click(await screen.findByRole('button', { name: /WorkBuddy Skill/ }));
     expect(await screen.findByText('配置来源')).toBeTruthy();
     expect(screen.getByText('workbuddy-project-skills')).toBeTruthy();
+  });
+
+  it('registers the InfCode platform logo', () => {
+    expect(getPlatformLogo('infcode')).toBeDefined();
+  });
+
+  it('renders the InfCode logo in the detected Agent bar', async () => {
+    mocks.getBootstrap.mockResolvedValue({
+      version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
+      supportedPlatforms: ['infcode'], detectedAgents: [infcodeAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
+    });
+
+    render(<App />);
+
+    const agentBar = await screen.findByLabelText('选择要体检的 Agent');
+    const infcodeButton = within(agentBar).getByRole('button', { name: 'InfCode' });
+    expect(infcodeButton.querySelector('svg')).toBeTruthy();
   });
 
   it('does not present a partial scan with warnings as healthy', async () => {

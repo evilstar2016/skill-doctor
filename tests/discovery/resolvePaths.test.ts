@@ -509,6 +509,28 @@ describe('resolvePaths', () => {
     expect(hermesFiles[0]?.installSource).toBe('~/.config/hermes/skills');
   });
 
+  it('finds InfCode skills and rules in global and project paths', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.infcode', 'skills', 'global-review', 'SKILL.md'));
+    writeFile(join(homeDir, '.infcode', 'rules', 'global-policy.md'));
+    writeFile(join(cwd, '.infcode', 'skills', 'project-review', 'SKILL.md'));
+    writeFile(join(cwd, '.infcode', 'rules', 'project-policy.mdc'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const infcodeFiles = result.filter((entry) => entry.platform === 'infcode');
+
+    expect(infcodeFiles).toHaveLength(4);
+    expect(infcodeFiles.filter((entry) => entry.scope === 'global')).toHaveLength(2);
+    expect(infcodeFiles.filter((entry) => entry.scope === 'project')).toHaveLength(2);
+    expect(infcodeFiles.some((entry) => entry.filePath.endsWith(join('.infcode', 'skills', 'global-review', 'SKILL.md')))).toBe(true);
+    expect(infcodeFiles.some((entry) => entry.filePath.endsWith(join('.infcode', 'rules', 'project-policy.mdc')))).toBe(true);
+  });
+
   it('scans extra paths from config as unknown platform', () => {
     const tempRoot = createTempRoot();
     tempRoots.push(tempRoot);

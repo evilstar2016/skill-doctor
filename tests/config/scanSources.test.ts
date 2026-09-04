@@ -17,6 +17,8 @@ describe('scan source configuration', () => {
 
     expect(sources).toEqual(expect.arrayContaining([
       expect.objectContaining({ platform: 'claude', resource: 'skill', path: '~/.claude/skills', origin: 'builtin', status: 'missing' }),
+      expect.objectContaining({ platform: 'infcode', resource: 'skill', path: '~/.infcode/skills', origin: 'builtin', status: 'missing' }),
+      expect.objectContaining({ platform: 'infcode', resource: 'mcp', path: '.infcode/mcpServers/mcp.json', origin: 'builtin', status: 'missing' }),
       expect.objectContaining({ platform: 'codex', resource: 'plugin', origin: 'builtin' }),
     ]));
   });

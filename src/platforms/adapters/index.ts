@@ -5,6 +5,7 @@ import { copilotAdapter } from './copilot';
 import { cursorAdapter } from './cursor';
 import { geminiAdapter } from './gemini';
 import { hermesAdapter } from './hermes';
+import { infcodeAdapter } from './infcode';
 import { kiroAdapter } from './kiro';
 import { openclawAdapter } from './openclaw';
 import { opencodeAdapter } from './opencode';
@@ -25,4 +26,5 @@ export const PLATFORM_ADAPTERS: PlatformAdapter[] = [
   openclawAdapter,
   hermesAdapter,
   workbuddyAdapter,
+  infcodeAdapter,
 ];

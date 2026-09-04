@@ -19,7 +19,7 @@ context scans may start or contact configured MCP servers.
    `all` for both. The CLI default is `all`.
 3. Prefer `--json` whenever the installed command supports it. Do not invent flags:
    `diff`, `install`, `uninstall`, `ui`, and `dashboard` do not provide JSON output
-   in v0.5.0.
+   in v0.6.0.
 4. Use CLI discovery instead of recursively reading installed `SKILL.md` files.
    Read a reported `sourcePath` only when the user requests raw content, asks to
    validate a specific finding, or authorizes a targeted edit.
@@ -76,7 +76,7 @@ skill-doctor scan --scope all --group --json
 
 Use normal `scan` for inventory, duplicates, and conflicts. `--group` is a separate
 grouping result, not an additive field on the normal scan payload; without an
-analysis service it uses token-derived labels. v0.5.0 implements `--group` even
+analysis service it uses token-derived labels. v0.6.0 implements `--group` even
 though its top-level help line omits that flag; do not assume it exists in other
 versions.
 
@@ -209,8 +209,8 @@ skill-doctor context enable --id RESOURCE_ID --platform codex --json
 
 ## Supported platforms
 
-The v0.5.0 CLI recognizes Claude Code, Cursor, GitHub Copilot, Codex, Gemini CLI,
-Windsurf, Trae, OpenCode, Kiro, OpenClaw, Hermes, and Tencent WorkBuddy. Use the
+The v0.6.0 CLI recognizes Claude Code, Cursor, GitHub Copilot, Codex, Gemini CLI,
+Windsurf, Trae, OpenCode, Kiro, OpenClaw, Hermes, Tencent WorkBuddy, and InfCode. Use the
 values printed by the installed `--help`; `claudecode` and `claude-code` normalize
 to `claude`.
 

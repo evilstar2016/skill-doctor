@@ -71,6 +71,10 @@ export interface PlatformAdapter {
   confidence: Confidence;
   global: PlatformPathTarget[];
   project: PlatformPathTarget[];
+  detectionPaths?: {
+    global?: string[];
+    project?: string[];
+  };
   extensions: string[];
   installTargets: PlatformInstallTarget[];
   mcpConfigFiles: PlatformMcpConfigSource[];

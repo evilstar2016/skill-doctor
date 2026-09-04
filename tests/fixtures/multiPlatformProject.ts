@@ -9,6 +9,7 @@ export const MULTI_PLATFORM_ADAPTER_PLATFORMS = [
   'gemini',
   'windsurf',
   'workbuddy',
+  'infcode',
 ] as const;
 
 export type MultiPlatformAdapterPlatform = typeof MULTI_PLATFORM_ADAPTER_PLATFORMS[number];
@@ -106,6 +107,18 @@ export function writeMultiPlatformProjectFixture(cwd: string, homeDir: string): 
   );
 
   writeFixtureFile(
+    join(cwd, '.infcode', 'skills', 'infcode-review', 'SKILL.md'),
+    [
+      '---',
+      'name: infcode-review',
+      'description: Review InfCode changes for regression risk and release readiness.',
+      '---',
+      '',
+      '# InfCode Review',
+    ].join('\n'),
+  );
+
+  writeFixtureFile(
     join(homeDir, '.workbuddy', 'skills', 'workbuddy-review', 'SKILL.md'),
     [
       '---',
@@ -189,6 +202,10 @@ function writeMcpFixtures(cwd: string, homeDir: string): void {
   writeFixtureFile(
     join(cwd, '.workbuddy', 'mcp.json'),
     JSON.stringify({ mcpServers: { workbuddy_docs: { type: 'http', url: 'http://127.0.0.1:1/mcp', timeout: 50 } } }, null, 2),
+  );
+  writeFixtureFile(
+    join(cwd, '.infcode', 'mcpServers', 'mcp.json'),
+    JSON.stringify({ mcpServers: { infcode_docs: { type: 'http', url: 'http://127.0.0.1:1/mcp', timeout: 50 } } }, null, 2),
   );
   writeFixtureFile(
     join(homeDir, '.workbuddy', 'mcp.json'),

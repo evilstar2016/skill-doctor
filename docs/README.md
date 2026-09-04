@@ -10,7 +10,7 @@
 
 > 👉 Want to see it in action? Open the **[English interactive HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command.
 
-> `skill-doctor` is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA, etc.): duplicates, conflicts, security risks, and context cost. Every command accepts `--json` for machine-readable output, convenient for CI.
+> `skill-doctor` is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode, etc.): duplicates, conflicts, security risks, and context cost. Every command accepts `--json` for machine-readable output, convenient for CI.
 
 This reference mirrors the [English HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html); each command below covers **Scenario / Usage / Effect**.
 
@@ -65,11 +65,23 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
   - WorkBuddy users can inspect platform-specific Skills and context cost without scanning other agent platforms.
 - **Usage**
   ```bash
-  npx @evilstar2025/skill-doctor@0.5.0 scan --platform workbuddy
-  npx @evilstar2025/skill-doctor@0.5.0 cost --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.6.0 scan --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.6.0 cost --platform workbuddy
   ```
 - **Notes**
   - The commands read local WorkBuddy Skills, long-term context files, and static MCP configuration; dynamic connector state is not treated as enabled without evidence.
+
+## InfCode quick start
+
+- **Scenario**
+  - InfCode users can inspect platform-specific Skills, Rules, and context cost without scanning other agent platforms.
+- **Usage**
+  ```bash
+  npx @evilstar2025/skill-doctor@0.6.0 scan --platform infcode
+  npx @evilstar2025/skill-doctor@0.6.0 cost --platform infcode
+  ```
+- **Notes**
+  - The commands read local InfCode Skills, Rules, and project MCP configuration.
 
 ---
 

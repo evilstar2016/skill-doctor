@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, and WorkBuddy, find conflicts, audit security risks, and measure context cost.">
+<meta name="description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode, find conflicts, audit security risks, and measure context cost.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
 <link rel="alternate" hreflang="en" href="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
@@ -11,15 +11,15 @@
 <link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
-<meta property="og:title" content="skill-doctor manual v0.5.0">
-<meta property="og:description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, and WorkBuddy, find conflicts, audit security risks, and measure context cost.">
+<meta property="og:title" content="skill-doctor manual v0.6.0">
+<meta property="og:description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode, find conflicts, audit security risks, and measure context cost.">
 <meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
 <meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="skill-doctor manual v0.5.0">
-<meta name="twitter:description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, and WorkBuddy, find conflicts, audit security risks, and measure context cost.">
+<meta name="twitter:title" content="skill-doctor manual v0.6.0">
+<meta name="twitter:description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode, find conflicts, audit security risks, and measure context cost.">
 <meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
-<title>skill-doctor manual v0.5.0</title>
+<title>skill-doctor manual v0.6.0</title>
 <style>
   :root{
     --bg:#f6f8fa; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280;
@@ -98,7 +98,7 @@
   <img class="brand-mark" src="../../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1>skill-doctor manual</h1>
   <p>A local CLI for auditing AI-coding-assistant skills: duplicates · conflicts · security risks · context cost</p>
-  <span class="ver">Version v0.5.0 · every screenshot is a real command output</span>
+  <span class="ver">Version v0.6.0 · every screenshot is a real command output</span>
 </header>
 <nav class="toc"><a href="#start">Install &amp; Run</a><a href="#help">skill-doctor --help</a><a href="#scan">scan</a><a href="#show">show &lt;name&gt;</a><a href="#conflicts">conflicts</a><a href="#audit">audit</a><a href="#check">check</a><a href="#cleanup">cleanup</a><a href="#cost">cost / context</a><a href="#diff">diff &lt;a&gt; &lt;b&gt;</a><a href="#ui">ui</a><a href="#dashboard">dashboard</a><a href="#install">install / uninstall</a><a href="#center">center</a><a href="#config">config</a></nav>
 <main>
@@ -114,10 +114,10 @@
       <h2><span class="cmd-tag">Install &amp; Run</span> Install &amp; Run</h2>
       <div class="card">
         <h3>Scenario</h3>
-        <p>skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / ACA, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</p>
+        <p>skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</p>
         <h3>Usage</h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
-        <table class="flags"><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>Install globally, then use the `skill-doctor` command directly.</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>Run a command on the fly without installing.</td></tr><tr><td class="flag">skill-doctor --version</td><td>Print the version (this manual targets 0.5.0).</td></tr></tbody></table>
+        <table class="flags"><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>Install globally, then use the `skill-doctor` command directly.</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>Run a command on the fly without installing.</td></tr><tr><td class="flag">skill-doctor --version</td><td>Print the version (this manual targets 0.6.0).</td></tr></tbody></table>
         <h3>Notes</h3><p class="note">Requires Node.js ≥ 20. Every command accepts `--json` for machine-readable output, which is convenient for CI. The examples in this manual run against a sample project that intentionally puts a skill named `data-exporter` into both `.claude` and `.github` (creating 1 duplicate) and also contains `code-reviewer` for diff demos.</p>
         <h3>Effect</h3>
 
@@ -127,7 +127,7 @@
         <span class="term-title">skill-doctor — bash</span>
       </div>
       <pre class="term-body"><span class="prompt">$ </span><span class="cmd">skill-doctor --version</span>
-0.5.0
+0.6.0
 </pre>
     </div>
       </div>
@@ -181,7 +181,7 @@ Model config file:
   }
 
 Platforms:
-  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|workbuddy|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
+  --platform values: claude|cursor|copilot|codex|gemini|windsurf|trae|opencode|kiro|openclaw|hermes|workbuddy|infcode|unknown (aliases: claudecode-&gt;claude, claude-code-&gt;claude)</pre>
     </div>
       </div>
     </section>

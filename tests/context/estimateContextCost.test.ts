@@ -456,6 +456,56 @@ describe('estimateContextCost', () => {
     }
   });
 
+  it('applies InfCode rule invocation modes and skill metadata costs', () => {
+    const root = tempRoot();
+    const cases = [
+      { fileName: 'always.md', frontmatter: 'invokeMode: always', activation: 'always-on', budgetScope: 'always-on', kind: 'always-on-file' },
+      { fileName: 'manual.md', frontmatter: 'invokeMode: manual', activation: 'manual', budgetScope: 'none', kind: 'always-on-file' },
+      { fileName: 'smart.md', frontmatter: 'invokeMode: smart', activation: 'startup', budgetScope: 'startup-selection', kind: 'always-on-file' },
+      { fileName: 'legacy.md', frontmatter: 'alwaysApply: true', activation: 'always-on', budgetScope: 'always-on', kind: 'always-on-file' },
+    ] as const;
+
+    for (const testCase of cases) {
+      const rulePath = join(root, '.infcode', 'rules', testCase.fileName);
+      const content = ['---', testCase.frontmatter, '---', '', `InfCode ${testCase.fileName} rule. `.repeat(20)].join('\n');
+      mkdirSync(dirname(rulePath), { recursive: true });
+      writeFileSync(rulePath, content, 'utf8');
+
+      const result = estimateContextCost([
+        makeSkill({
+          name: testCase.fileName.replace('.md', ''),
+          sourcePath: rulePath,
+          platform: 'infcode',
+          description: `InfCode ${testCase.fileName} rule`,
+          triggers: [],
+        }),
+      ]);
+
+      expect(result.items[0]).toEqual(expect.objectContaining({
+        kind: testCase.kind,
+        activation: testCase.activation,
+        budgetScope: testCase.budgetScope,
+      }));
+    }
+
+    const skillPath = join(root, '.infcode', 'skills', 'review', 'SKILL.md');
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, 'InfCode skill body. '.repeat(100), 'utf8');
+    const skillResult = estimateContextCost([makeSkill({
+      name: 'review',
+      sourcePath: skillPath,
+      platform: 'infcode',
+      description: 'Use for InfCode code review.',
+      triggers: ['review code'],
+    })]);
+
+    expect(skillResult.items[0]).toEqual(expect.objectContaining({
+      kind: 'agent-skill-description',
+      activation: 'startup',
+      budgetScope: 'startup-selection',
+    }));
+  });
+
   it('uses the default cost policy for unknown custom platforms', () => {
     const root = tempRoot();
     const skillPath = join(root, 'custom', 'skills', 'helper', 'SKILL.md');

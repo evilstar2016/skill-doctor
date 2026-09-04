@@ -12,7 +12,7 @@
 
 `skill-doctor` 是一个本地 CLI，用来诊断 AI Agent 的 skills、rules、instructions：重复安装、触发冲突、安全风险、上下文成本和多工具漂移。
 
-当 Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、WorkBuddy 等工具因为配置重叠而表现不一致时，可以先用它做一次本地体检。
+当 Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、WorkBuddy、InfCode 等工具因为配置重叠而表现不一致时，可以先用它做一次本地体检。
 
 ![skill-doctor terminal demo](assets/terminal-demo.svg)
 
@@ -20,7 +20,7 @@
 
 ## 30 秒试用
 
-当前版本：npm 上的 [`v0.5.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.5.0)。
+当前版本：npm 上的 [`v0.6.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.6.0)。
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -46,8 +46,15 @@ npx @evilstar2025/skill-doctor dashboard
 如果你使用 WorkBuddy，可以直接指定平台：
 
 ```bash
-npx @evilstar2025/skill-doctor@0.5.0 scan --platform workbuddy
-npx @evilstar2025/skill-doctor@0.5.0 cost --platform workbuddy
+npx @evilstar2025/skill-doctor@0.6.0 scan --platform workbuddy
+npx @evilstar2025/skill-doctor@0.6.0 cost --platform workbuddy
+```
+
+如果你使用 InfCode，可以直接指定平台：
+
+```bash
+npx @evilstar2025/skill-doctor@0.6.0 scan --platform infcode
+npx @evilstar2025/skill-doctor@0.6.0 cost --platform infcode
 ```
 
 如果结果显示 `0` 个 project skills，建议先跑下面的安全 demo。demo 会展示已知的重复、冲突和审计结果，不需要先扫描你的私人配置。
@@ -89,7 +96,7 @@ npx @evilstar2025/skill-doctor cost --scope project
 - 多个 skills 触发词或描述重叠，导致 Agent 抢任务或行为不稳定
 - 可疑指令，例如 shell 执行、破坏性命令、凭据暴露、网络上传
 - Claude skill 描述和 always-on instruction 文件带来的每轮上下文 token 成本
-- Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Kiro、Trae、OpenCode、OpenClaw、Hermes、WorkBuddy 等生态之间的配置漂移
+- Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Kiro、Trae、OpenCode、OpenClaw、Hermes、WorkBuddy、InfCode 等生态之间的配置漂移
 
 ## 为什么需要它
 
@@ -221,6 +228,8 @@ Codex 控制能力：
 - Memories 可能显示为 `memory-context-unknown`，因为 Codex memory storage 会影响未来会话，但不一定暴露可确定的注入文本给 preview。
 
 WorkBuddy 支持扫描用户级 `~/.workbuddy/skills/`、连接器 `~/.workbuddy/connectors/skills/`、项目级 `.workbuddy/skills/`，以及 `IDENTITY.md`、`USER.md`、`SOUL.md`、`MEMORY.md` 四个长期上下文文件。静态 MCP 配置来自 `~/.workbuddy/mcp.json` 和 `.workbuddy/mcp.json`；安装目标为 `workbuddy-global-skills` 与 `workbuddy-project-skills`。市场缓存、动态连接器 MCP 和插件/内置运行时状态不会被当作已启用资源。
+
+InfCode 支持扫描全局 `~/.infcode/skills/`、`~/.infcode/rules/`，项目级 `.infcode/skills/`、`.infcode/rules/`，以及项目 MCP 配置 `.infcode/mcpServers/mcp.json`。
 
 ### `dashboard`
 

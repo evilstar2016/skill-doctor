@@ -19,6 +19,7 @@ Required decisions:
 - `aliases`: CLI aliases accepted by `--platform`, `--platform-budget`, install `--target`, and cost positional filters.
 - `confidence`: `high` for documented paths, `low` for best-effort/community paths.
 - `global` and `project`: discovery paths, scope, layout, and file filters.
+- `detectionPaths`: optional global/project installation markers used for Agent detection without scanning those marker paths.
 - `maxDepth`: optional recursion limit for nested `skill-dirs` locations; leave unset to preserve the legacy scanner behavior.
 - `extensions`: file extensions allowed in those paths.
 - `installTargets`: stable, explicitly scoped destinations. Each needs a unique `targetId`, `scope`, and `layout`. Only declare documented writable `skill-dirs` locations that Skill Doctor may deploy to; discovery-only, `costOnly`, single-file, and system-owned paths must not become deployment targets. Add a project target only when its relative path is safe to resolve under the current project.

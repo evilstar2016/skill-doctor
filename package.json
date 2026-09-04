@@ -1,6 +1,6 @@
 {
   "name": "@evilstar2025/skill-doctor",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration for duplicates, conflicts, security risks, and context cost.",
   "keywords": [
     "ai-agent",
@@ -9,6 +9,7 @@
     "codex",
     "cursor",
     "github-copilot",
+    "infcode",
     "gemini-cli",
     "windsurf",
     "mcp",

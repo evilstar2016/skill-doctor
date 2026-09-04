@@ -281,6 +281,41 @@ describe('scanMcpServers', () => {
     expect(JSON.stringify(result)).not.toContain('hidden');
   });
 
+  it('parses the project InfCode MCP config', () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+
+    writeFile(
+      join(cwd, '.infcode', 'mcpServers', 'mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          docs: {
+            type: 'http',
+            url: 'https://mcp.example.test/infcode',
+            headers: { Authorization: 'Bearer hidden' },
+            tools: ['search_docs'],
+          },
+        },
+      }),
+    );
+
+    const result = scanMcpServers(cwd, { homeDir: home });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        name: 'docs',
+        platform: 'infcode',
+        scope: 'project',
+        transport: 'http',
+        url: 'https://mcp.example.test/infcode',
+        headerKeys: ['Authorization'],
+        toolAllowlist: ['search_docs'],
+      }),
+    ]);
+    expect(JSON.stringify(result)).not.toContain('hidden');
+  });
+
   it('marks matching Claude user project entries as project scope', () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
