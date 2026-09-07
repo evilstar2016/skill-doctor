@@ -3,11 +3,13 @@ import { loadEffectiveScanSources } from '../config/scanSources';
 import { getManagedRegistry } from '../application/deployments';
 import { getWhenToUseCachePath } from '../application/runtimePaths';
 import { ScanManager } from './scanManager';
+import { BenefitManager } from './benefitManager';
 
 export interface ApiServerContext {
   projectDir: string;
   homeDir?: string;
   scans: ScanManager;
+  benefits: BenefitManager;
 }
 
 export interface ApiRequestContext extends ApiServerContext {
@@ -48,4 +50,3 @@ export function createApiRequestContext(context: ApiServerContext): ApiRequestCo
     },
   };
 }
-

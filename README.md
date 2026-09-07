@@ -340,6 +340,62 @@ skill-doctor cost --budget-tokens 2000 --fail-on-budget  # exit 1 when over budg
 skill-doctor context --json
 ```
 
+### `benefit` (Codex historical estimate)
+
+Estimate the effect of a Skill Doctor optimization plan against recent Codex
+rollout JSONL sessions in the current project. The command is local and
+read-only with respect to Codex configuration: it does not re-run Codex or
+claim a subscription-billing reduction.
+
+```bash
+skill-doctor benefit --project . --since 24h --limit 20
+skill-doctor benefit --project . --since 24h --limit 20 --plan <plan-id>
+skill-doctor benefit --project . --since 7d --limit 50 --plan <plan-id> --format json --output benefit.json
+skill-doctor benefit --project . --since 24h --plan <plan-id> --tokenizer openai --tokenizer-model gpt-4o --format html --output benefit.html
+skill-doctor benefit --project . --include-archived --price-table ./prices.json
+skill-doctor benefit --project . --retention-days 30
+skill-doctor benefit --project . --delete-index --json
+skill-doctor benefit --project . --delete-index-entry /path/to/rollout.jsonl --json
+```
+
+The report keeps observed input/cache/output/reasoning usage separate from the
+projected input delta. It shows historical-cache and cache-rebuild sensitivity
+scenarios, model-price coverage, skipped-session diagnostics, and the exact
+response source file/line for local review. A result with no matching plan is a
+valid historical baseline, but has no projected savings.
+
+Historical context attribution keeps a recoverable source-file/line reference and
+content hash rather than copying AGENTS or Skill text into the metadata index. If
+an indexed analysis needs text reconstruction, the local rollout is re-read.
+Truncated, duplicated, or incomplete host skill lists remain evidence-insufficient
+instead of being treated as proof that a resource was removed.
+
+For a plan with selected resources, the projected result is reconstructed from
+matched historical context snapshots and a tokenizer-counted before/after text
+diff; unmatched responses remain unchanged. A plan without per-resource
+evidence uses the optimizer's proportional static estimate. Both paths hold
+output, reasoning, tools, retries, compactions, quality, and latency constant.
+Displayed money is an equivalent API-price estimate; it is not a Codex or
+ChatGPT subscription bill. See the internal
+implementation checklist at `doc/codex-optimization-benefit-checklist.zh-CN.md`
+for coverage and evidence boundaries.
+
+Use `--tokenizer approx` only for a quick chars/4 comparison; the report records
+the tokenizer and any model fallback. `--format html` writes a static, escaped,
+redacted preview. `--format json --redact` writes a redacted JSON report for
+sharing; the default JSON keeps local provenance for local re-computation.
+The incremental index stores metadata only and can be explicitly removed with
+`--delete-index`; it is rebuildable and does not delete Codex sessions. Use
+`--retention-days N` to prune old index metadata, or `--delete-index-entry` to
+remove one source file's index record. These commands only modify Skill Doctor's
+own index.
+
+Every custom price entry must declare either `maxInputTokens` or `inputTiers`.
+Without an explicit long-context applicability range, the amount is marked
+unknown while Token metrics remain available. The UI runs the local estimate as
+a cancellable job and reports reading, association/validation, and simulation
+phases over SSE.
+
 When running through npm scripts, pass CLI flags after `--`:
 
 ```bash

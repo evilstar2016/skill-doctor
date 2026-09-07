@@ -6,6 +6,7 @@ import { dirname, extname, relative, resolve, sep } from 'node:path';
 import { sendJson } from './apiPrimitives';
 import { handleApi } from './router';
 import { ScanManager } from './scanManager';
+import { BenefitManager } from './benefitManager';
 import { createUiSessionSecurity } from './security';
 
 export interface StartUiServerOptions {
@@ -32,6 +33,7 @@ export async function startUiServer(options: StartUiServerOptions): Promise<UiSe
   const uiDir = options.uiDir ?? (existsSync(bundledUiDir) ? bundledUiDir : resolve(process.cwd(), 'dist/ui'));
   const security = createUiSessionSecurity();
   const scans = new ScanManager(options.homeDir);
+  const benefits = new BenefitManager();
   let port = options.port ?? 0;
 
   const server = createServer(async (request, response) => {
@@ -45,7 +47,7 @@ export async function startUiServer(options: StartUiServerOptions): Promise<UiSe
         return sendJson(response, 403, { error: { code: 'invalid_origin', message: 'Request origin is not allowed.' } });
       }
       if (url.pathname.startsWith('/api/')) {
-        await handleApi(request, response, url, { projectDir, homeDir: options.homeDir, scans });
+        await handleApi(request, response, url, { projectDir, homeDir: options.homeDir, scans, benefits });
         return;
       }
       serveStatic(response, uiDir, url.pathname);

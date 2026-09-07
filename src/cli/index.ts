@@ -36,6 +36,11 @@ import { InstallTargetError, resolveInstallTarget } from '../install/resolveInst
 import { loadCenter, migrateToCenter } from '../library/centerStore.js';
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
+import { estimateCodexBenefit } from '../benefit/estimateBenefit';
+import { loadOptimizationPlan, validateOptimizationPlan } from '../benefit/optimizationPlan';
+import { loadBenefitPriceTable } from '../benefit/prices';
+import { scanCodexSessions } from '../benefit/codexSessions';
+import { defaultSessionIndexPath, deleteSessionIndex, deleteSessionIndexEntries } from '../benefit/sessionIndex';
 import { getPlatformAliasMappings, getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
 import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
 import { renderAudit } from '../render/renderAudit';
@@ -45,6 +50,7 @@ import { renderConflicts } from '../render/renderConflicts';
 import { renderContextCost } from '../render/renderContextCost';
 import { renderDiff } from '../render/renderDiff';
 import { renderDashboard } from '../render/renderDashboard';
+import { renderBenefitHtml, renderBenefitReport, redactBenefitReport } from '../render/renderBenefit';
 import { renderDiffReport } from '../render/renderDiffReport';
 import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
@@ -421,6 +427,123 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     process.stdout.write(`${renderCleanup(duplicates)}\n`);
+    return;
+  }
+
+  if (command === 'benefit') {
+    const projectFlag = readFlagValue(rest, '--project');
+    const positionalProject = readPositionals(rest, new Set(['--since', '--limit', '--plan', '--price-table', '--codex-home', '--project', '--format', '--output', '--tokenizer', '--tokenizer-model', '--retention-days', '--delete-index-entry'])).at(0);
+    const projectDir = resolve(projectFlag ?? positionalProject ?? cwd);
+    const since = readBenefitSince(rest);
+    const limit = readLimit(rest);
+    const tokenizer = readTokenizer(rest);
+    const tokenizerModel = readFlagValue(rest, '--tokenizer-model');
+    const planReference = readFlagValue(rest, '--plan');
+    const priceTablePath = readFlagValue(rest, '--price-table');
+    const codexHome = readFlagValue(rest, '--codex-home');
+    const outputPath = readFlagValue(rest, '--output');
+    const includeArchived = hasFlag(rest, '--include-archived');
+    const format = readBenefitFormat(rest);
+    const redact = hasFlag(rest, '--redact');
+    const deleteIndex = hasFlag(rest, '--delete-index');
+    const deleteIndexEntry = readFlagValue(rest, '--delete-index-entry');
+    const retentionDays = readPositiveDays(rest, '--retention-days');
+
+    if (since === 'invalid') {
+      process.stderr.write('Invalid --since. Use a duration such as 24h, 7d, or an ISO timestamp.\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (limit === 'invalid' || (limit !== null && limit <= 0)) {
+      process.stderr.write('Invalid --limit. Use a positive integer.\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (tokenizer === 'invalid') {
+      process.stderr.write('Invalid tokenizer. Use --tokenizer openai|approx\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (format === 'invalid') {
+      process.stderr.write('Invalid --format. Use text|json|html\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (retentionDays === 'invalid') {
+      process.stderr.write('Invalid --retention-days. Use a positive number of days.\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (deleteIndex && deleteIndexEntry !== null) {
+      process.stderr.write('Use either --delete-index or --delete-index-entry, not both.\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (!existsSync(projectDir) || !statSync(projectDir).isDirectory()) {
+      process.stderr.write(`Project directory not found: ${projectDir}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
+    try {
+      const homeDir = process.env.HOME || process.env.USERPROFILE || homedir();
+      if (deleteIndex || deleteIndexEntry !== null) {
+        const indexPath = defaultSessionIndexPath(homeDir);
+        if (deleteIndex) {
+          const deleted = await deleteSessionIndex(indexPath);
+          if (jsonOutput) process.stdout.write(`${toJson({ deleted, kind: 'skill-doctor-benefit-index', message: deleted ? 'Benefit session index deleted' : 'Benefit session index did not exist' })}\n`);
+          else process.stdout.write(`${deleted ? 'Deleted' : 'Did not find'} benefit session index: ${indexPath}\n`);
+        } else {
+          const deletedEntries = await deleteSessionIndexEntries(indexPath, [resolve(cwd, deleteIndexEntry!)]);
+          if (jsonOutput) process.stdout.write(`${toJson({ deleted: deletedEntries > 0, deletedEntries, kind: 'skill-doctor-benefit-index-entry' })}\n`);
+          else process.stdout.write(`${deletedEntries > 0 ? 'Deleted' : 'Did not find'} benefit session index entry: ${resolve(cwd, deleteIndexEntry!)}\n`);
+        }
+        return;
+      }
+      const scan = await scanCodexSessions({
+        projectDir,
+        homeDir,
+        ...(codexHome ? { codexHome } : {}),
+        sinceMs: since,
+        limit: limit ?? 20,
+        includeArchived,
+        useIndex: true,
+        ...(retentionDays !== null ? { indexRetentionDays: retentionDays } : {}),
+      });
+      const loadedPlan = await loadOptimizationPlan({ projectDir, homeDir, ...(planReference ? { reference: planReference } : {}) });
+      if (planReference && !loadedPlan.plan) {
+        throw new Error(`Unable to load the requested optimization plan: ${planReference}`);
+      }
+      const priceTable = await loadBenefitPriceTable(priceTablePath ?? undefined);
+      const planValidation = loadedPlan.plan
+        ? await validateOptimizationPlan({ plan: loadedPlan.plan, projectDir, homeDir })
+        : undefined;
+      const report = estimateCodexBenefit({
+        scan,
+        plan: loadedPlan.plan,
+        planDiagnostics: loadedPlan.diagnostics,
+        priceTable,
+        tokenizer,
+        ...(tokenizerModel ? { tokenizerModel } : {}),
+        ...(planValidation ? { planValidation } : {}),
+      });
+      const selectedFormat = jsonOutput ? 'json' : format;
+      const rendered = selectedFormat === 'json'
+        ? toJson(redact ? redactBenefitReport(report) : report)
+        : selectedFormat === 'html'
+          ? renderBenefitHtml(report, { redact: true })
+          : renderBenefitReport(report);
+      if (outputPath) {
+        const target = resolve(cwd, outputPath);
+        writeFileSync(target, `${rendered}\n`, 'utf8');
+        process.stdout.write(`Benefit report written to: ${target}\n`);
+      } else {
+        process.stdout.write(`${rendered}\n`);
+      }
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -982,6 +1105,7 @@ function getHelpText(): string {
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor check [--scope project|global|all] [--fail-on high|med|low] [--budget-tokens N] [--json]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
+    '  skill-doctor benefit [project-dir] [--since 24h|7d|ISO] [--limit N] [--plan ID|path] [--include-archived] [--price-table path] [--tokenizer openai|approx] [--tokenizer-model model] [--retention-days N] [--format text|json|html] [--redact] [--delete-index|--delete-index-entry path] [--output path] [--json]',
     '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
@@ -1460,13 +1584,10 @@ function toJson(value: unknown): string {
 }
 
 function readLimit(args: string[]): number | null | 'invalid' {
+  const equals = args.find((arg) => arg.startsWith('--limit='));
   const index = args.indexOf('--limit');
-
-  if (index === -1) {
-    return null;
-  }
-
-  const rawValue = args[index + 1];
+  if (!equals && index === -1) return null;
+  const rawValue = equals ? equals.slice('--limit='.length) : args[index + 1];
   const parsed = Number(rawValue);
 
   if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -1474,6 +1595,43 @@ function readLimit(args: string[]): number | null | 'invalid' {
   }
 
   return parsed;
+}
+
+function readPositiveDays(args: string[], flag: string): number | null | 'invalid' {
+  const equals = args.find((arg) => arg.startsWith(`${flag}=`));
+  const index = args.indexOf(flag);
+  if (!equals && index === -1) return null;
+  const rawValue = equals ? equals.slice(flag.length + 1) : args[index + 1];
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 'invalid';
+  return parsed;
+}
+
+function readBenefitSince(args: string[]): number | 'invalid' {
+  const hasSince = args.some((arg) => arg === '--since' || arg.startsWith('--since='));
+  const rawValue = readFlagValue(args, '--since');
+  if (hasSince && rawValue === null) return 'invalid';
+  const value = rawValue ?? '24h';
+  const duration = value.match(/^(\d+(?:\.\d+)?)(m|h|d)$/i);
+  if (duration) {
+    const amount = Number(duration[1]);
+    const multiplier = duration[2].toLowerCase() === 'm'
+      ? 60_000
+      : duration[2].toLowerCase() === 'h'
+        ? 3_600_000
+        : 86_400_000;
+    if (amount > 0 && Number.isFinite(amount)) return Date.now() - amount * multiplier;
+    return 'invalid';
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 'invalid';
+}
+
+function readBenefitFormat(args: string[]): 'text' | 'json' | 'html' | 'invalid' {
+  const value = readFlagValue(args, '--format');
+  if (value === null || value === 'text') return 'text';
+  if (value === 'json' || value === 'html') return value;
+  return 'invalid';
 }
 
 function readBudgetTokens(args: string[]): number | null | 'invalid' {

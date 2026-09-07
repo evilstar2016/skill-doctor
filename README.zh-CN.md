@@ -207,6 +207,48 @@ Codex 报告中的 `Estimated token tax`、`items` 和 `resources` 只包含当�
 
 `--include-cache` 会单独盘点 `~/.codex/plugins/cache` 中插件和 Skill 的 UI 元数据，包括显示名称、描述、图标路径、缓存来源，以及允许隐式调用还是仅显式调用。缓存目录条目统一标记为 `cached` 和 `not counted`；仅仅能在 Codex 界面里看到某个入口，不会被当成它已经进入模型上下文的证据。该选项用于 Codex 的 `--resource all|plugin`，JSON 输出会把结构化盘点放在 `catalog` 字段中。
 
+### `benefit`（Codex 历史收益预估）
+
+将 Skill Doctor 优化方案与当前项目最近的 Codex rollout JSONL 会话对齐，预估
+输入 Token、总 Token 和等价 API 费用的变化。分析在本机完成，不重新执行 Codex，
+也不修改 Codex 配置，更不能把结果当作订阅账单下降。
+
+```bash
+skill-doctor benefit --project . --since 24h --limit 20
+skill-doctor benefit --project . --since 24h --limit 20 --plan <plan-id>
+skill-doctor benefit --project . --since 7d --limit 50 --plan <plan-id> --format json --output benefit.json
+skill-doctor benefit --project . --since 24h --plan <plan-id> --tokenizer openai --tokenizer-model gpt-4o --format html --output benefit.html
+skill-doctor benefit --project . --include-archived --price-table ./prices.json
+skill-doctor benefit --project . --retention-days 30
+skill-doctor benefit --project . --delete-index --json
+skill-doctor benefit --project . --delete-index-entry /path/to/rollout.jsonl --json
+```
+
+报告会分开展示历史输入、缓存读写、输出和推理用量，列出“历史缓存比例延续”和
+“缓存重建敏感性”两种费用情景、模型价格覆盖率、跳过会话原因，以及响应对应的
+JSONL 文件和行号。没有匹配方案时仍会输出历史基线，但不会虚构预计节省。
+
+历史上下文归因只保留可恢复的源文件/行号和正文 hash；增量索引不保存 AGENTS 或
+Skill 正文，命中索引但需要文本重建时会从本机 rollout 重新读取。宿主 Skill 清单被
+截断、重复或缺少完整性证据时，结果保持“证据不足”，不会把缺失条目当成已删除。
+
+如果方案带有明确的资源选择，预计结果会从匹配到的历史上下文快照中重建优化前后
+文本，并用 tokenizer 计算实际差值；未匹配响应保持不变。没有逐资源证据的方案才会
+使用 Optimizer 静态估算的比例模拟。两条路径都默认保持输出、推理、工具调用、重试、
+压缩、质量和耗时不变。金额只是等价 API 价格估算，不是 Codex 或 ChatGPT 订阅账单。
+功能边界和验收进度见内部清单：
+`doc/codex-optimization-benefit-checklist.zh-CN.md`。
+
+`--tokenizer approx` 只适合快速进行 chars/4 近似比较；报告会记录 tokenizer、模型和
+fallback。`--format html` 输出静态、已转义且脱敏的预览；`--format json --redact` 输出
+适合分享的脱敏 JSON，默认 JSON 则保留本地追溯字段，便于本地复算。
+本地增量索引只保存必要元数据；需要删除这份可重建索引时，显式使用 `--delete-index`。
+也可以用 `--retention-days N` 清理超过 N 天的索引元数据，或用 `--delete-index-entry` 删除单个源文件对应的索引记录；这些操作只删除 Skill Doctor 自有索引，不删除 Codex 会话文件。
+
+自定义价格表中的每个模型必须声明 `maxInputTokens` 或 `inputTiers`；没有明确长上下文
+适用范围的金额会显示为不可估，但 Token 指标仍会保留。UI 收益分析使用可取消的本地
+job，并通过 SSE 展示读取、解析/关联、方案校验和模拟阶段。
+
 Codex 控制能力：
 
 | 资源 | 成本预览 | 自动启用/禁用 | 写入位置 |

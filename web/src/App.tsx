@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
+  Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard, Gauge,
   Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, History, Info, LayoutDashboard, LoaderCircle, Menu,
   PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Trash2, X,
 } from 'lucide-react';
@@ -23,13 +23,14 @@ import { ResourcesPage as ResourcesPageView } from './pages/ResourcesPage';
 import { ManagePage as ManagePageView } from './pages/ManagePage';
 import { ScanPathsPage as ScanPathsPageView } from './pages/ScanPathsPage';
 import { HistoryPage as HistoryPageView } from './pages/HistoryPage';
+import { BenefitPage as BenefitPageView } from './pages/BenefitPage';
 import { Detail, EmptyRows, FilterBar, HelpTip, InlineNotice, IssueCard, LaunchScreen, LoadingLine, PageHeading, PlatformIcon, ResourceStatus, ScanningEmpty, SettingSwitch, SeverityBadge, StatCard, StatusPill, activationLabel, copyText, kindLabel, platformLabel, resourceKindLabel, scopeLabel, severityLabel, shortPath, translateResultText } from './components/ui';
 import { I18nProvider, useTranslation } from './i18n';
 import { useTheme, type Theme } from './theme-manager';
 import { ThemeToggle } from './components/ThemeToggle';
 import { SkillDoctorLogo } from './components/SkillDoctorLogo';
 
-type Route = 'overview' | 'issues' | 'context' | 'resources' | 'history' | 'manage' | 'scan-paths';
+type Route = 'overview' | 'issues' | 'context' | 'benefit' | 'resources' | 'history' | 'manage' | 'scan-paths';
 type ColorTheme = 'teal' | 'cyan';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
 type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
@@ -41,11 +42,12 @@ const DEFAULT_SCAN: ScanRequest = {
   budgetTokens: 2000, tokenizer: 'openai', tokenizerModel: 'gpt-4o',
 };
 
-const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.library'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.history' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
+const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.library'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.benefit' | 'nav.resources' | 'nav.history' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
   { id: 'diagnose', labelKey: 'nav.group.diagnose', items: [
     { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
     { id: 'issues', labelKey: 'nav.issues', icon: Activity },
     { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
+    { id: 'benefit', labelKey: 'nav.benefit', icon: Gauge },
     { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
     { id: 'history', labelKey: 'nav.history', icon: History },
   ]},
@@ -54,7 +56,7 @@ const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.grou
   ]},
 ];
 const ROUTES = NAV_GROUPS.flatMap((group) => group.items);
-const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'resources', 'history', 'manage', 'scan-paths'];
+const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'benefit', 'resources', 'history', 'manage', 'scan-paths'];
 
 export default function App() {
   return <I18nProvider><AppContent /></I18nProvider>;
@@ -247,6 +249,7 @@ function AppContent() {
             setToast(result.requiresNewSession ? t('context.updatedNewSession') : result.message);
             refresh();
           }} />}
+          {route === 'benefit' && <BenefitPageView projectDir={scanOptions.projectDir} tokenizer={scanOptions.tokenizer} tokenizerModel={scanOptions.tokenizerModel} />}
           {route === 'resources' && <ResourcesPageView snapshot={snapshot} openResource={openResource} />}
           {route === 'history' && <HistoryPageView snapshot={snapshot} />}
           {route === 'scan-paths' && <ScanPathsPageView

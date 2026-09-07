@@ -9,6 +9,7 @@ import type { CenterView } from '../../src/application/center';
 import type { SkillConflictDiff } from '../../src/library/skillConflictDiff';
 import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPreview } from '../../src/library/importAgentSkills';
 import type { SnapshotHistoryDiff, SnapshotHistoryEntry } from '../../src/history/snapshotHistory';
+import type { BenefitReport } from '../../src/benefit/types';
 
 export interface ScanRequest {
   projectDir: string;
@@ -60,6 +61,56 @@ export async function getSnapshotHistory(): Promise<{ snapshots: SnapshotHistory
 
 export async function diffSnapshots(baselineId: string, currentId: string): Promise<SnapshotHistoryDiff> {
   return request('/api/snapshots/diff', { method: 'POST', body: JSON.stringify({ baselineId, currentId }) });
+}
+
+export async function getBenefitReport(input: { projectDir: string; sinceHours: number; limit: number; plan?: string; includeArchived: boolean; tokenizer: 'openai' | 'approx'; tokenizerModel: string }, signal?: AbortSignal): Promise<BenefitReport> {
+  return request<BenefitReport>('/api/benefits', { method: 'POST', body: JSON.stringify(input), signal });
+}
+
+export interface BenefitProgressEvent {
+  phase: 'reading' | 'parsing' | 'associating' | 'simulating';
+  message: string;
+  completed: number;
+  total: number;
+}
+
+export interface BenefitStreamHandlers {
+  progress(event: BenefitProgressEvent): void;
+  complete(report: BenefitReport): void;
+  error(error: Error): void;
+  cancelled(): void;
+}
+
+export async function startBenefitJob(input: { projectDir: string; sinceHours: number; limit: number; plan?: string; includeArchived: boolean; tokenizer: 'openai' | 'approx'; tokenizerModel: string }, signal?: AbortSignal): Promise<string> {
+  const result = await request<{ jobId: string }>('/api/benefits/jobs', { method: 'POST', body: JSON.stringify(input), signal });
+  return result.jobId;
+}
+
+export function streamBenefitJob(jobId: string, handlers: BenefitStreamHandlers): () => void {
+  const source = new EventSource(`/api/benefits/jobs/${encodeURIComponent(jobId)}/events`);
+  source.addEventListener('progress', (event) => handlers.progress(JSON.parse((event as MessageEvent).data)));
+  source.addEventListener('complete', (event) => {
+    handlers.complete(JSON.parse((event as MessageEvent).data));
+    source.close();
+  });
+  source.addEventListener('cancelled', () => {
+    handlers.cancelled();
+    source.close();
+  });
+  source.addEventListener('error', (event) => {
+    if (event instanceof MessageEvent && event.data) {
+      const payload = JSON.parse(event.data) as { message?: string };
+      handlers.error(new Error(payload.message ?? 'benefit_failed'));
+    } else if (source.readyState === EventSource.CLOSED) {
+      handlers.error(new Error('benefit_connection_closed'));
+    }
+    source.close();
+  });
+  return () => source.close();
+}
+
+export async function cancelBenefitJob(jobId: string): Promise<void> {
+  await request(`/api/benefits/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST', body: '{}' });
 }
 
 export async function getModelConfig(): Promise<ModelConfigView> {
