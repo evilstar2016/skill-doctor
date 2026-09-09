@@ -4,6 +4,10 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+### Fixes
+- Count removable Skill descriptions in every response retaining their context, preserving whitespace and exposing a recommended, usage-capped cached-prefix cost scenario with matching per-model costs.
+- Rehydrate historical context when appending to metadata-only session indexes, and validate optimizer inventory fingerprints using the preview's resource scope and normalization.
+
 ### Documentation
 - Refresh `skills/skill-doctor` to cover the v0.5.0 command surface, supported platforms, structured diagnostic workflows, UI/reporting, managed Skill operations, central-library migration, and Codex resource controls.
 - Correct the Skill's model capability checks and `diff` usage, and document when configured analysis, embedding, or MCP discovery can send data or start external processes.

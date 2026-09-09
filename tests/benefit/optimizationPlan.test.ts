@@ -1,7 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as contextScan from '../../src/context/scanCodexContext';
+import * as contextCost from '../../src/context/estimateContextCost';
 
 import { getPlanFixedEstimate, loadOptimizationPlan, validateOptimizationPlan } from '../../src/benefit/optimizationPlan';
 import { planResources } from '../../src/benefit/contextEvidence';
@@ -9,10 +12,28 @@ import { planResources } from '../../src/benefit/contextEvidence';
 const roots: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
 describe('loadOptimizationPlan', () => {
+  it('matches preview normalization and deduplication without adding MCP to its scope', async () => {
+    const scanSpy = vi.spyOn(contextScan, 'scanCodexContextEntries').mockResolvedValue([]);
+    const estimateSpy = vi.spyOn(contextCost, 'estimateContextCost').mockReturnValue({
+      items: [{ id: 'skill-1', estimatedTokens: 10, estimatedChars: 40 }],
+    } as ReturnType<typeof contextCost.estimateContextCost>);
+    const fingerprint = createHash('sha256').update(JSON.stringify([{
+      controlMethod: null, controllable: false, enabled: true, estimateStatus: 'estimated', estimatedChars: 40, estimatedTokens: 10, id: 'skill-1',
+    }])).digest('hex');
+    const result = await validateOptimizationPlan({ projectDir: '/tmp/project', homeDir: '/tmp/unused', plan: {
+      id: 'scoped', sourcePath: '/tmp/plan.json', sourceKind: 'explicit', scope: 'project',
+      coverage: { resources: ['skill', 'plugin'] }, inventoryFingerprint: fingerprint,
+    } });
+    expect(result.status).toBe('matched');
+    expect(scanSpy.mock.calls.map((call) => call[1]?.resource)).toEqual(['skill', 'plugin']);
+    expect(estimateSpy).toHaveBeenCalledWith([], { projectPath: '/tmp/project', scope: 'project' });
+  });
+
   it('deduplicates overlapping resources across preview items and operations', () => {
     const resources = planResources({
       id: 'overlap',

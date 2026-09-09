@@ -184,7 +184,7 @@
   "benefit.projected": "方案后预计输入",
   "benefit.cost": "费用情景",
   "benefit.simulationGuideTitle": "选择模拟情景",
-  "benefit.simulationGuideDetail": "两种情景只影响缓存读写的费用假设；Token 前后差来自已匹配的历史上下文文本，未匹配响应保持不变。",
+  "benefit.simulationGuideDetail": "优先选择「持续上下文扣减」：同一 Skill 描述在每条仍包含它的响应中都计入差额，无缓存时扣普通输入，有缓存时优先扣缓存读取。无法确认缓存归属时，可对照「历史缓存比例延续」。情景只改变费用假设，不改变 Token 差额；未匹配响应保持不变。",
   "benefit.simulationChoice": "模拟情景",
   "benefit.modelTitle": "按模型费用情景",
   "benefit.modelDetail": "金额是等价 API 价格估算，不是 Codex 或 ChatGPT 订阅账单。",

@@ -1013,6 +1013,10 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
           && fileStat.size > indexed.size
           && indexed.readOffset === indexed.size
           && indexed.prefixHash
+          // The persisted index omits text. Rehydrate before extending its context state.
+          && !indexed.analysis.contextSnapshots.some((snapshot) =>
+            (snapshot.agentsTextChars !== undefined && !snapshot.agentsText)
+            || (snapshot.hostSkillsTextChars !== undefined && !snapshot.hostSkillsText))
           && !indexed.analysis.usageRecords.some((record) => record.sourceKind === 'token_count'),
         );
         const prefixHash = canTryIncremental && indexed

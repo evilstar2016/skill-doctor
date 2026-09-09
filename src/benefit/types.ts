@@ -356,7 +356,7 @@ export interface BenefitModelCostBreakdown {
 }
 
 export interface BenefitScenario {
-  id: 'historical-cache' | 'cache-rebuild';
+  id: 'persistent-context' | 'historical-cache' | 'cache-rebuild';
   label: string;
   assumption: string;
   baseline: BenefitCostMetrics;
@@ -364,6 +364,7 @@ export interface BenefitScenario {
   savings?: number;
   savingsPercent?: number;
   parameters?: Record<string, string | number | boolean | null>;
+  modelCosts?: BenefitModelCostBreakdown[];
 }
 
 export interface BenefitResponseEstimate {

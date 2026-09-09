@@ -59,6 +59,43 @@ function plan(): OptimizationPlan {
 }
 
 describe('estimateCodexBenefit', () => {
+  it('deducts a retained Skill prefix on cold, cached, partially cached and cache-write responses', () => {
+    const base = scan();
+    const text = '### Available skills\n- imagegen: Generate raster images.\n- review-agent: Review code.';
+    const retained = '### Available skills\n- review-agent: Review code.';
+    const delta = Math.ceil(text.length / 4) - Math.ceil(retained.length / 4);
+    const original = base.selected[0].usage[0];
+    base.selected[0].usage = [0, 500, 2, 0].map((cached, index) => ({
+      ...original,
+      responseId: `response-${index}`,
+      line: 4 + index,
+      contextSnapshotLine: 3,
+      usage: { ...original.usage, cachedInputTokens: cached, cacheWriteInputTokens: index === 3 ? 50 : 0 },
+    }));
+    base.selected[0].associatedFiles = [{
+      meta: base.selected[0].session,
+      contextSnapshots: [{ timestamp: base.generatedAt, full: true, hostSkillsText: text, sourcePath: original.sourcePath, line: 3 }],
+    } as CodexSessionFileAnalysis];
+    const report = estimateCodexBenefit({ scan: base, tokenizer: 'approx', plan: {
+      ...plan(), operations: [{ affectedItems: [{ id: 'imagegen', name: 'imagegen', resource: 'skill' }] }],
+    }, priceTable: {
+      schemaVersion: 1, name: 'synthetic', updatedAt: '2026-09-09', channel: 'test', serviceTier: 'test', unit: 'USD per 1M tokens',
+      prices: [{ model: original.model, provider: 'test', currency: 'USD', inputPerMillion: 10, cachedInputPerMillion: 1, cacheWriteInputPerMillion: 12, outputPerMillion: 20, maxInputTokens: 200_000 }],
+    } });
+
+    expect(report.responses.map((response) => response.estimatedInputSavings)).toEqual([delta, delta, delta, delta]);
+    expect(report.savings.inputTokens).toBe(delta * 4);
+    expect(report.projected.outputTokens).toBe(report.baseline.outputTokens);
+    expect(report.responses.map((response) => response.projectedAfter?.cachedInputTokens)).toEqual([0, 500 - delta, 0, 0]);
+    expect(report.responses[3].projectedAfter?.cacheWriteInputTokens).toBe(50 - delta);
+    const expectedSavings = (delta * 10 + delta + 2 + (delta - 2) * 10 + delta * 12) / 1_000_000;
+    expect(report.scenarios[0].id).toBe('persistent-context');
+    expect(report.scenarios[0].savings).toBeCloseTo(expectedSavings, 8);
+    expect(report.modelCosts[0].savings).toBeCloseTo(expectedSavings, 8);
+    expect(report.scenarios[0].modelCosts).toEqual(report.modelCosts);
+    expect(report.resourceContributions[0]).toMatchObject({ responseCount: 4, inputSavings: delta * 4 });
+  });
+
   it('projects input and cost savings while keeping output unchanged', () => {
     const report = estimateCodexBenefit({
       scan: scan(),

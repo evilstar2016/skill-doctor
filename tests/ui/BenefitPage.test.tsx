@@ -59,6 +59,26 @@ describe('BenefitPage', () => {
 
   afterEach(() => cleanup());
 
+  it('guides users to persistent context and switches the per-model costs with the scenario', async () => {
+    const baseline = { status: 'estimated' as const, currency: 'USD', amount: 1 };
+    const scenario = (id: BenefitReport['scenarios'][number]['id'], label: string, amount: number) => ({
+      id, label, assumption: 'Scenario assumption', baseline, projected: { ...baseline, amount },
+      modelCosts: [{ model: 'scenario-model', responseCount: 2, pricedResponseCount: 2, baseline, projected: { ...baseline, amount } }],
+    });
+    mocks.streamBenefitJob.mockImplementation((_id, handlers) => {
+      handlers.complete({ ...report, scenarios: [scenario('persistent-context', '持续上下文扣减（推荐）', 0.9), scenario('historical-cache', '历史缓存比例延续', 0.8)] });
+      return () => {};
+    });
+    render(<BenefitPage projectDir="/tmp/project" tokenizer="approx" tokenizerModel="gpt-4o" />);
+    fireEvent.click(screen.getByRole('button', { name: '开始分析' }));
+    const recommended = await screen.findByRole('button', { name: '持续上下文扣减（推荐）' });
+    expect(recommended.classList.contains('active')).toBe(true);
+    expect(screen.getAllByText('USD 1.000000 → USD 0.900000')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: '历史缓存比例延续' }));
+    expect(screen.getAllByText('USD 1.000000 → USD 0.800000')).toHaveLength(2);
+    expect(screen.queryByText('USD 1.000000 → USD 0.900000')).toBeNull();
+  });
+
   it('shows progress, supports turn/model/session filters, and paginates the trace table', async () => {
     render(<BenefitPage projectDir="/tmp/project" tokenizer="approx" tokenizerModel="gpt-4o" />);
     expect(screen.getByText('模拟前请先准备优化方案')).toBeTruthy();

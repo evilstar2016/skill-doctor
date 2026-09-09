@@ -419,6 +419,12 @@ describe('scanCodexSessions', () => {
     expect(second.index.cacheHits).toBe(0);
     expect(second.selected[0]?.analysis.contextSnapshots[0]?.hostSkillsText).toContain('removable-skill');
     expect(second.diagnostics.some((item) => item.code === 'index.context_text_reloaded')).toBe(true);
+
+    appendFileSync(filePath, `${JSON.stringify(usage('response-context-continued', 150, now))}\n`, 'utf8');
+    const third = await scanCodexSessions({ projectDir, codexHome, homeDir: root, useIndex: true, sinceMs: Date.now() - 60_000, limit: 5 });
+    expect(third.index.rebuiltFiles).toBe(1);
+    expect(third.selected[0]?.analysis.contextSnapshots[0]?.hostSkillsText).toContain('removable-skill');
+    expect(third.selected[0]?.usage.map((record) => record.contextSnapshotLine)).toEqual([2, 2]);
   });
 
   it('rebuilds the indexed analysis after a file is truncated or rewritten', async () => {

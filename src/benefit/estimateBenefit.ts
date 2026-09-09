@@ -131,9 +131,23 @@ function projectedUsageFromSavings(
   const projectedInputTokens = usage.inputTokens - savings;
   if (projectedInputTokens < 0) return { projected: usage, status: 'unknown', reason: 'Reconstructed context savings exceeds observed input tokens' };
   return {
-    projected: withValidInputPartition(usage, projectedInputTokens),
+    projected: subtractPersistentContext(usage, savings),
     savings,
     status: 'estimated',
+  };
+}
+
+// A retained prompt prefix is charged on every response, even if transport sends
+// only a delta. Its cache attribution is a scenario, not per-Skill telemetry.
+function subtractPersistentContext(usage: CodexUsage, savings: number): CodexUsage {
+  const cachedSavings = Math.min(savings, usage.cachedInputTokens);
+  const writeSavings = Math.min(savings - cachedSavings, usage.cacheWriteInputTokens);
+  return {
+    ...usage,
+    inputTokens: usage.inputTokens - savings,
+    cachedInputTokens: usage.cachedInputTokens - cachedSavings,
+    cacheWriteInputTokens: usage.cacheWriteInputTokens - writeSavings,
+    totalTokens: usage.totalTokens - savings,
   };
 }
 
@@ -322,6 +336,7 @@ function makeScenario(
     projected: costs.projected,
     ...(savings !== undefined ? { savings, savingsPercent: percent(savings, costs.baseline.amount ?? 0) } : {}),
     ...(parameters ? { parameters } : {}),
+    modelCosts: modelCostBreakdown(records.map((item, index) => ({ ...item, usage: { ...item.usage, projected: projection(item.usage, index) } })), priceTable).breakdown,
   };
 }
 
@@ -436,7 +451,7 @@ function planNeedsInventoryValidation(plan: OptimizationPlan | undefined): boole
 
 export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitReport {
   const priceTable = options.priceTable ?? DEFAULT_PRICES;
-  const tokenCounter = createTokenCounter({ tokenizer: options.tokenizer, tokenizerModel: options.tokenizerModel });
+  const tokenCounter = createTokenCounter({ tokenizer: options.tokenizer, tokenizerModel: options.tokenizerModel, preserveWhitespace: true });
   const completeRecords = options.scan.selected.flatMap((selection) => selection.usage.filter((record) => record.quality === 'complete').map((record) => ({ selection, record })));
   const planEstimate = options.plan ? getPlanFixedEstimate(options.plan) : { reason: 'No optimization plan was available' };
   const planRate = planEstimate.rate !== undefined && Number.isFinite(planEstimate.rate) && planEstimate.rate <= 1
@@ -493,7 +508,7 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
       && planMatch.matches.length > 0
       && planMatch.matches.every((match) => match.status === 'matched' && match.historicalState === 'after'),
     );
-    if (textReconstructed && reconstruction) {
+    if (inventoryValid && textReconstructed && reconstruction && reconstruction.inputSavings! <= record.usage.inputTokens) {
       for (const contribution of reconstruction.contributions ?? []) {
         const current = resourceContributionTotals.get(contribution.resourceId) ?? { resourceId: contribution.resourceId, responseCount: 0, inputSavings: 0, interactionTokens: 0 };
         resourceContributionTotals.set(contribution.resourceId, { ...current, responseCount: current.responseCount + 1, inputSavings: current.inputSavings + contribution.inputSavings });
@@ -544,6 +559,7 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   const scenarios = rate === undefined && scenarioRecords.length === 0
     ? []
     : [
+        ...(hasResourceSelection ? [makeScenario('persistent-context', '持续上下文扣减（推荐）', '每条仍含该 Skill 描述的响应都扣除文本差额，不按 WebSocket 增量字节计数。假设精简片段优先属于已缓存前缀：扣减不超过实测缓存读取量，其次缓存写入，剩余为普通输入；无缓存的首轮按普通输入计。仅为模拟，不证明逐 Skill 缓存命中。', scenarioCostRecords, priceTable, (usage) => usage.projected, { cacheRule: 'cached-prefix-first-capped-by-observed-usage', affectedResponseRange: 'all-covered-responses' })] : []),
         makeScenario('historical-cache', '历史缓存比例延续', '假设优化后普通输入、缓存读取和缓存写入按输入缩放比例延续；输出与推理保持不变。', scenarioCostRecords, priceTable, (usage) => preserveCacheRatio(usage.before, usage.projected.inputTokens), { cacheRule: 'scale-all-input-components', firstResponses: null, affectedResponseRange: 'all-covered-responses' }),
         makeScenario('cache-rebuild', '缓存重建敏感性', `假设前 ${firstResponses} 条受影响响应按缓存重建处理，后续响应延续历史缓存比例；缓存读取量按首段节省量下降，并保留不超过预计输入量的写入量。`, scenarioCostRecords, priceTable, (usage, index) => index < firstResponses ? rebuildCache(usage.before, usage.projected.inputTokens, usage.before.inputTokens - usage.projected.inputTokens) : preserveCacheRatio(usage.before, usage.projected.inputTokens), { cacheRule: 'first-K-rebuild-then-preserve-ratio', firstResponses, affectedResponseRange: 'all-covered-responses' }),
       ];
@@ -561,6 +577,8 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   }
   const limitations = [
     'This report uses historical session usage and does not re-run Codex.',
+    'Retained Skill descriptions are removed once per covered response, not once per network transfer. Cache attribution is hypothetical; WebSocket context retention is not proof of a cache hit.',
+    'Text deltas preserve whitespace and use the selected tokenizer as an approximation; loaded Skill bodies and downstream behavior changes are not automatically removed.',
     'Projected output, reasoning, tool calls, retries, compactions, quality, and latency are held constant rather than predicted.',
     'A Skill is not an isolated billing unit; prompt context, cache behavior, tools, and sub-agents can change together.',
     'Cost is an equivalent API estimate when the price table matches the model; it is not a ChatGPT/Codex subscription bill.',

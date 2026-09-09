@@ -184,7 +184,7 @@
   "benefit.projected": "Projected input",
   "benefit.cost": "Cost scenario",
   "benefit.simulationGuideTitle": "Choose a simulation scenario",
-  "benefit.simulationGuideDetail": "The scenarios change only cache pricing assumptions; the Token delta comes from matched historical context text and unmatched responses stay unchanged.",
+  "benefit.simulationGuideDetail": "Start with persistent-context deduction: remove the Skill description from every response that retains it. Deduct ordinary input when uncached, or cached input first when available. Compare historical cache ratio when attribution is uncertain. Scenarios change pricing assumptions, not Token deltas; unmatched responses stay unchanged.",
   "benefit.simulationChoice": "Simulation scenario",
   "benefit.modelTitle": "Cost scenarios by model",
   "benefit.modelDetail": "Amounts are equivalent API-price estimates, not Codex or ChatGPT subscription bills.",

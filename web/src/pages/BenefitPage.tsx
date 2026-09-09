@@ -31,7 +31,7 @@ export function BenefitPage({ projectDir, tokenizer, tokenizerModel }: { project
   const [plan, setPlan] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
   const [report, setReport] = useState<BenefitReport | null>(null);
-  const [scenarioId, setScenarioId] = useState<BenefitReport['scenarios'][number]['id']>('historical-cache');
+  const [scenarioId, setScenarioId] = useState<BenefitReport['scenarios'][number]['id']>('persistent-context');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<BenefitProgressEvent>({ phase: 'reading', message: '', completed: 0, total: 4 });
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +179,7 @@ export function BenefitPage({ projectDir, tokenizer, tokenizerModel }: { project
       </section>
       <section className="panel">
         <div className="panel-heading"><div><h3>{t('benefit.modelTitle')}</h3><p>{t('benefit.modelDetail')}</p></div></div>
-        <div className="group-list">{report.modelCosts.map((item) => <div className="group-row" key={item.model}><span>{item.model}</span><div>{item.pricedResponseCount}/{item.responseCount} {t('benefit.priced')}</div><strong>{cost(item.baseline)}{item.projected?.amount !== undefined ? ` → ${cost(item.projected)}` : ''}</strong>{costDetail(item.baseline) && <small>{costDetail(item.baseline)}</small>}</div>)}{!report.modelCosts.length && <EmptyRows icon={Gauge} title={t('benefit.noModelCosts')} />}</div>
+        <div className="group-list">{(scenario?.modelCosts ?? report.modelCosts).map((item) => <div className="group-row" key={item.model}><span>{item.model}</span><div>{item.pricedResponseCount}/{item.responseCount} {t('benefit.priced')}</div><strong>{cost(item.baseline)}{item.projected?.amount !== undefined ? ` → ${cost(item.projected)}` : ''}</strong>{costDetail(item.baseline) && <small>{costDetail(item.baseline)}</small>}</div>)}{!report.modelCosts.length && <EmptyRows icon={Gauge} title={t('benefit.noModelCosts')} />}</div>
       </section>
       <p className="benefit-disclaimer">{t('benefit.disclaimer')}</p>
     </>}

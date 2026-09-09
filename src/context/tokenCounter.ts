@@ -26,6 +26,7 @@ const encoderCache = new Map<SupportedEncoding, Tiktoken>();
 export interface TokenCounterOptions {
   tokenizer?: ContextTokenizerMode;
   tokenizerModel?: string;
+  preserveWhitespace?: boolean;
 }
 
 export interface TokenCounter {
@@ -39,7 +40,7 @@ export function createTokenCounter(options: TokenCounterOptions = {}): TokenCoun
   if (mode === 'approx') {
     return {
       summary: { mode },
-      count: estimateApproxTokens,
+      count: options.preserveWhitespace ? (text) => Math.ceil(text.length / 4) : estimateApproxTokens,
     };
   }
 
@@ -54,7 +55,7 @@ export function createTokenCounter(options: TokenCounterOptions = {}): TokenCoun
       ...(resolved.fallback ? { fallback: true } : {}),
     },
     count(text: string): number {
-      const normalized = normalizeForTokenEstimate(text);
+      const normalized = options.preserveWhitespace ? text : normalizeForTokenEstimate(text);
       if (!normalized) return 0;
       return Math.max(1, resolved.encoder.encode(normalized, [], []).length);
     },

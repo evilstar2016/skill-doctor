@@ -256,11 +256,11 @@ function contextInventoryFingerprint(items: OptimizationPlanResource[]): string 
   const fingerprintItems = items.filter((item) => item.id).map((item) => ({
     id: item.id,
     enabled: item.enabled,
-    controllable: item.controllable,
-    controlMethod: item.controlMethod,
-    estimateStatus: item.estimateStatus,
-    estimatedTokens: item.estimatedTokens,
-    estimatedChars: item.estimatedChars,
+    controllable: item.controllable === true,
+    controlMethod: item.controlMethod ?? null,
+    estimateStatus: item.estimateStatus ?? 'estimated',
+    estimatedTokens: item.estimatedTokens ?? 0,
+    estimatedChars: item.estimatedChars ?? 0,
   })).sort((left, right) => String(left.id).localeCompare(String(right.id)));
   return createHash('sha256').update(JSON.stringify(stableValue(fingerprintItems))).digest('hex');
 }
@@ -269,7 +269,15 @@ export async function validateOptimizationPlan(options: { plan: OptimizationPlan
   const planFingerprint = options.plan.inventoryFingerprint;
   if (!planFingerprint) return { status: 'not_available', message: 'The optimization plan has no inventory fingerprint' };
   try {
-    const resources = ['skill', 'plugin', 'mcp'] as const;
+    const allowedResources = ['skill', 'plugin', 'mcp'] as const;
+    const declaredResources = options.plan.coverage?.resources;
+    const resources = Array.isArray(declaredResources)
+      ? allowedResources.filter((resource) => declaredResources.includes(resource))
+      : allowedResources;
+    if (resources.length === 0 || (Array.isArray(declaredResources) && declaredResources.some((resource) => !resources.includes(resource)))) {
+      return { status: 'unknown', planFingerprint, message: 'The plan declares an unsupported inventory resource scope' };
+    }
+    const scope = options.plan.scope === 'project' || options.plan.scope === 'global' ? options.plan.scope : 'all';
     const items = [] as OptimizationPlanResource[];
     for (const resource of resources) {
       const entries = await scanCodexContextEntries(options.projectDir, {
@@ -278,10 +286,10 @@ export async function validateOptimizationPlan(options: { plan: OptimizationPlan
         includeDisabled: true,
         discoverMcpTools: false,
       });
-      const result = estimateContextCost(entries, { projectPath: options.projectDir, scope: 'all' });
-      items.push(...result.items, ...(result.disabledItems ?? []));
+      const result = estimateContextCost(entries, { projectPath: options.projectDir, scope });
+      items.push(...result.items.map((item) => ({ ...item, enabled: item.enabled ?? true })), ...(result.disabledItems ?? []).map((item) => ({ ...item, enabled: item.enabled ?? false })));
     }
-    const currentFingerprint = contextInventoryFingerprint(items);
+    const currentFingerprint = contextInventoryFingerprint([...new Map(items.filter((item) => item.id).map((item) => [item.id, item])).values()]);
     return currentFingerprint === planFingerprint
       ? { status: 'matched', planFingerprint, currentFingerprint, message: 'Current Codex context inventory matches the optimization plan snapshot' }
       : { status: 'mismatch', planFingerprint, currentFingerprint, message: 'Current Codex context inventory differs from the optimization plan snapshot' };
