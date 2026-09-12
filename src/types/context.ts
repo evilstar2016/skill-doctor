@@ -6,11 +6,68 @@ export type ContextResource = 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
 export type ContextEstimateStatus = 'estimated' | 'unknown' | 'unsupported';
 export type ContextTokenizerMode = 'openai' | 'approx';
 
+export type CodexContextBlockId =
+  | 'skills_instructions'
+  | 'recommended_plugins'
+  | 'permissions_instructions'
+  | 'collaboration_mode'
+  | 'apps_instructions'
+  | 'plugins_instructions'
+  | 'environment_context'
+  | 'app_context';
+
+export type CodexContextBlockRole = 'developer' | 'user' | 'unknown';
+export type CodexContextBlockActivation = 'initial-context' | 'world-state' | 'unknown';
+
 export interface ContextTokenizerSummary {
   mode: ContextTokenizerMode;
   model?: string;
   encoding?: string;
   fallback?: boolean;
+}
+
+export interface CodexSkillRootAlias {
+  alias: string;
+  path: string;
+}
+
+export interface CodexAvailableSkillEntry {
+  name: string;
+  description: string;
+}
+
+export interface CodexRecommendedPluginEntry {
+  name: string;
+  id: string;
+}
+
+export interface CodexContextBlockObservation {
+  id: CodexContextBlockId;
+  tag: string;
+  role: CodexContextBlockRole;
+  contentKind?: string;
+  activation: CodexContextBlockActivation;
+  text: string;
+  estimatedTokens: number;
+  estimatedChars: number;
+  complete: boolean;
+  startOffset: number;
+  endOffset: number;
+  rootAliases?: CodexSkillRootAlias[];
+  availableSkills?: CodexAvailableSkillEntry[];
+  recommendedPlugins?: CodexRecommendedPluginEntry[];
+  controlMethod?: string;
+  controllable?: boolean;
+  recommendation: string;
+}
+
+export interface CodexContextBlockAnalysis {
+  sourcePath?: string;
+  textChars: number;
+  totalEstimatedTokens: number;
+  tokenizer: ContextTokenizerSummary;
+  blocks: CodexContextBlockObservation[];
+  diagnostics: string[];
 }
 
 export type ContextInjectionKind =

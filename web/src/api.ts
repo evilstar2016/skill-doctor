@@ -10,6 +10,19 @@ import type { SkillConflictDiff } from '../../src/library/skillConflictDiff';
 import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPreview } from '../../src/library/importAgentSkills';
 import type { SnapshotHistoryDiff, SnapshotHistoryEntry } from '../../src/history/snapshotHistory';
 import type { BenefitReport } from '../../src/benefit/types';
+import type { HistoryControlPreview } from '../../src/context/historyControls';
+
+export type ControlPreview = Omit<HistoryControlPreview, 'before' | 'after'>;
+export interface ControlResult { operationId: string; configPath: string; requiresNewSession: boolean }
+export function previewBenefitControl(input: { jobId: string; kind: string; id: string; enabled: boolean }): Promise<ControlPreview> {
+  return request('/api/benefits/control', { method: 'POST', body: JSON.stringify(input) });
+}
+export function applyBenefitControl(input: { jobId: string; kind: string; id: string; enabled: boolean; confirmation: string }): Promise<ControlResult> {
+  return request('/api/benefits/control', { method: 'POST', body: JSON.stringify(input) });
+}
+export function undoBenefitControl(jobId: string, operationId: string): Promise<ControlResult> {
+  return request('/api/benefits/control', { method: 'POST', body: JSON.stringify({ jobId, undo: operationId, confirmation: operationId }) });
+}
 
 export interface ScanRequest {
   projectDir: string;
@@ -63,7 +76,7 @@ export async function diffSnapshots(baselineId: string, currentId: string): Prom
   return request('/api/snapshots/diff', { method: 'POST', body: JSON.stringify({ baselineId, currentId }) });
 }
 
-export async function getBenefitReport(input: { projectDir: string; sinceHours: number; limit: number; plan?: string; includeArchived: boolean; tokenizer: 'openai' | 'approx'; tokenizerModel: string }, signal?: AbortSignal): Promise<BenefitReport> {
+export async function getBenefitReport(input: { projectDir: string; sinceHours?: number; limit?: number; plan?: string; includeArchived: boolean; tokenizer: 'openai' | 'approx'; tokenizerModel: string }, signal?: AbortSignal): Promise<BenefitReport> {
   return request<BenefitReport>('/api/benefits', { method: 'POST', body: JSON.stringify(input), signal });
 }
 
@@ -81,7 +94,7 @@ export interface BenefitStreamHandlers {
   cancelled(): void;
 }
 
-export async function startBenefitJob(input: { projectDir: string; sinceHours: number; limit: number; plan?: string; includeArchived: boolean; tokenizer: 'openai' | 'approx'; tokenizerModel: string }, signal?: AbortSignal): Promise<string> {
+export async function startBenefitJob(input: { projectDir: string; sinceHours?: number; limit?: number; plan?: string; includeArchived: boolean; tokenizer: 'openai' | 'approx'; tokenizerModel: string }, signal?: AbortSignal): Promise<string> {
   const result = await request<{ jobId: string }>('/api/benefits/jobs', { method: 'POST', body: JSON.stringify(input), signal });
   return result.jobId;
 }

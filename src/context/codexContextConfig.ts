@@ -87,8 +87,13 @@ export function loadCodexContextConfig(options: LoadCodexContextConfigOptions = 
   return { config, sources };
 }
 
-export function resolveCodexPath(rawPath: string, projectDir: string, homeDir: string = resolveHomeDir()): string {
-  const codexHome = process.env.CODEX_HOME?.trim();
+export function resolveCodexPath(
+  rawPath: string,
+  projectDir: string,
+  homeDir: string = resolveHomeDir(),
+  codexHomeOverride?: string,
+): string {
+  const codexHome = codexHomeOverride?.trim() || process.env.CODEX_HOME?.trim();
   if (codexHome && (rawPath === '~/.codex' || rawPath.startsWith('~/.codex/'))) {
     return normalize(join(codexHome, rawPath.slice('~/.codex'.length)));
   }
@@ -98,8 +103,13 @@ export function resolveCodexPath(rawPath: string, projectDir: string, homeDir: s
   return normalize(expanded.startsWith('/') ? expanded : join(projectDir, expanded));
 }
 
-export function expandCodexGlob(rawPattern: string, projectDir: string, homeDir: string = resolveHomeDir()): string[] {
-  const pattern = resolveCodexPath(rawPattern, projectDir, homeDir);
+export function expandCodexGlob(
+  rawPattern: string,
+  projectDir: string,
+  homeDir: string = resolveHomeDir(),
+  codexHomeOverride?: string,
+): string[] {
+  const pattern = resolveCodexPath(rawPattern, projectDir, homeDir, codexHomeOverride);
   if (!pattern.includes('*')) return existsSync(pattern) ? [pattern] : [];
   return expandGlob(pattern);
 }

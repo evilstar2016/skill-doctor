@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readJsonBody, sendJson } from './apiPrimitives';
 import { parseBenefitJobInput, runBenefitAnalysis } from './benefitManager';
 import type { ApiRequestContext } from './apiContext';
+import { applyHistoryControl, previewHistoryControl, publicControlPreview, reportControlTarget, undoHistoryControl } from '../context/historyControls';
 
 export async function handleBenefitRoute(
   request: IncomingMessage,
@@ -11,6 +12,23 @@ export async function handleBenefitRoute(
   url: URL,
   context: ApiRequestContext,
 ): Promise<boolean> {
+  if (request.method === 'POST' && url.pathname === '/api/benefits/control') {
+    const body = await readJsonBody(request);
+    if (typeof body.jobId !== 'string') throw new Error('jobId is required.');
+    const report = context.benefits.getReport(body.jobId);
+    if (typeof body.undo === 'string') {
+      if (body.confirmation !== body.undo) throw new Error('Undo confirmation is required.');
+      sendJson(response, 200, undoHistoryControl(report.projectDir, body.undo, context.homeDir));
+      return true;
+    }
+    if (typeof body.kind !== 'string' || typeof body.id !== 'string' || typeof body.enabled !== 'boolean') throw new Error('Invalid control request.');
+    const target = reportControlTarget(report, report.projectDir, body.kind, body.id);
+    const result = typeof body.confirmation === 'string'
+      ? applyHistoryControl(report.projectDir, target, body.enabled, body.confirmation, context.homeDir)
+      : publicControlPreview(previewHistoryControl(report.projectDir, target, body.enabled, context.homeDir));
+    sendJson(response, 200, result);
+    return true;
+  }
   if (request.method === 'POST' && url.pathname === '/api/benefits/jobs') {
     let jobId: string | undefined;
     const cancelOnDisconnect = () => {

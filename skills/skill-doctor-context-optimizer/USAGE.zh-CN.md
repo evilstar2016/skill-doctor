@@ -1,5 +1,22 @@
 # skill-doctor-context-optimizer 使用手册
 
+## 历史审计与推荐描述控制
+
+提示 Agent：“使用 skill-doctor-context-optimizer，审计当前项目历史中的 Skill
+与推荐插件描述，完整说明保留/禁用理由、证据和收益假设，先预览，确认后只修改
+项目配置。”页面也提供可复制提示词。
+
+运行 `history --project <项目> --output <私人报告.json>` 生成完整报告；
+`history-control --project <项目> --report <报告> --kind <目录块> --id <目录ID>
+--action disable` 只预览，追加 `--confirm <digest>` 才写入。
+这些子命令通过 `node <skill目录>/scripts/context-optimizer.mjs` 调用。
+整块推荐使用 `--kind recommendations --id recommended_plugins`，仍仅作用于当前项目。
+逐项开启用 `--action enable`；精确恢复用 `history-undo --project <项目>
+--operation <operation-id> --confirm <operation-id>`，存在后续修改时拒绝覆盖。
+
+请阅读 [完整报告与操作规范](references/history-controls.md)。需要 CLI 帮助列出
+`context control`；旧版本不支持时不能用“禁用已安装插件”代替。
+
 ## 1. 这是什么
 
 `skill-doctor-context-optimizer` 是一个项目级的上下文整理 Skill。它根据你

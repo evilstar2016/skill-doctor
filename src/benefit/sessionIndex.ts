@@ -16,7 +16,7 @@ export interface SessionIndexEntry {
 }
 
 export interface SessionIndex {
-  schemaVersion: 3;
+  schemaVersion: 4;
   generatedAt: string;
   entries: SessionIndexEntry[];
 }
@@ -29,11 +29,11 @@ export function defaultSessionIndexPath(homeDir?: string): string {
 export async function loadSessionIndex(indexPath: string): Promise<SessionIndex | undefined> {
   try {
     const value = JSON.parse(await readFile(indexPath, 'utf8')) as unknown;
-    if (!value || typeof value !== 'object' || (value as Record<string, unknown>).schemaVersion !== 3) return undefined;
+    if (!value || typeof value !== 'object' || (value as Record<string, unknown>).schemaVersion !== 4) return undefined;
     const entries = (value as Record<string, unknown>).entries;
     if (!Array.isArray(entries)) return undefined;
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       generatedAt: typeof (value as Record<string, unknown>).generatedAt === 'string'
         ? (value as Record<string, unknown>).generatedAt as string
         : new Date(0).toISOString(),
@@ -56,6 +56,8 @@ export function sanitizeAnalysisForIndex(analysis: CodexSessionFileAnalysis): Co
     contextSnapshots: analysis.contextSnapshots.map((snapshot) => ({
       timestamp: snapshot.timestamp,
       full: snapshot.full,
+      ...(snapshot.sourceKind ? { sourceKind: snapshot.sourceKind } : {}),
+      ...(snapshot.role ? { role: snapshot.role } : {}),
       ...(snapshot.stateKeys ? { stateKeys: [...snapshot.stateKeys] } : {}),
       ...(snapshot.agentsDirectory ? { agentsDirectory: snapshot.agentsDirectory } : {}),
       ...(snapshot.agentsTextChars !== undefined || snapshot.agentsText !== undefined
@@ -68,6 +70,27 @@ export function sanitizeAnalysisForIndex(analysis: CodexSessionFileAnalysis): Co
         : {}),
       ...(snapshot.hostSkillsTruncated !== undefined ? { hostSkillsTruncated: snapshot.hostSkillsTruncated } : {}),
       ...(snapshot.hostSkillsComplete !== undefined ? { hostSkillsComplete: snapshot.hostSkillsComplete } : {}),
+      ...(snapshot.contextTextChars !== undefined ? { contextTextChars: snapshot.contextTextChars } : {}),
+      ...(snapshot.contextTextSha256 ? { contextTextSha256: snapshot.contextTextSha256 } : {}),
+      ...(snapshot.contextBlocksComplete !== undefined ? { contextBlocksComplete: snapshot.contextBlocksComplete } : {}),
+      ...(snapshot.contextBlocks ? {
+        contextBlocks: snapshot.contextBlocks.map((block) => ({
+          id: block.id,
+          tag: block.tag,
+          role: block.role,
+          activation: block.activation,
+          ...(block.contentKind ? { contentKind: block.contentKind } : {}),
+          complete: block.complete,
+          estimatedChars: block.estimatedChars,
+          ...(block.estimatedTokens !== undefined ? { estimatedTokens: block.estimatedTokens } : {}),
+          ...(block.textSha256 ? { textSha256: block.textSha256 } : {}),
+          ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
+          ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+          recommendation: block.recommendation,
+          sourcePath: block.sourcePath,
+          line: block.line,
+        })),
+      } : {}),
       sourcePath: snapshot.sourcePath,
       line: snapshot.line,
     })),
@@ -79,7 +102,7 @@ export async function saveSessionIndex(indexPath: string, entries: SessionIndexE
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const temporaryPath = `${indexPath}.${process.pid}.${randomUUID()}.tmp`;
   const value: SessionIndex = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt: new Date().toISOString(),
     entries: entries.map((entry) => ({ ...entry, analysis: sanitizeAnalysisForIndex(entry.analysis) })),
   };

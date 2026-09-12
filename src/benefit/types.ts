@@ -1,4 +1,13 @@
-import type { ContextTokenizerSummary } from '../types/context';
+import type {
+  CodexAvailableSkillEntry,
+  CodexContextBlockActivation,
+  CodexContextBlockId,
+  CodexContextBlockRole,
+  CodexRecommendedPluginEntry,
+  CodexSkillRootAlias,
+  ContextTokenizerSummary,
+} from '../types/context';
+import type { OfflineHistoryAnalysis, OfflineHistoryInput } from './historyTypes';
 
 export type BenefitRecordStatus = 'complete' | 'partial' | 'empty' | 'invalid';
 
@@ -52,6 +61,8 @@ export interface CodexModelContext {
 export interface CodexContextStateSnapshot {
   timestamp: string;
   full: boolean;
+  sourceKind?: 'world_state' | 'response_item';
+  role?: CodexContextBlockRole;
   stateKeys?: string[];
   agentsText?: string;
   agentsDirectory?: string;
@@ -62,6 +73,31 @@ export interface CodexContextStateSnapshot {
   hostSkillsTextChars?: number;
   hostSkillsTruncated?: boolean;
   hostSkillsComplete?: boolean;
+  contextTextChars?: number;
+  contextTextSha256?: string;
+  contextBlocksComplete?: boolean;
+  contextBlocks?: CodexContextBlockSnapshot[];
+  sourcePath: string;
+  line: number;
+}
+
+export interface CodexContextBlockSnapshot {
+  id: CodexContextBlockId;
+  tag: string;
+  role: CodexContextBlockRole;
+  activation: CodexContextBlockActivation;
+  contentKind?: string;
+  complete: boolean;
+  estimatedChars: number;
+  estimatedTokens?: number;
+  text?: string;
+  textSha256?: string;
+  rootAliases?: CodexSkillRootAlias[];
+  availableSkills?: CodexAvailableSkillEntry[];
+  recommendedPlugins?: CodexRecommendedPluginEntry[];
+  controlMethod?: string;
+  controllable?: boolean;
+  recommendation: string;
   sourcePath: string;
   line: number;
 }
@@ -87,6 +123,7 @@ export interface CodexUsageRecord {
   sourcePath: string;
   line: number;
   contextSnapshotLine?: number;
+  contextSnapshotLines?: number[];
   contextSnapshotTimestamp?: string;
   archived: boolean;
   sourceKind: 'token_usage_record' | 'token_count';
@@ -244,6 +281,28 @@ export interface OptimizationPlanResource {
   controllable?: boolean;
   controlMethod?: string;
   requiresNewSession?: boolean;
+  blockId?: CodexContextBlockId;
+  rootAlias?: string;
+}
+
+export interface OfflinePlanSummary {
+  historicalSkillCandidateCount: number;
+  selectedSkillCount: number;
+  recommendedPluginCount: number;
+  skippedCandidateCount: number;
+  skippedCandidates: Array<{
+    source: 'skills_instructions' | 'recommended_plugins';
+    name: string;
+    reason: string;
+  }>;
+  observedBlocks: Record<string, {
+    occurrences: number;
+    estimatedTokens: number;
+  }>;
+  descriptionEstimates: {
+    skillsInstructions: OfflineDescriptionEstimate;
+    recommendedPlugins: OfflineDescriptionEstimate;
+  };
 }
 
 export interface OptimizationPlan {
@@ -284,8 +343,10 @@ export interface OptimizationPlan {
     components?: Record<string, number>;
     method?: string;
   };
+  offline?: OfflinePlanSummary;
+  offlineHistory?: OfflineHistoryInput;
   sourcePath: string;
-  sourceKind: 'plan' | 'operation' | 'explicit';
+  sourceKind: 'plan' | 'operation' | 'explicit' | 'offline';
 }
 
 export interface BenefitPrice {
@@ -356,7 +417,7 @@ export interface BenefitModelCostBreakdown {
 }
 
 export interface BenefitScenario {
-  id: 'persistent-context' | 'historical-cache' | 'cache-rebuild';
+  id: 'persistent-context' | 'historical-cache' | 'cache-rebuild' | 'historical-replay';
   label: string;
   assumption: string;
   baseline: BenefitCostMetrics;
@@ -376,7 +437,7 @@ export interface BenefitResponseEstimate {
   model?: string;
   effort?: string;
   usageValidation?: CodexUsageRecord['usageValidation'];
-  evidence?: 'static-plan' | 'historical-context' | 'text-reconstructed' | 'already-optimized' | 'unknown';
+  evidence?: 'static-plan' | 'historical-context' | 'text-reconstructed' | 'already-optimized' | 'catalog-projection' | 'unknown';
   contextSnapshotLine?: number;
   resourceMatches?: BenefitPlanResourceMatch[];
   before: CodexUsage;
@@ -401,6 +462,8 @@ export interface BenefitSnapshotReference {
   line: number;
   full: boolean;
   recoverable: true;
+  sourceKind?: CodexContextStateSnapshot['sourceKind'];
+  role?: CodexContextBlockRole;
   stateKeys?: string[];
   agentsTextChars?: number;
   agentsTextSha256?: string;
@@ -410,6 +473,25 @@ export interface BenefitSnapshotReference {
   agentsComplete?: boolean;
   hostSkillsTruncated?: boolean;
   hostSkillsComplete?: boolean;
+  contextTextChars?: number;
+  contextTextSha256?: string;
+  contextBlocksComplete?: boolean;
+  contextBlocks?: Array<{
+    id: CodexContextBlockId;
+    tag: string;
+    role: CodexContextBlockRole;
+    activation: CodexContextBlockActivation;
+    contentKind?: string;
+    complete: boolean;
+    estimatedChars: number;
+    estimatedTokens?: number;
+    textSha256?: string;
+    controlMethod?: string;
+    controllable?: boolean;
+    recommendation: string;
+    sourcePath: string;
+    line: number;
+  }>;
 }
 
 export interface BenefitPlanResourceMatch {
@@ -423,6 +505,8 @@ export interface BenefitPlanResourceMatch {
   controllable?: boolean;
   controlMethod?: string;
   requiresNewSession?: boolean;
+  blockId?: CodexContextBlockId;
+  rootAlias?: string;
   historicalState?: 'before' | 'after' | 'unknown';
   estimatedTokens?: number;
   estimatedChars?: number;
@@ -444,7 +528,20 @@ export interface BenefitPlanCoverage {
   resources: BenefitPlanResourceMatch[];
 }
 
+export interface OfflineDescriptionEstimate {
+  candidateCount: number;
+  explicitlyReferencedCount: number;
+  verifiedRemovableCount: number;
+  verifiedRemovableTokens: number;
+  unverifiedPotentialCount: number;
+  unverifiedPotentialTokens: number;
+  blockTokens: number;
+  entryTokens: number;
+  controlStatus: 'per-entry' | 'none-verified';
+}
+
 export interface BenefitReport {
+  historyAnalysis?: OfflineHistoryAnalysis;
   schemaVersion: 1;
   kind: 'skill-doctor-codex-benefit-report';
   generatedAt: string;
@@ -474,6 +571,7 @@ export interface BenefitReport {
     operationCount?: number;
     resources?: OptimizationPlanResource[];
     estimate?: OptimizationPlanEstimate;
+    offline?: OfflinePlanSummary;
   };
   planCoverage: BenefitPlanCoverage;
   adapter: {
@@ -528,8 +626,8 @@ export interface BenefitReport {
     completeUsagePercent: number;
   };
   simulation: {
-    method: 'proportional-static-estimate' | 'historical-context-text-diff';
-    source: 'skill-doctor-plan';
+    method: 'proportional-static-estimate' | 'historical-context-text-diff' | 'latest-catalog-projection';
+    source: 'skill-doctor-plan' | 'offline-context';
     tokenizer: ContextTokenizerSummary;
     outputHeldConstant: boolean;
     reexecutedCodex: false;
@@ -539,11 +637,15 @@ export interface BenefitReport {
     historicalContextSnapshotCount: number;
     historicalTextSnapshotCount: number;
     historicalTextTokenCount: number;
+    historicalContextBlockCount: number;
+    historicalContextBlockKinds: Record<string, number>;
+    historicalContextBlockTokenCounts: Record<string, number>;
+    historicalContextBlockTokenCount: number;
     textReconstructedResponseCount: number;
     textReconstructedSavingsTokens: number;
     tokenizer: ContextTokenizerSummary;
     dynamicResourceTextReconstructed: boolean;
-    planEstimateEvidence: 'static-optimizer-estimate' | 'none';
+    planEstimateEvidence: 'static-optimizer-estimate' | 'offline-context-reconstruction' | 'none';
   };
   provenance: {
     sampleResponseIds: string[];

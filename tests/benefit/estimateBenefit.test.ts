@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { reconstructHistoricalContext } from '../../src/benefit/contextEvidence';
+import { createTokenCounter } from '../../src/context/tokenCounter';
 import { estimateCodexBenefit } from '../../src/benefit/estimateBenefit';
-import type { CodexSessionFileAnalysis, CodexSessionScanResult, OptimizationPlan } from '../../src/benefit/types';
+import type { CodexContextStateSnapshot, CodexSessionFileAnalysis, CodexSessionScanResult, OptimizationPlan } from '../../src/benefit/types';
 
 function scan(): CodexSessionScanResult {
   const timestamp = '2026-09-07T00:00:00.000Z';
@@ -404,6 +406,202 @@ describe('estimateCodexBenefit', () => {
     expect(report.savings.status).toBe('unknown');
     expect(report.planCoverage.inventoryStatus).toBe('unknown');
     expect(report.diagnostics.some((item) => item.code === 'plan.inventory_drift')).toBe(true);
+  });
+
+  it('counts a retained recommended-plugin block on every response sharing its anchor', () => {
+    const base = scan();
+    const blockText = '<recommended_plugins>\n- GitHub (github@openai-curated-remote)\n</recommended_plugins>';
+    const block = {
+      id: 'recommended_plugins' as const,
+      tag: '<recommended_plugins>',
+      role: 'user' as const,
+      activation: 'initial-context' as const,
+      complete: true,
+      estimatedChars: blockText.length,
+      estimatedTokens: 20,
+      text: blockText,
+      textSha256: 'block-hash',
+      controllable: false,
+      recommendation: 'observe',
+      sourcePath: '/tmp/session.jsonl',
+      line: 3,
+    };
+    const snapshot: CodexContextStateSnapshot = {
+      timestamp: base.generatedAt,
+      full: false,
+      sourceKind: 'response_item',
+      role: 'user',
+      contextTextChars: blockText.length,
+      contextBlocksComplete: true,
+      contextBlocks: [block],
+      sourcePath: '/tmp/session.jsonl',
+      line: 3,
+    };
+    base.selected[0].usage = [
+      { ...base.selected[0].usage[0], responseId: 'response-context-1', line: 4, contextSnapshotLine: 3, contextSnapshotLines: [3] },
+      { ...base.selected[0].usage[0], responseId: 'response-context-2', line: 5, contextSnapshotLine: 3, contextSnapshotLines: [3] },
+    ];
+    base.selected[0].summary = { ...base.selected[0].summary, inputTokens: 2000, totalTokens: 2200, responseCount: 2, completeResponseCount: 2 };
+    base.selected[0].associatedFiles = [{
+      meta: base.selected[0].session,
+      usageRecords: base.selected[0].usage,
+      modelContexts: [],
+      contextSnapshots: [snapshot],
+      cwdCandidates: ['/tmp/project'],
+      workspaceRoots: [],
+      observedEventTypes: ['response_item'],
+      events: base.selected[0].events,
+      status: 'complete',
+      diagnostics: [],
+      bytes: 1,
+      lineCount: 3,
+    } as CodexSessionFileAnalysis];
+
+    const report = estimateCodexBenefit({
+      scan: base,
+      tokenizer: 'approx',
+      plan: {
+        ...plan(),
+        operations: [{ affectedItems: [{
+          id: 'codex:context-block:recommended_plugins',
+          name: 'recommended_plugins',
+          resource: 'context-block',
+          kind: 'context-block',
+          blockId: 'recommended_plugins',
+          enabled: false,
+          controllable: false,
+        }] }],
+      },
+    });
+
+    expect(report.planCoverage).toMatchObject({ status: 'matched', matchedResourceCount: 1 });
+    expect(report.evidence).toMatchObject({
+      historicalContextBlockCount: 1,
+      historicalContextBlockKinds: { recommended_plugins: 1 },
+      historicalContextBlockTokenCount: expect.any(Number),
+    });
+    expect(report.responses[0]).toMatchObject({ status: 'estimated', evidence: 'text-reconstructed' });
+    expect(report.responses[0]?.estimatedInputSavings).toBeGreaterThan(0);
+    expect(report.responses[1]).toMatchObject({ status: 'estimated', evidence: 'text-reconstructed', estimatedInputSavings: report.responses[0]?.estimatedInputSavings });
+    expect(report.savings.inputTokens).toBe(2 * report.responses[0]!.estimatedInputSavings!);
+    expect(report.provenance.contextSnapshots[0]).toMatchObject({ sourceKind: 'response_item', role: 'user', contextBlocks: [{ id: 'recommended_plugins', textSha256: 'block-hash' }] });
+    expect(report.provenance.contextSnapshots[0]).not.toHaveProperty('contextBlocks[0].text');
+  });
+
+  it('keeps incomplete or indexed-without-text context blocks unknown', () => {
+    const base = scan();
+    base.selected[0].usage[0].contextSnapshotLine = 3;
+    base.selected[0].associatedFiles = [{
+      meta: base.selected[0].session,
+      contextSnapshots: [{
+        timestamp: base.generatedAt,
+        full: false,
+        sourceKind: 'response_item',
+        role: 'user',
+        contextBlocks: [{
+          id: 'recommended_plugins',
+          tag: '<recommended_plugins>',
+          role: 'user',
+          activation: 'initial-context',
+          complete: false,
+          estimatedChars: 30,
+          estimatedTokens: 8,
+          recommendation: 'observe',
+          sourcePath: '/tmp/session.jsonl',
+          line: 3,
+        }],
+        sourcePath: '/tmp/session.jsonl',
+        line: 3,
+      }],
+    } as CodexSessionFileAnalysis];
+    const report = estimateCodexBenefit({
+      scan: base,
+      plan: {
+        ...plan(),
+        operations: [{ affectedItems: [{ id: 'recommended-id', name: 'recommended_plugins', resource: 'context-block', blockId: 'recommended_plugins', enabled: false }] }],
+      },
+    });
+
+    expect(report.planCoverage.status).toBe('unknown');
+    expect(report.savings.status).toBe('unknown');
+    expect(report.responses[0]).toMatchObject({ status: 'unknown', evidence: 'unknown' });
+  });
+
+  it('keeps a complete indexed context block without text unknown', () => {
+    const base = scan();
+    base.selected[0].usage[0].contextSnapshotLine = 3;
+    base.selected[0].associatedFiles = [{
+      meta: base.selected[0].session,
+      contextSnapshots: [{
+        timestamp: base.generatedAt,
+        full: false,
+        sourceKind: 'response_item',
+        role: 'user',
+        contextBlocks: [{
+          id: 'recommended_plugins',
+          tag: '<recommended_plugins>',
+          role: 'user',
+          activation: 'initial-context',
+          complete: true,
+          estimatedChars: 30,
+          estimatedTokens: 8,
+          recommendation: 'observe',
+          sourcePath: '/tmp/session.jsonl',
+          line: 3,
+        }],
+        sourcePath: '/tmp/session.jsonl',
+        line: 3,
+      }],
+    } as CodexSessionFileAnalysis];
+    const report = estimateCodexBenefit({
+      scan: base,
+      plan: {
+        ...plan(),
+        operations: [{ affectedItems: [{ id: 'recommended-id', name: 'recommended_plugins', resource: 'context-block', blockId: 'recommended_plugins', enabled: false }] }],
+      },
+    });
+
+    expect(report.planCoverage.status).toBe('unknown');
+    expect(report.savings.status).toBe('unknown');
+    expect(report.responses[0]).toMatchObject({ status: 'unknown', evidence: 'unknown' });
+  });
+
+  it('recomputes Skill root aliases instead of subtracting only the selected catalog line', () => {
+    const text = [
+      '- `r0-shared-root-with-a-long-name` = `/tmp/roots`',
+      '- `r1` = `/tmp/other`',
+      '### Available skills',
+      '- remove-me: remove this entry',
+      '- keep-me: retain this entry',
+    ].join('\n');
+    const snapshot: CodexContextStateSnapshot = {
+      timestamp: '2026-09-07T00:00:00.000Z',
+      full: false,
+      contextBlocks: [{
+        id: 'skills_instructions',
+        tag: '<skills_instructions>',
+        role: 'developer',
+        activation: 'initial-context',
+        complete: true,
+        estimatedChars: text.length,
+        text,
+        recommendation: 'rebuild',
+        sourcePath: '/tmp/session.jsonl',
+        line: 2,
+      }],
+      sourcePath: '/tmp/session.jsonl',
+      line: 2,
+    };
+    const selected = { id: 'remove-id', name: 'remove-me', resource: 'skill', sourcePath: '/tmp/roots/remove-me/SKILL.md', rootAlias: 'r0-shared-root-with-a-long-name', enabled: false };
+    const retained = { id: 'keep-id', name: 'keep-me', resource: 'skill', sourcePath: '/tmp/roots/keep-me/SKILL.md', rootAlias: 'r0-shared-root-with-a-long-name', enabled: true };
+    const counter = createTokenCounter({ tokenizer: 'openai', tokenizerModel: 'gpt-4o' });
+    const withoutRetained = reconstructHistoricalContext([selected], snapshot, counter, { inventory: [selected] });
+    const withRetained = reconstructHistoricalContext([selected], snapshot, counter, { inventory: [selected, retained] });
+
+    expect(withoutRetained.status).toBe('estimated');
+    expect(withRetained.status).toBe('estimated');
+    expect(withoutRetained.afterTokens).toBe(withRetained.afterTokens);
+    expect(withoutRetained.inputSavings).toBe(withRetained.inputSavings);
   });
 
   it('applies only the verifiable subset when a multi-resource plan is partially present', () => {

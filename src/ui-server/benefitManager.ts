@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 import { scanCodexSessions } from '../benefit/codexSessions';
 import { estimateCodexBenefit } from '../benefit/estimateBenefit';
+import { buildOfflineCodexPlan } from '../benefit/offlinePlan';
 import { loadOptimizationPlan, validateOptimizationPlan } from '../benefit/optimizationPlan';
 import { loadBenefitPriceTable } from '../benefit/prices';
 import type { BenefitReport } from '../benefit/types';
@@ -35,6 +36,7 @@ interface BenefitSession {
   events: BenefitStreamEvent[];
   clients: Set<ServerResponse>;
   done: boolean;
+  report?: BenefitReport;
 }
 
 export function positiveBenefitNumber(value: unknown): number | undefined {
@@ -50,8 +52,9 @@ export function parseBenefitJobInput(
   context: { projectDir: string; homeDir?: string },
 ): BenefitJobInput {
   const projectDir = resolve(typeof body.projectDir === 'string' && body.projectDir.trim() ? body.projectDir : context.projectDir);
-  const sinceHours = positiveBenefitNumber(body.sinceHours) ?? 24;
-  const limit = positiveBenefitInteger(body.limit) ?? 20;
+  const offline = !(typeof body.plan === 'string' && body.plan.trim());
+  const sinceHours = positiveBenefitNumber(body.sinceHours);
+  const limit = positiveBenefitInteger(body.limit) ?? (offline ? Number.MAX_SAFE_INTEGER : 20);
   if (body.tokenizer !== undefined && body.tokenizer !== 'openai' && body.tokenizer !== 'approx') throw new Error('tokenizer must be openai or approx');
   const tokenizer: ContextTokenizerMode = body.tokenizer === 'approx' ? 'approx' : 'openai';
   const tokenizerModel = typeof body.tokenizerModel === 'string' && body.tokenizerModel.trim() ? body.tokenizerModel : undefined;
@@ -59,9 +62,9 @@ export function parseBenefitJobInput(
   return {
     projectDir,
     homeDir,
-    sinceMs: Date.now() - sinceHours * 60 * 60 * 1000,
+    sinceMs: sinceHours ? Date.now() - sinceHours * 60 * 60 * 1000 : offline ? 0 : Date.now() - 24 * 60 * 60 * 1000,
     limit,
-    includeArchived: body.includeArchived === true,
+    includeArchived: body.includeArchived === undefined ? offline : body.includeArchived === true,
     ...(typeof body.plan === 'string' && body.plan.trim() ? { planReference: body.plan } : {}),
     tokenizer,
     ...(tokenizerModel ? { tokenizerModel } : {}),
@@ -71,7 +74,7 @@ export function parseBenefitJobInput(
 export async function runBenefitAnalysis(
   input: BenefitJobInput,
   signal?: AbortSignal,
-  progress?: (event: BenefitStreamEvent['data']) => void,
+  progress?: (event: Extract<BenefitStreamEvent, { type: 'progress' }>['data']) => void,
 ): Promise<BenefitReport> {
   progress?.({ phase: 'reading', message: 'Reading Codex session files', completed: 0, total: 4 });
   const scan = await scanCodexSessions({
@@ -85,22 +88,40 @@ export async function runBenefitAnalysis(
     ...(signal ? { signal } : {}),
   });
   progress?.({ phase: 'parsing', message: 'Normalizing usage records and context snapshots', completed: 1, total: 4 });
-  const loadedPlan = await loadOptimizationPlan({
-    projectDir: input.projectDir,
-    ...(input.homeDir ? { homeDir: input.homeDir } : {}),
-    ...(input.planReference ? { reference: input.planReference } : {}),
-  });
+  const loadedPlan = input.planReference
+    ? await loadOptimizationPlan({
+        projectDir: input.projectDir,
+        ...(input.homeDir ? { homeDir: input.homeDir } : {}),
+        reference: input.planReference,
+      })
+    : { diagnostics: [], plan: undefined };
   if (input.planReference && !loadedPlan.plan) throw new Error(`Unable to load the requested optimization plan: ${input.planReference}`);
+  const offlinePlan = !input.planReference
+    ? await buildOfflineCodexPlan({
+        scan,
+        signal,
+        projectDir: input.projectDir,
+        ...(input.homeDir ? { homeDir: input.homeDir } : {}),
+        ...(input.codexHome ? { codexHome: input.codexHome } : {}),
+        tokenizer: input.tokenizer,
+        ...(input.tokenizerModel ? { tokenizerModel: input.tokenizerModel } : {}),
+      })
+    : undefined;
+  const selectedPlan = loadedPlan.plan ?? offlinePlan?.plan;
+  const planDiagnostics = [
+    ...loadedPlan.diagnostics,
+    ...(offlinePlan?.diagnostics ?? []),
+  ];
   progress?.({ phase: 'associating', message: 'Checking plan, project scope, and historical context evidence', completed: 2, total: 4 });
   const priceTable = await loadBenefitPriceTable(input.priceTablePath);
-  const planValidation = loadedPlan.plan
-    ? await validateOptimizationPlan({ plan: loadedPlan.plan, projectDir: input.projectDir, ...(input.homeDir ? { homeDir: input.homeDir } : {}) })
+  const planValidation = selectedPlan && selectedPlan.sourceKind !== 'offline'
+    ? await validateOptimizationPlan({ plan: selectedPlan, projectDir: input.projectDir, ...(input.homeDir ? { homeDir: input.homeDir } : {}) })
     : undefined;
   progress?.({ phase: 'simulating', message: 'Calculating Token and equivalent API-cost scenarios', completed: 3, total: 4 });
   const report = estimateCodexBenefit({
     scan,
-    plan: loadedPlan.plan,
-    planDiagnostics: loadedPlan.diagnostics,
+    plan: selectedPlan,
+    planDiagnostics,
     priceTable,
     tokenizer: input.tokenizer,
     ...(input.tokenizerModel ? { tokenizerModel: input.tokenizerModel } : {}),
@@ -113,6 +134,12 @@ export async function runBenefitAnalysis(
 export class BenefitManager {
   private readonly sessions = new Map<string, BenefitSession>();
   private activeId: string | null = null;
+
+  getReport(id: string): BenefitReport {
+    const report = this.sessions.get(id)?.report;
+    if (!report) throw new Error('Report expired or unavailable. Run the analysis again.');
+    return report;
+  }
 
   start(input: BenefitJobInput): string {
     if (this.activeId) this.cancel(this.activeId);
@@ -144,6 +171,7 @@ export class BenefitManager {
   private async run(session: BenefitSession, input: BenefitJobInput): Promise<void> {
     try {
       const report = await runBenefitAnalysis(input, session.controller.signal, (data) => this.emit(session, { type: 'progress', data }));
+      session.report = report;
       this.emit(session, { type: 'complete', data: report });
     } catch (error) {
       if (session.controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {

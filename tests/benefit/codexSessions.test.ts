@@ -447,4 +447,92 @@ describe('scanCodexSessions', () => {
     expect(rebuilt.index.rebuiltFiles).toBe(1);
     expect(rebuilt.selected[0]?.summary.inputTokens).toBe(0);
   });
+
+  it('extracts developer and user context blocks from response items and re-anchors after compaction', async () => {
+    const root = mkdtempSync('/tmp/skill-doctor-benefit-response-context-');
+    roots.push(root);
+    const projectDir = join(root, 'project');
+    const codexHome = join(root, 'codex');
+    mkdirSync(projectDir, { recursive: true });
+    const filePath = sessionPath(codexHome, 'rollout-response-context.jsonl');
+    const now = new Date().toISOString();
+    const developerText = [
+      '<permissions instructions>',
+      'Use the configured approval and sandbox policy.',
+      '</permissions instructions>',
+      '<collaboration_mode>',
+      '# Collaboration Mode: Default',
+      '</collaboration_mode>',
+      '<apps_instructions>',
+      'Apps may be triggered by explicit connector mentions.',
+      '</apps_instructions>',
+      '<plugins_instructions>',
+      'Plugins contribute skills, MCP servers, and apps.',
+      '</plugins_instructions>',
+      '<app-context>',
+      'Codex desktop host context.',
+      '</app-context>',
+      '<skills_instructions>',
+      '- `r0` = `/tmp/skills`',
+      '### Available skills',
+      '- imagegen: Generate raster images.',
+      '</skills_instructions>',
+    ].join('\n');
+    const userText = [
+      '<recommended_plugins>',
+      '- GitHub (github@openai-curated-remote)',
+      '</recommended_plugins>',
+      '<environment_context>',
+      'cwd: /tmp/project',
+      '</environment_context>',
+    ].join('\n');
+    const responseItem = (role: 'developer' | 'user', text: string) => ({
+      timestamp: now,
+      type: 'response_item',
+      payload: { type: 'message', role, content: [{ type: 'input_text', text }] },
+    });
+    writeJsonl(filePath, [
+      { timestamp: now, type: 'session_meta', payload: { session_id: 'session-response-context', id: 'thread-response-context', timestamp: now, cwd: projectDir } },
+      responseItem('developer', developerText),
+      responseItem('user', userText),
+      usage('response-initial', 1000, now),
+      { timestamp: now, type: 'compacted', payload: {} },
+      responseItem('user', userText),
+      usage('response-after-compaction', 900, now),
+      { timestamp: now, type: 'world_state', payload: { full: true, state: {} } },
+      responseItem('developer', developerText),
+      responseItem('user', userText),
+      usage('response-after-reanchor', 1100, now),
+    ]);
+
+    const result = await scanCodexSessions({ projectDir, codexHome, sinceMs: Date.now() - 60_000, limit: 5 });
+    const selection = result.selected[0];
+    const initial = selection?.analysis.contextSnapshots.slice(0, 2);
+    const firstUsage = selection?.usage.find((record) => record.responseId === 'response-initial');
+    const compactedUsage = selection?.usage.find((record) => record.responseId === 'response-after-compaction');
+    const reanchoredUsage = selection?.usage.find((record) => record.responseId === 'response-after-reanchor');
+
+    expect(initial).toHaveLength(2);
+    expect(initial?.[0]).toMatchObject({ sourceKind: 'response_item', role: 'developer', contextBlocksComplete: true });
+    expect(initial?.[1]).toMatchObject({ sourceKind: 'response_item', role: 'user', contextBlocksComplete: true });
+    expect(initial?.flatMap((snapshot) => snapshot.contextBlocks ?? []).map((block) => block.id)).toEqual([
+      'permissions_instructions',
+      'collaboration_mode',
+      'apps_instructions',
+      'plugins_instructions',
+      'app_context',
+      'skills_instructions',
+      'recommended_plugins',
+      'environment_context',
+    ]);
+    expect(initial?.flatMap((snapshot) => snapshot.contextBlocks ?? [])
+      .filter((block) => block.id !== 'skills_instructions')
+      .every((block) => block.controllable === false)).toBe(true);
+    expect(firstUsage).toMatchObject({ contextSnapshotLine: 3, contextSnapshotLines: [2, 3] });
+    expect(compactedUsage?.contextSnapshotLine).toBeUndefined();
+    expect(compactedUsage?.contextSnapshotLines).toBeUndefined();
+    expect(reanchoredUsage).toMatchObject({ contextSnapshotLine: 10, contextSnapshotLines: [9, 10] });
+    expect(selection?.diagnostics.some((item) => item.code === 'context.response_item_awaiting_full_snapshot')).toBe(true);
+    expect(selection?.diagnostics.some((item) => item.code === 'context.snapshot_invalidated_by_compaction')).toBe(true);
+  });
 });

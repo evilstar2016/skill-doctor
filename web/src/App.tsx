@@ -203,6 +203,7 @@ function AppContent() {
       <Sidebar route={route} navigate={navigate} snapshot={snapshot} />
       <main className="main-area">
         <Topbar
+          route={route}
           bootstrap={bootstrap}
           scan={scan}
           scanOptions={scanOptions}
@@ -235,8 +236,8 @@ function AppContent() {
           toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
         {error && <InlineNotice kind="danger" title={t('notice.incomplete')} onClose={() => setError(null)}>{error}</InlineNotice>}
-        {analysisMode === 'standard' && route !== 'overview' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
-        {snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
+        {analysisMode === 'standard' && route !== 'overview' && route !== 'benefit' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
+        {route !== 'benefit' && snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{translateResultText(warning.message, t)}</InlineNotice>)}
         <div className="page-container">
           {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} runScan={refresh} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigate('context')} />}
@@ -361,6 +362,7 @@ function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route
 }
 
 function Topbar(props: {
+  route: Route;
   bootstrap: BootstrapPayload | null; scan: ScanState;
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
@@ -369,10 +371,11 @@ function Topbar(props: {
 }) {
   const { t } = useTranslation();
   const { bootstrap, scan, scanOptions, setScanOptions } = props;
+  const benefitRoute = props.route === 'benefit';
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const deepAvailable = Boolean(bootstrap?.capabilities.aiAuditConfigured || bootstrap?.capabilities.embeddingConfigured);
-  return <><header className="topbar">
-    <div className="target-block">
+  return <><header className={`topbar ${benefitRoute ? 'topbar-benefit' : ''}`}>
+    {benefitRoute ? <div className="target-block topbar-benefit-context"><span className="eyebrow">{t('benefit.agentLabel')}</span><span className="scan-message">Codex · {t('benefit.projectOnly')}</span></div> : <div className="target-block">
       <span className="eyebrow">{t('topbar.target')}</span>
       <div className="target-row">
         <select value={scanOptions.scope} onChange={(event) => setScanOptions({ ...scanOptions, scope: event.target.value as ScanRequest['scope'] })} aria-label={t('topbar.scope')}>
@@ -382,9 +385,9 @@ function Topbar(props: {
       </div>
       {scan.running && <div className="scan-progress"><span style={{ width: `${scan.progress}%` }} /></div>}
       <span className="scan-message">{scan.running ? scan.message : scanStatusMessage(scan.status, t)}</span>
-    </div>
+    </div>}
     <div className="top-actions">
-      <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>
+      {!benefitRoute && <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>}
       <button className="icon-button" onClick={props.toggleLocale} aria-label={props.locale === 'zh-CN' ? t('language.switchToEnglish') : t('language.switchToChinese')}>{props.locale === 'zh-CN' ? 'EN' : 'ZH'}</button>
       <div className="color-theme-control">
         <button className="icon-button" onClick={() => setColorMenuOpen((value) => !value)} aria-label={t('topbar.themeColor')} aria-haspopup="menu" aria-expanded={colorMenuOpen}><Palette size={18} /></button>
@@ -403,12 +406,12 @@ function Topbar(props: {
         </>}
       </div>
       <ThemeToggle value={props.theme} onChange={props.setTheme} />
-      <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>
-      {scan.running
+      {!benefitRoute && <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>}
+      {!benefitRoute && (scan.running
         ? <button className="button secondary" onClick={props.cancel}><X size={17} />{t('topbar.cancel')}</button>
-        : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />{t('topbar.rescan')}</button>}
+        : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />{t('topbar.rescan')}</button>)}
     </div>
-  </header><div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}><PlatformIcon platform={agent.platform} size={16} />{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div></>;
+  </header>{!benefitRoute && <div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}><PlatformIcon platform={agent.platform} size={16} />{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div>}</>;
 }
 
 

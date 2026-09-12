@@ -4,6 +4,11 @@ All notable changes to `skill-doctor` are documented here.
 
 ## Unreleased
 
+### Features
+
+- Add history-audit project controls shared by the benefit UI, CLI and context optimizer Skill: per-Skill disable, per-recommendation hiding, and whole recommendation-block control. Preview and digest confirmation precede writes; private operation backups support conflict-checked undo. Global configuration and installed plugins are not changed.
+- Include per-candidate rationale, evidence and control commands in text/HTML history reports, plus a copyable Agent + Skill prompt in the UI.
+
 ### Fixes
 - Count removable Skill descriptions in every response retaining their context, preserving whitespace and exposing a recommended, usage-capped cached-prefix cost scenario with matching per-model costs.
 - Rehydrate historical context when appending to metadata-only session indexes, and validate optimizer inventory fingerprints using the preview's resource scope and normalization.

@@ -1,5 +1,18 @@
 # skill-doctor-context-optimizer User Manual
 
+## Historical description audit
+
+Ask the Agent to use this Skill for a complete project-history audit: evidence,
+keep/disable rationale, baseline session and savings assumptions, followed by a
+preview. It must wait for confirmation before project-only writes.
+
+The script provides `history --project DIR --output REPORT.json`,
+`history-control --project DIR --report REPORT.json --kind KIND --id ID --action
+disable [--confirm DIGEST]`, and `history-undo --project DIR --operation ID
+--confirm ID`. Whole-block recommendation control uses `--kind recommendations
+--id recommended_plugins`. All share `skill-doctor context control`, not installed
+plugin disabling. See [the full evidence and control protocol](references/history-controls.md).
+
 ## 1. What it is
 
 `skill-doctor-context-optimizer` is a project-local context cleanup skill. It

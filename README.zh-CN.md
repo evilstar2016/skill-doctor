@@ -2,6 +2,31 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
+### 历史审计后的项目级控制
+
+收益预估页离线分析后提供：逐项保留/禁用理由、历史证据、禁用/启用预览、确认
+写入和撤销。推荐插件可逐项屏蔽或整块关闭，**均只修改当前项目**，不卸载插件。
+无法独立控制的插件 Skill 保留人工审阅，不自动禁用整个插件。
+
+```sh
+# 在目标项目目录执行，报告不要上传或提交
+skill-doctor benefit --json --output /tmp/project-benefit.json
+skill-doctor context control --report /tmp/project-benefit.json --kind recommended_plugins --id 'figma@openai-curated-remote' --action disable
+skill-doctor context control --report /tmp/project-benefit.json --kind recommendations --id recommended_plugins --action disable
+# 确认预览后，重复对应命令并追加 --confirm <digest>
+skill-doctor context control --undo <operation-id> --confirm <operation-id>
+```
+
+Skill 使用 `--kind skills_instructions --id '<目录中的Skill名称>'`。ID 来自报告
+`historyAnalysis.usageProfile`。`--action enable` 显式开启，不等于精确撤销；逐项
+开启不会重开已关闭的整块推荐。配置格式不支持、来源未验证或预览过期时拒绝修改。
+备份在 `.codex/skill-doctor-operations/`，包含私人配置，请勿提交；撤销遇后续修改
+会拒绝覆盖。需要受信任项目和新会话验证，写入成功不等于已经节省 Token。
+
+页面提供 Agent 驱动提示词。已有 `skill-doctor-context-optimizer` 技能新增 `history`、
+`history-control`、`history-undo` 入口，要求先输出完整证据报告，再等待用户确认。
+CLI 帮助必须包含 `context control`；旧版本不能用禁用已安装插件的命令代替。
+
 <p align="center">
   <img src="assets/brand/skill-doctor-logo.svg" alt="Skill Doctor" width="360">
 </p>

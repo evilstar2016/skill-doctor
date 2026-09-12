@@ -13,6 +13,7 @@ vi.mock('../../web/src/api', () => mocks);
 
 import { BenefitPage } from '../../web/src/pages/BenefitPage';
 import type { BenefitReport } from '../../src/benefit/types';
+import type { OfflineHistoryAnalysis } from '../../src/benefit/historyTypes';
 
 const report = {
   schemaVersion: 1,
@@ -46,6 +47,30 @@ const report = {
   resourceContributions: [],
 } as BenefitReport;
 
+const historyAnalysis: OfflineHistoryAnalysis = {
+  mode: 'latest-catalog-projection',
+  assumption: 'simulation',
+  historyCoverage: { since: '2026-09-06T00:00:00.000Z', until: '2026-09-07T00:00:00.000Z', sessionCount: 2, fileCount: 2, includesArchived: true, limited: false, incompleteFiles: 0, userMessages: 3 },
+  catalogSources: [{ kind: 'recommended_plugins', sessionId: 'session-a', timestamp: '2026-09-06T01:00:00.000Z', sourcePath: '/tmp/catalog.jsonl', line: 10, sha256: 'catalog-hash' }],
+  usageProfile: [
+    { kind: 'recommended_plugins', name: 'Unused plugin', id: 'unused@remote', sourcePath: '/tmp/unused', explicitMentionCount: 0, activationCount: 0, observedReadCount: 0, usedSessionCount: 0, evidence: [], recommendation: 'review-disable', control: 'source-supported', controlMethod: 'tool_suggest.disabled_tools', reason: 'No reliable use observed.' },
+    { kind: 'skills_instructions', name: 'Unknown skill', id: 'unknown-skill', sourcePath: '/plugins/cache/unknown/SKILL.md', explicitMentionCount: 0, activationCount: 0, observedReadCount: 0, usedSessionCount: 0, evidence: [], recommendation: 'unknown', control: 'unverified', reason: 'History is incomplete.' },
+    { kind: 'skills_instructions', name: 'Retained skill', id: 'retained-skill', sourcePath: '/tmp/retained/SKILL.md', explicitMentionCount: 1, activationCount: 1, observedReadCount: 0, usedSessionCount: 1, evidence: [{ sessionId: 'session-a', sourcePath: '/tmp/a.jsonl', line: 20, kind: 'activation' }], recommendation: 'retain', control: 'source-supported', controlMethod: 'skills.config', reason: 'Used.' },
+  ],
+  baselineSession: { sessionId: 'session-a', sourcePath: '/tmp/a.jsonl', firstTimestamp: '2026-09-06T01:00:00.000Z', lastTimestamp: '2026-09-06T02:00:00.000Z', rule: 'longest main session', userMessageCount: 2, userMessageItemCount: 2, distinctTurnCount: 2, completedTurnCount: 2, responseCount: 2 },
+  childUsage: { responseCount: 0, inputTokens: 0, cachedInputTokens: 0 },
+  descriptionTokensPerResponse: 120,
+  blockDeltas: { skills_instructions: 40, recommended_plugins: 80 },
+  pluginControl: { perId: 'tool_suggest.disabled_tools', wholeBlock: 'features.tool_suggest=false', runtimeVerified: false, replacementRisk: true, wholeBlockSelected: false, impact: 'installation suggestions' },
+  firstResponse: { responseId: 'response-a', sessionId: 'session-a', timestamp: '2026-09-06T01:00:00.000Z', model: 'model-a', before: { inputTokens: 100, cachedInputTokens: 20, cacheWriteInputTokens: 0, outputTokens: 10, reasoningOutputTokens: 0, totalTokens: 110 }, descriptionTokens: 120, cacheAttribution: { lower: 20, upper: 20, cachedRead: 20, cacheWrite: 0, ordinary: 100 } },
+  firstInteraction: { turnId: 'turn-a', responseCount: 1, inputTokens: 100, cachedInputTokens: 20, cacheWriteInputTokens: 0, descriptionTokens: 120, unknownResponses: 0, cachedReadSavings: 20, cacheWriteSavings: 0, ordinarySavings: 100 },
+  turnBreakdown: [],
+  responses: [],
+  historicalReplay: { inputTokens: 120, coveredResponses: 1, unknownResponses: 1 },
+};
+
+const historyReport = { ...report, historyAnalysis } as BenefitReport;
+
 describe('BenefitPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,7 +95,7 @@ describe('BenefitPage', () => {
       return () => {};
     });
     render(<BenefitPage projectDir="/tmp/project" tokenizer="approx" tokenizerModel="gpt-4o" />);
-    fireEvent.click(screen.getByRole('button', { name: '开始分析' }));
+    fireEvent.click(screen.getByRole('button', { name: '分析项目历史' }));
     const recommended = await screen.findByRole('button', { name: '持续上下文扣减（推荐）' });
     expect(recommended.classList.contains('active')).toBe(true);
     expect(screen.getAllByText('USD 1.000000 → USD 0.900000')).toHaveLength(2);
@@ -81,11 +106,15 @@ describe('BenefitPage', () => {
 
   it('shows progress, supports turn/model/session filters, and paginates the trace table', async () => {
     render(<BenefitPage projectDir="/tmp/project" tokenizer="approx" tokenizerModel="gpt-4o" />);
-    expect(screen.getByText('模拟前请先准备优化方案')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '开始分析' }));
+    expect(screen.getByText('分析模式')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '分析项目历史' }));
 
     expect(await screen.findByText('Parsing fixture')).toBeTruthy();
     expect(await screen.findByText('逐响应明细')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'CSV' })).toBeTruthy();
+    expect(mocks.startBenefitJob.mock.calls[0][0]).not.toHaveProperty('sinceHours');
+    expect(mocks.startBenefitJob.mock.calls[0][0]).not.toHaveProperty('limit');
+    expect(mocks.startBenefitJob.mock.calls[0][0].includeArchived).toBe(true);
     expect(screen.getByText('response-a')).toBeTruthy();
     expect(screen.getByText('response-b')).toBeTruthy();
 
@@ -104,9 +133,35 @@ describe('BenefitPage', () => {
       return () => {};
     });
     render(<BenefitPage projectDir="/tmp/project" tokenizer="approx" tokenizerModel="gpt-4o" />);
-    fireEvent.click(screen.getByRole('button', { name: '开始分析' }));
+    fireEvent.click(screen.getByRole('button', { name: '分析项目历史' }));
     fireEvent.click(await screen.findByRole('button', { name: '取消分析' }));
 
     expect(mocks.cancelBenefitJob).toHaveBeenCalledWith('benefit-job-1');
+  });
+
+  it('puts history recommendations first and keeps the calculation basis in a separate view', async () => {
+    mocks.streamBenefitJob.mockImplementation((_id, handlers) => {
+      handlers.complete(historyReport);
+      return () => {};
+    });
+    render(<BenefitPage projectDir="/tmp/project" tokenizer="approx" tokenizerModel="gpt-4o" />);
+    fireEvent.click(screen.getByRole('button', { name: '分析项目历史' }));
+
+    expect(await screen.findByRole('heading', { name: '优化建议' })).toBeTruthy();
+    expect(screen.getByText('Unused plugin')).toBeTruthy();
+    expect(screen.getByText('控制待确认')).toBeTruthy();
+    expect(screen.queryByText('逐响应明细')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Agent 协助' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: '收益依据' }));
+    expect(await screen.findByRole('heading', { name: '收益依据' })).toBeTruthy();
+    expect(screen.getByText('分析了哪些历史')).toBeTruthy();
+    expect(screen.getByText('一次交互可触发多次响应', { exact: false })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agent 协助' }));
+    expect(await screen.findByRole('dialog', { name: '让 Agent + Skill 协助审阅' })).toBeTruthy();
+    expect(screen.getByDisplayValue(/skill-doctor-context-optimizer/)).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '让 Agent + Skill 协助审阅' })).toBeNull());
   });
 });

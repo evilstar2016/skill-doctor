@@ -27,6 +27,9 @@ function usage() {
     '  context-optimizer.mjs preview --snapshot ID --disable RESOURCE_ID [--disable RESOURCE_ID ...]',
     '  context-optimizer.mjs apply --plan ID --confirm DIGEST',
     '  context-optimizer.mjs undo --operation ID',
+    '  context-optimizer.mjs history --project DIR [--output REPORT.json]',
+    '  context-optimizer.mjs history-control --project DIR --report REPORT.json --kind skills_instructions|recommended_plugins|recommendations --id ID --action enable|disable [--confirm DIGEST]',
+    '  context-optimizer.mjs history-undo --project DIR --operation ID --confirm ID',
   ].join('\n');
 }
 
@@ -42,6 +45,11 @@ function parseArguments(argv) {
     ['--plan', 'plan'],
     ['--confirm', 'confirm'],
     ['--operation', 'operation'],
+    ['--output', 'output'],
+    ['--report', 'report'],
+    ['--kind', 'kind'],
+    ['--id', 'id'],
+    ['--action', 'action'],
   ]);
 
   for (let index = 0; index < args.length; index += 1) {
@@ -738,6 +746,21 @@ async function main() {
     return;
   }
   if (command === 'snapshot') return commandSnapshot(options);
+  if (['history', 'history-control', 'history-undo'].includes(command)) {
+    if (!options.project) throw new OptimizerError('--project is required for history controls.');
+    const project = resolve(options.project);
+    let args;
+    if (command === 'history') args = ['benefit', project, '--json', ...(options.output ? ['--output', resolve(project, options.output)] : [])];
+    else if (command === 'history-undo') {
+      if (!options.operation || options.confirm !== options.operation) throw new OptimizerError('Undo requires an explicitly confirmed operation ID.');
+      args = ['context', 'control', '--undo', options.operation, '--confirm', options.confirm];
+    } else {
+      if (!options.report || !options.kind || !options.id || !['enable', 'disable'].includes(options.action)) throw new OptimizerError('report, kind, id and action are required.');
+      args = ['context', 'control', '--report', resolve(project, options.report), '--kind', options.kind, '--id', options.id, '--action', options.action, ...(options.confirm ? ['--confirm', options.confirm] : [])];
+    }
+    process.stdout.write(`${await runSkillDoctor(args, project)}\n`);
+    return;
+  }
   if (command === 'preview') return commandPreview(options);
   if (command === 'apply') return commandApply(options);
   if (command === 'undo') return commandUndo(options);

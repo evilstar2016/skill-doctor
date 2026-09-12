@@ -4,6 +4,7 @@ import { getPlanFixedEstimate } from './optimizationPlan';
 import type { OptimizationPlanValidation } from './optimizationPlan';
 import { calculateBenefitCost, findBenefitPrice, DEFAULT_BENEFIT_PRICE_TABLE as DEFAULT_PRICES } from './prices';
 import { buildBenefitPlanCoverage, planResources, reconstructHistoricalContext, responseMatchesPlan } from './contextEvidence';
+import { projectHistory, userMainSessions } from './historyAnalysis';
 import { createTokenCounter } from '../context/tokenCounter';
 import type { ContextTokenizerMode } from '../types/context';
 import type {
@@ -41,7 +42,7 @@ interface ScenarioUsage {
 }
 
 interface ResponseEstimateOptions {
-  evidence?: 'static-plan' | 'historical-context' | 'text-reconstructed' | 'already-optimized' | 'unknown';
+  evidence?: BenefitResponseEstimate['evidence'];
   inputSavings?: number;
   resourceMatches?: BenefitResponseEstimate['resourceMatches'];
   reason?: string;
@@ -166,7 +167,7 @@ function preserveCacheRatio(usage: CodexUsage, projectedInputTokens: number): Co
 }
 
 function rebuildCache(usage: CodexUsage, projectedInputTokens: number, inputSavings: number): CodexUsage {
-  const cached = Math.max(0, Math.min(projectedInputTokens, usage.cachedInputTokens - inputSavings));
+  const cached = inputSavings !== 0 ? 0 : Math.min(projectedInputTokens, usage.cachedInputTokens);
   const writes = Math.min(Math.max(0, projectedInputTokens - cached), usage.cacheWriteInputTokens);
   return {
     ...usage,
@@ -251,11 +252,12 @@ function estimateResponse(
   }
   const result = options.inputSavings !== undefined
     ? projectedUsageFromSavings(record.usage, options.inputSavings)
-    : projectedUsage(record.usage, rate);
+    : projectedUsage(record.usage, rate ?? 0);
   const response: BenefitResponseEstimate = {
     responseId: record.responseId,
     sessionId: record.sessionId,
     threadId: record.threadId,
+    ...(record.turnId ? { turnId: record.turnId } : {}),
     timestamp: record.timestamp,
     ...(record.model ? { model: record.model } : {}),
     evidence: options.evidence ?? 'static-plan',
@@ -429,6 +431,8 @@ function snapshotReference(snapshot: CodexSessionSelection['associatedFiles'][nu
     line: snapshot.line,
     full: snapshot.full,
     recoverable: true,
+    ...(snapshot.sourceKind ? { sourceKind: snapshot.sourceKind } : {}),
+    ...(snapshot.role ? { role: snapshot.role } : {}),
     ...(snapshot.stateKeys ? { stateKeys: [...snapshot.stateKeys] } : {}),
     ...(snapshot.agentsTextChars !== undefined ? { agentsTextChars: snapshot.agentsTextChars } : {}),
     ...(textSha256(snapshot.agentsText) ? { agentsTextSha256: textSha256(snapshot.agentsText) } : {}),
@@ -438,12 +442,33 @@ function snapshotReference(snapshot: CodexSessionSelection['associatedFiles'][nu
     ...(snapshot.agentsComplete !== undefined ? { agentsComplete: snapshot.agentsComplete } : {}),
     ...(snapshot.hostSkillsTruncated !== undefined ? { hostSkillsTruncated: snapshot.hostSkillsTruncated } : {}),
     ...(snapshot.hostSkillsComplete !== undefined ? { hostSkillsComplete: snapshot.hostSkillsComplete } : {}),
+    ...(snapshot.contextTextChars !== undefined ? { contextTextChars: snapshot.contextTextChars } : {}),
+    ...(snapshot.contextTextSha256 ? { contextTextSha256: snapshot.contextTextSha256 } : {}),
+    ...(snapshot.contextBlocksComplete !== undefined ? { contextBlocksComplete: snapshot.contextBlocksComplete } : {}),
+    ...(snapshot.contextBlocks ? {
+      contextBlocks: snapshot.contextBlocks.map((block) => ({
+        id: block.id,
+        tag: block.tag,
+        role: block.role,
+        activation: block.activation,
+        ...(block.contentKind ? { contentKind: block.contentKind } : {}),
+        complete: block.complete,
+        estimatedChars: block.estimatedChars,
+        ...(block.estimatedTokens !== undefined ? { estimatedTokens: block.estimatedTokens } : {}),
+        ...(block.textSha256 ? { textSha256: block.textSha256 } : {}),
+        ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
+        ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+        recommendation: block.recommendation,
+        sourcePath: block.sourcePath,
+        line: block.line,
+      })),
+    } : {}),
   };
 }
 
 function planNeedsInventoryValidation(plan: OptimizationPlan | undefined): boolean {
   if (!plan) return false;
-  return plan.sourceKind !== 'explicit'
+  return (plan.sourceKind !== 'explicit' && plan.sourceKind !== 'offline')
     || Boolean(plan.inventoryFingerprint)
     || plan.kind?.startsWith('skill-doctor-context-') === true
     || Boolean(plan.snapshotId);
@@ -452,13 +477,23 @@ function planNeedsInventoryValidation(plan: OptimizationPlan | undefined): boole
 export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitReport {
   const priceTable = options.priceTable ?? DEFAULT_PRICES;
   const tokenCounter = createTokenCounter({ tokenizer: options.tokenizer, tokenizerModel: options.tokenizerModel, preserveWhitespace: true });
+  const historyAnalysis = options.plan?.offlineHistory ? projectHistory(options.plan.offlineHistory, options.scan, tokenCounter.count) : undefined;
+  if (historyAnalysis) {
+    const selected = userMainSessions(options.scan).filter((item) => item.session.sessionId === historyAnalysis.baselineSession?.sessionId).map((item) => {
+      historyAnalysis.childModelCosts = modelCostBreakdown(item.usage.filter((record) => record.threadId !== item.session.threadId && record.quality === 'complete').map((record) => ({ record, usage: { before: record.usage, projected: record.usage } })), priceTable).breakdown;
+      const usage = item.usage.filter((record) => record.threadId === item.session.threadId);
+      const summary = usage.filter((record) => record.quality === 'complete').reduce((sum, record) => ({ ...addUsage(sum, record.usage), responseCount: usage.length, completeResponseCount: sum.completeResponseCount + 1 }), { ...emptyUsage(), responseCount: usage.length, completeResponseCount: 0 });
+      return { ...item, usage, summary, events: item.analysis.events, associatedFiles: [item.analysis] };
+    });
+    options = { ...options, scan: { ...options.scan, selected } };
+  }
   const completeRecords = options.scan.selected.flatMap((selection) => selection.usage.filter((record) => record.quality === 'complete').map((record) => ({ selection, record })));
   const planEstimate = options.plan ? getPlanFixedEstimate(options.plan) : { reason: 'No optimization plan was available' };
   const planRate = planEstimate.rate !== undefined && Number.isFinite(planEstimate.rate) && planEstimate.rate <= 1
     ? planEstimate.rate
     : undefined;
   const basePlanCoverage = buildBenefitPlanCoverage(options.scan, options.plan);
-  const hasResourceSelection = planResources(options.plan).length > 0;
+  const hasResourceSelection = Boolean(historyAnalysis) || planResources(options.plan).length > 0;
   const requiresInventoryValidation = planNeedsInventoryValidation(options.plan);
   const planCoverage = {
     ...basePlanCoverage,
@@ -493,14 +528,21 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
 
   const resourceContributionTotals = new Map<string, BenefitResourceContribution>();
   const responseResults = completeRecords.map(({ selection, record }) => {
+    if (historyAnalysis) {
+      const row = historyAnalysis.responses.find((item) => item.responseId === record.responseId);
+      return estimateResponse(record, undefined, row?.descriptionTokens !== undefined, { evidence: 'catalog-projection', inputSavings: row?.descriptionTokens, reason: row?.descriptionTokens === undefined ? 'Catalog or valid input partition unavailable; projection unknown.' : undefined });
+    }
     const isMainThread = selection.session.threadId === record.threadId;
     const hasChildContext = selection.associatedFiles.some((analysis) => analysis.meta?.threadId === record.threadId && analysis.contextSnapshots.length > 0);
     const planMatch = options.plan
       ? responseMatchesPlan(options.plan, selection, record)
       : { matched: true, reason: undefined };
     const reconstructableResources = planMatch.matchedResources ?? [];
-    const reconstruction = reconstructableResources.length > 0 && planMatch.snapshot
-      ? reconstructHistoricalContext(reconstructableResources, planMatch.snapshot, tokenCounter)
+    const resourcesForReconstruction = reconstructableResources;
+    const reconstruction = resourcesForReconstruction.length > 0 && planMatch.snapshot
+      ? reconstructHistoricalContext(resourcesForReconstruction, planMatch.snapshot, tokenCounter, {
+          inventory: options.plan?.items,
+        })
       : undefined;
     const textReconstructed = reconstruction?.status === 'estimated';
     const allAlreadyOptimized = Boolean(
@@ -556,13 +598,26 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   const coverageResponsePercent = percent(scenarioRecords.length, selectedResponseCount) ?? 0;
   const completeUsagePercent = percent(baseline.responseCount, selectedResponseCount) ?? 0;
   const firstResponses = 1;
+  const rebuildIndices = new Set(scenarioCostRecords.flatMap((item, index) => item.usage.before.inputTokens !== item.usage.projected.inputTokens ? [index] : []).slice(0, firstResponses));
   const scenarios = rate === undefined && scenarioRecords.length === 0
     ? []
     : [
         ...(hasResourceSelection ? [makeScenario('persistent-context', '持续上下文扣减（推荐）', '每条仍含该 Skill 描述的响应都扣除文本差额，不按 WebSocket 增量字节计数。假设精简片段优先属于已缓存前缀：扣减不超过实测缓存读取量，其次缓存写入，剩余为普通输入；无缓存的首轮按普通输入计。仅为模拟，不证明逐 Skill 缓存命中。', scenarioCostRecords, priceTable, (usage) => usage.projected, { cacheRule: 'cached-prefix-first-capped-by-observed-usage', affectedResponseRange: 'all-covered-responses' })] : []),
         makeScenario('historical-cache', '历史缓存比例延续', '假设优化后普通输入、缓存读取和缓存写入按输入缩放比例延续；输出与推理保持不变。', scenarioCostRecords, priceTable, (usage) => preserveCacheRatio(usage.before, usage.projected.inputTokens), { cacheRule: 'scale-all-input-components', firstResponses: null, affectedResponseRange: 'all-covered-responses' }),
-        makeScenario('cache-rebuild', '缓存重建敏感性', `假设前 ${firstResponses} 条受影响响应按缓存重建处理，后续响应延续历史缓存比例；缓存读取量按首段节省量下降，并保留不超过预计输入量的写入量。`, scenarioCostRecords, priceTable, (usage, index) => index < firstResponses ? rebuildCache(usage.before, usage.projected.inputTokens, usage.before.inputTokens - usage.projected.inputTokens) : preserveCacheRatio(usage.before, usage.projected.inputTokens), { cacheRule: 'first-K-rebuild-then-preserve-ratio', firstResponses, affectedResponseRange: 'all-covered-responses' }),
+        makeScenario('cache-rebuild', '缓存重建敏感性', `假设前 ${firstResponses} 条受影响响应完全失去缓存读取，保留有记录的缓存写入，后续响应延续历史缓存比例；这是修改前缀后的冷缓存敏感性场景，费用可能增加。`, scenarioCostRecords, priceTable, (usage, index) => {
+          const delta = usage.before.inputTokens - usage.projected.inputTokens;
+          return rebuildIndices.has(index) ? rebuildCache(usage.before, usage.projected.inputTokens, delta) : preserveCacheRatio(usage.before, usage.projected.inputTokens);
+        }, { cacheRule: 'first-K-cold-then-preserve-ratio', firstResponses, affectedResponseRange: 'all-covered-responses' }),
       ];
+  if (historyAnalysis) {
+    const replayRecords = completeRecords.flatMap(({ record }) => {
+      const delta = historyAnalysis.responses.find((row) => row.responseId === record.responseId)?.replayTokens;
+      if (delta === undefined) return [];
+      const result = projectedUsageFromSavings(record.usage, delta);
+      return result.status === 'estimated' ? [{ record, usage: { before: record.usage, projected: result.projected } }] : [];
+    });
+    scenarios.push(makeScenario('historical-replay', '历史可重建回放（独立场景）', '仅对当时完整、可定位的目录扣除推荐集合中当时存在的描述；未知响应排除，不能把该子集当作完整会话收益。', replayRecords, priceTable, (usage) => usage.projected, { coveredResponses: replayRecords.length, unknownResponses: historyAnalysis.historicalReplay.unknownResponses }));
+  }
   const costRecords = scenarioCostRecords;
   const modelCost = modelCostBreakdown(costRecords, priceTable);
   const textReconstructedResponses = responseResults.filter((result) => result.response.status === 'estimated' && result.response.evidence === 'text-reconstructed');
@@ -570,7 +625,9 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   const textReconstructedSavingsTokens = textReconstructedResponses.reduce((sum, result) => sum + (result.response.estimatedInputSavings ?? 0), 0);
   const hasProjectedComparison = rate !== undefined || scenarioRecords.length > 0;
 
-  if (options.plan && hasResourceSelection) {
+  if (historyAnalysis) {
+    diagnostics.push({ code: 'estimate.latest_catalog_projection', severity: 'info', message: historyAnalysis.assumption });
+  } else if (options.plan && hasResourceSelection) {
     diagnostics.push({ code: 'estimate.historical_context_required', severity: 'info', message: 'Resource-selected plans are simulated only from matched historical context text; unmatched responses remain unchanged' });
   } else if (options.plan) {
     diagnostics.push({ code: 'estimate.proportional_context_model', severity: 'info', message: 'Projected input savings use the optimizer static estimate as a proportional rate over covered historical input; Codex was not re-executed' });
@@ -578,12 +635,18 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   const limitations = [
     'This report uses historical session usage and does not re-run Codex.',
     'Retained Skill descriptions are removed once per covered response, not once per network transfer. Cache attribution is hypothetical; WebSocket context retention is not proof of a cache hit.',
+    'Retained recommended_plugins descriptions are counted per covered response, not once per log anchor.',
     'Text deltas preserve whitespace and use the selected tokenizer as an approximation; loaded Skill bodies and downstream behavior changes are not automatically removed.',
     'Projected output, reasoning, tool calls, retries, compactions, quality, and latency are held constant rather than predicted.',
     'A Skill is not an isolated billing unit; prompt context, cache behavior, tools, and sub-agents can change together.',
     'Cost is an equivalent API estimate when the price table matches the model; it is not a ChatGPT/Codex subscription bill.',
   ];
-  if (!options.plan) limitations.push('No matching Skill Doctor optimization plan was found, so projected savings are unavailable.');
+  if (options.plan?.sourceKind === 'offline') {
+    limitations.push('Offline results project latest-catalog deletion onto one baseline workload. Unknown controls remain hypothetical candidates; review recommendations before disabling. Historical replay is reported separately, with unknown gaps.');
+    limitations.push('Plugin controls are source-supported, not host-runtime-verified. Per-ID recommendation removal may refill from unseen candidates; whole-block disable also removes installation suggestions. No configuration changed.');
+  } else if (!options.plan) {
+    limitations.push('No matching Skill Doctor optimization plan was found, so projected savings are unavailable.');
+  }
   if (responses.some((response) => response.status === 'unknown')) limitations.push('Partial usage records are shown but excluded from aggregate metrics.');
   if (scenarios.some((scenario) => scenario.projected.status === 'unknown')) limitations.push('At least one model has no complete price entry, so cost totals are incomplete.');
   if (planResources(options.plan).some((resource) => resource.requiresNewSession)) limitations.push('The selected resource plan marks one or more changes as requiring a new Codex session; historical state evidence is used instead of apply time.');
@@ -598,6 +661,15 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
     (sum, snapshot) => sum + (snapshot.agentsText ? tokenCounter.count(snapshot.agentsText) : 0) + (snapshot.hostSkillsText ? tokenCounter.count(snapshot.hostSkillsText) : 0),
     0,
   );
+  const historicalContextBlocks = historicalSnapshots.flatMap((snapshot) => snapshot.contextBlocks ?? []);
+  const historicalContextBlockKinds = historicalContextBlocks.reduce<Record<string, number>>((counts, block) => {
+    counts[block.id] = (counts[block.id] ?? 0) + 1;
+    return counts;
+  }, {});
+  const historicalContextBlockTokenCount = historicalContextBlocks.reduce(
+    (sum, block) => sum + (block.text ? tokenCounter.count(block.text) : block.estimatedTokens ?? 0),
+    0,
+  );
   const allWindowInputTokens = options.scan.selected.reduce(
     (sum, selection) => sum + selection.usage.reduce((inner, record) => inner + record.usage.inputTokens, 0),
     0,
@@ -605,6 +677,7 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   return {
     schemaVersion: 1,
     kind: 'skill-doctor-codex-benefit-report',
+    ...(historyAnalysis ? { historyAnalysis } : {}),
     generatedAt: new Date().toISOString(),
     projectDir: options.scan.projectDir,
     codexHome: options.scan.codexHome,
@@ -625,7 +698,13 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
         id: options.plan.id,
         sourcePath: options.plan.sourcePath,
         sourceKind: options.plan.sourceKind,
-        ...(options.plan.status ? { status: options.plan.status } : options.plan.sourceKind === 'operation' ? { status: 'applied' } : { status: 'preview' }),
+        ...(options.plan.status
+          ? { status: options.plan.status }
+          : options.plan.sourceKind === 'offline'
+            ? { status: 'offline' }
+            : options.plan.sourceKind === 'operation'
+              ? { status: 'applied' }
+              : { status: 'preview' }),
         ...(options.plan.createdAt ? { createdAt: options.plan.createdAt } : {}),
         ...(options.plan.projectDir ? { projectDir: options.plan.projectDir } : {}),
         ...(options.plan.snapshotId ? { snapshotId: options.plan.snapshotId } : {}),
@@ -633,6 +712,7 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
         ...(options.plan.operations ? { operationCount: options.plan.operations.length } : {}),
         ...(planResources(options.plan).length > 0 ? { resources: planResources(options.plan) } : {}),
         ...(options.plan.estimate ? { estimate: options.plan.estimate } : {}),
+        ...(options.plan.offline ? { offline: options.plan.offline } : {}),
       },
     } : {}),
     planCoverage: { ...planCoverage, alreadyOptimizedResponseCount },
@@ -667,8 +747,8 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
       completeUsagePercent,
     },
     simulation: {
-      method: hasResourceSelection ? 'historical-context-text-diff' : 'proportional-static-estimate',
-      source: 'skill-doctor-plan',
+      method: historyAnalysis ? 'latest-catalog-projection' : hasResourceSelection ? 'historical-context-text-diff' : 'proportional-static-estimate',
+      source: options.plan?.sourceKind === 'offline' ? 'offline-context' : 'skill-doctor-plan',
       tokenizer: tokenCounter.summary,
       outputHeldConstant: true,
       reexecutedCodex: false,
@@ -678,11 +758,22 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
       historicalContextSnapshotCount: historicalSnapshots.length,
       historicalTextSnapshotCount: historicalTextSnapshots.length,
       historicalTextTokenCount,
+      historicalContextBlockCount: historicalContextBlocks.length,
+      historicalContextBlockKinds,
+      historicalContextBlockTokenCounts: historicalContextBlocks.reduce<Record<string, number>>((counts, block) => {
+        counts[block.id] = (counts[block.id] ?? 0) + (block.text ? tokenCounter.count(block.text) : block.estimatedTokens ?? 0);
+        return counts;
+      }, {}),
+      historicalContextBlockTokenCount,
       textReconstructedResponseCount: textReconstructedResponses.length,
       textReconstructedSavingsTokens,
       tokenizer: tokenCounter.summary,
       dynamicResourceTextReconstructed: textReconstructedResponses.length > 0,
-      planEstimateEvidence: options.plan ? 'static-optimizer-estimate' : 'none',
+      planEstimateEvidence: options.plan?.sourceKind === 'offline'
+        ? 'offline-context-reconstruction'
+        : options.plan
+          ? 'static-optimizer-estimate'
+          : 'none',
     },
     provenance: {
       sampleResponseIds: completeRecords.map(({ record }) => record.responseId),

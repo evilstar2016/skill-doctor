@@ -58,6 +58,52 @@ describe('benefit session index retention and privacy', () => {
     expect(value.contextSnapshots[0]).not.toHaveProperty('hostSkillsText');
   });
 
+  it('strips response-item block text while retaining block metadata, hashes, and references', () => {
+    const source = entry('/tmp/response-context.jsonl', 100).analysis;
+    source.contextSnapshots = [{
+      timestamp: '2026-09-07T00:00:00.000Z',
+      full: false,
+      sourceKind: 'response_item',
+      role: 'user',
+      contextTextChars: 42,
+      contextTextSha256: 'context-hash',
+      contextBlocksComplete: true,
+      contextBlocks: [{
+        id: 'recommended_plugins',
+        tag: '<recommended_plugins>',
+        role: 'user',
+        activation: 'initial-context',
+        complete: true,
+        estimatedChars: 42,
+        estimatedTokens: 11,
+        text: '<recommended_plugins>private</recommended_plugins>',
+        textSha256: 'block-hash',
+        rootAliases: [{ alias: 'r0', path: '/Users/private/.codex/skills' }],
+        availableSkills: [{ name: 'private-skill', description: 'private description' }],
+        recommendedPlugins: [{ name: 'Private', id: 'private@remote' }],
+        controllable: false,
+        recommendation: 'observe',
+        sourcePath: '/tmp/response-context.jsonl',
+        line: 4,
+      }],
+      sourcePath: '/tmp/response-context.jsonl',
+      line: 4,
+    }];
+
+    const value = sanitizeAnalysisForIndex(source);
+    expect(value.contextSnapshots[0]).toMatchObject({
+      sourceKind: 'response_item',
+      role: 'user',
+      contextTextChars: 42,
+      contextTextSha256: 'context-hash',
+      contextBlocks: [{ id: 'recommended_plugins', textSha256: 'block-hash', line: 4 }],
+    });
+    expect(value.contextSnapshots[0]?.contextBlocks?.[0]).not.toHaveProperty('text');
+    expect(value.contextSnapshots[0]?.contextBlocks?.[0]).not.toHaveProperty('rootAliases');
+    expect(value.contextSnapshots[0]?.contextBlocks?.[0]).not.toHaveProperty('availableSkills');
+    expect(value.contextSnapshots[0]?.contextBlocks?.[0]).not.toHaveProperty('recommendedPlugins');
+  });
+
   it('prunes old metadata only when an explicit retention period is supplied', () => {
     const now = 10 * 86_400_000;
     const entries = [entry('/tmp/old.jsonl', now - 4 * 86_400_000), entry('/tmp/new.jsonl', now - 86_400_000)];

@@ -35,6 +35,13 @@
    - Share install API request/response contracts between the server and web client instead of duplicating them.
    - Split source selection, target inventory, and registered-install management out of `ManagePage` when the unified service is adopted.
 
+7. **Task-aware resource optimization**
+   - Inventory project and user resources when opening Skill Doctor or invoking the optimizer Skill, using static local discovery by default.
+   - Use the user's task intent to recommend keeping, enabling, or disabling skills, MCP resources, and plugins, with explicit reasons and uncertain items left unchanged.
+   - Share recommendation, preview, approval, and execution logic between UI and Skill entry points; initially execute only confirmed project-local disables through supported Codex controls.
+   - Show plugin and MCP dependency effects, reject stale approvals, preserve original configuration for undo, and verify each change without overwriting later user edits.
+   - Keep enablement advisory initially, and distinguish estimated context savings from runtime effects that require a new session.
+
 ## Non-goals
 
 - No fake stars, paid star campaigns, or spammy promotion.

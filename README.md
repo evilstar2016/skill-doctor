@@ -2,6 +2,37 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
+### History-driven project controls
+
+After an offline benefit audit, the UI offers per-item rationale, evidence, preview,
+confirmation and undo. Skills are controlled independently when supported. Plugin
+recommendations can be hidden individually or as a whole block **in this project**;
+installed plugins and global configuration are not disabled.
+
+```sh
+# Run in the target project; keep this report private
+skill-doctor benefit --json --output /tmp/project-benefit.json
+skill-doctor context control --report /tmp/project-benefit.json --kind recommended_plugins --id 'figma@openai-curated-remote' --action disable
+skill-doctor context control --report /tmp/project-benefit.json --kind recommendations --id recommended_plugins --action disable
+# After reviewing, repeat the selected command with --confirm <preview-digest>
+skill-doctor context control --undo <operation-id> --confirm <operation-id>
+```
+
+Use `--kind skills_instructions --id '<catalog Skill name>'` for a Skill. IDs come
+from the report's `historyAnalysis.usageProfile`. `--action enable` explicitly enables
+an entry; undo restores the previous configuration. Enabling an entry does not reopen
+a closed recommendation block. Unsupported layouts/sources fail without a config write.
+Private backups live under `.codex/skill-doctor-operations/`; do not commit them.
+Writes are digest-confirmed, preserve existing disabled entries, and undo refuses to
+overwrite subsequent changes. A trusted project and a new session are required to
+verify actual context reduction; config verification is not realized token savings.
+
+The UI includes a copyable Agent prompt. The `skill-doctor-context-optimizer` Skill
+supports `history`, `history-control` and `history-undo`, sharing the CLI control path.
+Ask it for a full evidence-backed report and preview before approving project changes.
+The CLI must list `context control` in its help; older builds must not substitute
+installed-plugin disabling for recommendation hiding.
+
 <p align="center">
   <img src="assets/brand/skill-doctor-logo.svg" alt="Skill Doctor" width="360">
 </p>
@@ -343,12 +374,19 @@ skill-doctor context --json
 ### `benefit` (Codex historical estimate)
 
 Estimate the effect of a Skill Doctor optimization plan against recent Codex
-rollout JSONL sessions in the current project. The command is local and
-read-only with respect to Codex configuration: it does not re-run Codex or
+rollout JSONL sessions in the current project. If `--plan` is omitted, the
+command enters read-only offline mode: all readable project history (including
+archives, unless explicitly restricted by time/count) supplies a usage profile;
+the latest active main session supplies each complete Skill/plugin catalog;
+the main session with the most complete model responses supplies the workload.
+Used resources are retained; unused catalog entries become review-before-disable
+recommendations, even when absent from today's local inventory. The command
+does not change Codex configuration, re-run Codex, or
 claim a subscription-billing reduction.
 
 ```bash
-skill-doctor benefit --project . --since 24h --limit 20
+skill-doctor benefit --project .  # all-history offline simulation
+skill-doctor benefit --project . --format csv --output benefit.csv
 skill-doctor benefit --project . --since 24h --limit 20 --plan <plan-id>
 skill-doctor benefit --project . --since 7d --limit 50 --plan <plan-id> --format json --output benefit.json
 skill-doctor benefit --project . --since 24h --plan <plan-id> --tokenizer openai --tokenizer-model gpt-4o --format html --output benefit.html
@@ -361,8 +399,21 @@ skill-doctor benefit --project . --delete-index-entry /path/to/rollout.jsonl --j
 The report keeps observed input/cache/output/reasoning usage separate from the
 projected input delta. It shows historical-cache and cache-rebuild sensitivity
 scenarios, model-price coverage, skipped-session diagnostics, and the exact
-response source file/line for local review. A result with no matching plan is a
-valid historical baseline, but has no projected savings.
+response source file/line for local review. A no-plan result is an offline
+simulation of latest-catalog text deletion across that workload, not realized
+savings. A separate historical replay reports reconstructable responses and
+unknown gaps after compaction. Reports identify catalog source hashes and baseline
+session, distinguish user messages/turn IDs/completed turns/model responses, and
+show first-response, first-interaction and per-response cache bounds in JSON,
+HTML, CSV and the UI. Child usage is separate from main-thread savings.
+
+`recommended_plugins` is a recommendation list, not installed plugins. Source-
+supported controls are `tool_suggest.disabled_tools` (exact plugin ID, preserving
+existing connector/plugin entries) or both `features.tool_suggest=false` and
+`features.recommended_plugins=false` for the whole block. Per-ID filtering may
+refill unseen candidates (50-entry render limit); whole-block disable also removes
+model-side installation suggestions. Host runtime verification is separate and
+is not claimed by offline reports. Unknown Skill controls remain hypothetical.
 
 Historical context attribution keeps a recoverable source-file/line reference and
 content hash rather than copying AGENTS or Skill text into the metadata index. If

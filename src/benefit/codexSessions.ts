@@ -5,10 +5,12 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 
+import { analyzeCodexContextBlocks } from '../context/scanCodexContextBlocks';
 import { defaultSessionIndexPath, indexEntryMatches, loadSessionIndex, pruneSessionIndexEntries, sanitizeAnalysisForIndex, saveSessionIndex, type SessionIndexEntry } from './sessionIndex';
 import type {
   BenefitDiagnostic,
   BenefitRecordStatus,
+  CodexContextBlockSnapshot,
   CodexContextStateSnapshot,
   CodexEventSummary,
   CodexModelContext,
@@ -49,6 +51,7 @@ interface PendingTokenCount {
   totalUsage?: Record<string, unknown>;
   lastUsage?: Record<string, unknown>;
   contextSnapshotLine?: number;
+  contextSnapshotLines?: number[];
   contextSnapshotTimestamp?: string;
 }
 
@@ -68,6 +71,8 @@ interface MutableAnalysis {
   currentHostSkillsText?: string;
   currentHostSkillsTruncated?: boolean;
   currentHostSkillsComplete?: boolean;
+  currentContextBlocks: Map<string, CodexContextBlockSnapshot>;
+  currentContextBlockLines: Map<string, number>;
   contextSnapshotValid: boolean;
   contextSnapshotAwaitingFull: boolean;
   events: CodexEventSummary;
@@ -228,6 +233,7 @@ function usageRecordFrom(
   archived: boolean,
   modelByTurn: Map<string, CodexModelContext>,
   contextSnapshot: CodexContextStateSnapshot | undefined,
+  contextSnapshotLines: number[] = [],
 ): CodexUsageRecord | undefined {
   const payload = objectValue(value.payload);
   if (!payload) return undefined;
@@ -266,6 +272,7 @@ function usageRecordFrom(
     sourcePath: filePath,
     line,
     ...(contextSnapshot ? { contextSnapshotLine: contextSnapshot.line, contextSnapshotTimestamp: contextSnapshot.timestamp } : {}),
+    ...(contextSnapshotLines.length > 0 ? { contextSnapshotLines: [...contextSnapshotLines] } : {}),
     archived,
     sourceKind: 'token_usage_record',
     quality: normalized.missing.length === 0 ? 'complete' : 'partial',
@@ -301,6 +308,7 @@ function tokenCountRecordFrom(
     ...(pending.contextSnapshotLine !== undefined
       ? { contextSnapshotLine: pending.contextSnapshotLine, ...(pending.contextSnapshotTimestamp ? { contextSnapshotTimestamp: pending.contextSnapshotTimestamp } : {}) }
       : {}),
+    ...(pending.contextSnapshotLines && pending.contextSnapshotLines.length > 0 ? { contextSnapshotLines: [...pending.contextSnapshotLines] } : {}),
     archived,
     sourceKind: 'token_count',
     quality: 'partial',
@@ -345,6 +353,71 @@ function addTurnEvent(analysis: MutableAnalysis, payload: Record<string, unknown
   }
 }
 
+function hashText(text: string | undefined): string | undefined {
+  if (text === undefined) return undefined;
+  return createHash('sha256').update(text).digest('hex');
+}
+
+function contextRole(value: unknown): 'developer' | 'user' | 'unknown' {
+  return value === 'developer' || value === 'user' ? value : 'unknown';
+}
+
+function responseItemText(payload: Record<string, unknown>): string {
+  const content = payload.content;
+  const values = Array.isArray(content) ? content : [content];
+  return values.flatMap((item) => {
+    if (typeof item === 'string') return [item];
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const text = (item as Record<string, unknown>).text;
+    return typeof text === 'string' ? [text] : [];
+  }).join('\n');
+}
+
+function contextBlockSnapshotFrom(
+  block: ReturnType<typeof analyzeCodexContextBlocks>['blocks'][number],
+  sourcePath: string,
+  line: number,
+): CodexContextBlockSnapshot {
+  return {
+    id: block.id,
+    tag: block.tag,
+    role: block.role,
+    ...(block.contentKind ? { contentKind: block.contentKind } : {}),
+    activation: block.activation,
+    complete: block.complete,
+    estimatedChars: block.estimatedChars,
+    estimatedTokens: block.estimatedTokens,
+    text: block.text,
+    ...(hashText(block.text) ? { textSha256: hashText(block.text) } : {}),
+    ...(block.rootAliases ? { rootAliases: block.rootAliases } : {}),
+    ...(block.availableSkills ? { availableSkills: block.availableSkills } : {}),
+    ...(block.recommendedPlugins ? { recommendedPlugins: block.recommendedPlugins } : {}),
+    ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
+    ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+    recommendation: block.recommendation,
+    sourcePath,
+    line,
+  };
+}
+
+function currentContextSnapshotLines(analysis: MutableAnalysis): number[] {
+  if (!analysis.contextSnapshotValid) return [];
+  const lines = new Set<number>(analysis.currentContextBlockLines.values());
+  const latestWorldState = [...analysis.contextSnapshots].reverse().find((snapshot) => snapshot.sourceKind === 'world_state' || snapshot.sourceKind === undefined);
+  if (latestWorldState && (
+    latestWorldState.agentsText !== undefined
+    || latestWorldState.hostSkillsText !== undefined
+    || latestWorldState.agentsTextChars !== undefined
+    || latestWorldState.hostSkillsTextChars !== undefined
+  )) lines.add(latestWorldState.line);
+  return [...lines].sort((left, right) => left - right);
+}
+
+function latestContextSnapshot(analysis: MutableAnalysis, lines: number[]): CodexContextStateSnapshot | undefined {
+  const line = lines.at(-1);
+  return line === undefined ? undefined : [...analysis.contextSnapshots].reverse().find((snapshot) => snapshot.line === line);
+}
+
 function addContextRecord(
   analysis: MutableAnalysis,
   value: Record<string, unknown>,
@@ -366,6 +439,8 @@ function addContextRecord(
       analysis.currentHostSkillsText = undefined;
       analysis.currentHostSkillsTruncated = undefined;
       analysis.currentHostSkillsComplete = undefined;
+      analysis.currentContextBlocks.clear();
+      analysis.currentContextBlockLines.clear();
       analysis.contextSnapshotAwaitingFull = false;
       analysis.contextSnapshotValid = true;
     } else if (analysis.contextSnapshotAwaitingFull) {
@@ -402,6 +477,7 @@ function addContextRecord(
     const snapshot: CodexContextStateSnapshot = {
       timestamp,
       full,
+      sourceKind: 'world_state',
       stateKeys: Object.keys(state).sort(),
       ...(analysis.currentAgentsText ? { agentsText: analysis.currentAgentsText } : {}),
       ...(analysis.currentAgentsDirectory ? { agentsDirectory: analysis.currentAgentsDirectory } : {}),
@@ -416,6 +492,38 @@ function addContextRecord(
       line,
     };
     analysis.contextSnapshots.push(snapshot);
+    return;
+  }
+
+  if (stringValue(value.type) === 'response_item') {
+    const role = contextRole(payload.role);
+    if (role === 'unknown') return;
+    const text = responseItemText(payload);
+    if (!text) return;
+    const parsed = analyzeCodexContextBlocks(text, { tokenizer: 'approx' });
+    if (parsed.blocks.length === 0) return;
+    if (analysis.contextSnapshotAwaitingFull) {
+      analysis.diagnostics.push(diagnostic('context.response_item_awaiting_full_snapshot', 'warning', 'Ignored response-item context blocks after compaction until a full world_state snapshot appears', filePath, line));
+      return;
+    }
+    analysis.contextSnapshotValid = true;
+    const blocks = parsed.blocks.map((block) => contextBlockSnapshotFrom(block, filePath, line));
+    for (const block of blocks) {
+      analysis.currentContextBlocks.set(block.id, block);
+      analysis.currentContextBlockLines.set(block.id, line);
+    }
+    analysis.contextSnapshots.push({
+      timestamp,
+      full: false,
+      sourceKind: 'response_item',
+      role,
+      contextTextChars: text.length,
+      ...(hashText(text) ? { contextTextSha256: hashText(text) } : {}),
+      contextBlocksComplete: parsed.diagnostics.length === 0 && blocks.every((block) => block.complete),
+      contextBlocks: blocks,
+      sourcePath: filePath,
+      line,
+    });
     return;
   }
 
@@ -479,6 +587,18 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
   }
 
   const lastSnapshot = base?.contextSnapshots.at(-1);
+  const currentContextBlocks = new Map<string, CodexContextBlockSnapshot>();
+  const currentContextBlockLines = new Map<string, number>();
+  for (const snapshot of base?.contextSnapshots ?? []) {
+    if (snapshot.sourceKind === 'world_state' && snapshot.full) {
+      currentContextBlocks.clear();
+      currentContextBlockLines.clear();
+    }
+    for (const block of snapshot.contextBlocks ?? []) {
+      currentContextBlocks.set(block.id, { ...block });
+      currentContextBlockLines.set(block.id, block.line);
+    }
+  }
   const mutable: MutableAnalysis = {
     ...(base?.meta ? { meta: { ...base.meta } } : {}),
     usageRecords: base?.usageRecords.map((record) => ({ ...record, usage: { ...record.usage } })) ?? [],
@@ -496,7 +616,9 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
     ...(lastSnapshot?.hostSkillsText ? { currentHostSkillsText: lastSnapshot.hostSkillsText } : {}),
     ...(lastSnapshot?.hostSkillsTruncated !== undefined ? { currentHostSkillsTruncated: lastSnapshot.hostSkillsTruncated } : {}),
     ...(lastSnapshot?.hostSkillsComplete !== undefined ? { currentHostSkillsComplete: lastSnapshot.hostSkillsComplete } : {}),
-    contextSnapshotValid: base?.contextSnapshotValid ?? Boolean(lastSnapshot),
+    currentContextBlocks,
+    currentContextBlockLines,
+    contextSnapshotValid: base?.contextSnapshotValid ?? true,
     contextSnapshotAwaitingFull: base?.contextSnapshotAwaitingFull ?? false,
     firstTimestamp: base?.firstTimestamp,
     lastTimestamp: base?.lastTimestamp,
@@ -552,6 +674,10 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
       }
 
       const payload = objectValue(parsed.payload);
+      if (parsed.type === 'response_item' && payload) {
+        addContextRecord(mutable, parsed, filePath, mutable.lineCount, timestamp ?? mutable.firstTimestamp ?? new Date(0).toISOString());
+        continue;
+      }
       if (parsed.type === 'turn_context' && payload) {
         addContextRecord(mutable, parsed, filePath, mutable.lineCount, timestamp ?? mutable.firstTimestamp ?? new Date(0).toISOString());
         const context = mutable.modelContexts.at(-1);
@@ -563,7 +689,8 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
         continue;
       }
       if (parsed.type === 'token_usage_record') {
-        const record = usageRecordFrom(parsed, filePath, mutable.lineCount, archived, modelByTurn, mutable.contextSnapshotValid ? mutable.contextSnapshots.at(-1) : undefined);
+        const contextSnapshotLines = currentContextSnapshotLines(mutable);
+        const record = usageRecordFrom(parsed, filePath, mutable.lineCount, archived, modelByTurn, latestContextSnapshot(mutable, contextSnapshotLines), contextSnapshotLines);
         if (record) mutable.usageRecords.push(record);
         else {
           mutable.status = 'partial';
@@ -582,17 +709,25 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
             turnId: stringValue(payload.turn_id),
             totalUsage: objectValue(info?.total_token_usage),
             lastUsage: objectValue(info?.last_token_usage),
-            ...(mutable.contextSnapshotValid && mutable.contextSnapshots.at(-1)?.line !== undefined ? { contextSnapshotLine: mutable.contextSnapshots.at(-1)?.line } : {}),
-            ...(mutable.contextSnapshotValid && mutable.contextSnapshots.at(-1)?.timestamp ? { contextSnapshotTimestamp: mutable.contextSnapshots.at(-1)?.timestamp } : {}),
+            ...(() => {
+              const contextSnapshotLines = currentContextSnapshotLines(mutable);
+              const latest = latestContextSnapshot(mutable, contextSnapshotLines);
+              return {
+                ...(latest ? { contextSnapshotLine: latest.line, contextSnapshotTimestamp: latest.timestamp } : {}),
+                ...(contextSnapshotLines.length > 0 ? { contextSnapshotLines } : {}),
+              };
+            })(),
           });
         } else {
           addTurnEvent(mutable, payload);
         }
       }
-      if (parsed.type === 'compacted') {
+      if (parsed.type === 'compacted' || (parsed.type === 'event_msg' && payload?.type === 'item_completed' && objectValue(payload.item)?.type === 'ContextCompaction')) {
         mutable.events.compactions += 1;
         mutable.contextSnapshotValid = false;
         mutable.contextSnapshotAwaitingFull = true;
+        mutable.currentContextBlocks.clear();
+        mutable.currentContextBlockLines.clear();
         diagnostics.push(diagnostic('context.snapshot_invalidated_by_compaction', 'warning', 'Historical context evidence was invalidated by compaction until a new full world_state snapshot appears', filePath, mutable.lineCount));
         if (hasEmbeddedUsage(payload)) {
           diagnostics.push(diagnostic('usage.compacted_embedded_ignored', 'warning', 'Compaction record contained embedded usage-like fields; only token_usage_record or the constrained token_count fallback is counted', filePath, mutable.lineCount));
@@ -992,7 +1127,8 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
         };
         const needsContextText = cachedAnalysis.contextSnapshots.some((snapshot) =>
           (snapshot.agentsTextChars !== undefined && !snapshot.agentsText)
-          || (snapshot.hostSkillsTextChars !== undefined && !snapshot.hostSkillsText),
+          || (snapshot.hostSkillsTextChars !== undefined && !snapshot.hostSkillsText)
+          || (snapshot.contextTextChars !== undefined && snapshot.contextBlocks?.some((block) => !block.text)),
         );
         if (needsContextText) {
           analysis = await analyzeCodexSessionFile(filePath, {
@@ -1016,7 +1152,8 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
           // The persisted index omits text. Rehydrate before extending its context state.
           && !indexed.analysis.contextSnapshots.some((snapshot) =>
             (snapshot.agentsTextChars !== undefined && !snapshot.agentsText)
-            || (snapshot.hostSkillsTextChars !== undefined && !snapshot.hostSkillsText))
+            || (snapshot.hostSkillsTextChars !== undefined && !snapshot.hostSkillsText)
+            || (snapshot.contextTextChars !== undefined && snapshot.contextBlocks?.some((block) => !block.text)))
           && !indexed.analysis.usageRecords.some((record) => record.sourceKind === 'token_count'),
         );
         const prefixHash = canTryIncremental && indexed

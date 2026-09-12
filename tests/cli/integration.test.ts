@@ -1585,6 +1585,40 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
     expect(contextHelp.stdout).not.toContain('CONTEXT COST REPORT');
   });
 
+  it('context blocks reports parsed blocks without exposing raw text by default', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const inputPath = join(root, 'context.txt');
+    const configPath = join(home, '.codex', 'config.toml');
+    const input = [
+      '<skills_instructions>',
+      '### Skill roots',
+      '- `r0` = `/tmp/skills`',
+      '### Available skills',
+      '- sample: Sample skill',
+      '</skills_instructions>',
+      '<recommended_plugins>',
+      '- Demo (demo@source)',
+      '</recommended_plugins>',
+    ].join('\n');
+
+    writeFile(join(cwd, '.keep'), '');
+    writeFile(configPath, '[features]\nrecommended_plugins = true\n');
+    writeFile(inputPath, input);
+    const result = runCli(['context', 'blocks', '--file', inputPath, '--tokenizer', 'approx', '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(payload.blocks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'skills_instructions', rootAliases: [{ alias: 'r0', path: '/tmp/skills' }] }),
+      expect.objectContaining({ id: 'recommended_plugins', recommendedPlugins: [{ name: 'Demo', id: 'demo@source' }] }),
+    ]));
+    expect(payload.blocks.every((block: { text?: string }) => !('text' in block))).toBe(true);
+    expect(readFileSync(inputPath, 'utf8')).toBe(input);
+    expect(readFileSync(configPath, 'utf8')).toBe('[features]\nrecommended_plugins = true\n');
+  });
+
   it('cost reports estimated token tax for Claude skills and always-on files', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

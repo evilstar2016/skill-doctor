@@ -79,6 +79,7 @@
     "vitest": "^3.1.4"
   },
   "dependencies": {
+    "confbox": "0.1.8",
     "dotenv": "^17.4.2",
     "js-tiktoken": "^1.0.21",
     "jsonc-parser": "^3.3.1",

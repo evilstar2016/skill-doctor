@@ -67,6 +67,8 @@ function parseResource(value: unknown): OptimizationPlanResource | undefined {
     ...(typeof value.controllable === 'boolean' ? { controllable: value.controllable } : {}),
     ...(stringValue(value.controlMethod) ? { controlMethod: value.controlMethod as string } : {}),
     ...(typeof value.requiresNewSession === 'boolean' ? { requiresNewSession: value.requiresNewSession } : {}),
+    ...(stringValue(value.blockId) ? { blockId: value.blockId as OptimizationPlanResource['blockId'] } : {}),
+    ...(stringValue(value.rootAlias) ? { rootAlias: value.rootAlias as string } : {}),
   };
 }
 

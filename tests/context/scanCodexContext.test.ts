@@ -112,6 +112,19 @@ describe('scanCodexContextEntries', () => {
     ]));
   });
 
+  it.skipIf(process.platform === 'win32')('honors an explicit Codex home when scanning global Skills', async () => {
+    const root = tempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const codexHome = join(root, 'custom-codex-home');
+    writeFile(join(codexHome, 'skills', 'custom-global', 'SKILL.md'), ['---', 'name: custom-global', 'description: Custom Codex home skill.', '---'].join('\n'));
+
+    const entries = await scanCodexContextEntries(cwd, { homeDir: home, codexHome, resource: 'skill' });
+
+    expect(entries.map((entry) => entry.name)).toEqual(['custom-global']);
+    expect(entries[0]?.sourcePath).toBe(join(codexHome, 'skills', 'custom-global', 'SKILL.md'));
+  });
+
   it.skipIf(process.platform === 'win32')('honors path selectors that target the resolved destination of a symlinked skill', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');

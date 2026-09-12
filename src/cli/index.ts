@@ -4,7 +4,7 @@
 // process.env (e.g. the opt-in LLM debug flag in src/llm/logging.ts).
 import 'dotenv/config';
 
-import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -17,8 +17,10 @@ import { modelConfigView, validateModelConfig, withModelConfig, type ModelServic
 import { testOpenAiCompatibleModel } from '../models/testOpenAiCompatible';
 import { detectConflicts } from '../conflicts/detectConflicts';
 import { toggleCodexResource } from '../context/codexControls';
+import { applyHistoryControl, previewHistoryControl, publicControlPreview, reportControlTarget, undoHistoryControl } from '../context/historyControls';
 import type { CodexResourceFilter } from '../context/codexContextConfig';
 import { estimateContextCost } from '../context/estimateContextCost';
+import { analyzeCodexContextBlocks } from '../context/scanCodexContextBlocks';
 import { scanCodexContextEntries } from '../context/scanCodexContext';
 import { scanCodexPluginCache } from '../context/scanCodexPluginCache';
 import { scanSkills } from '../discovery/scanSkills';
@@ -37,6 +39,7 @@ import { loadCenter, migrateToCenter } from '../library/centerStore.js';
 import { discoverMcpToolsForServers } from '../mcp/listMcpTools';
 import { scanMcpServers } from '../mcp/scanMcpServers';
 import { estimateCodexBenefit } from '../benefit/estimateBenefit';
+import { buildOfflineCodexPlan } from '../benefit/offlinePlan';
 import { loadOptimizationPlan, validateOptimizationPlan } from '../benefit/optimizationPlan';
 import { loadBenefitPriceTable } from '../benefit/prices';
 import { scanCodexSessions } from '../benefit/codexSessions';
@@ -48,9 +51,10 @@ import { renderAuditReport } from '../render/renderAuditReport';
 import { renderCleanup } from '../render/renderCleanup';
 import { renderConflicts } from '../render/renderConflicts';
 import { renderContextCost } from '../render/renderContextCost';
+import { renderCodexContextBlocks } from '../render/renderContextBlocks';
 import { renderDiff } from '../render/renderDiff';
 import { renderDashboard } from '../render/renderDashboard';
-import { renderBenefitHtml, renderBenefitReport, redactBenefitReport } from '../render/renderBenefit';
+import { renderBenefitCsv, renderBenefitHtml, renderBenefitReport, redactBenefitReport } from '../render/renderBenefit';
 import { renderDiffReport } from '../render/renderDiffReport';
 import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
@@ -465,7 +469,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       return;
     }
     if (format === 'invalid') {
-      process.stderr.write('Invalid --format. Use text|json|html\n');
+      process.stderr.write('Invalid --format. Use text|json|html|csv\n');
       process.exitCode = 1;
       return;
     }
@@ -504,24 +508,41 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         projectDir,
         homeDir,
         ...(codexHome ? { codexHome } : {}),
-        sinceMs: since,
-        limit: limit ?? 20,
-        includeArchived,
+        sinceMs: !planReference && readFlagValue(rest, '--since') === null ? 0 : since,
+        limit: limit ?? (planReference ? 20 : Number.MAX_SAFE_INTEGER),
+        includeArchived: !planReference || includeArchived,
         useIndex: true,
         ...(retentionDays !== null ? { indexRetentionDays: retentionDays } : {}),
       });
-      const loadedPlan = await loadOptimizationPlan({ projectDir, homeDir, ...(planReference ? { reference: planReference } : {}) });
+      const loadedPlan = planReference
+        ? await loadOptimizationPlan({ projectDir, homeDir, reference: planReference })
+        : { diagnostics: [], plan: undefined };
       if (planReference && !loadedPlan.plan) {
         throw new Error(`Unable to load the requested optimization plan: ${planReference}`);
       }
+      const offlinePlan = !planReference
+        ? await buildOfflineCodexPlan({
+            scan,
+            projectDir,
+            homeDir,
+            ...(codexHome ? { codexHome } : {}),
+            tokenizer,
+            ...(tokenizerModel ? { tokenizerModel } : {}),
+          })
+        : undefined;
+      const selectedPlan = loadedPlan.plan ?? offlinePlan?.plan;
+      const planDiagnostics = [
+        ...loadedPlan.diagnostics,
+        ...(offlinePlan?.diagnostics ?? []),
+      ];
       const priceTable = await loadBenefitPriceTable(priceTablePath ?? undefined);
-      const planValidation = loadedPlan.plan
-        ? await validateOptimizationPlan({ plan: loadedPlan.plan, projectDir, homeDir })
+      const planValidation = selectedPlan && selectedPlan.sourceKind !== 'offline'
+        ? await validateOptimizationPlan({ plan: selectedPlan, projectDir, homeDir })
         : undefined;
       const report = estimateCodexBenefit({
         scan,
-        plan: loadedPlan.plan,
-        planDiagnostics: loadedPlan.diagnostics,
+        plan: selectedPlan,
+        planDiagnostics,
         priceTable,
         tokenizer,
         ...(tokenizerModel ? { tokenizerModel } : {}),
@@ -532,7 +553,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         ? toJson(redact ? redactBenefitReport(report) : report)
         : selectedFormat === 'html'
           ? renderBenefitHtml(report, { redact: true })
-          : renderBenefitReport(report);
+          : selectedFormat === 'csv' ? renderBenefitCsv(redact ? redactBenefitReport(report) : report) : renderBenefitReport(report);
       if (outputPath) {
         const target = resolve(cwd, outputPath);
         writeFileSync(target, `${rendered}\n`, 'utf8');
@@ -548,6 +569,76 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   }
 
   if (command === 'cost' || command === 'context') {
+    if (command === 'context' && rest[0] === 'blocks') {
+      const inputPath = readFlagValue(rest, '--file');
+      const tokenizer = readTokenizer(rest);
+      const tokenizerModel = readFlagValue(rest, '--tokenizer-model');
+
+      if (!inputPath) {
+        process.stderr.write('Usage: skill-doctor context blocks --file <path> [--tokenizer openai|approx] [--tokenizer-model model] [--json]\n');
+        process.exitCode = 1;
+        return;
+      }
+      if (tokenizer === 'invalid') {
+        process.stderr.write('Invalid tokenizer. Use --tokenizer openai|approx\n');
+        process.exitCode = 1;
+        return;
+      }
+
+      const resolvedInputPath = resolve(cwd, inputPath);
+      if (!existsSync(resolvedInputPath) || !statSync(resolvedInputPath).isFile()) {
+        process.stderr.write(`Context input file not found: ${resolvedInputPath}\n`);
+        process.exitCode = 1;
+        return;
+      }
+
+      try {
+        const result = analyzeCodexContextBlocks(readFileSync(resolvedInputPath, 'utf8'), {
+          sourcePath: resolvedInputPath,
+          tokenizer,
+          ...(tokenizerModel ? { tokenizerModel } : {}),
+        });
+        const output = jsonOutput && !hasFlag(rest, '--include-text')
+          ? {
+              ...result,
+              blocks: result.blocks.map(({ text: _text, ...block }) => block),
+            }
+          : result;
+        process.stdout.write(`${jsonOutput ? toJson(output) : renderCodexContextBlocks(result)}\n`);
+      } catch (error) {
+        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+
+    if (command === 'context' && rest[0] === 'control') {
+      try {
+        const undo = readFlagValue(rest, '--undo');
+        if (undo) {
+          if (readFlagValue(rest, '--confirm') !== undo) throw new Error('Undo requires --confirm <operation-id>.');
+          process.stdout.write(`${toJson(undoHistoryControl(cwd, undo))}\n`);
+          return;
+        }
+        const reportPath = readFlagValue(rest, '--report');
+        const kind = readFlagValue(rest, '--kind');
+        const id = readFlagValue(rest, '--id');
+        const action = readFlagValue(rest, '--action');
+        if (!reportPath || !kind || !id || !['enable', 'disable'].includes(action ?? '')) throw new Error('Usage: skill-doctor context control --report <report.json> --kind <skills_instructions|recommended_plugins|recommendations> --id <catalog-id> --action enable|disable [--confirm <preview-digest>]');
+        const report = JSON.parse(readFileSync(resolve(cwd, reportPath), 'utf8'));
+        const target = reportControlTarget(report, cwd, kind, id);
+        const confirmation = readFlagValue(rest, '--confirm');
+        const result = confirmation
+          ? applyHistoryControl(cwd, target, action === 'enable', confirmation)
+          : publicControlPreview(previewHistoryControl(cwd, target, action === 'enable'));
+        process.stdout.write(`${toJson(result)}\n`);
+      } catch (error) {
+        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+
     if (command === 'context' && (rest[0] === 'enable' || rest[0] === 'disable')) {
       const action = rest[0];
       const id = readFlagValue(rest, '--id');
@@ -1105,10 +1196,13 @@ function getHelpText(): string {
     '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
     '  skill-doctor check [--scope project|global|all] [--fail-on high|med|low] [--budget-tokens N] [--json]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
-    '  skill-doctor benefit [project-dir] [--since 24h|7d|ISO] [--limit N] [--plan ID|path] [--include-archived] [--price-table path] [--tokenizer openai|approx] [--tokenizer-model model] [--retention-days N] [--format text|json|html] [--redact] [--delete-index|--delete-index-entry path] [--output path] [--json]',
+    '  skill-doctor benefit [project-dir] [--since 24h|7d|ISO] [--limit N] [--plan ID|path] [--include-archived] [--price-table path] [--tokenizer openai|approx] [--tokenizer-model model] [--retention-days N] [--format text|json|html|csv] [--redact] [--delete-index|--delete-index-entry path] [--output path] [--json]',
     '  skill-doctor cost [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
     '  skill-doctor context [project-dir] [--platform PLATFORM] [--scope project|global|all] [--source skill|mcp|all] [--resource all|agents|skill|mcp|plugin|memory] [--codex-config path] [--show-disable] [--include-cache] [--tokenizer openai|approx] [--tokenizer-model model] [--budget-tokens N] [--platform-budget platform=N] [--fail-on-budget] [--json]',
+    '  skill-doctor context blocks --file <path> [--tokenizer openai|approx] [--tokenizer-model model] [--include-text] [--json]',
     '  skill-doctor context enable|disable --id <resource-id> [--platform codex] [--codex-config path] [--json]',
+    '  skill-doctor context control --report <report.json> --kind <skills_instructions|recommended_plugins|recommendations> --id <catalog-id> --action enable|disable [--confirm <preview-digest>]',
+    '  skill-doctor context control --undo <operation-id> --confirm <operation-id>',
     '  skill-doctor diff <skill-a> <skill-b> [--report [path]]',
     '  skill-doctor ui [project-dir] [--port N] [--no-open]',
     '  skill-doctor dashboard [--scope project|global|all] [--report [path]] [--open]',
@@ -1627,10 +1721,10 @@ function readBenefitSince(args: string[]): number | 'invalid' {
   return Number.isFinite(parsed) ? parsed : 'invalid';
 }
 
-function readBenefitFormat(args: string[]): 'text' | 'json' | 'html' | 'invalid' {
+function readBenefitFormat(args: string[]): 'text' | 'json' | 'html' | 'csv' | 'invalid' {
   const value = readFlagValue(args, '--format');
   if (value === null || value === 'text') return 'text';
-  if (value === 'json' || value === 'html') return value;
+  if (value === 'json' || value === 'html' || value === 'csv') return value;
   return 'invalid';
 }
 
