@@ -96,6 +96,11 @@
   "benefit.emptyHistory": "还没有项目历史建议",
   "benefit.emptyPlan": "还没有方案收益报告",
   "benefit.historyPageSubtitle": "先审阅建议，再决定是否在当前项目预览配置修改。",
+  "benefit.codexOnly": "仅支持 Codex",
+  "benefit.codexOnlyTitle": "历史优化建议目前仅支持 Codex",
+  "benefit.codexOnlyDetail": "当前 Agent 仍可查看静态上下文占用；切换到 Codex 后才能分析项目历史和收益依据。",
+  "benefit.reportStale": "报告需要更新",
+  "benefit.reportStaleDetail": "当前项目、扫描设置或上下文快照已变化。报告仍保留供参考；重新分析或重新确认时请以当前配置预览为准。",
   "benefit.historyKicker": "结论",
   "benefit.historyResponseSuffix": "模型响应",
   "benefit.historyBlockBreakdown": "Skill {{skills}} · 推荐插件 {{plugins}}；是目录描述差值，不是已实现节省。",
@@ -199,16 +204,17 @@
   "benefit.agentPromptLabel": "可复制提示词",
   "benefit.agentNoExecution": "复制不表示已经启动 Agent，也不表示已授权禁用；提示词保留在本地。",
   "nav.overview": "总览",
-  "nav.issues": "待处理",
-  "nav.context": "上下文成本",
-  "nav.benefit": "收益预估",
+  "nav.issues": "问题",
+  "nav.context": "上下文优化",
+  "nav.benefit": "上下文优化",
   "nav.resources": "资源清单",
-  "nav.history": "历史趋势",
+  "nav.history": "扫描记录",
   "nav.scanPaths": "扫描路径",
   "nav.manage": "技能库",
   "nav.group.diagnose": "诊断",
   "nav.group.library": "资源库",
-  "nav.group.resources": "资源",
+  "nav.group.resources": "资源管理",
+  "nav.group.currentProject": "当前项目",
   "nav.group.manage": "运维",
   "language.switchToEnglish": "切换到 English",
   "language.switchToChinese": "切换到简体中文",
@@ -309,6 +315,28 @@
   "overview.danger": "急需处理",
   "overview.incomplete": "扫描结果不完整",
   "overview.incompleteDetail": "发现 {{count}} 条扫描警告，请先查看页面顶部的提示后再判断健康状态。",
+  "overview.title": "项目总览",
+  "overview.issuesDetail": "有 {{count}} 项明确问题需要处理。",
+  "overview.coverageDetail": "有 {{count}} 项上下文内容暂无法估算；这属于信息缺口，不计入问题数。",
+  "overview.nextKicker": "下一步",
+  "overview.nextTitle": "先做最重要的决定",
+  "overview.nextIssues": "查看问题",
+  "overview.nextIssuesDetail": "先处理 {{count}} 项明确问题；信息缺口不会计入这里。",
+  "overview.nextContext": "查看当前占用",
+  "overview.nextContextDetail": "查看当前占用、未计入内容和估算覆盖范围。",
+  "overview.nextOptimization": "审阅优化机会",
+  "overview.nextOptimizationDetail": "有 {{count}} 项可控资源值得审阅。",
+  "overview.nextResources": "查看资源清单",
+  "overview.nextResourcesDetail": "先了解当前配置来源和生效范围。",
+  "overview.actionable": "明确问题",
+  "overview.actionableDetail": "没有明确问题",
+  "overview.fixedContext": "可估算固定占用",
+  "overview.fixedDetail": "按需加载 {{activation}}；未计入 {{unknown}} 项。",
+  "overview.contextUnavailable": "当前扫描未提供可用上下文估算",
+  "overview.optimization": "优化机会",
+  "overview.optimizationUnavailable": "没有可用的静态可控性证据",
+  "overview.optimizationDetail": "可从当前占用进入审阅调整",
+  "overview.priorityTitle": "优先处理",
   "drawer.reduceContext": "降低上下文成本",
   "drawer.reduceContextDetail": "禁用后会更新本地 Codex 配置；开始新会话或重启 Codex 后生效。",
   "drawer.disableResource": "禁用 {{name}}",
@@ -324,23 +352,46 @@
   "overview.quadrant.detail.conflicts": "{{count}} 项冲突",
   "overview.quadrant.detail.duplicates": "{{count}} 项重复",
   "overview.quadrant.detail.context": "固定 + 按需激活 tokens",
-  "issues.title": "待处理",
-  "issues.subtitle": "安全、冲突、重复和成本问题统一排序。",
+  "issues.title": "问题",
+  "issues.subtitle": "默认显示需要采取行动的问题；信息缺口可切换到提示。",
   "issues.count": "{{count}} 项",
   "issues.search": "搜索问题或资源",
   "issues.allTypes": "全部类型",
   "issues.allLevels": "全部等级",
+  "issues.actionable": "需处理",
   "issues.problem": "问题",
   "issues.type": "类型",
   "issues.level": "等级",
   "issues.resource": "资源",
   "issues.empty": "没有匹配的问题",
-  "context.title": "上下文成本",
-  "context.subtitle": "固定成本与按需激活成本分开计算，避免误判。",
+  "context.title": "当前占用",
+  "context.subtitle": "只展示当前配置中可估算的固定占用；按需加载和未计入内容单独列出。",
   "context.overBudget": "超过预算",
   "context.withinBudget": "预算内",
   "context.fixed": "每轮固定成本",
   "context.activation": "按需激活成本",
+  "context.tokensPerTurn": "可估算 Token / 轮",
+  "context.activationDetail": "按需内容，未与固定占用相加",
+  "context.notIncluded": "未计入的内容",
+  "context.notIncludedDetail": "未知或不支持估算",
+  "context.sourceDetail": "来源：当前扫描快照；目录汇总行的子项不会重复计入总数。",
+  "context.openResource": "查看资源 {{name}}",
+  "context.aggregate": "汇总 {{count}} 项",
+  "context.showSources": "聚合来源（{{count}}）",
+  "context.tokens": "tokens",
+  "context.notIncludedShort": "未计入",
+  "context.reviewAdjust": "审阅调整",
+  "context.reviewAdjustFor": "审阅调整 {{name}}",
+  "context.optimizationLabel": "上下文优化",
+  "context.views": "上下文优化视图",
+  "context.view.current": "当前占用",
+  "context.view.currentDetail": "查看可估算固定占用、按需内容和覆盖缺口",
+  "context.view.recommendations": "优化建议",
+  "context.view.recommendationsDetail": "审阅保留、调整和待核实项目",
+  "context.view.evidence": "收益依据",
+  "context.view.evidenceDetail": "查看历史范围、基线与假设模拟",
+  "context.unavailable": "未提供估算",
+  "context.partial": "估算覆盖不完整",
   "context.budget": "预算",
   "context.grade": "评级 {{grade}}",
   "context.details": "资源成本明细",
@@ -409,6 +460,9 @@
   "benefit.allModels": "全部模型",
   "benefit.allSessions": "全部会话",
   "benefit.allTurns": "全部轮次",
+  "benefit.responseModel": "响应模型",
+  "benefit.responseSession": "响应会话",
+  "benefit.responseTurn": "响应轮次",
   "benefit.response": "响应",
   "benefit.model": "模型",
   "benefit.turn": "轮次",
@@ -607,6 +661,8 @@
   "center.refresh": "刷新",
   "center.search": "搜索 skill...",
   "center.filterAll": "全部来源",
+  "center.filterSource": "按来源筛选",
+  "center.filterStatus": "按状态筛选",
   "center.filterManaged": "已受管",
   "center.filterPhysical": "未受管",
   "center.statusAll": "任意状态",
@@ -868,19 +924,23 @@
   ,"validation.missingPath": "{{path}} 缺少路径。"
   ,"validation.invalidScope": "{{path}} scope 无效。"
   ,"validation.invalidMcpFormat": "{{path}} MCP format 必须是 json 或 toml。"
-  ,"history.title": "扫描历史与基线"
-  ,"history.detail": "所有快照仅保存于本机，可直接比较本次扫描与过去基线。"
+  ,"history.title": "扫描记录"
+  ,"history.detail": "仅比较同项目、同 Agent、同范围且估算口径兼容的扫描记录。"
   ,"history.empty": "还没有历史快照"
   ,"history.emptyDetail": "完成一次扫描后，这里会保留可比较的本地记录。"
   ,"history.compareTitle": "与基线比较"
   ,"history.current": "当前扫描：{{time}}"
   ,"history.noCurrent": "请先完成一次扫描。"
   ,"history.baseline": "基线快照"
+  ,"history.noComparable": "没有同项目、同 Agent、同范围且口径兼容的可比基线。"
+  ,"history.incompatibleCount": "{{count}} 条记录因项目、Agent、范围或估算口径不同未参与比较。"
   ,"history.compare": "比较差异"
   ,"history.newIssues": "新增问题"
   ,"history.resolvedIssues": "已解决 {{count}} 项"
   ,"history.resources": "资源变化"
   ,"history.contextTokens": "上下文 Token 变化"
+  ,"history.fixedContextTokens": "固定上下文变化"
+  ,"history.activationTokens": "按需加载变化"
   ,"history.fromTo": "{{before}} → {{after}}"
   ,"history.saved": "已保存的快照"
   ,"history.retention": "本地最多保留最近 30 条扫描记录。"

@@ -261,7 +261,7 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
 ## `ui` — Launch the web dashboard
 
 - **Scenario**
-  - Prefer a clickable web UI — overview, conflicts, context cost, skill library at a glance. `ui` starts a local web server with session auth.
+  - Prefer a clickable web UI — overview, issues, context optimization, and skill library at a glance. `ui` starts a local web server with session auth.
 - **Usage**
   ```bash
   skill-doctor ui --port 4173 --no-open

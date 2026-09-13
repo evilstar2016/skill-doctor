@@ -63,7 +63,7 @@ Or launch the complete local product UI:
 npx @evilstar2025/skill-doctor ui
 ```
 
-The browser UI includes the health overview, unified issue queue, context cost, resource inventory, details and comparisons, Codex resource controls, duplicate cleanup, managed skill installs, and static report export. It only binds to the loopback interface and uses a temporary authenticated session.
+The browser UI includes the health overview, unified issue queue, context optimization (current usage, historical recommendations, and evidence), resource inventory, details and comparisons, Codex resource controls, duplicate cleanup, managed skill installs, and static report export. It only binds to the loopback interface and uses a temporary authenticated session.
 
 If it finds skills, run the deeper local checks:
 

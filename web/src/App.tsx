@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard, Gauge,
+  Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
   Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, History, Info, LayoutDashboard, LoaderCircle, Menu,
   PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Trash2, X,
 } from 'lucide-react';
@@ -18,19 +18,18 @@ import {
 } from './api';
 import { OverviewPage as OverviewPageView } from './pages/OverviewPage';
 import { IssuesPage as IssuesPageView } from './pages/IssuesPage';
-import { ContextPage as ContextPageView } from './pages/ContextPage';
 import { ResourcesPage as ResourcesPageView } from './pages/ResourcesPage';
 import { ManagePage as ManagePageView } from './pages/ManagePage';
 import { ScanPathsPage as ScanPathsPageView } from './pages/ScanPathsPage';
 import { HistoryPage as HistoryPageView } from './pages/HistoryPage';
-import { BenefitPage as BenefitPageView } from './pages/BenefitPage';
+import { ContextOptimizationPage as ContextOptimizationPageView, type ContextOptimizationView } from './pages/ContextOptimizationPage';
 import { Detail, EmptyRows, FilterBar, HelpTip, InlineNotice, IssueCard, LaunchScreen, LoadingLine, PageHeading, PlatformIcon, ResourceStatus, ScanningEmpty, SettingSwitch, SeverityBadge, StatCard, StatusPill, activationLabel, copyText, kindLabel, platformLabel, resourceKindLabel, scopeLabel, severityLabel, shortPath, translateResultText } from './components/ui';
 import { I18nProvider, useTranslation } from './i18n';
 import { useTheme, type Theme } from './theme-manager';
 import { ThemeToggle } from './components/ThemeToggle';
 import { SkillDoctorLogo } from './components/SkillDoctorLogo';
 
-type Route = 'overview' | 'issues' | 'context' | 'benefit' | 'resources' | 'history' | 'manage' | 'scan-paths';
+type Route = 'overview' | 'issues' | 'context' | 'resources' | 'history' | 'manage' | 'scan-paths';
 type ColorTheme = 'teal' | 'cyan';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
 type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
@@ -42,21 +41,19 @@ const DEFAULT_SCAN: ScanRequest = {
   budgetTokens: 2000, tokenizer: 'openai', tokenizerModel: 'gpt-4o',
 };
 
-const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.diagnose' | 'nav.group.library'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.benefit' | 'nav.resources' | 'nav.history' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
-  { id: 'diagnose', labelKey: 'nav.group.diagnose', items: [
+const NAV_GROUPS: Array<{ id: string; labelKey: 'nav.group.currentProject' | 'nav.group.resources'; items: Array<{ id: Route; labelKey: 'nav.overview' | 'nav.issues' | 'nav.context' | 'nav.resources' | 'nav.history' | 'nav.manage'; icon: typeof LayoutDashboard }> }> = [
+  { id: 'current-project', labelKey: 'nav.group.currentProject', items: [
     { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
     { id: 'issues', labelKey: 'nav.issues', icon: Activity },
     { id: 'context', labelKey: 'nav.context', icon: BarChart3 },
-    { id: 'benefit', labelKey: 'nav.benefit', icon: Gauge },
-    { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
     { id: 'history', labelKey: 'nav.history', icon: History },
   ]},
-  { id: 'library', labelKey: 'nav.group.library', items: [
+  { id: 'resources', labelKey: 'nav.group.resources', items: [
+    { id: 'resources', labelKey: 'nav.resources', icon: Boxes },
     { id: 'manage', labelKey: 'nav.manage', icon: PackagePlus },
   ]},
 ];
-const ROUTES = NAV_GROUPS.flatMap((group) => group.items);
-const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'benefit', 'resources', 'history', 'manage', 'scan-paths'];
+const VALID_ROUTES: Route[] = ['overview', 'issues', 'context', 'resources', 'history', 'manage', 'scan-paths'];
 
 export default function App() {
   return <I18nProvider><AppContent /></I18nProvider>;
@@ -65,6 +62,7 @@ export default function App() {
 function AppContent() {
   const { locale, setLocale, t } = useTranslation();
   const [route, setRoute] = useState<Route>(() => routeFromHash());
+  const [contextView, setContextView] = useState<ContextOptimizationView>(() => contextViewFromHash());
   const [theme, setTheme] = useTheme();
   const [colorTheme, setColorTheme] = useState<ColorTheme>(() => (localStorage.getItem('skill-doctor-color-theme') as ColorTheme) || 'teal');
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
@@ -92,7 +90,10 @@ function AppContent() {
   }, [colorTheme]);
 
   useEffect(() => {
-    const update = () => setRoute(routeFromHash());
+    const update = () => {
+      setRoute(routeFromHash());
+      setContextView(contextViewFromHash());
+    };
     window.addEventListener('hashchange', update);
     return () => window.removeEventListener('hashchange', update);
   }, []);
@@ -182,11 +183,31 @@ function AppContent() {
     return () => window.removeEventListener('keydown', closeTopmost);
   }, [compare, selectedResource, selectedIssue, settingsOpen]);
 
-  const navigate = (next: Route) => { window.location.hash = `/${next}`; setRoute(next); };
+  const navigate = (next: Route) => {
+    const hash = next === 'context' && contextView !== 'current' ? `/context?view=${contextView}` : `/${next}`;
+    window.location.hash = hash;
+    setRoute(next);
+  };
+  const navigateContextView = (nextView: ContextOptimizationView) => {
+    setContextView(nextView);
+    window.location.hash = nextView === 'current' ? '/context' : `/context?view=${nextView}`;
+    setRoute('context');
+  };
   const openResource = async (resource: UiResource) => {
     setSelectedResource(resource); setResourceDetail(null);
     try { setResourceDetail(await getResourceDetail(resource.id)); }
     catch (nextError) { setError(nextError instanceof Error ? nextError.message : String(nextError)); }
+  };
+  const reviewContextResource = (resource: UiResource) => {
+    if (!resource.controlId || resource.sourcePaths?.length) return;
+    const enabling = resource.enabled === false;
+    if (!window.confirm(t('context.toggleConfirm', { action: t(enabling ? 'context.enable' : 'context.disable'), name: resource.name }))) return;
+    void toggleContextResource(resource.controlId, enabling).then((result) => {
+      setToast(result.requiresNewSession ? t('context.updatedNewSession') : result.message);
+      setSelectedResource(null);
+      setResourceDetail(null);
+      refresh();
+    }).catch((nextError) => setError(nextError instanceof Error ? nextError.message : String(nextError)));
   };
   const refresh = () => void runScan(scanOptions);
   const chooseAnalysisMode = (mode: AnalysisMode) => {
@@ -203,7 +224,6 @@ function AppContent() {
       <Sidebar route={route} navigate={navigate} snapshot={snapshot} />
       <main className="main-area">
         <Topbar
-          route={route}
           bootstrap={bootstrap}
           scan={scan}
           scanOptions={scanOptions}
@@ -236,21 +256,24 @@ function AppContent() {
           toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
         {error && <InlineNotice kind="danger" title={t('notice.incomplete')} onClose={() => setError(null)}>{error}</InlineNotice>}
-        {analysisMode === 'standard' && route !== 'overview' && route !== 'benefit' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
-        {route !== 'benefit' && snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
+        {analysisMode === 'standard' && route !== 'overview' && route !== 'context' && <InlineNotice kind="info" title={t('scanScope.standardTitle')}>{t('scanScope.standardDetail')}</InlineNotice>}
+        {snapshot?.target.platform === null && <InlineNotice kind="info" title={t('notice.crossAgent')}>{t('notice.crossAgentDetail')}</InlineNotice>}
         {snapshot?.warnings.map((warning) => <InlineNotice key={warning.id} kind="warning" title={warning.phase}>{translateResultText(warning.message, t)}</InlineNotice>)}
         <div className="page-container">
-          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} runScan={refresh} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigate('context')} />}
+          {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} runScan={refresh} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigateContextView('current')} navigateToOptimization={() => navigateContextView('recommendations')} />}
           {route === 'issues' && <IssuesPageView snapshot={snapshot} openIssue={setSelectedIssue} />}
-          {route === 'context' && <ContextPageView snapshot={snapshot} openResource={openResource} onToggle={async (item) => {
+          <ContextOptimizationPageView active={route === 'context'} view={contextView} setView={navigateContextView} snapshot={snapshot} projectDir={scanOptions.projectDir} platform={scanOptions.platform} snapshotId={snapshot?.id} tokenizer={scanOptions.tokenizer} tokenizerModel={scanOptions.tokenizerModel} openResource={openResource} onToggle={async (item) => {
             if (!item.id) return;
             const enabling = item.enabled === false;
             if (!window.confirm(t('context.toggleConfirm', { action: t(enabling ? 'context.enable' : 'context.disable'), name: item.name }))) return;
-            const result = await toggleContextResource(item.id, enabling);
-            setToast(result.requiresNewSession ? t('context.updatedNewSession') : result.message);
-            refresh();
-          }} />}
-          {route === 'benefit' && <BenefitPageView projectDir={scanOptions.projectDir} tokenizer={scanOptions.tokenizer} tokenizerModel={scanOptions.tokenizerModel} />}
+            try {
+              const result = await toggleContextResource(item.id, enabling);
+              setToast(result.requiresNewSession ? t('context.updatedNewSession') : result.message);
+              refresh();
+            } catch (nextError) {
+              setError(nextError instanceof Error ? nextError.message : String(nextError));
+            }
+          }} />
           {route === 'resources' && <ResourcesPageView snapshot={snapshot} openResource={openResource} />}
           {route === 'history' && <HistoryPageView snapshot={snapshot} />}
           {route === 'scan-paths' && <ScanPathsPageView
@@ -326,6 +349,7 @@ function AppContent() {
         close={() => { setSelectedResource(null); setResourceDetail(null); }}
         openIssue={(issue) => { setSelectedResource(null); setSelectedIssue(issue); }}
         onManageSkill={(name) => navigate('manage')}
+        onToggleResource={reviewContextResource}
       />}
       {compare && <CompareDialog state={compare} snapshot={snapshot} setState={setCompare} close={() => setCompare(null)} />}
       {toast && <div className="toast"><Check size={17} />{toast}</div>}
@@ -336,24 +360,25 @@ function AppContent() {
 function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route: Route) => void; snapshot: DoctorSnapshot | null }) {
   const { t } = useTranslation();
   const incomplete = snapshot?.status === 'partial' || (snapshot?.warnings.length ?? 0) > 0;
-  const health = snapshot ? (snapshot.summary.high > 0 ? 'danger' : snapshot.summary.issues > 0 || incomplete ? 'warning' : 'success') : 'idle';
+  const issueCount = snapshot?.issues.filter((issue) => issue.severity !== 'info').length ?? 0;
+  const health = snapshot ? (snapshot.summary.high > 0 ? 'danger' : issueCount > 0 || incomplete ? 'warning' : 'success') : 'idle';
   const healthLabel = snapshot
     ? snapshot.summary.high > 0 ? t('sidebar.health.attention')
-    : snapshot.summary.issues > 0 || incomplete ? t('sidebar.health.review')
+    : issueCount > 0 || incomplete ? t('sidebar.health.review')
     : t('sidebar.health.ok')
     : t('sidebar.health.waiting');
   return <aside className="sidebar">
     <div className="brand"><SkillDoctorLogo className="brand-mark" size={32} alt="" /><span>Skill Doctor</span></div>
     {snapshot && <div className={`sidebar-health ${health}`}>
       <span className="health-dot" />
-      <div><strong>{healthLabel}</strong><span>{snapshot.summary.issues ? t('sidebar.health.issues', { count: snapshot.summary.issues }) : incomplete ? t('sidebar.health.partial', { count: snapshot.warnings.length }) : t('sidebar.health.clean')}</span></div>
+      <div><strong>{healthLabel}</strong><span>{issueCount ? t('sidebar.health.issues', { count: issueCount }) : incomplete ? t('sidebar.health.partial', { count: snapshot.warnings.length }) : t('sidebar.health.clean')}</span></div>
     </div>}
     <nav className="nav-list" aria-label={t('nav.overview')}>
       {NAV_GROUPS.map((group) => <div className="nav-group" key={group.id}>
         <span className="nav-group-label">{t(group.labelKey)}</span>
         {group.items.map(({ id, labelKey, icon: Icon }) => <button key={id} className={`nav-item ${route === id ? 'active' : ''}`} onClick={() => navigate(id)}>
           <Icon size={18} /><span>{t(labelKey)}</span>
-          {id === 'issues' && snapshot && snapshot.summary.issues > 0 && <span className="nav-count">{snapshot.summary.issues}</span>}
+          {id === 'issues' && issueCount > 0 && <span className="nav-count">{issueCount}</span>}
         </button>)}
       </div>)}
     </nav>
@@ -362,7 +387,6 @@ function Sidebar({ route, navigate, snapshot }: { route: Route; navigate: (route
 }
 
 function Topbar(props: {
-  route: Route;
   bootstrap: BootstrapPayload | null; scan: ScanState;
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
@@ -371,11 +395,10 @@ function Topbar(props: {
 }) {
   const { t } = useTranslation();
   const { bootstrap, scan, scanOptions, setScanOptions } = props;
-  const benefitRoute = props.route === 'benefit';
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const deepAvailable = Boolean(bootstrap?.capabilities.aiAuditConfigured || bootstrap?.capabilities.embeddingConfigured);
-  return <><header className={`topbar ${benefitRoute ? 'topbar-benefit' : ''}`}>
-    {benefitRoute ? <div className="target-block topbar-benefit-context"><span className="eyebrow">{t('benefit.agentLabel')}</span><span className="scan-message">Codex · {t('benefit.projectOnly')}</span></div> : <div className="target-block">
+  return <><header className="topbar">
+    <div className="target-block">
       <span className="eyebrow">{t('topbar.target')}</span>
       <div className="target-row">
         <select value={scanOptions.scope} onChange={(event) => setScanOptions({ ...scanOptions, scope: event.target.value as ScanRequest['scope'] })} aria-label={t('topbar.scope')}>
@@ -385,9 +408,9 @@ function Topbar(props: {
       </div>
       {scan.running && <div className="scan-progress"><span style={{ width: `${scan.progress}%` }} /></div>}
       <span className="scan-message">{scan.running ? scan.message : scanStatusMessage(scan.status, t)}</span>
-    </div>}
+    </div>
     <div className="top-actions">
-      {!benefitRoute && <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>}
+      <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>
       <button className="icon-button" onClick={props.toggleLocale} aria-label={props.locale === 'zh-CN' ? t('language.switchToEnglish') : t('language.switchToChinese')}>{props.locale === 'zh-CN' ? 'EN' : 'ZH'}</button>
       <div className="color-theme-control">
         <button className="icon-button" onClick={() => setColorMenuOpen((value) => !value)} aria-label={t('topbar.themeColor')} aria-haspopup="menu" aria-expanded={colorMenuOpen}><Palette size={18} /></button>
@@ -406,12 +429,12 @@ function Topbar(props: {
         </>}
       </div>
       <ThemeToggle value={props.theme} onChange={props.setTheme} />
-      {!benefitRoute && <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>}
-      {!benefitRoute && (scan.running
+      <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>
+      {(scan.running
         ? <button className="button secondary" onClick={props.cancel}><X size={17} />{t('topbar.cancel')}</button>
         : <button className="button primary" onClick={props.runScan}><RefreshCw size={17} />{t('topbar.rescan')}</button>)}
     </div>
-  </header>{!benefitRoute && <div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}><PlatformIcon platform={agent.platform} size={16} />{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div>}</>;
+  </header><div className="agent-bar" aria-label={t('topbar.agents')}><span>{t('topbar.agent')}</span><div className="agent-tabs">{[...props.detectedAgents].sort((left, right) => Number(right.projectDetected) - Number(left.projectDetected)).map((agent) => <button key={agent.platform} className={scanOptions.platform === agent.platform ? 'active' : ''} onClick={() => props.selectAgent(agent.platform)}><PlatformIcon platform={agent.platform} size={16} />{agent.displayName}{agent.projectDetected && <small>{t('topbar.project')}</small>}</button>)}<button className={`agent-overview ${scanOptions.platform === 'all' ? 'active' : ''}`} onClick={() => props.selectAgent('all')}>{t('topbar.overview')}</button></div></div></>;
 }
 
 
@@ -588,15 +611,17 @@ function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, t
   </Drawer>;
 }
 
-function ResourceDrawer({ resource, detail, close, openIssue, onManageSkill }: { resource: UiResource; detail: ResourceDetailPayload | null; close: () => void; openIssue: (issue: UiIssue) => void; onManageSkill?: (name: string) => void }) {
+function ResourceDrawer({ resource, detail, close, openIssue, onManageSkill, onToggleResource }: { resource: UiResource; detail: ResourceDetailPayload | null; close: () => void; openIssue: (issue: UiIssue) => void; onManageSkill?: (name: string) => void; onToggleResource?: (resource: UiResource) => void }) {
   const { t } = useTranslation();
+  const estimateKnown = resource.estimateStatus !== 'unknown' && resource.estimateStatus !== 'unsupported';
   return <Drawer title={resource.name} subtitle={`${resource.kindLabel} · ${resource.shared ? t('drawer.sharedSubtitle', { count: resource.consumers.length }) : platformLabel(resource.platform)} · ${scopeLabel(resource.scope, t)}`} close={close}>
     <div className="resource-hero"><div><ResourceStatus status={resource.status} count={resource.issueIds.length} />{resource.shared && <span className="shared-badge">{t('drawer.shared')}</span>}</div><p>{translateResultText(resource.description || resource.recommendation || t('drawer.noDescription'), t)}</p></div>
-    <div className="detail-grid"><Detail label={t('drawer.activation')} value={activationLabel(resource.activation, t)} /><Detail label={t('drawer.fixed')} value={`${resource.fixedTokens} tokens`} /><Detail label={t('drawer.onDemand')} value={`${resource.activationTokens} tokens`} /><Detail label={t('drawer.controllable')} value={resource.controllable ? t('drawer.supported') : t('drawer.readonly')} /></div>
-    {resource.shared && <div className="drawer-section"><h4>{t('drawer.consumers')}</h4><p className="shared-impact">{t('drawer.consumerImpact', { count: resource.consumers.length })}</p><div className="consumer-list">{resource.consumers.map((consumer) => <div key={`${consumer.platform}:${consumer.scope}`}><PlatformIcon platform={consumer.platform} /><span><strong>{platformLabel(consumer.platform)}</strong><small>{scopeLabel(consumer.scope, t)} · {activationLabel(consumer.activation, t)}{consumer.enabled === false ? ` · ${t('drawer.disabled')}` : ''}</small></span><code>{consumer.fixedTokens === undefined || consumer.activationTokens === undefined ? t('drawer.notCalculated') : `${consumer.fixedTokens + consumer.activationTokens} tokens`}</code></div>)}</div></div>}
+    <div className="detail-grid"><Detail label={t('drawer.activation')} value={activationLabel(resource.activation, t)} /><Detail label={t('drawer.fixed')} value={estimateKnown ? `${resource.fixedTokens} tokens` : '—'} /><Detail label={t('drawer.onDemand')} value={estimateKnown ? `${resource.activationTokens} tokens` : '—'} /><Detail label={t('drawer.controllable')} value={resource.controllable ? t('drawer.supported') : t('drawer.readonly')} /></div>
+    {resource.shared && <div className="drawer-section"><h4>{t('drawer.consumers')}</h4><p className="shared-impact">{t('drawer.consumerImpact', { count: resource.consumers.length })}</p><div className="consumer-list">{resource.consumers.map((consumer) => <div key={`${consumer.platform}:${consumer.scope}`}><PlatformIcon platform={consumer.platform} /><span><strong>{platformLabel(consumer.platform)}</strong><small>{scopeLabel(consumer.scope, t)} · {activationLabel(consumer.activation, t)}{consumer.enabled === false ? ` · ${t('drawer.disabled')}` : ''}</small></span><code>{!estimateKnown || consumer.fixedTokens === undefined || consumer.activationTokens === undefined ? t('drawer.notCalculated') : `${consumer.fixedTokens + consumer.activationTokens} tokens`}</code></div>)}</div></div>}
     <div className="drawer-section"><h4>{resource.sourcePaths?.length ? t('drawer.sources', { count: resource.sourcePaths.length }) : t('drawer.source')}</h4>{(resource.sourcePaths ?? [resource.sourcePath]).map((path) => <div className="path-box" key={path}><code>{path}</code><button onClick={() => void navigator.clipboard.writeText(path)}><Clipboard size={14} /></button></div>)}{resource.configSource && <Detail label={t('drawer.configSource')} value={resource.configSource} />}{resource.installSource && <Detail label={t('drawer.installSource')} value={resource.installSource} />}{resource.repository && <Detail label={t('drawer.repository')} value={resource.repository} />}{resource.author && <Detail label={t('drawer.author')} value={resource.author} />}</div>
     <div className="drawer-section"><h4>{t('drawer.triggers')}</h4><div className="tag-list">{resource.triggers.length ? resource.triggers.map((trigger) => <span key={trigger}>{trigger}</span>) : <span className="muted">{t('drawer.noTriggers')}</span>}</div></div>
     <div className="drawer-section"><h4>{t('drawer.issues')}</h4>{detail ? <div className="linked-issues">{detail.issues.map((issue) => <button key={issue.id} onClick={() => openIssue(issue)}><SeverityBadge severity={issue.severity} /><span>{translateResultText(issue.title, t)}</span><ArrowRight size={15} /></button>)}{!detail.issues.length && <p className="muted">{t('drawer.noIssues')}</p>}</div> : <LoadingLine />}</div>
+    {onToggleResource && resource.controllable && resource.controlId && !resource.sourcePaths?.length && <div className="drawer-section"><button className="button secondary full" onClick={() => onToggleResource(resource)}>{t('context.reviewAdjust')}</button></div>}
     {detail?.skill?.relatedSkills?.length ? <div className="drawer-section"><h4>{t('drawer.related')}</h4><div className="related-list">{detail.skill.relatedSkills.map((related) => <div key={related.name}><code>{related.name}</code><span>{t('drawer.similar', { percent: Math.round(related.similarity * 100) })}</span></div>)}</div></div> : null}
     {onManageSkill && <div className="drawer-section"><button className="button secondary full" onClick={() => onManageSkill(resource.name)}><PackagePlus size={15} />{t('resources.manageSkill')}</button></div>}
   </Drawer>;
@@ -639,7 +664,18 @@ function scanStatusMessage(status: ScanState['status'], t: ReturnType<typeof use
   const key = { preparing: 'status.preparing', complete: 'status.complete', partial: 'status.partial', failed: 'status.failed', cancelled: 'status.cancelled' } as const;
   return t(key[status]);
 }
-function routeFromHash(): Route { const value = window.location.hash.replace(/^#\//, '') as Route; return (VALID_ROUTES as string[]).includes(value) ? value : 'overview'; }
+function routeFromHash(): Route {
+  const path = window.location.hash.replace(/^#\//, '').split('?', 1)[0];
+  if (path === 'benefit') return 'context';
+  return (VALID_ROUTES as string[]).includes(path) ? path as Route : 'overview';
+}
+function contextViewFromHash(): ContextOptimizationView {
+  const raw = window.location.hash.replace(/^#\//, '');
+  const [path, query = ''] = raw.split('?', 2);
+  if (path === 'benefit') return 'recommendations';
+  const view = new URLSearchParams(query).get('view');
+  return view === 'recommendations' || view === 'evidence' ? view : 'current';
+}
 function initialScanOptions(payload: BootstrapPayload): ScanRequest {
   const preference = loadProjectPreference(payload.projectDir);
   const available = new Set(payload.detectedAgents.map((agent) => agent.platform));

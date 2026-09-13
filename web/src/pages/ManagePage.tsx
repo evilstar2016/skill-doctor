@@ -233,10 +233,10 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
       <section className="managed-section">
         <div className="library-section-heading"><h2>{t('center.managedLibrary')}</h2><p>{t('center.managedLibraryHint')}</p></div>
         <FilterBar query={query} setQuery={setQuery} placeholder={t('center.search')}>
-          <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as SourceFilter)}>
+          <select aria-label={t('center.filterSource')} value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as SourceFilter)}>
             <option value="all">{t('center.filterAll')}</option><option value="managed">{t('center.filterManaged')}</option><option value="physical">{t('center.filterPhysical')}</option><option value="local">local</option><option value="github">github</option><option value="marketplace">marketplace</option><option value="agent-import">agent-import</option>
           </select>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+          <select aria-label={t('center.filterStatus')} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
             <option value="all">{t('center.statusAll')}</option><option value="synced">{t('center.status.synced')}</option><option value="outdated">{t('center.status.outdated')}</option><option value="modified">{t('center.status.modified')}</option><option value="missing">{t('center.status.missing')}</option><option value="conflict">{t('center.status.conflict')}</option>
           </select>
         </FilterBar>
@@ -275,7 +275,7 @@ function PendingGroup({ platform, candidates, selected, onToggle, onReclaim, onR
       {candidates.map((candidate) => {
         const conflict = candidate.status === 'same-name-different-content';
         return <div className="pending-table-row center-row" role="row" tabIndex={0} key={candidate.id} onClick={() => onOpen(candidate)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onOpen(candidate); }}>
-          <label className="row-check" onClick={(event) => event.stopPropagation()}><input type="checkbox" disabled={conflict} checked={selected.has(candidate.id)} onChange={() => onToggle(candidate.id)} /></label>
+          <label className="row-check" onClick={(event) => event.stopPropagation()}><input aria-label={`${t('center.colName')}: ${candidate.name}`} type="checkbox" disabled={conflict} checked={selected.has(candidate.id)} onChange={() => onToggle(candidate.id)} /></label>
           <span className="pending-skill-name"><Boxes size={18} /><code>{candidate.name}</code></span>
           <span>{platformLabel(candidate.platform)} · {shortPath(candidate.rootPath)}</span>
           <span><em className={`scope-chip ${candidate.scope}`}>{scopeLabel(candidate.scope, t)}</em></span>
@@ -380,7 +380,7 @@ function CenterRowItem({ row, selected, onToggle, onOpen, onReclaim, onDeploy, b
   const installations = managed ? row.skill.installations : [];
   return (
     <div className={`center-row ${selected ? 'selected' : ''} ${managed ? '' : 'physical'}`} onClick={onOpen}>
-      <label className="row-check" onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected} onChange={onToggle} /></label>
+      <label className="row-check" onClick={(event) => event.stopPropagation()}><input aria-label={`${t('center.colName')}: ${name}`} type="checkbox" checked={selected} onChange={onToggle} /></label>
       <span className="row-name"><code>{name}</code>{!managed && <em className="unmanaged-tag">{t('center.unmanaged')}</em>}</span>
       <span className="row-source">{managed ? <SourceBadge source={row.skill.sourceType} /> : <PhysicalStatusBadge status={row.candidate.status} />}</span>
       <span className="row-installs">{installations.length === 0 ? <small className="muted">{managed ? t('center.notInstalled') : t('center.physicalOnly')}</small> : installations.map((installation) => <StatusBadge key={installation.deploymentId} status={installation.status} label={platformLabel(installation.platform)} />)}</span>
@@ -565,7 +565,7 @@ function DeploymentDialog({ skill, onClose, onDeployed, setToast }: { skill: Cen
           const targetPreview = activeTarget ? previewByTarget.get(activeTarget.targetId) : undefined;
           const occupied = activeTarget && targetPreview?.state === 'occupied';
           return <div className={`deployment-target-card ${activeTarget ? 'selected' : ''}`} key={group.platform}>
-            <label className="deployment-target-main"><input type="checkbox" checked={Boolean(activeTarget)} onChange={() => toggleTargetGroup(group)} /><PlatformIcon platform={group.platform} size={20} /><strong>{platformLabel(group.platform)}</strong></label>
+            <label className="deployment-target-main"><input type="checkbox" aria-label={`${t('center.selectTargets')}: ${platformLabel(group.platform)}`} checked={Boolean(activeTarget)} onChange={() => toggleTargetGroup(group)} /><PlatformIcon platform={group.platform} size={20} /><strong>{platformLabel(group.platform)}</strong></label>
             <div className="deployment-scope-controls">{group.targets.map((target) => <button type="button" className={activeTarget?.targetId === target.targetId ? 'active' : ''} key={target.targetId} onClick={() => selectTargetScope(group, target)}>{scopeLabel(target.scope, t)}</button>)}</div>
             <span className="deployment-install-path"><small>{t('center.installPath')}</small><code>{targetPreview?.installedPath ?? displayedTarget.directory}</code></span>
             {occupied && <em>{t('center.targetConflict')}</em>}

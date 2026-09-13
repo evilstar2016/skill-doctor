@@ -109,9 +109,9 @@ describe('UI onboarding', () => {
     render(<App />);
 
     await screen.findByText('总览');
-    fireEvent.click(screen.getByRole('button', { name: '历史趋势' }));
+    fireEvent.click(screen.getByRole('button', { name: '扫描记录' }));
 
-    await screen.findByText('扫描历史与基线');
+    await screen.findByRole('heading', { name: '扫描记录' });
     expect(screen.getByText('已保存的快照')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '比较差异' }));
     await waitFor(() => expect(mocks.diffSnapshots).toHaveBeenCalledWith('baseline', 'snapshot'));
@@ -401,14 +401,14 @@ describe('UI onboarding', () => {
     mocks.getResourceDetail.mockResolvedValue({ resource: aggregate, issues: [] });
 
     render(<App />);
-    const contextButtons = await screen.findAllByRole('button', { name: '上下文成本' });
+    const contextButtons = await screen.findAllByRole('button', { name: '上下文优化' });
     fireEvent.click(contextButtons[contextButtons.length - 1]);
     const aggregateLinks = await screen.findAllByText('Codex skill list');
     fireEvent.click(aggregateLinks[aggregateLinks.length - 1]);
 
-    expect(await screen.findByText('聚合来源（2）')).toBeTruthy();
-    expect(screen.getByText(sourcePaths[0])).toBeTruthy();
-    expect(screen.getByText(sourcePaths[1])).toBeTruthy();
+    expect((await screen.findAllByText('聚合来源（2）')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(sourcePaths[0]).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(sourcePaths[1]).length).toBeGreaterThan(0);
     expect(screen.queryByText('/tmp')).toBeNull();
   });
 

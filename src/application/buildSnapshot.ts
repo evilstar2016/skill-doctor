@@ -32,6 +32,7 @@ interface BuildSnapshotInput {
 
 export function buildDoctorSnapshot(input: BuildSnapshotInput): DoctorSnapshot {
   const issues = buildIssues(input.skills, input.conflicts, input.audit, input.context, input.suggestions);
+  const actionableIssues = issues.filter((issue) => issue.severity !== 'info');
   const resources = buildResources(input.skills, input.mcpServers, input.context, input.registry, issues, input.consumerSkills, input.consumerMcpServers);
   const fixedTokens = input.context?.summary.totalEstimatedTokens ?? 0;
   const activationTokens = input.context?.items.reduce((sum, item) => sum + item.activationEstimatedTokens, 0) ?? 0;
@@ -45,13 +46,13 @@ export function buildDoctorSnapshot(input: BuildSnapshotInput): DoctorSnapshot {
     target: { projectDir: input.projectDir, scope: input.scope, platform: input.platform },
     summary: {
       resources: resources.length,
-      issues: issues.length,
-      high: issues.filter((issue) => issue.severity === 'high').length,
-      medium: issues.filter((issue) => issue.severity === 'med').length,
-      low: issues.filter((issue) => issue.severity === 'low').length,
-      conflicts: issues.filter((issue) => issue.kind === 'conflict').length,
-      duplicates: issues.filter((issue) => issue.kind === 'duplicate').length,
-      security: issues.filter((issue) => issue.kind === 'security').length,
+      issues: actionableIssues.length,
+      high: actionableIssues.filter((issue) => issue.severity === 'high').length,
+      medium: actionableIssues.filter((issue) => issue.severity === 'med').length,
+      low: actionableIssues.filter((issue) => issue.severity === 'low').length,
+      conflicts: actionableIssues.filter((issue) => issue.kind === 'conflict').length,
+      duplicates: actionableIssues.filter((issue) => issue.kind === 'duplicate').length,
+      security: actionableIssues.filter((issue) => issue.kind === 'security').length,
       fixedTokens,
       activationTokens,
       disabledResources: resources.filter((resource) => resource.enabled === false).length,
@@ -169,7 +170,7 @@ export function buildIssues(
   }
 
   for (const item of context?.items ?? []) {
-    if (item.estimateStatus !== 'unknown') continue;
+    if (item.estimateStatus !== 'unknown' && item.estimateStatus !== 'unsupported') continue;
     issues.push({
       id: stableId('issue', 'context-unknown', item.id, item.sourcePath),
       kind: 'context',
@@ -199,6 +200,7 @@ function buildResources(
   const byId = new Map<string, UiResource>();
   const issueIds = new Map<string, string[]>();
   for (const issue of issues) {
+    if (issue.severity === 'info') continue;
     for (const resourceId of issue.resourceIds) issueIds.set(resourceId, [...(issueIds.get(resourceId) ?? []), issue.id]);
   }
 

@@ -255,10 +255,11 @@ function estimateMcpServerCost(server: McpServerRecord, tokenCounter: TokenCount
 function estimateContextResourceCost(entry: ContextResourceRecord, tokenCounter: TokenCounter): ContextCostItem {
   const budgetText = applyOfficialBudgetLimit(entry.text, entry.officialLimit);
   const activationText = entry.activationText ?? entry.text;
-  const estimatedTokens = entry.estimateStatus === 'unknown' ? 0 : tokenCounter.count(budgetText);
-  const estimatedChars = entry.estimateStatus === 'unknown' ? 0 : normalizeForEstimate(budgetText).length;
-  const activationEstimatedTokens = entry.estimateStatus === 'unknown' ? 0 : tokenCounter.count(activationText);
-  const activationEstimatedChars = entry.estimateStatus === 'unknown' ? 0 : normalizeForEstimate(activationText).length;
+  const estimateUnavailable = entry.estimateStatus === 'unknown' || entry.estimateStatus === 'unsupported';
+  const estimatedTokens = estimateUnavailable ? 0 : tokenCounter.count(budgetText);
+  const estimatedChars = estimateUnavailable ? 0 : normalizeForEstimate(budgetText).length;
+  const activationEstimatedTokens = estimateUnavailable ? 0 : tokenCounter.count(activationText);
+  const activationEstimatedChars = estimateUnavailable ? 0 : normalizeForEstimate(activationText).length;
 
   return {
     id: entry.id,

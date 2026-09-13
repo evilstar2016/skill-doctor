@@ -21,6 +21,9 @@ export interface SnapshotHistoryDiff {
     resolvedBySeverity: Partial<Record<UiIssueSeverity, number>>;
   };
   resources: { baseline: number; current: number; change: number };
+  fixedContextTokens: { baseline: number; current: number; change: number };
+  activationContextTokens: { baseline: number; current: number; change: number };
+  /** @deprecated Use fixedContextTokens and activationContextTokens separately. */
   contextTokens: { baseline: number; current: number; change: number };
 }
 
@@ -58,11 +61,13 @@ export function findSnapshotHistoryEntry(id: string, homeDir?: string): Snapshot
 }
 
 export function diffSnapshotHistory(baseline: SnapshotHistoryEntry, current: SnapshotHistoryEntry): SnapshotHistoryDiff {
-  const baselineIssues = new Map(baseline.issues.map((issue) => [issue.id, issue]));
-  const currentIssues = new Map(current.issues.map((issue) => [issue.id, issue]));
+  const baselineIssues = new Map(baseline.issues.filter((issue) => issue.severity !== 'info').map((issue) => [issue.id, issue]));
+  const currentIssues = new Map(current.issues.filter((issue) => issue.severity !== 'info').map((issue) => [issue.id, issue]));
   const added = [...currentIssues.values()].filter((issue) => !baselineIssues.has(issue.id));
   const resolved = [...baselineIssues.values()].filter((issue) => !currentIssues.has(issue.id));
-  const contextTokens = (snapshot: SnapshotHistoryEntry) => (snapshot.summary.fixedTokens ?? 0) + (snapshot.summary.activationTokens ?? 0);
+  const fixedContextTokens = (snapshot: SnapshotHistoryEntry) => snapshot.summary.fixedTokens ?? 0;
+  const activationContextTokens = (snapshot: SnapshotHistoryEntry) => snapshot.summary.activationTokens ?? 0;
+  const contextTokens = (snapshot: SnapshotHistoryEntry) => fixedContextTokens(snapshot) + activationContextTokens(snapshot);
   const severityCounts = (issues: typeof added): Partial<Record<UiIssueSeverity, number>> => issues.reduce<Partial<Record<UiIssueSeverity, number>>>((counts, issue) => {
     counts[issue.severity] = (counts[issue.severity] ?? 0) + 1;
     return counts;
@@ -74,11 +79,13 @@ export function diffSnapshotHistory(baseline: SnapshotHistoryEntry, current: Sna
     issues: {
       added: added.length,
       resolved: resolved.length,
-      unchanged: current.issues.length - added.length,
+      unchanged: currentIssues.size - added.length,
       addedBySeverity: severityCounts(added),
       resolvedBySeverity: severityCounts(resolved),
     },
     resources: { baseline: baseline.summary.resources, current: current.summary.resources, change: current.summary.resources - baseline.summary.resources },
+    fixedContextTokens: { baseline: fixedContextTokens(baseline), current: fixedContextTokens(current), change: fixedContextTokens(current) - fixedContextTokens(baseline) },
+    activationContextTokens: { baseline: activationContextTokens(baseline), current: activationContextTokens(current), change: activationContextTokens(current) - activationContextTokens(baseline) },
     contextTokens: { baseline: contextTokens(baseline), current: contextTokens(current), change: contextTokens(current) - contextTokens(baseline) },
   };
 }

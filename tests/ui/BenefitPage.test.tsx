@@ -164,4 +164,12 @@ describe('BenefitPage', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '让 Agent + Skill 协助审阅' })).toBeNull());
   });
+
+  it('marks historical recommendations as Codex-only for other agents', () => {
+    render(<BenefitPage projectDir="/tmp/project" platform="workbuddy" tokenizer="approx" tokenizerModel="gpt-4o" />);
+
+    expect(screen.getByText('仅支持 Codex')).toBeTruthy();
+    expect(screen.getByText('历史优化建议目前仅支持 Codex')).toBeTruthy();
+    expect(screen.queryByText('分析模式')).toBeNull();
+  });
 });

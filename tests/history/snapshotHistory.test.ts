@@ -41,6 +41,8 @@ describe('snapshot history', () => {
     expect(diffSnapshotHistory(baseline, current)).toMatchObject({
       issues: { added: 1, resolved: 1, addedBySeverity: { medium: 1 }, resolvedBySeverity: { high: 1 } },
       resources: { baseline: 1, current: 3, change: 2 },
+      fixedContextTokens: { baseline: 100, current: 140, change: 40 },
+      activationContextTokens: { baseline: 20, current: 20, change: 0 },
       contextTokens: { baseline: 120, current: 160, change: 40 },
     });
 

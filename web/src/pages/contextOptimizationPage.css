@@ -1,0 +1,21 @@
+.context-optimization-page { min-width: 0; }
+.context-optimization-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 24px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.context-optimization-tabs button { display: grid; gap: 3px; min-width: 0; border: 0; border-radius: var(--radius-sm); padding: 11px 13px; background: transparent; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
+.context-optimization-tabs button:hover { background: var(--surface); color: var(--text); }
+.context-optimization-tabs button.active { background: var(--surface); color: var(--accent-text); box-shadow: var(--shadow-xs); }
+.context-optimization-tabs button span { font-size: 13px; font-weight: 700; }
+.context-optimization-tabs button small { overflow: hidden; color: var(--faint); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.context-optimization-tabs button.active small { color: var(--muted); }
+.context-optimization-page [role='tabpanel'][hidden] { display: none; }
+.context-page .section-toolbar small { color: var(--faint); font-size: 11px; }
+.cost-resource-cell { display: grid; gap: 4px; min-width: 0; }
+.cost-resource-cell .resource-link { min-width: 0; }
+.cost-children { color: var(--muted); font-size: 11px; }
+.cost-children summary { overflow: hidden; color: var(--accent-text); cursor: pointer; text-overflow: ellipsis; white-space: nowrap; }
+.cost-children ul { display: grid; gap: 3px; max-height: 120px; margin: 5px 0 0; padding-left: 16px; overflow: auto; }
+.cost-children code { word-break: break-all; }
+.cost-row > strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  .context-optimization-tabs { grid-template-columns: 1fr; }
+  .context-optimization-tabs button { padding: 9px 11px; }
+}
