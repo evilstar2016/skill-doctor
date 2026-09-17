@@ -293,14 +293,14 @@ Codex 控制能力：
 
 | 资源 | 成本预览 | 自动启用/禁用 | 写入位置 |
 |------|----------|---------------|----------|
-| Skills | 启动时的 skill 元数据和 activation-risk 文本 | 支持 | `[[skills.config]]` 的 `path` 和 `enabled` |
-| MCP servers | server 配置，以及可访问时的 live `tools/list` | 支持 | `[mcp_servers.<name>] enabled` |
-| MCP tools | 可控 MCP server 下的单个 live tool | 支持 | `[mcp_servers.<name>]` 的 `enabled_tools` / `disabled_tools` |
-| Plugins | plugin 提供的 skills 和 MCP tools | 支持，按 plugin 级别控制 | `[plugins."<id>"] enabled` |
+| Skills | 启动时的 skill 元数据和 activation-risk 文本 | 仅配置；需新任务验证 | `[[skills.config]]` 的 `path` 和 `enabled` |
+| MCP servers | server 配置，以及可访问时的 live `tools/list` | 仅配置；需新任务验证 | `[mcp_servers.<name>] enabled` |
+| MCP tools | 可控 MCP server 下的单个 live tool | 仅配置；需新任务验证 | `[mcp_servers.<name>]` 的 `enabled_tools` / `disabled_tools` |
+| Plugins | plugin 提供的 skills 和 MCP tools | 仅配置；需新任务验证 | `[plugins."<id>"] enabled` |
 | `AGENTS.md` 文件 | 项目和用户空间 always-on 指导文件 | 不支持 | 标记为 `unsupported`；需要手动编辑或移动文件 |
 | Memories | memory 存在状态，以及可近似读取时的文本 | 不支持 | 标记为 `memory-context-unknown`；需要手动改 Codex memory 设置/配置 |
 
-`context enable|disable` 只写入配置中的项目级 Codex 控制文件，通常是 `.codex/config.toml`；它不会编辑全局 `~/.codex/config.toml`、plugin manifest、skill 文件、`AGENTS.md` 或 memory 存储。支持自动切换的资源会返回 `requiresNewSession: true`；需要新建 Codex session 或重启 Codex 后，runtime context 才会体现变化。
+`context enable|disable` 只写入配置中的项目级 Codex 控制文件，通常是 `.codex/config.toml`；它不会编辑全局 `~/.codex/config.toml`、plugin manifest、skill 文件、`AGENTS.md` 或 memory 存储。结果会区分 `changed`/`controlStatus: configured` 与运行时验证，并返回 `requiresNewSession: true`。请新建 Codex task 或重启 Codex 后，用 `skill-doctor context blocks --file <新会话.jsonl> --json` 检查 `verification` 和 provenance，再判断会话头是否真的移除。
 
 估算限制：
 

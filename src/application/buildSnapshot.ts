@@ -238,6 +238,7 @@ function buildResources(
       issueIds: issueIds.get(id) ?? [],
       status: statusFor(id, skill.context?.enabled, issueIds),
       controlMethod: skill.context?.controlMethod,
+      controlStatus: skill.context?.controlStatus,
       estimateStatus: skill.context?.estimateStatus,
       installed: registry.find((entry) => entry.installedPath === skill.sourcePath),
     });
@@ -270,6 +271,7 @@ function buildResources(
       issueIds: issueIds.get(id) ?? [],
       status: statusFor(id, server.enabled, issueIds),
       controlMethod: server.context?.controlMethod,
+      controlStatus: server.context?.controlStatus,
       estimateStatus: server.context?.estimateStatus,
     });
   }
@@ -298,8 +300,9 @@ function buildResources(
       existing.activationTokens = item.activationEstimatedTokens;
       existing.recommendation = item.recommendation;
       existing.configSource ??= item.configSource;
-      existing.controlMethod = item.controlMethod;
-      existing.estimateStatus = item.estimateStatus;
+      existing.controlMethod = item.controlMethod ?? existing.controlMethod;
+      existing.controlStatus = item.controlStatus ?? existing.controlStatus;
+      existing.estimateStatus = item.estimateStatus ?? existing.estimateStatus;
       upsertConsumer(existing, { platform: item.platform, scope: item.scope, enabled: item.enabled, activation: item.activation, fixedTokens: fixedCost(item), activationTokens: item.activationEstimatedTokens });
       existing.shared = existing.consumers.length > 1;
       existing.fixedTokens = existing.consumers.reduce((sum, consumer) => sum + (consumer.fixedTokens ?? 0), 0);
@@ -333,6 +336,7 @@ function buildResources(
       status: statusFor(id, item.enabled, issueIds),
       recommendation: item.recommendation,
       controlMethod: item.controlMethod,
+      controlStatus: item.controlStatus,
       estimateStatus: item.estimateStatus,
     });
   }

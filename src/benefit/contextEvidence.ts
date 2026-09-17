@@ -144,6 +144,7 @@ function matchResource(resource: OptimizationPlanResource, snapshot: CodexContex
     ...(resource.enabled !== undefined ? { enabled: resource.enabled } : {}),
     ...(resource.controllable !== undefined ? { controllable: resource.controllable } : {}),
     ...(resource.controlMethod ? { controlMethod: resource.controlMethod } : {}),
+    ...(resource.controlStatus ? { controlStatus: resource.controlStatus } : {}),
     ...(resource.requiresNewSession !== undefined ? { requiresNewSession: resource.requiresNewSession } : {}),
     ...(resource.blockId ? { blockId: resource.blockId } : {}),
     ...(resource.rootAlias ? { rootAlias: resource.rootAlias } : {}),
@@ -165,6 +166,7 @@ function matchResource(resource: OptimizationPlanResource, snapshot: CodexContex
     return {
       ...base,
       blockId,
+      ...(block.evidenceLevel ? { evidenceLevel: block.evidenceLevel } : {}),
       status: 'matched',
       historicalState: 'before',
       reason: `Historical context contains a complete ${blockId} block`,

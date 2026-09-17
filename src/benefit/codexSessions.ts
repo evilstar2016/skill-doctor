@@ -5,7 +5,8 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 
-import { analyzeCodexContextBlocks } from '../context/scanCodexContextBlocks';
+import { analyzeCodexContextBlocks, CODEX_CONTEXT_BLOCK_IDS } from '../context/scanCodexContextBlocks';
+import { createTokenCounter } from '../context/tokenCounter';
 import { defaultSessionIndexPath, indexEntryMatches, loadSessionIndex, pruneSessionIndexEntries, sanitizeAnalysisForIndex, saveSessionIndex, type SessionIndexEntry } from './sessionIndex';
 import type {
   BenefitDiagnostic,
@@ -23,6 +24,7 @@ import type {
   CodexUsage,
   CodexUsageRecord,
 } from './types';
+import type { CodexContextBlockAnalysis, CodexContextBlockId, CodexContextBlockObservation, CodexContextBlockVerification, CodexContextEvidenceLevel, CodexContextProvenance } from '../types/context';
 
 const DEFAULT_LIMIT = 20;
 const DEFAULT_MAX_FILE_BYTES = 128 * 1024 * 1024;
@@ -373,6 +375,56 @@ function responseItemText(payload: Record<string, unknown>): string {
   }).join('\n');
 }
 
+interface ResponseItemContextPart {
+  text: string;
+  contentItemKind?: string;
+  contentItemIndex?: number;
+  blockIds?: CodexContextBlockId[];
+  evidenceLevel: CodexContextEvidenceLevel;
+}
+
+const CONTEXT_BLOCKS_BY_ITEM_KIND: Record<string, CodexContextBlockId[]> = {
+  'host_skills.instructions': ['skills_instructions'],
+  'plugins.recommendations': ['recommended_plugins'],
+  'permissions.instructions': ['permissions_instructions'],
+  'collaboration_mode.instructions': ['collaboration_mode'],
+  'apps.instructions': ['apps_instructions'],
+  'plugins.usage_instructions': ['plugins_instructions'],
+  'environments.environment_context': ['environment_context'],
+  'generic.developer_instructions': ['app_context'],
+};
+
+function responseItemContentParts(payload: Record<string, unknown>): ResponseItemContextPart[] {
+  const content = payload.content;
+  const values = Array.isArray(content) ? content : [content];
+  const texts = values.map((item, index) => ({
+    index,
+    text: typeof item === 'string'
+      ? item
+      : item && typeof item === 'object' && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === 'string'
+        ? (item as Record<string, unknown>).text as string
+        : '',
+  }));
+  const passthrough = objectValue(payload.internal_chat_message_metadata_passthrough);
+  const kinds = Array.isArray(passthrough?.content_item_kinds)
+    && passthrough.content_item_kinds.every((item) => typeof item === 'string')
+    ? passthrough.content_item_kinds as string[]
+    : undefined;
+
+  if (!kinds) {
+    const text = responseItemText(payload);
+    return text ? [{ text, evidenceLevel: 'text-observed' }] : [];
+  }
+
+  return texts.flatMap(({ index, text }) => {
+    if (!text) return [];
+    const kind = kinds[index];
+    const blockIds = kind ? CONTEXT_BLOCKS_BY_ITEM_KIND[kind] : undefined;
+    if (!kind || !blockIds) return [];
+    return [{ text, contentItemKind: kind, contentItemIndex: index, blockIds, evidenceLevel: 'runtime-item-observed' }];
+  });
+}
+
 function contextBlockSnapshotFrom(
   block: ReturnType<typeof analyzeCodexContextBlocks>['blocks'][number],
   sourcePath: string,
@@ -394,6 +446,9 @@ function contextBlockSnapshotFrom(
     ...(block.recommendedPlugins ? { recommendedPlugins: block.recommendedPlugins } : {}),
     ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
     ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+    ...(block.controlStatus ? { controlStatus: block.controlStatus } : {}),
+    ...(block.evidenceLevel ? { evidenceLevel: block.evidenceLevel } : {}),
+    ...(block.provenance ? { provenance: block.provenance } : {}),
     recommendation: block.recommendation,
     sourcePath,
     line,
@@ -498,16 +553,38 @@ function addContextRecord(
   if (stringValue(value.type) === 'response_item') {
     const role = contextRole(payload.role);
     if (role === 'unknown') return;
-    const text = responseItemText(payload);
-    if (!text) return;
-    const parsed = analyzeCodexContextBlocks(text, { tokenizer: 'approx' });
-    if (parsed.blocks.length === 0) return;
+    const parts = responseItemContentParts(payload);
+    if (parts.length === 0) return;
     if (analysis.contextSnapshotAwaitingFull) {
       analysis.diagnostics.push(diagnostic('context.response_item_awaiting_full_snapshot', 'warning', 'Ignored response-item context blocks after compaction until a full world_state snapshot appears', filePath, line));
       return;
     }
     analysis.contextSnapshotValid = true;
-    const blocks = parsed.blocks.map((block) => contextBlockSnapshotFrom(block, filePath, line));
+    const parsedParts = parts.map((part) => {
+      const provenance: CodexContextProvenance = {
+        sourcePath: filePath,
+        line,
+        role,
+        ...(part.contentItemKind ? { contentItemKind: part.contentItemKind } : {}),
+        ...(part.contentItemIndex !== undefined ? { contentItemIndex: part.contentItemIndex } : {}),
+        ...(analysis.meta?.sessionId ? { sessionId: analysis.meta.sessionId } : {}),
+        ...(analysis.meta?.threadId ? { threadId: analysis.meta.threadId } : {}),
+        timestamp,
+      };
+      return analyzeCodexContextBlocks(part.text, {
+        tokenizer: 'approx',
+        ...(part.blockIds ? { blockIds: part.blockIds } : {}),
+        evidenceLevel: part.evidenceLevel,
+        provenance,
+      });
+    });
+    const blocks = parsedParts.flatMap((parsed) => parsed.blocks).map((block) => contextBlockSnapshotFrom(block, filePath, line));
+    if (blocks.length === 0) return;
+    const text = parts.map((part) => part.text).join('\n');
+    const hasDiagnostics = parsedParts.some((parsed) => parsed.diagnostics.length > 0);
+    const evidenceLevel = parts.some((part) => part.evidenceLevel === 'text-observed')
+      ? 'text-observed'
+      : 'runtime-item-observed';
     for (const block of blocks) {
       analysis.currentContextBlocks.set(block.id, block);
       analysis.currentContextBlockLines.set(block.id, line);
@@ -519,7 +596,8 @@ function addContextRecord(
       role,
       contextTextChars: text.length,
       ...(hashText(text) ? { contextTextSha256: hashText(text) } : {}),
-      contextBlocksComplete: parsed.diagnostics.length === 0 && blocks.every((block) => block.complete),
+      contextBlocksComplete: !hasDiagnostics && blocks.every((block) => block.complete),
+      evidenceLevel,
       contextBlocks: blocks,
       sourcePath: filePath,
       line,
@@ -1029,6 +1107,91 @@ export async function analyzeCodexSessionFile(
     ...(options.baseAnalysis ? { baseAnalysis: options.baseAnalysis } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
   });
+}
+
+/** Convert trusted response-item observations into the CLI block-report shape. */
+export function contextBlockAnalysisFromSession(
+  analysis: CodexSessionFileAnalysis,
+  sourcePath = analysis.meta?.filePath,
+  options: { tokenizer?: 'openai' | 'approx'; tokenizerModel?: string } = {},
+): CodexContextBlockAnalysis {
+  const tokenCounter = createTokenCounter({ tokenizer: options.tokenizer, tokenizerModel: options.tokenizerModel });
+  const latest = new Map<string, CodexContextBlockSnapshot>();
+  for (const snapshot of analysis.contextSnapshots) {
+    if (snapshot.sourceKind !== 'response_item') continue;
+    for (const block of snapshot.contextBlocks ?? []) latest.set(block.id, block);
+  }
+  const blocks: CodexContextBlockObservation[] = [...latest.values()].map((block) => ({
+    id: block.id,
+    tag: block.tag,
+    role: block.role,
+    ...(block.contentKind ? { contentKind: block.contentKind } : {}),
+    activation: block.activation,
+    text: block.text ?? '',
+    estimatedTokens: tokenCounter.count(block.text ?? ''),
+    estimatedChars: block.estimatedChars,
+    complete: block.complete,
+    startOffset: 0,
+    endOffset: block.estimatedChars,
+    ...(block.rootAliases ? { rootAliases: block.rootAliases } : {}),
+    ...(block.availableSkills ? { availableSkills: block.availableSkills } : {}),
+    ...(block.recommendedPlugins ? { recommendedPlugins: block.recommendedPlugins } : {}),
+    ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
+    ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+    ...(block.controlStatus ? { controlStatus: block.controlStatus } : {}),
+    ...(block.evidenceLevel ? { evidenceLevel: block.evidenceLevel } : {}),
+    observationStatus: 'present',
+    ...(block.provenance ? { provenance: block.provenance } : {}),
+    recommendation: block.recommendation,
+  }));
+  const snapshotEvidence = analysis.contextSnapshots
+    .map((snapshot) => snapshot.evidenceLevel)
+    .find((level): level is CodexContextEvidenceLevel => Boolean(level));
+  const trustedSnapshot = analysis.contextSnapshots.find((snapshot) => snapshot.evidenceLevel === 'runtime-item-observed');
+  const verification: CodexContextBlockVerification[] = CODEX_CONTEXT_BLOCK_IDS.map((id) => {
+    const observed = blocks.find((block) => block.id === id);
+    if (observed && observed.evidenceLevel !== 'text-observed') {
+      return {
+        id,
+        status: 'present',
+        evidenceLevel: observed.evidenceLevel,
+        sourcePath: observed.provenance?.sourcePath ?? sourcePath,
+        line: observed.provenance?.line,
+        sessionId: observed.provenance?.sessionId,
+        threadId: observed.provenance?.threadId,
+        reason: 'A trusted response-item metadata entry contains this context block.',
+      };
+    }
+    if (analysis.contextSnapshotValid === false || analysis.contextSnapshotAwaitingFull) {
+      return { id, status: 'unknown', reason: 'The session context snapshot is invalid or awaiting a new full snapshot.' };
+    }
+    if (trustedSnapshot) {
+      return {
+        id,
+        status: 'absent',
+        evidenceLevel: 'runtime-item-observed',
+        sourcePath: trustedSnapshot.sourcePath,
+        line: trustedSnapshot.line,
+        sessionId: analysis.meta?.sessionId,
+        threadId: analysis.meta?.threadId,
+        reason: 'Trusted response-item metadata was present, but no matching block was observed in this session header.',
+      };
+    }
+    if (observed) {
+      return { id, status: 'unknown', evidenceLevel: 'text-observed', sourcePath, reason: 'A text-only block match was found, but no trusted content_item_kinds metadata proves it is a session-header item.' };
+    }
+    return { id, status: 'unknown', reason: 'No trusted content_item_kinds metadata was available; text-only absence is not proof.' };
+  });
+  return {
+    ...(sourcePath ? { sourcePath } : {}),
+    textChars: analysis.contextSnapshots.reduce((sum, snapshot) => sum + (snapshot.contextTextChars ?? 0), 0),
+    totalEstimatedTokens: blocks.reduce((sum, block) => sum + block.estimatedTokens, 0),
+    tokenizer: tokenCounter.summary,
+    blocks,
+    diagnostics: analysis.diagnostics.map((item) => item.message),
+    ...(snapshotEvidence ? { evidenceLevel: snapshotEvidence } : {}),
+    verification,
+  };
 }
 
 async function hasTrailingNewline(filePath: string, size: number): Promise<boolean> {

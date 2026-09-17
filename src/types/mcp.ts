@@ -1,4 +1,5 @@
 import type { Platform, Scope } from './skill';
+import type { CodexControlStatus } from './context';
 
 export interface McpServerRecord {
   id?: string;
@@ -31,6 +32,7 @@ export interface McpServerRecord {
     controlPath?: string;
     controlMethod?: string;
     estimateStatus?: 'estimated' | 'unknown' | 'unsupported';
+    controlStatus?: CodexControlStatus;
   };
 }
 

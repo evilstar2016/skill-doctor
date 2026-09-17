@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { isPathWithinProject, scanCodexSessions } from '../../src/benefit/codexSessions';
+import { analyzeCodexSessionFile, contextBlockAnalysisFromSession, isPathWithinProject, scanCodexSessions } from '../../src/benefit/codexSessions';
 
 const roots: string[] = [];
 
@@ -534,5 +534,53 @@ describe('scanCodexSessions', () => {
     expect(reanchoredUsage).toMatchObject({ contextSnapshotLine: 10, contextSnapshotLines: [9, 10] });
     expect(selection?.diagnostics.some((item) => item.code === 'context.response_item_awaiting_full_snapshot')).toBe(true);
     expect(selection?.diagnostics.some((item) => item.code === 'context.snapshot_invalidated_by_compaction')).toBe(true);
+  });
+
+  it('uses content item metadata and ignores literal block tags in non-context items', async () => {
+    const root = mkdtempSync('/tmp/skill-doctor-benefit-metadata-context-');
+    roots.push(root);
+    const filePath = sessionPath(join(root, 'codex'), 'rollout-metadata-context.jsonl');
+    const now = new Date().toISOString();
+    writeJsonl(filePath, [
+      { timestamp: now, type: 'session_meta', payload: { session_id: 'session-metadata', id: 'thread-metadata', timestamp: now, cwd: join(root, 'project') } },
+      {
+        timestamp: now,
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'developer',
+          content: [{ type: 'input_text', text: 'Memory documentation mentions <skills_instructions> but is not a header item.' }],
+          internal_chat_message_metadata_passthrough: { content_item_kinds: ['memories.instructions'] },
+        },
+      },
+      {
+        timestamp: now,
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: '<recommended_plugins>\n- GitHub (github@openai-curated-remote)\n</recommended_plugins>' }],
+          internal_chat_message_metadata_passthrough: { content_item_kinds: ['plugins.recommendations'] },
+        },
+      },
+    ]);
+
+    const result = await analyzeCodexSessionFile(filePath);
+    const blocks = result.contextSnapshots.flatMap((snapshot) => snapshot.contextBlocks ?? []);
+    expect(blocks.map((block) => block.id)).toEqual(['recommended_plugins']);
+    expect(blocks[0]).toMatchObject({
+      evidenceLevel: 'runtime-item-observed',
+      provenance: {
+        sourcePath: filePath,
+        role: 'user',
+        contentItemKind: 'plugins.recommendations',
+        contentItemIndex: 0,
+        sessionId: 'session-metadata',
+        threadId: 'thread-metadata',
+      },
+    });
+    const header = contextBlockAnalysisFromSession(result);
+    expect(header.verification?.find((entry) => entry.id === 'skills_instructions')).toMatchObject({ status: 'absent', evidenceLevel: 'runtime-item-observed' });
+    expect(header.verification?.find((entry) => entry.id === 'recommended_plugins')).toMatchObject({ status: 'present' });
   });
 });

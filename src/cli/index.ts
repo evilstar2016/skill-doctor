@@ -42,7 +42,7 @@ import { estimateCodexBenefit } from '../benefit/estimateBenefit';
 import { buildOfflineCodexPlan } from '../benefit/offlinePlan';
 import { loadOptimizationPlan, validateOptimizationPlan } from '../benefit/optimizationPlan';
 import { loadBenefitPriceTable } from '../benefit/prices';
-import { scanCodexSessions } from '../benefit/codexSessions';
+import { analyzeCodexSessionFile, contextBlockAnalysisFromSession, scanCodexSessions } from '../benefit/codexSessions';
 import { defaultSessionIndexPath, deleteSessionIndex, deleteSessionIndexEntries } from '../benefit/sessionIndex';
 import { getPlatformAliasMappings, getPlatformCliValues, normalizePlatformName } from '../platforms/registry';
 import { renderInstallSuccess, renderUninstallSuccess } from '../render/renderInstall.js';
@@ -593,11 +593,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       }
 
       try {
-        const result = analyzeCodexContextBlocks(readFileSync(resolvedInputPath, 'utf8'), {
-          sourcePath: resolvedInputPath,
-          tokenizer,
-          ...(tokenizerModel ? { tokenizerModel } : {}),
-        });
+        const result = resolvedInputPath.endsWith('.jsonl')
+          ? contextBlockAnalysisFromSession(await analyzeCodexSessionFile(resolvedInputPath), resolvedInputPath, {
+              tokenizer,
+              ...(tokenizerModel ? { tokenizerModel } : {}),
+            })
+          : analyzeCodexContextBlocks(readFileSync(resolvedInputPath, 'utf8'), {
+              sourcePath: resolvedInputPath,
+              tokenizer,
+              ...(tokenizerModel ? { tokenizerModel } : {}),
+            });
         const output = jsonOutput && !hasFlag(rest, '--include-text')
           ? {
               ...result,
@@ -668,7 +673,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
           if (!result.supported) {
             process.stdout.write(`${result.message}\n${result.recommendation ? `Recommendation: ${result.recommendation}\n` : ''}`);
           } else {
-            process.stdout.write(`Codex resource ${action}d: ${result.name}\nConfig updated: ${result.configPath}\n${result.message}\n`);
+            process.stdout.write(`Codex resource ${action}d: ${result.name}\nConfig updated: ${result.configPath}\nControl status: ${result.controlStatus}; runtime verified: ${result.runtimeVerified}\n${result.message}\n`);
           }
         }
       } catch (error) {

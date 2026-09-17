@@ -18,6 +18,9 @@ export interface ToggleCodexResourceResult {
   supported: boolean;
   changed: boolean;
   requiresNewSession: boolean;
+  controlStatus: 'configured' | 'not-controllable';
+  runtimeVerified: false;
+  verificationReason: string;
   message: string;
   recommendation?: string;
 }
@@ -55,6 +58,9 @@ export async function toggleCodexResource(
       supported: false,
       changed: false,
       requiresNewSession: false,
+      controlStatus: 'not-controllable',
+      runtimeVerified: false,
+      verificationReason: 'No safe project configuration control exists for this resource.',
       message: `Codex resource cannot be toggled automatically: ${id}`,
       recommendation: getUnsupportedRecommendation(getEntryResource(entry), entry),
     };
@@ -92,7 +98,10 @@ export async function toggleCodexResource(
     supported: true,
     changed,
     requiresNewSession: true,
-    message: 'Config updated. Start a new Codex session or restart Codex for this change to take effect.',
+    controlStatus: 'configured',
+    runtimeVerified: false,
+    verificationReason: 'Configuration was written and read back; a fresh Desktop task JSONL is required to verify the session header.',
+    message: 'Config updated (config-only). Start a new Codex session or restart Codex, then inspect its session JSONL to verify the header.',
   };
 }
 

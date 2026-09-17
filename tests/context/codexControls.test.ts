@@ -42,7 +42,7 @@ describe('toggleCodexResource', () => {
     const enabled = await toggleCodexResource(cwd, `codex:skill:${skillPath}`, true, { homeDir: home });
     const config = readFile(configPath);
 
-    expect(disabled).toEqual(expect.objectContaining({ supported: true, changed: true, enabled: false, requiresNewSession: true }));
+    expect(disabled).toEqual(expect.objectContaining({ supported: true, changed: true, enabled: false, requiresNewSession: true, controlStatus: 'configured', runtimeVerified: false }));
     expect(disabledAgain).toEqual(expect.objectContaining({ supported: true, changed: false, enabled: false }));
     expect(enabled).toEqual(expect.objectContaining({ supported: true, changed: true, enabled: true }));
     expect(config.match(/\[\[skills\.config\]\]/g)).toHaveLength(1);
@@ -132,6 +132,8 @@ describe('toggleCodexResource', () => {
     expect(result).toEqual(expect.objectContaining({
       supported: false,
       changed: false,
+      controlStatus: 'not-controllable',
+      runtimeVerified: false,
       resource: 'agents',
       recommendation: expect.stringContaining('move rare guidance into a skill'),
     }));

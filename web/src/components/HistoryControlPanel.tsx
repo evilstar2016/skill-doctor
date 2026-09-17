@@ -25,7 +25,15 @@ interface OperationState {
 
 function controlAvailable(item: HistoryCandidate): boolean {
   return item.kind === 'recommended_plugins'
-    || (item.kind === 'skills_instructions' && item.control === 'source-supported' && Boolean(item.sourcePath) && !/\/plugins\/cache\/|\/\.system\//.test(item.sourcePath ?? ''));
+    || (item.kind === 'skills_instructions' && ['source-supported', 'config-only', 'already-disabled'].includes(item.control) && Boolean(item.sourcePath) && !/\/plugins\/cache\/|\/\.system\//.test(item.sourcePath ?? ''));
+}
+
+function controlStatusLabel(item: HistoryCandidate, t: ReturnType<typeof useTranslation>['t']): string {
+  if (item.controlStatus === 'runtime-verified') return t('context.controlVerified');
+  if (item.controlStatus === 'host-overridden') return t('context.controlOverridden');
+  if (item.controlStatus === 'not-controllable') return t('context.controlNotControllable');
+  if (item.controlStatus === 'configured' || item.control === 'source-supported' || item.control === 'config-only' || item.control === 'already-disabled') return t('benefit.historyControlConfigured');
+  return t('benefit.historyControlUnknown');
 }
 
 function isMatch(item: HistoryCandidate, query: string): boolean {
@@ -206,7 +214,7 @@ export function HistoryControlPanel({ history, jobId, projectDir, showAgentPromp
       <div className="history-candidate-list">{group.items.map((item) => <article className="history-candidate-row" key={`${item.kind}:${item.id}`}>
         <div className="history-candidate-main">
           <span className="history-candidate-copy"><span className="history-candidate-name"><strong>{item.name}</strong><small>{kindLabel(item)}</small></span><span className="history-candidate-reason">{recommendationReason(item)}</span><span className="history-candidate-evidence">{t('benefit.controlCounts', { mentions: item.explicitMentionCount ?? 0, activations: item.activationCount ?? 0, reads: item.observedReadCount ?? 0, sessions: item.usedSessionCount ?? 0 })}</span></span>
-          <span className="history-candidate-status"><span className={`history-recommendation ${item.recommendation}`}>{t(`benefit.controlRecommendation.${item.recommendation}`)}</span><span className="history-state-pill unknown">{t('benefit.historyConfigUnknown')}</span>{controlAvailable(item) ? <span className="history-feasibility">{t('benefit.historyControlAvailable')}</span> : <span className="history-feasibility">{t('benefit.historyControlUnverified')}</span>}</span>
+          <span className="history-candidate-status"><span className={`history-recommendation ${item.recommendation}`}>{t(`benefit.controlRecommendation.${item.recommendation}`)}</span><span className="history-state-pill unknown">{controlStatusLabel(item, t)}</span>{controlAvailable(item) ? <span className="history-feasibility">{t('benefit.historyControlAvailable')}</span> : <span className="history-feasibility">{t('benefit.historyControlUnverified')}</span>}</span>
           <ChevronRight size={17} aria-hidden />
         </div>
         <button className={`button compact ${item.recommendation === 'review-disable' && controlAvailable(item) ? 'primary' : 'secondary'}`} onClick={(event) => openCandidate(item, event.currentTarget)}>{actionLabel(item)}<ArrowRight size={14} /></button>
@@ -231,7 +239,7 @@ export function HistoryControlPanel({ history, jobId, projectDir, showAgentPromp
           </div>}
           {undoPending && operation && <div className="history-confirm-content"><div className="history-confirm-lead"><Undo2 size={20} /><p>{t('benefit.controlUndoConfirm')}</p></div><section className="history-config-summary"><h3>{t('benefit.controlTargetTitle')}</h3><code>{operation.result.configPath}</code><span>{operation.label}</span><code>{operation.result.operationId}</code></section></div>}
           {!pending && !undoPending && selected && <div className="history-detail-content">
-            <div className="history-detail-summary"><span className="history-recommendation large">{t(`benefit.controlRecommendation.${selected.recommendation}`)}</span><span className="history-state-pill unknown">{t('benefit.historyConfigUnknown')}</span><span className="history-feasibility">{controlAvailable(selected) ? t('benefit.historyControlAvailable') : t('benefit.historyControlUnverified')}</span></div>
+            <div className="history-detail-summary"><span className="history-recommendation large">{t(`benefit.controlRecommendation.${selected.recommendation}`)}</span><span className="history-state-pill unknown">{controlStatusLabel(selected, t)}</span><span className="history-feasibility">{controlAvailable(selected) ? t('benefit.historyControlAvailable') : t('benefit.historyControlUnverified')}</span></div>
             <section><h3>{t('benefit.historyDetailRecommendation')}</h3><p>{recommendationReason(selected)}</p><p className="muted">{selected.reason}</p></section>
             <section><h3>{t('benefit.historyDetailEvidence')}</h3><p>{t('benefit.controlCounts', { mentions: selected.explicitMentionCount ?? 0, activations: selected.activationCount ?? 0, reads: selected.observedReadCount ?? 0, sessions: selected.usedSessionCount ?? 0 })}</p><p>{t('benefit.historyLastUsed', { date: selected.lastUsedAt ?? '—' })}</p>{selected.evidence.length > 0 ? <ul className="history-evidence-list">{selected.evidence.map((entry, index) => <li key={`${entry.sessionId}:${entry.line}:${index}`}><span>{entry.kind}</span><code>{entry.sessionId} · {entry.sourcePath}:{entry.line}</code></li>)}</ul> : <p className="muted">{t('benefit.historyNoEvidence')}</p>}</section>
             <section><h3>{t('benefit.historyDetailControl')}</h3>{selected.sourcePath && <code className="history-detail-path">{selected.sourcePath}</code>}<p>{controlAvailable(selected) ? (selected.controlMethod ?? t('benefit.historyControlAvailable')) : t('benefit.controlUnsupported')}</p>{selected.controlMethod && <code>{selected.controlMethod}</code>}</section>

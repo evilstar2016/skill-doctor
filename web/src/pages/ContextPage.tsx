@@ -9,6 +9,16 @@ function hasKnownEstimate(item: ContextCostItem): boolean {
   return item.estimateStatus !== 'unknown' && item.estimateStatus !== 'unsupported';
 }
 
+function controlStatusLabel(item: ContextCostItem, t: ReturnType<typeof useTranslation>['t']): string | undefined {
+  switch (item.controlStatus) {
+    case 'configured': return t('context.controlConfigured');
+    case 'runtime-verified': return t('context.controlVerified');
+    case 'host-overridden': return t('context.controlOverridden');
+    case 'not-controllable': return t('context.controlNotControllable');
+    default: return undefined;
+  }
+}
+
 export function ContextPage({ snapshot, openResource, onToggle, active = true }: { snapshot: DoctorSnapshot | null; openResource: (resource: UiResource) => void; onToggle: (item: ContextCostItem) => Promise<void>; active?: boolean }) {
   const { t } = useTranslation();
   const [showDisabled, setShowDisabled] = useState(false);
@@ -30,7 +40,7 @@ export function ContextPage({ snapshot, openResource, onToggle, active = true }:
       return <div className={`cost-row ${item.enabled === false ? 'disabled' : ''}`} key={`${item.id ?? item.sourcePath}:${item.enabled}`}>
         <div className="cost-resource-cell"><button className="resource-link" aria-label={t('context.openResource', { name: item.name })} onClick={() => resource && openResource(resource)}><code>{item.name}</code><small>{item.platform} · {activationLabel(item.activation, t)}{item.sourcePaths?.length ? ` · ${t('context.aggregate', { count: item.sourcePaths.length })}` : ''}</small></button>{item.sourcePaths?.length ? <details className="cost-children"><summary>{t('context.showSources', { count: item.sourcePaths.length })}</summary><ul>{item.sourcePaths.map((path) => <li key={path}><code>{path}</code></li>)}</ul></details> : null}</div>
         <div className="cost-bar" aria-hidden={!known}><span style={{ width: `${known ? Math.max(2, cost / max * 100) : 0}%` }} /></div><strong>{known ? cost : '—'}</strong><span className="cost-unit">{known ? t('context.tokens') : t('context.notIncludedShort')}</span>
-        {canToggle ? <button className="button compact" aria-label={t('context.reviewAdjustFor', { name: item.name })} onClick={() => void onToggle(item)}>{t('context.reviewAdjust')}</button> : <span className="muted">{known ? t('context.readonly') : t('context.unknown')}</span>}
+        {controlStatusLabel(item, t) && <span className="muted">{controlStatusLabel(item, t)}</span>}{canToggle ? <button className="button compact" aria-label={t('context.reviewAdjustFor', { name: item.name })} onClick={() => void onToggle(item)}>{t('context.reviewAdjust')}</button> : <span className="muted">{known ? t('context.readonly') : t('context.unknown')}</span>}
       </div>;
     })}{!items.length && <EmptyRows icon={BarChart3} title={t('context.empty')} />}</div>
   </section>;

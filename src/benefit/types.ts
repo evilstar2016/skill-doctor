@@ -1,7 +1,10 @@
 import type {
   CodexAvailableSkillEntry,
   CodexContextBlockActivation,
+  CodexContextEvidenceLevel,
   CodexContextBlockId,
+  CodexControlStatus,
+  CodexContextProvenance,
   CodexContextBlockRole,
   CodexRecommendedPluginEntry,
   CodexSkillRootAlias,
@@ -76,6 +79,7 @@ export interface CodexContextStateSnapshot {
   contextTextChars?: number;
   contextTextSha256?: string;
   contextBlocksComplete?: boolean;
+  evidenceLevel?: CodexContextEvidenceLevel;
   contextBlocks?: CodexContextBlockSnapshot[];
   sourcePath: string;
   line: number;
@@ -97,6 +101,9 @@ export interface CodexContextBlockSnapshot {
   recommendedPlugins?: CodexRecommendedPluginEntry[];
   controlMethod?: string;
   controllable?: boolean;
+  controlStatus?: CodexControlStatus;
+  evidenceLevel?: CodexContextEvidenceLevel;
+  provenance?: CodexContextProvenance;
   recommendation: string;
   sourcePath: string;
   line: number;
@@ -280,6 +287,7 @@ export interface OptimizationPlanResource {
   scope?: string;
   controllable?: boolean;
   controlMethod?: string;
+  controlStatus?: CodexControlStatus;
   requiresNewSession?: boolean;
   blockId?: CodexContextBlockId;
   rootAlias?: string;
@@ -476,6 +484,7 @@ export interface BenefitSnapshotReference {
   contextTextChars?: number;
   contextTextSha256?: string;
   contextBlocksComplete?: boolean;
+  evidenceLevel?: CodexContextEvidenceLevel;
   contextBlocks?: Array<{
     id: CodexContextBlockId;
     tag: string;
@@ -488,6 +497,9 @@ export interface BenefitSnapshotReference {
     textSha256?: string;
     controlMethod?: string;
     controllable?: boolean;
+    controlStatus?: CodexControlStatus;
+    evidenceLevel?: CodexContextEvidenceLevel;
+    provenance?: CodexContextProvenance;
     recommendation: string;
     sourcePath: string;
     line: number;
@@ -504,6 +516,8 @@ export interface BenefitPlanResourceMatch {
   enabled?: boolean;
   controllable?: boolean;
   controlMethod?: string;
+  controlStatus?: CodexControlStatus;
+  evidenceLevel?: CodexContextEvidenceLevel;
   requiresNewSession?: boolean;
   blockId?: CodexContextBlockId;
   rootAlias?: string;
@@ -537,7 +551,7 @@ export interface OfflineDescriptionEstimate {
   unverifiedPotentialTokens: number;
   blockTokens: number;
   entryTokens: number;
-  controlStatus: 'per-entry' | 'none-verified';
+  controlStatus: 'per-entry' | 'none-verified' | 'configured-only';
 }
 
 export interface BenefitReport {

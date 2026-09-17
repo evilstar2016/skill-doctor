@@ -1,4 +1,5 @@
 import type { BenefitModelCostBreakdown, CodexUsage } from './types';
+import type { CodexContextEvidenceLevel, CodexControlStatus } from '../types/context';
 
 export type CatalogKind = 'skills_instructions' | 'recommended_plugins';
 
@@ -23,7 +24,10 @@ export interface HistoryCandidate {
   lastUsedAt?: string;
   evidence: Array<{ sessionId: string; sourcePath: string; line: number; kind: 'mention' | 'activation' | 'read' }>;
   recommendation: 'retain' | 'review-disable' | 'unknown';
-  control: 'source-supported' | 'already-disabled' | 'unverified';
+  control: 'source-supported' | 'already-disabled' | 'config-only' | 'unverified';
+  controlStatus?: CodexControlStatus;
+  evidenceLevel?: CodexContextEvidenceLevel;
+  runtimeVerified?: boolean;
   controlMethod?: string;
   reason: string;
 }

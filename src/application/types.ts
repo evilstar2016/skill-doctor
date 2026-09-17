@@ -1,6 +1,6 @@
 import type { AuditFinding, AiFinding } from '../types/audit';
 import type { CleanupSuggestion } from '../types/cleanup';
-import type { ContextCostResult, ContextResource } from '../types/context';
+import type { CodexControlStatus, ContextCostResult, ContextResource } from '../types/context';
 import type { DiffResult } from '../diff/types';
 import type { GroupResult, SkillExplanation } from '../types/explain';
 import type { RegistryEntry } from '../types/install';
@@ -91,6 +91,7 @@ export interface UiResource {
   status: 'healthy' | 'attention' | 'disabled' | 'unknown';
   recommendation?: string;
   controlMethod?: string;
+  controlStatus?: CodexControlStatus;
   estimateStatus?: 'estimated' | 'unknown' | 'unsupported';
   installed?: RegistryEntry;
 }

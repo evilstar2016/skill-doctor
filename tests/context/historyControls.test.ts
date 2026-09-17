@@ -20,7 +20,9 @@ describe('history project controls', () => {
     const preview = previewHistoryControl(project, target, false, home);
     expect(existsSync(config)).toBe(false);
     expect(publicControlPreview(preview)).not.toHaveProperty('before');
+    expect(preview).toMatchObject({ controlStatus: 'configured', runtimeVerified: false, requiresNewSession: true });
     const result = applyHistoryControl(project, target, false, preview.digest, home);
+    expect(result).toMatchObject({ verified: 'config-only', controlStatus: 'configured', runtimeVerified: false, requiresNewSession: true });
     expect(parseTOML<any>(readFileSync(config, 'utf8')).tool_suggest.disabled_tools).toEqual([{ type: 'connector', id: 'keep' }, { type: 'plugin', id: target.id }]);
     expect(readFileSync(join(home, '.codex/config.toml'), 'utf8')).toBe(global);
     undoHistoryControl(project, result.operationId);

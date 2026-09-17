@@ -407,13 +407,15 @@ session, distinguish user messages/turn IDs/completed turns/model responses, and
 show first-response, first-interaction and per-response cache bounds in JSON,
 HTML, CSV and the UI. Child usage is separate from main-thread savings.
 
-`recommended_plugins` is a recommendation list, not installed plugins. Source-
-supported controls are `tool_suggest.disabled_tools` (exact plugin ID, preserving
-existing connector/plugin entries) or both `features.tool_suggest=false` and
-`features.recommended_plugins=false` for the whole block. Per-ID filtering may
-refill unseen candidates (50-entry render limit); whole-block disable also removes
-model-side installation suggestions. Host runtime verification is separate and
-is not claimed by offline reports. Unknown Skill controls remain hypothetical.
+`recommended_plugins` is a recommendation list, not installed plugins. The
+configuration-only controls are `tool_suggest.disabled_tools` (exact plugin ID,
+preserving existing connector/plugin entries) or both
+`features.tool_suggest=false` and `features.recommended_plugins=false` for the
+whole-block candidate. Per-ID filtering may refill unseen candidates (50-entry
+render limit); whole-block disable also removes model-side installation
+suggestions. A config write is not runtime proof: use a fresh Desktop task and
+`skill-doctor context blocks --file <new-session.jsonl> --json`, then rely on its
+`verification` and provenance fields. Unknown Skill controls remain hypothetical.
 
 Historical context attribution keeps a recoverable source-file/line reference and
 content hash rather than copying AGENTS or Skill text into the metadata index. If
@@ -495,14 +497,14 @@ Codex controls:
 
 | Resource | Cost preview | Automatic enable/disable | Written control |
 |----------|--------------|--------------------------|-----------------|
-| Skills | Startup skill metadata plus activation-risk text | Yes | `[[skills.config]]` with `path` and `enabled` |
-| MCP servers | Server config plus live `tools/list` when reachable | Yes | `[mcp_servers.<name>] enabled` |
-| MCP tools | Individual live tools under a controllable MCP server | Yes | `enabled_tools` / `disabled_tools` on `[mcp_servers.<name>]` |
-| Plugins | Plugin-contributed skills and MCP tools | Yes, at plugin level | `[plugins."<id>"] enabled` |
+| Skills | Startup skill metadata plus activation-risk text | Config-only; fresh-task verification required | `[[skills.config]]` with `path` and `enabled` |
+| MCP servers | Server config plus live `tools/list` when reachable | Config-only; fresh-task verification required | `[mcp_servers.<name>] enabled` |
+| MCP tools | Individual live tools under a controllable MCP server | Config-only; fresh-task verification required | `enabled_tools` / `disabled_tools` on `[mcp_servers.<name>]` |
+| Plugins | Plugin-contributed skills and MCP tools | Config-only; fresh-task verification required | `[plugins."<id>"] enabled` |
 | `AGENTS.md` files | Always-on project and user guidance files | No | Reported as `unsupported`; edit or move the file manually |
 | Memories | Memory presence and approximate text when available | No | Reported as `memory-context-unknown`; change Codex memory settings/config manually |
 
-`context enable|disable` writes only the configured project Codex control file, normally `.codex/config.toml`; it does not edit global `~/.codex/config.toml`, plugin manifests, skill files, `AGENTS.md`, or memory storage. Supported toggles return `requiresNewSession: true`; start a new Codex session or restart Codex before expecting the change to affect runtime context.
+`context enable|disable` writes only the configured project Codex control file, normally `.codex/config.toml`; it does not edit global `~/.codex/config.toml`, plugin manifests, skill files, `AGENTS.md`, or memory storage. Results distinguish `changed`/`controlStatus: configured` from runtime verification and return `requiresNewSession: true`; start a new Codex session or restart Codex, then inspect its JSONL before claiming a header block was removed.
 
 Estimate limitations:
 

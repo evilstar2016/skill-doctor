@@ -1,3 +1,5 @@
+import type { CodexControlStatus } from './context';
+
 export type Platform =
   | 'claude'
   | 'cursor'
@@ -59,6 +61,7 @@ export interface SkillRecord {
     controlPath?: string;
     controlMethod?: string;
     estimateStatus?: 'estimated' | 'unknown' | 'unsupported';
+    controlStatus?: CodexControlStatus;
   };
   provenance?: SkillProvenance;
 }

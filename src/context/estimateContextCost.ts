@@ -133,6 +133,7 @@ function appendCodexSkillListAggregates(
       confidence: 'high',
       enabled: enabledKey === 'enabled',
       controllable: resource === 'skill' ? true : groupItems.every((item) => item.controllable !== false),
+      controlStatus: groupItems.every((item) => item.controlStatus === 'configured') ? 'configured' : 'unknown',
       controlPath: firstDefined(groupItems.map((item) => item.controlPath)),
       controlMethod: resource === 'skill' ? 'skills.config' : 'plugins.<id>.enabled',
       estimateStatus: 'estimated',
@@ -205,6 +206,7 @@ function estimateSkillCost(skill: SkillRecord, tokenCounter: TokenCounter): Cont
     ...(skill.context?.controlPath ? { controlPath: skill.context.controlPath } : {}),
     ...(skill.context?.controlMethod ? { controlMethod: skill.context.controlMethod } : {}),
     ...(skill.context?.estimateStatus ? { estimateStatus: skill.context.estimateStatus } : {}),
+    ...(skill.context?.controlStatus ? { controlStatus: skill.context.controlStatus } : {}),
     ...(profile.officialLimit ? { officialLimit: profile.officialLimit } : {}),
     recommendation: getRecommendation(skill, profile, estimatedTokens, activationEstimatedTokens),
   };
@@ -248,6 +250,7 @@ function estimateMcpServerCost(server: McpServerRecord, tokenCounter: TokenCount
     ...(server.context?.controlPath ? { controlPath: server.context.controlPath } : {}),
     ...(server.context?.controlMethod ? { controlMethod: server.context.controlMethod } : {}),
     ...(server.context?.estimateStatus ? { estimateStatus: server.context.estimateStatus } : {}),
+    ...(server.context?.controlStatus ? { controlStatus: server.context.controlStatus } : {}),
     recommendation: getMcpRecommendation(server, estimatedTokens),
   };
 }
@@ -283,6 +286,7 @@ function estimateContextResourceCost(entry: ContextResourceRecord, tokenCounter:
     ...(entry.controlPath ? { controlPath: entry.controlPath } : {}),
     ...(entry.controlMethod ? { controlMethod: entry.controlMethod } : {}),
     ...(entry.estimateStatus ? { estimateStatus: entry.estimateStatus } : {}),
+    ...(entry.controlStatus ? { controlStatus: entry.controlStatus } : {}),
     ...(entry.officialLimit ? { officialLimit: entry.officialLimit } : {}),
     recommendation: entry.recommendation,
   };

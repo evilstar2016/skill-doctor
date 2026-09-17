@@ -6,7 +6,7 @@ import './historyBenefit.css';
 
 function controlAvailable(item: OfflineHistoryAnalysis['usageProfile'][number]): boolean {
   return item.kind === 'recommended_plugins'
-    || (item.kind === 'skills_instructions' && item.control === 'source-supported' && Boolean(item.sourcePath) && !/\/plugins\/cache\/|\/\.system\//.test(item.sourcePath ?? ''));
+    || (item.kind === 'skills_instructions' && ['source-supported', 'config-only', 'already-disabled'].includes(item.control) && Boolean(item.sourcePath) && !/\/plugins\/cache\/|\/\.system\//.test(item.sourcePath ?? ''));
 }
 
 function formatCost(value: { amount?: number; currency?: string } | undefined): string {

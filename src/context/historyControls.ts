@@ -11,7 +11,8 @@ export interface HistoryControlTarget { kind: 'skill' | 'recommendation' | 'reco
 export interface HistoryControlPreview {
   target: HistoryControlTarget; enabled: boolean; projectDir: string; configPath: string;
   digest: string; changed: boolean; before: string; after: string;
-  scope: 'project'; requiresNewSession: true; warnings: string[];
+  scope: 'project'; requiresNewSession: true; controlStatus: 'configured'; runtimeVerified: false;
+  verificationReason: string; warnings: string[];
 }
 type Config = Record<string, any>;
 const read = (path: string) => existsSync(path) ? readFileSync(path, 'utf8') : '';
@@ -139,6 +140,8 @@ export function previewHistoryControl(projectDir: string, target: HistoryControl
   } else throw new Error('Unsupported control target.');
   const digest = hash(JSON.stringify({ projectDir: resolve(projectDir), target, enabled, before, after, inherited }));
   return { target, enabled, projectDir: resolve(projectDir), configPath, digest, before, after, changed: before !== after, scope: 'project', requiresNewSession: true,
+    controlStatus: 'configured', runtimeVerified: false,
+    verificationReason: 'Configuration preview/apply is not evidence that a Desktop session header changed; inspect a fresh task JSONL.',
     warnings: ['Project config must be trusted and loaded. Start a new session; runtime context savings are not verified.', 'Per-ID filtering may refill recommendations. Whole-block control also removes installation suggestions, not installed plugins.', 'Project array overrides inherit current entries; future parent-config changes may require review.'] };
 }
 
@@ -155,7 +158,7 @@ export function applyHistoryControl(projectDir: string, target: HistoryControlTa
     writeFileSync(join(dir, `${operationId}.json`), JSON.stringify({ ...preview, existed: existsSync(preview.configPath) }), { flag: 'wx', mode: 0o600 });
     atomicWrite(preview.configPath, preview.after);
     if (read(preview.configPath) !== preview.after) throw new Error('Configuration verification failed.');
-    return { operationId, configPath: preview.configPath, scope: 'project', changed: preview.changed, verified: 'config-only', requiresNewSession: true };
+    return { operationId, configPath: preview.configPath, scope: 'project', changed: preview.changed, verified: 'config-only', controlStatus: preview.controlStatus, runtimeVerified: preview.runtimeVerified, verificationReason: preview.verificationReason, requiresNewSession: true };
   } finally { unlinkSync(lock); }
 }
 
@@ -177,6 +180,6 @@ export function undoHistoryControl(projectDir: string, operationId: string, home
     if (read(configPath) !== operation.after) throw new Error('Configuration changed since this operation; refusing to overwrite subsequent edits.');
     if (operation.existed) atomicWrite(configPath, operation.before);
     else unlinkSync(configPath);
-    return { operationId, configPath, restored: true, requiresNewSession: true };
+    return { operationId, configPath, restored: true, verified: 'config-only', controlStatus: 'configured', runtimeVerified: false, requiresNewSession: true };
   } finally { unlinkSync(lock); }
 }

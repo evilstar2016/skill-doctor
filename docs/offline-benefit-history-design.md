@@ -55,9 +55,9 @@ tool_suggest = false
 recommended_plugins = false
 ```
 
-源码 gate 为 `Apps && Plugins && (ToolSuggest || RecommendedPlugins)`。单独关闭 `recommended_plugins` 不充分。此组合也关闭模型侧安装建议能力，但不要求关闭已安装 apps/plugins。
+源码 gate 为 `Apps && Plugins && (ToolSuggest || RecommendedPlugins)`。单独关闭 `recommended_plugins` 不充分。此组合也关闭模型侧安装建议能力，但不要求关闭已安装 apps/plugins。Skill Doctor 对这些键的写入只标记为 `configured`，不会冒充 Desktop runtime 已生效。
 
-插件渲染最多取 50 个候选。逐 ID 屏蔽后可能发生候选补位，因此必须区分固定候选文本差值与运行时最终目录差值。可确定关闭整块的源码行为，仍需在目标 Desktop 版本的新会话确认宿主未覆盖配置。当前 CLI 参数解析验证不能替代 Desktop 上下文验证。
+插件渲染最多取 50 个候选。逐 ID 屏蔽后可能发生候选补位，因此必须区分固定候选文本差值与运行时最终目录差值。可确定关闭整块的源码行为，仍需在目标 Desktop 版本的新会话确认宿主未覆盖配置。使用 `skill-doctor context blocks --file <new-session.jsonl> --json` 可读取真实 `content_item_kinds`，并输出 block 的 `present/absent/unknown`、session 路径、行号和 item provenance；纯文本标签命中不能替代 Desktop 上下文验证。
 
 ## 两种估算场景
 

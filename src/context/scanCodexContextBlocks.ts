@@ -3,9 +3,11 @@ import type {
   CodexAvailableSkillEntry,
   CodexContextBlockActivation,
   CodexContextBlockAnalysis,
+  CodexContextEvidenceLevel,
   CodexContextBlockId,
   CodexContextBlockObservation,
   CodexContextBlockRole,
+  CodexContextProvenance,
   CodexRecommendedPluginEntry,
   CodexSkillRootAlias,
   ContextTokenizerMode,
@@ -43,7 +45,7 @@ const BLOCK_DEFINITIONS: BlockDefinition[] = [
     activation: 'initial-context',
     controlMethod: 'features.tool_suggest + features.recommended_plugins (composite)',
     controllable: false,
-    recommendation: 'Source-supported controls: tool_suggest.disabled_tools filters exact plugin IDs (may refill unseen candidates); set both features.tool_suggest=false and features.recommended_plugins=false to remove the block and installation suggestions. Host runtime verification is separate. Do not use plugins.<id>.enabled.',
+    recommendation: 'Config-only controls: tool_suggest.disabled_tools filters exact plugin IDs (may refill unseen candidates); set both features.tool_suggest=false and features.recommended_plugins=false as the whole-block candidate. A fresh Desktop task JSONL must verify removal; do not use plugins.<id>.enabled for this block.',
   },
   {
     id: 'permissions_instructions',
@@ -108,10 +110,15 @@ const BLOCK_DEFINITIONS: BlockDefinition[] = [
   },
 ];
 
+export const CODEX_CONTEXT_BLOCK_IDS: CodexContextBlockId[] = BLOCK_DEFINITIONS.map((definition) => definition.id);
+
 export interface AnalyzeCodexContextBlocksOptions {
   sourcePath?: string;
   tokenizer?: ContextTokenizerMode;
   tokenizerModel?: string;
+  blockIds?: CodexContextBlockId[];
+  evidenceLevel?: CodexContextEvidenceLevel;
+  provenance?: CodexContextProvenance;
 }
 
 export function analyzeCodexContextBlocks(
@@ -122,12 +129,16 @@ export function analyzeCodexContextBlocks(
     tokenizer: options.tokenizer,
     tokenizerModel: options.tokenizerModel,
   });
-  const blocks = findBlocks(text, tokenCounter.count);
+  const definitions = options.blockIds
+    ? BLOCK_DEFINITIONS.filter((definition) => options.blockIds?.includes(definition.id))
+    : BLOCK_DEFINITIONS;
+  const evidenceLevel = options.evidenceLevel ?? 'text-observed';
+  const blocks = findBlocks(text, tokenCounter.count, definitions, evidenceLevel, options.provenance);
   const diagnostics = blocks
     .filter((block) => !block.complete)
     .map((block) => `Incomplete ${block.tag} block at offset ${block.startOffset}`);
   const knownRanges = blocks.map((block) => [block.startOffset, block.endOffset] as const);
-  const unmatchedTags = findUnmatchedTags(text, knownRanges);
+  const unmatchedTags = findUnmatchedTags(text, knownRanges, definitions);
   diagnostics.push(...unmatchedTags.map((tag) => `Unmatched context tag: ${tag}`));
 
   return {
@@ -137,19 +148,27 @@ export function analyzeCodexContextBlocks(
     tokenizer: tokenCounter.summary,
     blocks,
     diagnostics,
+    ...(options.evidenceLevel ? { evidenceLevel } : {}),
+    ...(options.provenance ? { provenance: options.provenance } : {}),
   };
 }
 
-function findBlocks(text: string, countTokens: (value: string) => number): CodexContextBlockObservation[] {
+function findBlocks(
+  text: string,
+  countTokens: (value: string) => number,
+  definitions: BlockDefinition[],
+  evidenceLevel: CodexContextEvidenceLevel,
+  provenance?: CodexContextProvenance,
+): CodexContextBlockObservation[] {
   const blocks: CodexContextBlockObservation[] = [];
   let cursor = 0;
 
   while (cursor < text.length) {
-    const next = nextBlockStart(text, cursor);
+    const next = nextBlockStart(text, cursor, definitions);
     if (!next) break;
     const { definition, startOffset } = next;
     const contentStart = startOffset + definition.start.length;
-    const endMarkerOffset = findClosingMarker(text, definition, contentStart);
+    const endMarkerOffset = findClosingMarker(text, definition, contentStart, definitions);
     const complete = endMarkerOffset >= 0;
     const endOffset = complete ? endMarkerOffset + definition.end.length : text.length;
     const blockText = text.slice(startOffset, endOffset);
@@ -169,6 +188,10 @@ function findBlocks(text: string, countTokens: (value: string) => number): Codex
       ...blockDetails(definition.id, body),
       ...(definition.controlMethod ? { controlMethod: definition.controlMethod } : {}),
       ...(definition.controllable !== undefined ? { controllable: definition.controllable } : {}),
+      controlStatus: 'unknown',
+      evidenceLevel,
+      observationStatus: 'present',
+      ...(provenance ? { provenance } : {}),
       recommendation: definition.recommendation,
     };
     blocks.push(observation);
@@ -178,9 +201,9 @@ function findBlocks(text: string, countTokens: (value: string) => number): Codex
   return blocks;
 }
 
-function nextBlockStart(text: string, offset: number): { definition: BlockDefinition; startOffset: number } | undefined {
+function nextBlockStart(text: string, offset: number, definitions: BlockDefinition[]): { definition: BlockDefinition; startOffset: number } | undefined {
   let result: { definition: BlockDefinition; startOffset: number } | undefined;
-  for (const definition of BLOCK_DEFINITIONS) {
+  for (const definition of definitions) {
     const startOffset = text.indexOf(definition.start, offset);
     if (startOffset < 0 || (result && startOffset >= result.startOffset)) continue;
     result = { definition, startOffset };
@@ -188,9 +211,9 @@ function nextBlockStart(text: string, offset: number): { definition: BlockDefini
   return result;
 }
 
-function findUnmatchedTags(text: string, knownRanges: Array<readonly [number, number]>): string[] {
+function findUnmatchedTags(text: string, knownRanges: Array<readonly [number, number]>, definitions: BlockDefinition[]): string[] {
   const result: string[] = [];
-  for (const definition of BLOCK_DEFINITIONS) {
+  for (const definition of definitions) {
     let offset = 0;
     while (offset < text.length) {
       const startOffset = text.indexOf(definition.start, offset);
@@ -203,11 +226,11 @@ function findUnmatchedTags(text: string, knownRanges: Array<readonly [number, nu
   return [...new Set(result)];
 }
 
-function findClosingMarker(text: string, definition: BlockDefinition, offset: number): number {
+function findClosingMarker(text: string, definition: BlockDefinition, offset: number, definitions: BlockDefinition[]): number {
   const firstMatch = text.indexOf(definition.end, offset);
   if (firstMatch < 0 || isLineStart(text, firstMatch)) return firstMatch;
 
-  const nextDifferentBlock = BLOCK_DEFINITIONS
+  const nextDifferentBlock = definitions
     .filter((candidate) => candidate.id !== definition.id)
     .map((candidate) => text.indexOf(candidate.start, offset))
     .filter((candidate) => candidate >= 0)

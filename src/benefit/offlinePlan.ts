@@ -34,7 +34,7 @@ export async function buildOfflineCodexPlan(options: BuildOfflineCodexPlanOption
       const result = estimateContextCost(entries, { projectPath: options.projectDir, scope: 'all', tokenizer: options.tokenizer, tokenizerModel: options.tokenizerModel });
       for (const item of [...result.items, ...(result.disabledItems ?? [])]) {
         if (item.kind !== 'agent-skill-description') continue;
-        inventory.push({ id: item.id, name: item.name, sourcePath: item.sourcePath, resource: item.resource, kind: item.kind, enabled: item.enabled, controllable: item.controllable, controlMethod: item.controlMethod });
+        inventory.push({ id: item.id, name: item.name, sourcePath: item.sourcePath, resource: item.resource, kind: item.kind, enabled: item.enabled, controllable: item.controllable, controlMethod: item.controlMethod, controlStatus: item.controlStatus });
       }
     } catch (error) {
       diagnostics.push({ code: 'offline.inventory_scan_failed', severity: 'warning', message: String(error) });
@@ -44,26 +44,43 @@ export async function buildOfflineCodexPlan(options: BuildOfflineCodexPlanOption
   const affectedItems: OptimizationPlanResource[] = [];
   for (const candidate of profile) {
     if (candidate.kind === 'recommended_plugins') {
-      candidate.control = 'source-supported';
-      candidate.controlMethod = 'tool_suggest.disabled_tools (type=plugin, exact id); merge existing entries';
+      candidate.control = 'config-only';
+      candidate.controlStatus = 'configured';
+      candidate.runtimeVerified = false;
+      candidate.controlMethod = 'config-only: tool_suggest.disabled_tools (type=plugin, exact id); merge existing entries';
     } else {
       const matches = inventory.filter((item) => candidate.sourcePath ? item.sourcePath === candidate.sourcePath : item.name === candidate.name);
       const match = matches.length === 1 ? matches[0] : undefined;
       const pluginPath = candidate.sourcePath?.includes('/plugins/cache/');
-      if (match?.enabled === false) candidate.control = 'already-disabled';
-      else if (match?.controllable !== false && match && !pluginPath) candidate.control = 'source-supported';
-      else if (candidate.sourcePath && existsSync(candidate.sourcePath) && !pluginPath && !candidate.sourcePath.includes('/.system/')) candidate.control = 'source-supported';
-      candidate.controlMethod = candidate.control === 'unverified' ? 'Verify per-skill control for this source. Whole-plugin disable requires sibling Skill/tool dependency review; no automatic action.' : 'skills.config: path=absolute SKILL.md, enabled=false (new session)';
+      if (match?.enabled === false) {
+        candidate.control = 'already-disabled';
+        candidate.controlStatus = 'configured';
+        candidate.runtimeVerified = false;
+      } else if (match?.controllable !== false && match && !pluginPath) {
+        candidate.control = 'config-only';
+        candidate.controlStatus = 'configured';
+        candidate.runtimeVerified = false;
+      } else if (candidate.sourcePath && existsSync(candidate.sourcePath) && !pluginPath && !candidate.sourcePath.includes('/.system/')) {
+        candidate.control = 'config-only';
+        candidate.controlStatus = 'configured';
+        candidate.runtimeVerified = false;
+      } else {
+        candidate.controlStatus = 'unknown';
+        candidate.runtimeVerified = false;
+      }
+      candidate.controlMethod = candidate.control === 'unverified'
+        ? 'Verify per-skill control for this source. Whole-plugin disable requires sibling Skill/tool dependency review; no automatic action.'
+        : 'config-only: skills.config path=absolute SKILL.md, enabled=false (new session)';
     }
     if (candidate.recommendation !== 'review-disable') continue;
-    affectedItems.push({ id: `${candidate.kind}:${candidate.id}`, name: candidate.name, sourcePath: candidate.sourcePath, resource: candidate.kind === 'recommended_plugins' ? 'plugin' : 'skill', kind: candidate.kind === 'recommended_plugins' ? 'context-block' : 'agent-skill-description', blockId: candidate.kind, enabled: false, controllable: candidate.control !== 'unverified', controlMethod: candidate.controlMethod, requiresNewSession: true });
+    affectedItems.push({ id: `${candidate.kind}:${candidate.id}`, name: candidate.name, sourcePath: candidate.sourcePath, resource: candidate.kind === 'recommended_plugins' ? 'plugin' : 'skill', kind: candidate.kind === 'recommended_plugins' ? 'context-block' : 'agent-skill-description', blockId: candidate.kind, enabled: false, controllable: candidate.control !== 'unverified', controlMethod: candidate.controlMethod, controlStatus: candidate.controlStatus ?? 'unknown', requiresNewSession: true });
   }
   const estimate = (kind: 'skills_instructions' | 'recommended_plugins'): OfflineDescriptionEstimate => {
     const candidates = profile.filter((item) => item.kind === kind);
     const text = history.catalogs.find((item) => item.source.kind === kind)?.text ?? '';
     const selected = candidates.filter((item) => item.recommendation === 'review-disable');
     // Source support is not host runtime verification; keep legacy verified fields at zero.
-    return { candidateCount: candidates.length, explicitlyReferencedCount: candidates.filter((item) => item.recommendation === 'retain').length, verifiedRemovableCount: 0, verifiedRemovableTokens: 0, unverifiedPotentialCount: selected.length, unverifiedPotentialTokens: Math.max(0, count(text) - count(removeCatalogEntries(text, kind, new Set(selected.map((item) => item.id))))), blockTokens: count(text), entryTokens: Math.max(0, count(text) - count(removeCatalogEntries(text, kind, new Set(candidates.map((item) => item.id))))), controlStatus: kind === 'recommended_plugins' ? 'none-verified' : 'per-entry' };
+    return { candidateCount: candidates.length, explicitlyReferencedCount: candidates.filter((item) => item.recommendation === 'retain').length, verifiedRemovableCount: 0, verifiedRemovableTokens: 0, unverifiedPotentialCount: selected.length, unverifiedPotentialTokens: Math.max(0, count(text) - count(removeCatalogEntries(text, kind, new Set(selected.map((item) => item.id))))), blockTokens: count(text), entryTokens: Math.max(0, count(text) - count(removeCatalogEntries(text, kind, new Set(candidates.map((item) => item.id))))), controlStatus: 'configured-only' };
   };
   const skippedCandidates = profile.filter((item) => item.recommendation !== 'review-disable').map((item) => ({ source: item.kind, name: item.name, reason: item.reason }));
   const plan: OptimizationPlan = {

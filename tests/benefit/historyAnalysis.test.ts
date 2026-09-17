@@ -68,6 +68,7 @@ describe('history-based offline benefit', () => {
     expect(h.firstInteraction).toMatchObject({ responseCount: 2, descriptionTokens: D * 2 });
     expect(h.historicalReplay).toMatchObject({ coveredResponses: 3, unknownResponses: 0, inputTokens: D * 3 });
     expect(h.pluginControl).toMatchObject({ wholeBlockSelected: true, runtimeVerified: false, replacementRisk: true });
+    expect(h.usageProfile.find((item) => item.kind === 'recommended_plugins' && item.name === 'Airtable')).toMatchObject({ control: 'config-only', controlStatus: 'configured', runtimeVerified: false });
     expect(renderBenefitCsv(report).split('\r\n')).toHaveLength(4);
     expect(renderBenefitHtml(report)).toContain('历史画像与估算基准');
     expect(renderBenefitHtml(report)).not.toContain(projectDir);

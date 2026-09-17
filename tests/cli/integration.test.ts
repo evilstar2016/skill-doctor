@@ -1619,6 +1619,31 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
     expect(readFileSync(configPath, 'utf8')).toBe('[features]\nrecommended_plugins = true\n');
   });
 
+  it('context blocks reads JSONL item metadata and reports trusted absence', () => {
+    const root = createTempRoot();
+    const cwd = join(root, 'workspace');
+    const home = join(root, 'home');
+    const inputPath = join(root, 'rollout.jsonl');
+    const now = '2026-09-17T15:16:00.000Z';
+    const rows = [
+      { timestamp: now, type: 'session_meta', payload: { session_id: 'session-cli', id: 'thread-cli', timestamp: now, cwd } },
+      { timestamp: now, type: 'response_item', payload: { type: 'message', role: 'developer', content: [{ type: 'input_text', text: 'Memory contains <skills_instructions> as an example.' }], internal_chat_message_metadata_passthrough: { content_item_kinds: ['memories.instructions'] } } },
+      { timestamp: now, type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<recommended_plugins>\n- Demo (demo@source)\n</recommended_plugins>' }], internal_chat_message_metadata_passthrough: { content_item_kinds: ['plugins.recommendations'] } } },
+    ];
+
+    writeFile(join(cwd, '.keep'), '');
+    writeFile(inputPath, `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`);
+    const result = runCli(['context', 'blocks', '--file', inputPath, '--json'], cwd, home);
+    const payload = JSON.parse(result.stdout) as { blocks: Array<{ id: string }>; verification: Array<{ id: string; status: string }> };
+
+    expect(result.status).toBe(0);
+    expect(payload.blocks.map((block) => block.id)).toEqual(['recommended_plugins']);
+    expect(payload.verification).toEqual(expect.arrayContaining([
+      { id: 'skills_instructions', status: 'absent', evidenceLevel: 'runtime-item-observed', line: expect.any(Number), sourcePath: inputPath, sessionId: 'session-cli', threadId: 'thread-cli', reason: expect.any(String) },
+      expect.objectContaining({ id: 'recommended_plugins', status: 'present' }),
+    ]));
+  });
+
   it('cost reports estimated token tax for Claude skills and always-on files', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

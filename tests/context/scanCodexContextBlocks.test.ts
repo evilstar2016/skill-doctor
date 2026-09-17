@@ -88,4 +88,22 @@ describe('analyzeCodexContextBlocks', () => {
     expect(result.blocks[0]?.text).toContain('Use `<collaboration_mode>...</collaboration_mode>`');
     expect(result.diagnostics).toEqual([]);
   });
+
+  it('can restrict parsing to block kinds supplied by a trusted JSONL item', () => {
+    const result = analyzeCodexContextBlocks([
+      '<skills_instructions>literal skill catalog</skills_instructions>',
+      '<recommended_plugins>- GitHub (github@openai-curated-remote)</recommended_plugins>',
+    ].join('\n'), {
+      blockIds: ['recommended_plugins'],
+      evidenceLevel: 'runtime-item-observed',
+      provenance: { sourcePath: '/tmp/session.jsonl', line: 3, role: 'user', contentItemKind: 'plugins.recommendations', contentItemIndex: 0 },
+    });
+
+    expect(result.blocks.map((block) => block.id)).toEqual(['recommended_plugins']);
+    expect(result.blocks[0]).toMatchObject({
+      evidenceLevel: 'runtime-item-observed',
+      observationStatus: 'present',
+      provenance: { contentItemKind: 'plugins.recommendations', contentItemIndex: 0 },
+    });
+  });
 });

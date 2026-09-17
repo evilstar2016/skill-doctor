@@ -445,6 +445,7 @@ function snapshotReference(snapshot: CodexSessionSelection['associatedFiles'][nu
     ...(snapshot.contextTextChars !== undefined ? { contextTextChars: snapshot.contextTextChars } : {}),
     ...(snapshot.contextTextSha256 ? { contextTextSha256: snapshot.contextTextSha256 } : {}),
     ...(snapshot.contextBlocksComplete !== undefined ? { contextBlocksComplete: snapshot.contextBlocksComplete } : {}),
+    ...(snapshot.evidenceLevel ? { evidenceLevel: snapshot.evidenceLevel } : {}),
     ...(snapshot.contextBlocks ? {
       contextBlocks: snapshot.contextBlocks.map((block) => ({
         id: block.id,
@@ -458,6 +459,9 @@ function snapshotReference(snapshot: CodexSessionSelection['associatedFiles'][nu
         ...(block.textSha256 ? { textSha256: block.textSha256 } : {}),
         ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
         ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+        ...(block.controlStatus ? { controlStatus: block.controlStatus } : {}),
+        ...(block.evidenceLevel ? { evidenceLevel: block.evidenceLevel } : {}),
+        ...(block.provenance ? { provenance: { ...block.provenance } } : {}),
         recommendation: block.recommendation,
         sourcePath: block.sourcePath,
         line: block.line,
@@ -643,7 +647,7 @@ export function estimateCodexBenefit(options: EstimateBenefitOptions): BenefitRe
   ];
   if (options.plan?.sourceKind === 'offline') {
     limitations.push('Offline results project latest-catalog deletion onto one baseline workload. Unknown controls remain hypothetical candidates; review recommendations before disabling. Historical replay is reported separately, with unknown gaps.');
-    limitations.push('Plugin controls are source-supported, not host-runtime-verified. Per-ID recommendation removal may refill from unseen candidates; whole-block disable also removes installation suggestions. No configuration changed.');
+    limitations.push('Plugin controls are configuration-only, not host-runtime-verified. Per-ID recommendation removal may refill from unseen candidates; whole-block disable also removes installation suggestions. No configuration changed.');
   } else if (!options.plan) {
     limitations.push('No matching Skill Doctor optimization plan was found, so projected savings are unavailable.');
   }

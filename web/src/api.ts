@@ -13,7 +13,15 @@ import type { BenefitReport } from '../../src/benefit/types';
 import type { HistoryControlPreview } from '../../src/context/historyControls';
 
 export type ControlPreview = Omit<HistoryControlPreview, 'before' | 'after'>;
-export interface ControlResult { operationId: string; configPath: string; requiresNewSession: boolean }
+export interface ControlResult {
+  operationId: string;
+  configPath: string;
+  requiresNewSession: boolean;
+  verified?: 'config-only';
+  controlStatus?: 'configured' | 'runtime-verified' | 'host-overridden' | 'unknown' | 'not-controllable';
+  runtimeVerified?: boolean;
+  verificationReason?: string;
+}
 export function previewBenefitControl(input: { jobId: string; kind: string; id: string; enabled: boolean }): Promise<ControlPreview> {
   return request('/api/benefits/control', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -213,7 +221,7 @@ export async function compareResources(leftId: string, rightId: string): Promise
 }
 
 export async function toggleContextResource(id: string, enabled: boolean) {
-  return request<{ changed: boolean; supported: boolean; message: string; configPath: string; requiresNewSession: boolean }>('/api/context/toggle', {
+  return request<{ changed: boolean; supported: boolean; message: string; configPath: string; requiresNewSession: boolean; controlStatus?: ControlResult['controlStatus']; runtimeVerified?: boolean; verificationReason?: string }>('/api/context/toggle', {
     method: 'POST', body: JSON.stringify({ id, enabled }),
   });
 }

@@ -141,7 +141,7 @@ export function renderHistorySummary(report: BenefitReport): string {
       `${item.name} [${item.kind}]：${item.recommendation === 'retain' ? '建议保留：历史有可靠使用证据' : item.recommendation === 'unknown' ? '待确认：证据不足，默认保留' : '建议审阅禁用：已扫描历史未发现可靠使用；若近期任务或项目依赖需要则保留'}；控制 ${item.control}`,
       `  引用 ${item.explicitMentionCount} / 激活 ${item.activationCount} / 读取 ${item.observedReadCount} / 使用会话 ${item.usedSessionCount}；${item.reason}`,
       ...item.evidence.map((entry) => `  证据 ${entry.kind}: ${entry.sessionId} · ${entry.sourcePath}:${entry.line}`),
-      `  控制说明: ${item.controlMethod ?? '独立控制未验证，不自动扩大为整插件禁用'}`,
+      `  控制说明: ${item.controlMethod ?? '独立控制未验证，不自动扩大为整插件禁用'}；状态 ${item.controlStatus ?? 'unknown'}；运行时验证=${item.runtimeVerified ?? false}`,
       ...(item.control !== 'unverified' ? [`  预览: skill-doctor context control --report <本项目报告.json> --kind ${item.kind} --id ${shellQuote(item.id)} --action disable`] : []),
     ]),
     '整块预览: skill-doctor context control --report <本项目报告.json> --kind recommendations --id recommended_plugins --action disable',

@@ -151,6 +151,7 @@ async function scanAgentEntries(
       controlPath,
       controlMethod: 'unsupported',
       estimateStatus: 'estimated',
+      controlStatus: 'not-controllable',
       officialLimit: {
         kind: 'chars',
         value: config.officialLimits.projectDocMaxBytes,
@@ -195,6 +196,7 @@ async function scanSkillEntries(
           controlPath,
           controlMethod: 'skills.config',
           estimateStatus: 'estimated',
+          controlStatus: 'configured',
         },
       };
     });
@@ -267,6 +269,7 @@ async function scanPluginEntries(
               controlPath,
               controlMethod: `plugins.${pluginId}.enabled`,
               estimateStatus: server.toolDiscoveryStatus === 'failed' ? 'unknown' : 'estimated',
+              controlStatus: 'configured',
             },
           });
         }
@@ -292,6 +295,7 @@ async function scanPluginEntries(
         controlPath,
         controlMethod: `plugins.${candidate.pluginId}.enabled`,
         estimateStatus: 'estimated',
+        controlStatus: 'configured',
       },
     });
   }
@@ -335,6 +339,7 @@ function scanMcpEntries(
         controlPath,
         controlMethod: `mcp_servers.${server.name}.enabled`,
         estimateStatus: server.toolDiscoveryStatus === 'failed' ? 'unknown' : 'estimated',
+        controlStatus: 'configured',
       };
       return server;
     });
@@ -394,6 +399,7 @@ function scanMemoryEntries(
       controlPath,
       controlMethod: 'unsupported',
       estimateStatus: 'unknown' as const,
+      controlStatus: 'not-controllable' as const,
       recommendation: 'Codex memories can affect future sessions; disable memories in Codex settings/config if this context is not wanted.',
     })));
 }

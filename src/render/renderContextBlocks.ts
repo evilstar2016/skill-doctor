@@ -13,6 +13,9 @@ export function renderCodexContextBlocks(result: CodexContextBlockAnalysis): str
         block.recommendedPlugins?.length ? `  recommended plugins: ${block.recommendedPlugins.length}` : '',
         block.controlMethod ? `  control: ${block.controlMethod}` : '',
         block.controllable !== undefined ? `  controllable: ${block.controllable}` : '',
+        block.controlStatus ? `  control status: ${block.controlStatus}` : '',
+        block.evidenceLevel ? `  evidence: ${block.evidenceLevel}` : '',
+        block.provenance ? `  provenance: ${block.provenance.sourcePath}:${block.provenance.line}${block.provenance.contentItemKind ? ` kind=${block.provenance.contentItemKind}` : ''}${block.provenance.contentItemIndex !== undefined ? ` item=${block.provenance.contentItemIndex}` : ''}` : '',
         `  note: ${block.recommendation}`,
       ].filter(Boolean));
   const diagnostics = result.diagnostics.length === 0
@@ -22,9 +25,11 @@ export function renderCodexContextBlocks(result: CodexContextBlockAnalysis): str
   return [
     'CODEX CONTEXT BLOCK REPORT',
     ...(result.sourcePath ? [`Source: ${result.sourcePath}`] : []),
+    ...(result.evidenceLevel ? [`Evidence: ${result.evidenceLevel}`] : []),
     `Observed text: ${result.textChars} chars`,
     `Estimated block tokens: ${result.totalEstimatedTokens}`,
     `Tokenizer: ${formatTokenizer(result.tokenizer)}`,
+    ...(result.verification ? ['', 'Verification:', ...result.verification.map((entry) => `- ${entry.id}: ${entry.status}${entry.line ? ` (${entry.sourcePath ?? result.sourcePath ?? 'session'}:${entry.line})` : ''} — ${entry.reason}`)] : []),
     '',
     'Blocks:',
     ...blockLines,

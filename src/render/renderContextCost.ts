@@ -26,6 +26,7 @@ export function renderContextCost(result: ContextCostResult): string {
           `  activation tokens: ${item.activationEstimatedTokens}  confidence: ${item.confidence}${item.enabled === false ? '  disabled' : ''}`,
           item.id ? `  id: ${item.id}` : '',
           item.controllable !== undefined ? `  controllable: ${item.controllable}${item.controlMethod ? `  method: ${item.controlMethod}` : ''}` : '',
+          item.controlStatus ? `  control status: ${item.controlStatus}` : '',
           `  path: ${item.sourcePath}`,
           `  fix: ${item.recommendation}`,
         ].filter(Boolean));

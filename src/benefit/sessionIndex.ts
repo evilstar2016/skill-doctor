@@ -73,6 +73,7 @@ export function sanitizeAnalysisForIndex(analysis: CodexSessionFileAnalysis): Co
       ...(snapshot.contextTextChars !== undefined ? { contextTextChars: snapshot.contextTextChars } : {}),
       ...(snapshot.contextTextSha256 ? { contextTextSha256: snapshot.contextTextSha256 } : {}),
       ...(snapshot.contextBlocksComplete !== undefined ? { contextBlocksComplete: snapshot.contextBlocksComplete } : {}),
+      ...(snapshot.evidenceLevel ? { evidenceLevel: snapshot.evidenceLevel } : {}),
       ...(snapshot.contextBlocks ? {
         contextBlocks: snapshot.contextBlocks.map((block) => ({
           id: block.id,
@@ -86,6 +87,9 @@ export function sanitizeAnalysisForIndex(analysis: CodexSessionFileAnalysis): Co
           ...(block.textSha256 ? { textSha256: block.textSha256 } : {}),
           ...(block.controlMethod ? { controlMethod: block.controlMethod } : {}),
           ...(block.controllable !== undefined ? { controllable: block.controllable } : {}),
+          ...(block.controlStatus ? { controlStatus: block.controlStatus } : {}),
+          ...(block.evidenceLevel ? { evidenceLevel: block.evidenceLevel } : {}),
+          ...(block.provenance ? { provenance: { ...block.provenance } } : {}),
           recommendation: block.recommendation,
           sourcePath: block.sourcePath,
           line: block.line,

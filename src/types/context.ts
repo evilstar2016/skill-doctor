@@ -5,6 +5,9 @@ export type ContextCostSource = 'skill' | 'mcp' | 'agents' | 'plugin' | 'memory'
 export type ContextResource = 'agents' | 'skill' | 'mcp' | 'plugin' | 'memory';
 export type ContextEstimateStatus = 'estimated' | 'unknown' | 'unsupported';
 export type ContextTokenizerMode = 'openai' | 'approx';
+export type CodexContextEvidenceLevel = 'text-observed' | 'runtime-item-observed' | 'fresh-session-verified';
+export type CodexControlStatus = 'configured' | 'runtime-verified' | 'host-overridden' | 'unknown' | 'not-controllable';
+export type CodexContextObservationStatus = 'present' | 'absent' | 'unknown';
 
 export type CodexContextBlockId =
   | 'skills_instructions'
@@ -41,6 +44,28 @@ export interface CodexRecommendedPluginEntry {
   id: string;
 }
 
+export interface CodexContextProvenance {
+  sourcePath: string;
+  line: number;
+  role?: CodexContextBlockRole;
+  contentItemKind?: string;
+  contentItemIndex?: number;
+  sessionId?: string;
+  threadId?: string;
+  timestamp?: string;
+}
+
+export interface CodexContextBlockVerification {
+  id: CodexContextBlockId;
+  status: CodexContextObservationStatus;
+  evidenceLevel?: CodexContextEvidenceLevel;
+  sourcePath?: string;
+  line?: number;
+  sessionId?: string;
+  threadId?: string;
+  reason: string;
+}
+
 export interface CodexContextBlockObservation {
   id: CodexContextBlockId;
   tag: string;
@@ -58,6 +83,10 @@ export interface CodexContextBlockObservation {
   recommendedPlugins?: CodexRecommendedPluginEntry[];
   controlMethod?: string;
   controllable?: boolean;
+  controlStatus?: CodexControlStatus;
+  evidenceLevel?: CodexContextEvidenceLevel;
+  observationStatus?: CodexContextObservationStatus;
+  provenance?: CodexContextProvenance;
   recommendation: string;
 }
 
@@ -68,6 +97,9 @@ export interface CodexContextBlockAnalysis {
   tokenizer: ContextTokenizerSummary;
   blocks: CodexContextBlockObservation[];
   diagnostics: string[];
+  evidenceLevel?: CodexContextEvidenceLevel;
+  provenance?: CodexContextProvenance;
+  verification?: CodexContextBlockVerification[];
 }
 
 export type ContextInjectionKind =
@@ -129,6 +161,7 @@ export interface ContextCostItem {
   controlPath?: string;
   controlMethod?: string;
   estimateStatus?: ContextEstimateStatus;
+  controlStatus?: CodexControlStatus;
   officialLimit?: ContextCostOfficialLimit;
   recommendation: string;
 }
@@ -227,6 +260,7 @@ export interface ContextResourceRecord {
   controlPath?: string;
   controlMethod?: string;
   estimateStatus?: ContextEstimateStatus;
+  controlStatus?: CodexControlStatus;
   recommendation: string;
   officialLimit?: ContextCostOfficialLimit;
 }
