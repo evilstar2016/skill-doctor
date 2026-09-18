@@ -8,10 +8,10 @@ import * as api from '../../web/src/api';
 
 vi.mock('../../web/src/api', () => ({ loadOptimization: vi.fn(), previewOptimizationChange: vi.fn(), applyOptimizationChange: vi.fn(), checkOptimizationChange: vi.fn(), undoOptimizationChange: vi.fn() }));
 const report: OptimizationOverview = {
-  projectDir: '/project', generatedAt: '2026-09-18T12:00:00Z', priceDate: '2026-09-07', diagnostics: [],
+  projectDir: '/project', generatedAt: '2026-09-18T12:00:00Z', period: 'month', periodStart: '2026-09-01T00:00:00Z', periodEnd: '2026-09-18T12:00:00Z', maxPriceModel: 'gpt-6-astra', priceDate: '2026-09-07', diagnostics: [],
   sessions: [{ id: 'session-one', timestamp: '2026-09-18T11:00:00Z', version: '0.154.0-alpha.6.2', model: 'gpt-6-astra', sourcePath: '/home/.codex/sessions/one.jsonl', completeHeader: true,
-    usage: { inputTokens: 1000, cachedInputTokens: 800, cacheWriteInputTokens: 0, outputTokens: 100, reasoningOutputTokens: 20, totalTokens: 1100 }, responseCount: 3, turnCount: 2, cost: 0.0131, costCoverage: 3,
-    suggestions: [{ id: 'skill-catalog', scope: 'project', configPath: '/project/.codex/config.toml', configKey: 'skills.include_instructions', configuredOff: false, available: true, tokens: 140, cost: { lower: 0.001, upper: 0.01, currency: 'USD' }, cumulative: { tokens: 420, coveredResponses: 3, pricedResponses: 3, cost: { lower: 0.003, upper: 0.03, currency: 'USD' } } },
+    usage: { inputTokens: 1000, cachedInputTokens: 800, cacheWriteInputTokens: 0, outputTokens: 100, reasoningOutputTokens: 20, totalTokens: 1100 }, responseCount: 3, turnCount: 2, cost: 0.0131, actualCost: 0.000292, costCoverage: 3, actualCostCoverage: 3,
+    suggestions: [{ id: 'skill-catalog', scope: 'project', configPath: '/project/.codex/config.toml', configKey: 'skills.include_instructions', configuredOff: false, available: true, tokens: 140, cost: { lower: 0.001, upper: 0.01, currency: 'USD' }, actualCost: { lower: 0.0001, upper: 0.001, currency: 'USD' }, cumulative: { tokens: 420, coveredResponses: 3, pricedResponses: 3, actualPricedResponses: 3, cost: { lower: 0.003, upper: 0.03, currency: 'USD' }, actualCost: { lower: 0.0003, upper: 0.003, currency: 'USD' } } },
       { id: 'memory', scope: 'user', configPath: '/home/.codex/config.toml', configKey: 'memories.use_memories', configuredOff: false, available: true, tokens: 60 }] }],
 };
 const preview: OptimizationPreview = { target: 'skill-catalog', scope: 'project', configPath: '/project/.codex/config.toml', configKey: 'skills.include_instructions', after: false, confirmation: 'digest' };
@@ -36,13 +36,22 @@ describe('optimization wizard', () => {
   it('starts with suggestions and shows recorded session costs without double-counting cache', async () => {
     await open();
     expect(screen.getByText('420')).toBeTruthy();
-    expect(screen.getByText('所选会话 · 2 个 turn · 3 次模型响应（已记录）')).toBeTruthy();
+    expect(screen.getByText('1 个 task · 2 个 turn · 3 次模型响应')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('$0.003 – $0.03')).toBeTruthy();
-    expect(within(screen.getByRole('complementary', { name: '新会话首轮 · 文本估算' })).getByText('140 Token')).toBeTruthy();
+    expect(within(screen.getByRole('complementary', { name: '所选会话首轮 · 文本估算' })).getByText('140 Token')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '返回会话开销' }));
     expect(screen.getAllByText('1,100').length).toBeGreaterThan(0);
     expect(screen.getByText('其中缓存命中 800')).toBeTruthy();
     expect(screen.getAllByText('$0.0131').length).toBeGreaterThan(0);
+  });
+  it('keeps highest-price estimates as the default and exposes actual-model pricing subtly', async () => {
+    await open();
+    expect(screen.getByRole('button', { name: '切换费用计价方式' }).textContent).toContain('按实际使用模型');
+    fireEvent.click(screen.getByRole('button', { name: '切换费用计价方式' }));
+    expect(screen.getByText('$0.0003 – $0.003')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '返回会话开销' }));
+    expect(screen.getAllByText('$0.000292').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '切换费用计价方式' }).textContent).toContain('恢复最高价估算');
   });
   it('requires preview, keeps writes pending until verification, and confirms undo', async () => {
     await open();

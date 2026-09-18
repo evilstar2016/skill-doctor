@@ -5,11 +5,11 @@ import { dirname, join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { parseTOML } from 'confbox/toml';
 import { scanCodexSessions } from '../benefit/codexSessions';
-import { calculateBenefitCost, DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice } from '../benefit/prices';
+import { calculateBenefitCost, DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice, findMostExpensiveBenefitPrice } from '../benefit/prices';
 import type { CodexUsage } from '../benefit/types';
 import { createTokenCounter } from './tokenCounter';
 import { cumulativeSavings, responseSavingsCost, responseTargetTokens } from './optimizationSavings';
-import type { OptimizationOperation, OptimizationOverview, OptimizationPreview, OptimizationSession, OptimizationTarget, OptimizationVerification } from './optimizationTypes';
+import type { OptimizationOperation, OptimizationOverview, OptimizationPeriod, OptimizationPreview, OptimizationSession, OptimizationTarget, OptimizationVerification } from './optimizationTypes';
 
 // Version of the Desktop fresh-task experiments in codex-context-block-verification.md.
 const VERIFIED_VERSION = '0.154.0-alpha.6.2';
@@ -147,26 +147,41 @@ function hasConfigOverride(projectDir: string, target: OptimizationTarget, homeD
   });
 }
 
-export async function optimizationOverview(projectDir: string, homeDir?: string): Promise<OptimizationOverview> {
-  const scan = await scanCodexSessions({ projectDir, homeDir, sinceMs: Date.now() - 7 * 86400_000, limit: 20, includeArchived: false, useIndex: false, includeContext: false, exactProjectOnly: true });
+export function optimizationPeriodBounds(period: OptimizationPeriod, now = new Date()): { start: Date; end: Date } {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (period === 'week') {
+    const daysSinceMonday = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - daysSinceMonday);
+  } else {
+    start.setDate(1);
+  }
+  return { start, end: new Date(now) };
+}
+
+export async function optimizationOverview(projectDir: string, homeDir?: string, period: OptimizationPeriod = 'month'): Promise<OptimizationOverview> {
+  const bounds = optimizationPeriodBounds(period);
+  const scan = await scanCodexSessions({ projectDir, homeDir, sinceMs: bounds.start.getTime(), untilMs: bounds.end.getTime(), limit: 5000, includeArchived: false, useIndex: false, includeContext: false, exactProjectOnly: true });
   const counter = createTokenCounter({ tokenizer: 'openai', preserveWhitespace: true });
   const project = realpathSync(projectDir);
   const latestVersion = scan.selected[0]?.analysis.meta?.cliVersion;
+  const maxPrice = findMostExpensiveBenefitPrice(DEFAULT_BENEFIT_PRICE_TABLE);
   const seen = new Set<string>();
   const sessions: OptimizationSession[] = await Promise.all(scan.selected.filter(({ session }) => {
     if (!session.cwd || !existsSync(session.cwd) || realpathSync(session.cwd) !== project || seen.has(session.sessionId)) return false;
     // The scanner orders by latest activity; keep one current log per task.
     seen.add(session.sessionId);
     return true;
-  }).map(async ({ session, analysis }) => {
+  }).map(async ({ session, analysis, usage: selectedUsage }) => {
     const header = readOptimizationHeader(session.filePath);
     // Show this task's own response records, not inherited/child usage.
-    const records = [...new Map(analysis.usageRecords.filter((r) => r.threadId === session.threadId).map((r) => [r.responseId, r])).values()];
+    const records = [...new Map(selectedUsage.filter((r) => r.threadId === session.threadId).map((r) => [r.responseId, r])).values()];
     const usage = records.length && records.every((r) => r.quality === 'complete') ? records.reduce<CodexUsage>((total, r) => {
       for (const key of Object.keys(total) as Array<keyof CodexUsage>) total[key] += r.usage[key];
       return total;
     }, { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 }) : undefined;
-    const costs = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, findBenefitPrice(r.model, DEFAULT_BENEFIT_PRICE_TABLE)) : { amount: undefined });
+    const costs = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, maxPrice) : { amount: undefined });
+    const actualCosts = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, findBenefitPrice(r.model, DEFAULT_BENEFIT_PRICE_TABLE)) : { amount: undefined });
     const model = records[0]?.model ?? analysis.modelContexts[0]?.model;
     const initial = header.complete ? Object.fromEntries(Object.entries(TARGETS).map(([id, def]) => [id, counter.count(header.kinds[def.kind] ?? '')])) : {};
     const observations = await responseTargetTokens(session.filePath, records, initial);
@@ -179,16 +194,26 @@ export async function optimizationOverview(projectDir: string, homeDir?: string)
       const versionSupported = header.version === VERIFIED_VERSION && (!latestVersion || latestVersion === VERIFIED_VERSION);
       const overridden = hasConfigOverride(projectDir, id, homeDir);
       const available = header.complete && versionSupported && Boolean(observed) && !configuredOff && !overridden;
-      const cost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0]) : undefined;
-      return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, tokens, cost, cumulative: cumulativeSavings(id, records, observations),
+      const cost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'max') : undefined;
+      const actualCost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'actual') : undefined;
+      const cumulative = cumulativeSavings(id, records, observations, 'max');
+      const actualCumulative = cumulativeSavings(id, records, observations, 'actual');
+      return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, tokens, cost, actualCost,
+        cumulative: { ...cumulative, actualCost: actualCumulative.cost, actualPricedResponses: actualCumulative.pricedResponses },
         reason: overridden ? 'config-override' : configuredOff ? 'configured-off' : !header.complete ? 'incomplete-header' : !versionSupported ? 'unsupported-version' : !observed ? 'absent' : undefined };
     });
+    const amount = (items: Array<{ amount?: number }>): number | undefined => {
+      const priced = items.filter((item): item is { amount: number } => item.amount !== undefined);
+      return priced.length ? priced.reduce((sum, item) => sum + item.amount, 0) : undefined;
+    };
     return { id: session.sessionId, timestamp: session.timestamp, version: header.version, model, sourcePath: session.filePath, completeHeader: header.complete, usage,
       responseCount: records.length, turnCount: records.length && records.every((record) => record.rootTurnId || record.turnId) ? new Set(records.map((record) => record.rootTurnId ?? record.turnId)).size : undefined,
-      cost: costs.length && costs.every((cost) => cost.amount !== undefined) && analysis.status === 'complete' ? costs.reduce((sum, cost) => sum + cost.amount!, 0) : undefined,
-      costCoverage: costs.filter((cost) => cost.amount !== undefined).length, suggestions };
+      cost: amount(costs),
+      actualCost: amount(actualCosts),
+      costCoverage: costs.filter((cost) => cost.amount !== undefined).length,
+      actualCostCoverage: actualCosts.filter((cost) => cost.amount !== undefined).length, suggestions };
   }));
-  return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), sessions, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
+  return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
 }
 
 export async function previewOptimization(projectDir: string, sessionId: string, target: OptimizationTarget, homeDir?: string): Promise<OptimizationPreview> {

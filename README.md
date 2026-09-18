@@ -5,10 +5,14 @@
 ### Codex optimization suggestions
 
 Open `skill-doctor ui` and choose **Optimization suggestions** with Codex selected.
-The three-step flow highlights cumulative estimated token and API-equivalent cost
-savings, with a smaller first-response estimate and recorded turn/response counts.
-Savings follow retained target text per response; compaction and missing evidence
-are reported as coverage gaps, not extrapolated by multiplying turn counts.
+The three-step flow defaults to all tasks in the current month (with a current-week
+switch); the detail table is capped at 20 rows without truncating the period total.
+It highlights cumulative estimated token and API-equivalent cost savings, with a
+smaller selected-session first-response estimate and recorded period turn/response counts. The default price
+is the highest model in the bundled table; a subtle control can switch to prices
+recorded per response. Savings follow retained target text per response; compaction
+and missing evidence are reported as coverage gaps, not extrapolated by multiplying
+turn counts.
 Supported actions:
 
 - Hide the automatic skill catalog: project `skills.include_instructions = false`.

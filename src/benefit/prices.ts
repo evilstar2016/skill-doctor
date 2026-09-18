@@ -66,6 +66,15 @@ export function findBenefitPrice(model: string | undefined, table: BenefitPriceT
   return table.prices.find((price) => price.model.toLowerCase() === normalized);
 }
 
+/** Return the table entry with the highest ordinary input price for upper-bound estimates. */
+export function findMostExpensiveBenefitPrice(table: BenefitPriceTable): BenefitPrice | undefined {
+  return [...table.prices]
+    .filter((price) => price.inputPerMillion !== undefined && price.cachedInputPerMillion !== undefined)
+    .sort((left, right) => (right.inputPerMillion! - left.inputPerMillion!)
+      || (right.cachedInputPerMillion! - left.cachedInputPerMillion!)
+      || ((right.outputPerMillion ?? -1) - (left.outputPerMillion ?? -1)))[0];
+}
+
 function amount(tokens: number, pricePerMillion: number | undefined): number | undefined {
   return pricePerMillion === undefined ? undefined : tokens * pricePerMillion / 1_000_000;
 }

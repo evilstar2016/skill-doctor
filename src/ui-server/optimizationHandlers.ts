@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { realpathSync } from 'node:fs';
 import { applyOptimization, optimizationOverview, previewOptimization, undoOptimization, verifyOptimization } from '../context/optimization';
-import type { OptimizationTarget } from '../context/optimizationTypes';
+import type { OptimizationPeriod, OptimizationTarget } from '../context/optimizationTypes';
 import type { ApiRequestContext } from './apiContext';
 import { readJsonBody, requiredString, sendJson } from './apiPrimitives';
 
@@ -17,7 +17,11 @@ export async function handleOptimizationRoute(request: IncomingMessage, response
   const target = body.target as OptimizationTarget;
   let result: unknown;
   switch (body.action) {
-    case 'overview': result = await optimizationOverview(project, context.homeDir); break;
+    case 'overview': {
+      const period: OptimizationPeriod = body.period === 'week' ? 'week' : 'month';
+      result = await optimizationOverview(project, context.homeDir, period);
+      break;
+    }
     case 'preview': result = await previewOptimization(project, requiredString(body.sessionId, 'sessionId'), target, context.homeDir); break;
     case 'apply': result = await applyOptimization(project, requiredString(body.sessionId, 'sessionId'), target, requiredString(body.confirmation, 'confirmation'), context.homeDir); break;
     case 'verify': result = await verifyOptimization(project, requiredString(body.operationId, 'operationId'), context.homeDir); break;

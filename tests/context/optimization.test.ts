@@ -15,7 +15,7 @@ describe('verified optimization flow', () => {
     mkdirSync(join(project, '.codex'), { recursive: true }); mkdirSync(sessions, { recursive: true });
   });
   afterEach(() => { vi.useRealTimers(); rmSync(root, { recursive: true, force: true }); });
-  function fixture(id = 'baseline', options: { skill?: boolean; memory?: boolean; fork?: boolean; mismatch?: boolean; version?: string; timestamp?: string; ordinal?: number } = {}) {
+  function fixture(id = 'baseline', options: { skill?: boolean; memory?: boolean; fork?: boolean; mismatch?: boolean; version?: string; timestamp?: string; ordinal?: number; model?: string } = {}) {
     const timestamp = options.timestamp ?? new Date(now.getTime() - 60_000).toISOString();
     const kinds = ['generic.developer_instructions', ...(options.skill === false ? [] : ['host_skills.instructions']), ...(options.memory === false ? [] : ['memories.instructions'])];
     const texts: Record<string, string> = { 'generic.developer_instructions': 'Base instructions', 'host_skills.instructions': '<skills_instructions>Skills available for coding</skills_instructions>', 'memories.instructions': 'Historical preferences and working conventions.' };
@@ -24,7 +24,7 @@ describe('verified optimization flow', () => {
       { type: 'response_item', payload: { type: 'message', role: 'developer', content: kinds.map((kind) => ({ type: 'input_text', text: texts[kind] })), internal_chat_message_metadata_passthrough: { content_item_kinds: options.mismatch ? kinds.slice(1) : kinds } } },
       { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'project' }], internal_chat_message_metadata_passthrough: { content_item_kinds: ['agents_md.instructions'] } } },
       { type: 'world_state', payload: { full: true, state: {} } },
-      { type: 'turn_context', payload: { turn_id: 'turn1', cwd: project, model: 'gpt-6-astra' } },
+      { type: 'turn_context', payload: { turn_id: 'turn1', cwd: project, model: options.model ?? 'gpt-6-astra' } },
       { type: 'token_usage_record', payload: { session_id: id, thread_id: id, response_id: 'response1', turn_id: 'turn1', usage: { input_tokens: 1000, cached_input_tokens: 800, cache_write_input_tokens: 0, output_tokens: 100, reasoning_output_tokens: 20, total_tokens: 1100 } } },
     ];
     const path = join(sessions, `${id}.jsonl`);
@@ -44,6 +44,25 @@ describe('verified optimization flow', () => {
     expect(session.cost).toBeCloseTo(0.0131);
     expect(session.suggestions[0]).toMatchObject({ available: true, scope: 'project' });
     expect(session.suggestions[0].cost!.upper).toBeGreaterThan(session.suggestions[0].cost!.lower);
+  });
+  it('defaults to the highest-priced model while retaining the actual model estimate', async () => {
+    fixture('cheap', { model: 'gpt-5.6-luna' });
+    const { sessions: [session] } = await optimizationOverview(project, home);
+    expect(session.cost).toBeCloseTo(0.0131);
+    expect(session.actualCost).toBeCloseTo(0.000292);
+    expect(session.suggestions[0].cost!.upper).toBeGreaterThan(session.suggestions[0].actualCost!.upper);
+    expect(session.suggestions[0].cumulative!.cost!.upper).toBeGreaterThan(session.suggestions[0].cumulative!.actualCost!.upper);
+  });
+  it('scans the complete selected calendar period instead of a daily slice', async () => {
+    fixture('month-old', { timestamp: '2026-09-03T12:00:00.000Z' });
+    fixture('this-week', { timestamp: '2026-09-18T11:00:00.000Z' });
+    const month = await optimizationOverview(project, home, 'month');
+    const week = await optimizationOverview(project, home, 'week');
+    expect(month.period).toBe('month');
+    expect(month.sessions).toHaveLength(2);
+    expect(month.maxPriceModel).toBe('gpt-6-astra');
+    expect(week.period).toBe('week');
+    expect(week.sessions).toHaveLength(1);
   });
   it('accumulates each retained response across turns and stops extrapolating after compaction', async () => {
     const path = fixture();
@@ -72,8 +91,9 @@ describe('verified optimization flow', () => {
     save();
     session = (await optimizationOverview(project, home)).sessions[0];
     expect(session.turnCount).toBe(3);
-    expect(session.suggestions[1].cumulative).toMatchObject({ tokens: first * 3 + 1, coveredResponses: 4, pricedResponses: 3 });
-    expect(session.suggestions[1].cumulative!.cost!.lower).toBeCloseTo(first * 24 / 1_000_000);
+    expect(session.suggestions[1].cumulative).toMatchObject({ tokens: first * 3 + 1, coveredResponses: 4, pricedResponses: 4, actualPricedResponses: 3 });
+    expect(session.suggestions[1].cumulative!.cost!.lower).toBeCloseTo((first * 24 + 2) / 1_000_000);
+    expect(session.suggestions[1].cumulative!.actualCost!.lower).toBeCloseTo(first * 24 / 1_000_000);
   });
   it('does not offer actions for an unknown runtime or absent targets', async () => {
     fixture('future', { version: 'unknown', skill: false });

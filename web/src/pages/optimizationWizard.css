@@ -14,9 +14,13 @@
 .opt-step.active .opt-step-number { background: var(--accent); color: var(--bg-deep); border-color: var(--accent); }
 .opt-step.active strong { color: var(--accent-text); }
 .opt-session-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0 24px; }
+.opt-period-switch { display: flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.opt-period-switch .button { border: 0; min-height: 31px; padding: 5px 10px; color: var(--muted); font-size: 12px; }
+.opt-period-switch .button.active { color: var(--accent-text); background: var(--accent-soft); }
 .opt-session-bar label { min-width: 0; max-width: 100%; }
 .opt-session-bar select { max-width: 100%; min-height: 39px; padding: 8px 30px 8px 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; font-size: 12px; }
 .opt-session-bar small { color: var(--faint); font-size: 12px; }
+.opt-pricing-toggle { color: var(--faint) !important; font-size: 11px !important; opacity: .85; }
 .opt-select h2, .opt-cost h2, .opt-verification h2 { margin: 0 0 10px; font-size: 26px; line-height: 1.4; }
 .opt-choices { display: grid; gap: 12px; padding: 0; margin: 18px 0 24px; border: 0; min-width: 0; }
 .opt-choice { display: flex; align-items: center; gap: 20px; padding: 17px 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
@@ -59,6 +63,9 @@
 .opt-footnote { margin-top: 28px; color: var(--faint); font-size: 12px; line-height: 1.7; }
 .opt-footnote details { margin-top: 10px; }
 .opt-cost-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 28px 0; }
+.opt-period-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+.opt-period-total strong { color: var(--accent-text); font-size: 15px; }
+.opt-period-total span, .opt-selected-session { color: var(--faint); }
 .opt-cost-metrics dt { color: var(--muted); font-size: 13px; }
 .opt-cost-metrics dd { margin: 10px 0; font-size: 27px; overflow-wrap: anywhere; }
 .opt-cost-metrics small { color: var(--faint); font-size: 12px; }
@@ -84,10 +91,13 @@
   .opt-step small { display: none; }
   .opt-step-number { width: 34px; height: 34px; flex-basis: 34px; font-size: 15px; }
   .opt-session-bar { margin-bottom: 28px; }
+  .opt-period-switch { flex: 1 0 100%; }
+  .opt-period-switch .button { flex: 1; }
   .opt-session-bar label { flex: 1; min-width: 0; }
   .opt-session-bar select { width: 100%; min-height: 44px; }
   .opt-session-bar .button { min-width: 44px; min-height: 44px; }
   .opt-session-bar > small { flex-basis: 100%; }
+  .opt-pricing-toggle { flex: 1; }
   .opt-choice { padding: 17px 13px; gap: 12px; }
   .opt-choice strong { font-size: 17px; }
   .opt-scope { margin: 7px 0 0; display: table; }

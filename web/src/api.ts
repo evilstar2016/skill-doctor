@@ -11,9 +11,9 @@ import type { AgentImportCommitResult, AgentImportDecision, AgentSkillImportPrev
 import type { SnapshotHistoryDiff, SnapshotHistoryEntry } from '../../src/history/snapshotHistory';
 import type { BenefitReport } from '../../src/benefit/types';
 import type { HistoryControlPreview } from '../../src/context/historyControls';
-import type { OptimizationOperation, OptimizationOverview, OptimizationPreview, OptimizationTarget, OptimizationVerification } from '../../src/context/optimizationTypes';
+import type { OptimizationOperation, OptimizationOverview, OptimizationPeriod, OptimizationPreview, OptimizationTarget, OptimizationVerification } from '../../src/context/optimizationTypes';
 
-export const loadOptimization = (projectDir: string, signal?: AbortSignal): Promise<OptimizationOverview> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'overview', projectDir }), signal });
+export const loadOptimization = (projectDir: string, signal?: AbortSignal, period: OptimizationPeriod = 'month'): Promise<OptimizationOverview> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'overview', projectDir, period }), signal });
 export const previewOptimizationChange = (projectDir: string, sessionId: string, target: OptimizationTarget): Promise<OptimizationPreview> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'preview', projectDir, sessionId, target }) });
 export const applyOptimizationChange = (projectDir: string, sessionId: string, preview: OptimizationPreview): Promise<OptimizationOperation> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'apply', projectDir, sessionId, target: preview.target, confirmation: preview.confirmation }) });
 export const checkOptimizationChange = (projectDir: string, operationId: string): Promise<OptimizationVerification> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'verify', projectDir, operationId }) });

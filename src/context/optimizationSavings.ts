@@ -1,8 +1,8 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice } from '../benefit/prices';
+import { DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice, findMostExpensiveBenefitPrice } from '../benefit/prices';
 import type { CodexUsageRecord } from '../benefit/types';
-import type { OptimizationSuggestion, OptimizationTarget } from './optimizationTypes';
+import type { OptimizationPricingMode, OptimizationSuggestion, OptimizationTarget } from './optimizationTypes';
 import { createTokenCounter } from './tokenCounter';
 
 type TargetTokens = Partial<Record<OptimizationTarget, number>>;
@@ -70,8 +70,10 @@ export async function responseTargetTokens(path: string, records: CodexUsageReco
   return result;
 }
 
-export function responseSavingsCost(tokens: number, record: CodexUsageRecord): OptimizationSuggestion['cost'] {
-  const price = findBenefitPrice(record.model, DEFAULT_BENEFIT_PRICE_TABLE);
+export function responseSavingsCost(tokens: number, record: CodexUsageRecord, mode: OptimizationPricingMode = 'actual'): OptimizationSuggestion['cost'] {
+  const price = mode === 'max'
+    ? findMostExpensiveBenefitPrice(DEFAULT_BENEFIT_PRICE_TABLE)
+    : findBenefitPrice(record.model, DEFAULT_BENEFIT_PRICE_TABLE);
   const usage = record.usage;
   if (record.quality !== 'complete' || tokens > usage.inputTokens || !price || price.inputPerMillion === undefined || price.cachedInputPerMillion === undefined || price.inputTiers?.length || price.maxInputTokens === undefined || usage.inputTokens > price.maxInputTokens || usage.cacheWriteInputTokens !== 0) return undefined;
   const minCached = Math.max(0, tokens - (usage.inputTokens - usage.cachedInputTokens));
@@ -80,13 +82,13 @@ export function responseSavingsCost(tokens: number, record: CodexUsageRecord): O
   return { lower: Math.min(...endpoints), upper: Math.max(...endpoints), currency: price.currency };
 }
 
-export function cumulativeSavings(target: OptimizationTarget, records: CodexUsageRecord[], observations: Map<number, TargetTokens>): NonNullable<OptimizationSuggestion['cumulative']> {
+export function cumulativeSavings(target: OptimizationTarget, records: CodexUsageRecord[], observations: Map<number, TargetTokens>, mode: OptimizationPricingMode = 'actual'): NonNullable<OptimizationSuggestion['cumulative']> {
   let tokens = 0; let coveredResponses = 0; let pricedResponses = 0; let lower = 0; let upper = 0;
   for (const record of records) {
     const observed = observations.get(record.line)?.[target];
     if (observed === undefined || record.quality !== 'complete' || observed > record.usage.inputTokens) continue;
     tokens += observed; coveredResponses++;
-    const cost = responseSavingsCost(observed, record);
+    const cost = responseSavingsCost(observed, record, mode);
     if (cost) { pricedResponses++; lower += cost.lower; upper += cost.upper; }
   }
   return { tokens: coveredResponses ? tokens : undefined, coveredResponses, pricedResponses,

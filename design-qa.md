@@ -79,5 +79,11 @@ final result: passed
 - 按去重后的各次响应累加可确认的目标上下文，结合各响应缓存边界和模型价格估算金额。压缩、日志缺口及未知价格不外推；覆盖不全时明确标识部分收益和可估价响应数。
 - 真实历史样本：上下文与用量覆盖 45 / 65 次响应，累计估算 174,690 Token；首轮 3,882 Token。金额只涵盖其中 27 次可估价响应，不代表实际账单节省。
 - 桌面 1488×1056、手机 390×844 浏览器验收通过；手机页面无横向溢出。截图：`docs/optimization-qa/cumulative-desktop.png`、`docs/optimization-qa/cumulative-mobile.png`（本机保存，不发布）。
-- `npm test -- --maxWorkers=2`：87 个文件、695 项通过；`npm run typecheck:ui`、`npm run build`、`git diff --check` 通过。
+- `npm test -- --maxWorkers=2`：87 个文件、698 项通过；`npm run typecheck:ui`、`npm run build`、`git diff --check` 通过。
 - 没有修改用户真实 Codex 配置，也没有将此轮验收称为新的 Desktop 配置生效实验。
+
+## 2026-09-18 周期费用口径调整
+
+- 默认统计当前自然月全部 task，可切换当前自然周；扫描上限提高到完整发现范围，明细表仍最多展示 20 行，避免把明细行数误当周期总量。
+- 默认按内置价格表最高价模型（当前为 `gpt-6-astra`）估算费用和节省上限；保留低调的“按实际使用模型”按钮，后者按每条 JSONL 响应记录的模型计价，未知模型不计入实际模型金额。
+- 费用估算仍是 API 等价金额，不是 Codex/ChatGPT 订阅账单，也不是已经发生的退款或节省。缓存命中、输入上限、缺失用量等边界会影响覆盖率。
