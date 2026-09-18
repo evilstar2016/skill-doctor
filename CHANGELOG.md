@@ -6,6 +6,9 @@ All notable changes to `skill-doctor` are documented here.
 
 ### Features
 
+- Emphasize cumulative session savings in Optimization Suggestions, with smaller first-response figures and recorded turn/response counts; track target retention and cache-price bounds per response, exposing incomplete coverage after compaction or missing data.
+- Add the Codex three-step Optimization Suggestions page: per-task recorded usage, bounded first-response cost estimates, verified catalog/memory controls, explicit global confirmation, fresh-task JSONL verification and narrow-key undo. Unsupported or overridden controls remain unavailable.
+- Fix the web UI to a Sentry-inspired deep-purple theme with consistent surfaces, warm-purple buttons, accessible focus states, and shared design tokens. Remove the previous theme/color switches and document the frontend style contract in `web/DESIGN.md`.
 - Consolidate the Web UI's current context usage, historical recommendations, and benefit evidence under one Context Optimization entry, preserving report state across the three views.
 - Add history-audit project controls shared by the benefit UI, CLI and context optimizer Skill: per-Skill disable, per-recommendation hiding, and whole recommendation-block control. Preview and digest confirmation precede writes; private operation backups support conflict-checked undo. Global configuration and installed plugins are not changed.
 - Include per-candidate rationale, evidence and control commands in text/HTML history reports, plus a copyable Agent + Skill prompt in the UI.

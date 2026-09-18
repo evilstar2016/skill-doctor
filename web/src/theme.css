@@ -1,0 +1,81 @@
+/* Fixed Sentry-inspired palette. See web/DESIGN.md before changing. */
+:root {
+  color-scheme: dark;
+  font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --bg: #1f1633;
+  --bg-deep: #150f23;
+  --surface: #261c3d;
+  --surface-2: #302448;
+  --surface-3: #3e3058;
+  --sidebar: var(--bg-deep);
+  --code: var(--bg-deep);
+  --text: #ffffff;
+  --muted: #d0c6df;
+  --faint: #aa9bbb;
+  --border: #362d59;
+  --border-strong: #79658e;
+
+  --accent: #a899ef;
+  --accent-hover: #c0b4ff;
+  --accent-soft: #382555;
+  --accent-text: #d7cbff;
+  --interactive: #6a5fc1;
+  --button-bg: #79628c;
+  --button-hover: #89719d;
+  --button-border: #584674;
+  --selected: #422082;
+  --highlight: #c2ef4e;
+  --highlight-soft: #2c351f;
+  --focus: #fa7faa;
+  --code-text: #dcdcaa;
+
+  --danger: #fa7faa;
+  --danger-soft: #46243c;
+  --danger-text: #ffb2ce;
+  --warning: #ffb287;
+  --warning-soft: #412c33;
+  --warning-text: #ffc5a5;
+  --info: #b8a7ff;
+  --info-soft: #322549;
+  --info-text: #d7cbff;
+  --success: #a6cf83;
+  --success-soft: #293529;
+  --success-text: #c4e4ab;
+
+  --shadow-tint: rgba(22, 15, 36, .45);
+  --shadow-xs: 0 1px 3px rgba(22, 15, 36, .2);
+  --shadow-sm: 0 2px 8px rgba(22, 15, 36, .3);
+  --shadow-md: 0 10px 15px -3px rgba(22, 15, 36, .35);
+  --shadow-lg: 0 16px 48px rgba(22, 15, 36, .5);
+  --shadow-xl: 0 28px 70px rgba(22, 15, 36, .6);
+  --shadow-inset: inset 0 1px 3px rgba(22, 15, 36, .3);
+  --shadow: var(--shadow-lg);
+  --ring: 0 0 0 3px rgba(250, 127, 170, .3);
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}

@@ -1,0 +1,123 @@
+import { ArrowLeft, ArrowRight, Check, ChevronRight, Clock3, FileText, Layers, RefreshCw, Undo2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import type { OptimizationOperation, OptimizationOverview, OptimizationPreview, OptimizationTarget, OptimizationVerification } from '../../../src/context/optimizationTypes';
+import { applyOptimizationChange, checkOptimizationChange, loadOptimization, previewOptimizationChange, undoOptimizationChange } from '../api';
+import { useTranslation } from '../i18n';
+import { InlineNotice } from '../components/ui';
+import './optimizationWizard.css';
+
+export function OptimizationWizard({ projectDir }: { projectDir: string }) {
+  const { t, locale } = useTranslation();
+  const [data, setData] = useState<OptimizationOverview>();
+  const [sessionId, setSessionId] = useState('');
+  const [target, setTarget] = useState<OptimizationTarget>('skill-catalog');
+  const [step, setStep] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState<OptimizationPreview>();
+  const [globalConfirmed, setGlobalConfirmed] = useState(false);
+  const [operation, setOperation] = useState<OptimizationOperation>();
+  const [verification, setVerification] = useState<OptimizationVerification>();
+  const [undoPending, setUndoPending] = useState(false);
+  const storageKey = `skill-doctor:optimization:${projectDir}`;
+  const n = (value?: number) => value === undefined ? '—' : value.toLocaleString(locale);
+  const usd = (value?: number) => value === undefined ? '—' : `$${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
+  const moneyRange = (cost?: { lower: number; upper: number }) => !cost ? t('opt.costUnknown') : cost.lower === cost.upper ? usd(cost.lower) : `${usd(cost.lower)} – ${usd(cost.upper)}`;
+  const session = data?.sessions.find((item) => item.id === sessionId) ?? data?.sessions[0];
+  const selected = session?.suggestions.find((item) => item.id === target);
+  const previousPending = operation?.status === 'pending' && verification?.status !== 'removed';
+  const date = (value: string) => new Date(value).toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const label = (id: OptimizationTarget) => t(`opt.${id}.title`);
+
+  async function refresh(signal?: AbortSignal) {
+    setLoading(true); setError(''); setPreview(undefined);
+    try {
+      const next = await loadOptimization(projectDir, signal);
+      if (signal?.aborted) return;
+      setData(next);
+      if (!sessionId) {
+        const initial = next.sessions.find((item) => item.suggestions.some((suggestion) => suggestion.available)) ?? next.sessions[0];
+        if (initial) { setSessionId(initial.id); setTarget(initial.suggestions.find((item) => item.available)?.id ?? 'skill-catalog'); }
+      }
+    }
+    catch (e) { if (!signal?.aborted) setError(String(e)); }
+    finally { if (!signal?.aborted) setLoading(false); }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void refresh(controller.signal);
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null');
+      if (saved?.projectDir === projectDir && saved?.status === 'pending') { setOperation(saved); setStep(3); }
+    } catch { /* Invalid local display state is ignored; server validates every operation. */ }
+    return () => controller.abort();
+  }, [projectDir]);
+
+  const persist = (value: OptimizationOperation) => {
+    setOperation(value);
+    try { localStorage.setItem(storageKey, JSON.stringify(value)); } catch { /* The operation also persists on the local server. */ }
+  };
+  async function action(run: () => Promise<void>) {
+    setBusy(true); setError('');
+    try { await run(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+  }
+  function choose(id: OptimizationTarget) { setTarget(id); setPreview(undefined); setGlobalConfirmed(false); }
+  function chooseSession(id: string) { setSessionId(id); setPreview(undefined); setGlobalConfirmed(false); }
+
+  return <section className="optimization-wizard" aria-label={t('opt.title')}>
+    <header className="opt-heading"><div><h1>{t('opt.title')}</h1><p>{t('opt.subtitle')}</p></div>
+      <button className="button ghost" onClick={() => setStep(step === 1 ? 2 : 1)}><ArrowLeft size={16} />{t(step === 1 ? 'opt.backSuggestions' : 'opt.backCost')}</button>
+    </header>
+    <nav className="opt-steps" aria-label={t('opt.steps')}>
+      {([1, 2, 3] as const).map((value) => <button key={value} className={`opt-step ${step === value ? 'active' : ''}`} aria-current={step === value ? 'step' : undefined} onClick={() => setStep(value)}>
+        <span className="opt-step-number">{value === 1 && session ? <Check size={18} /> : value}</span><span><strong>{t(`opt.step${value}`)}</strong><small>{t(`opt.step${value}Detail`)}</small></span>
+      </button>)}
+    </nav>
+    <div className="opt-session-bar"><label><span className="sr-only">{t('opt.session')}</span><select aria-label={t('opt.session')} value={session?.id ?? ''} disabled={loading || busy || !data?.sessions.length} onChange={(e) => chooseSession(e.target.value)}>
+      {!data?.sessions.length && <option value="">{t(loading ? 'opt.loading' : 'opt.noSessions')}</option>}
+      {data?.sessions.map((item) => <option value={item.id} key={item.id}>{date(item.timestamp)} · {n(item.usage?.totalTokens)} Token · {usd(item.cost)} · {item.id.slice(-6)}</option>)}
+    </select></label><button className="button ghost compact" disabled={loading || busy} onClick={() => void refresh()} aria-label={t('opt.refresh')}><RefreshCw size={15} className={loading ? 'spin' : ''} /></button><small>{t('opt.apiEstimate')}</small></div>
+    {error && <div role="alert"><InlineNotice kind="danger" title={t('opt.failed')}>{error}</InlineNotice></div>}
+    {loading && <p role="status">{t('opt.loading')}</p>}
+    {!loading && !data?.sessions.length && <div className="opt-empty"><FileText size={32} /><h2>{t('opt.noSessions')}</h2><p>{t('opt.emptyDetail')}</p><button className="button primary" onClick={() => void refresh()}>{t('opt.refresh')}</button></div>}
+    {step === 1 && session && <div className="opt-cost">
+      <h2>{t('opt.costTitle')}</h2><p className="muted">{t('opt.costDetail')}</p>
+      <dl className="opt-cost-metrics"><div><dt>{t('opt.total')}</dt><dd>{n(session.usage?.totalTokens)}</dd></div><div><dt>{t('opt.input')}</dt><dd>{n(session.usage?.inputTokens)}</dd><small>{t('opt.cached', { count: n(session.usage?.cachedInputTokens) })}</small></div><div><dt>{t('opt.output')}</dt><dd>{n(session.usage?.outputTokens)}</dd></div><div><dt>{t('opt.apiEstimate')}</dt><dd>{usd(session.cost)}</dd><small>{t('opt.priceDate', { date: data?.priceDate ?? '—' })}</small></div></dl>
+      <p className="muted">{t('opt.coverage', { priced: n(session.costCoverage), total: n(session.responseCount) })}</p>
+      <div className="opt-table-wrap"><table><caption>{t('opt.recentSessions')}</caption><thead><tr><th>{t('opt.session')}</th><th>Token</th><th>{t('opt.apiEstimate')}</th><th>{t('opt.action')}</th></tr></thead><tbody>{data?.sessions.map((item) => <tr key={item.id}><td>{date(item.timestamp)}<small>{item.model ?? t('opt.unknownModel')} · {item.id.slice(-6)}</small></td><td>{n(item.usage?.totalTokens)}</td><td>{usd(item.cost)}</td><td><button className="button secondary compact" onClick={() => { chooseSession(item.id); setStep(2); }}>{t('opt.viewSuggestions')}<ArrowRight size={14} /></button></td></tr>)}</tbody></table></div>
+    </div>}
+    {step === 2 && session && <div className="opt-select">
+      <h2>{t('opt.startWhere')}</h2><p>{t('opt.selectDetail')}</p>
+      <fieldset className="opt-choices"><legend className="sr-only">{t('opt.selectDetail')}</legend>{session.suggestions.map((item) => <label key={item.id} className={`opt-choice ${target === item.id ? 'selected' : ''}`}>
+        <input type="radio" name="optimization" value={item.id} checked={target === item.id} onChange={() => choose(item.id)} disabled={busy} />
+        <span><strong>{label(item.id)}</strong><span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span><small>{t(`opt.${item.id}.summary`)}</small>{item.reason && <small className="opt-reason">{t(`opt.reason.${item.reason}`)}</small>}</span><ChevronRight size={21} />
+      </label>)}</fieldset>
+      {selected && <div className="opt-impact"><section aria-label={t('opt.totalSavings')}><h3>{t(selected.cumulative?.coveredResponses === session.responseCount && session.responseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}</h3>
+        <small>{t('opt.turns', { turns: n(session.turnCount), responses: n(session.responseCount) })}</small>
+        <div className="opt-savings-layout"><div className="opt-total-saving"><div className="opt-saving">{n(selected.cumulative?.tokens)} <span>Token</span></div><div className="opt-money">{moneyRange(selected.cumulative?.cost)}</div>
+          {selected.cumulative?.cost && selected.cumulative.pricedResponses < selected.cumulative.coveredResponses && <small>{t('opt.partialCost', { count: n(selected.cumulative.pricedResponses) })}</small>}</div>
+          <aside className="opt-first-saving" aria-label={t('opt.firstResponse')}><small>{t('opt.firstResponse')}</small><strong>{n(selected.tokens)} Token</strong><small>{moneyRange(selected.cost)}</small></aside></div>
+        <small>{t('opt.savingsCoverage', { covered: n(selected.cumulative?.coveredResponses ?? 0), total: n(session.responseCount), priced: n(selected.cumulative?.pricedResponses ?? 0) })}</small>
+        <small>{t('opt.cumulativeDetail')}</small></section>
+        <section><h3>{t('opt.needToKnow')}</h3><div className="opt-impact-line"><FileText size={25} /><div><strong>{t(`opt.${target}.impact`)}</strong><small>{t(`opt.${target}.impactDetail`)}</small></div></div><div className="opt-impact-line"><Layers size={25} /><div><strong>{t(selected.scope === 'user' ? 'opt.allProjects' : 'opt.projectOnly')}</strong><small>{t(selected.scope === 'user' ? 'opt.globalDetail' : 'opt.projectDetail')}</small></div></div><div className="opt-impact-line"><Clock3 size={25} /><div><strong>{t('opt.nextSession')}</strong><small>{t('opt.nextSessionDetail')}</small></div></div></section></div>}
+      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.confirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPath}</code><code>{preview.configKey}: {String(preview.before ?? 'default')} → false</code></details>{preview.scope === 'user' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
+      {previousPending && <p className="muted">{t('opt.finishPrevious')}</p>}
+      <div className="opt-actions"><button className="button primary" disabled={busy || loading || previousPending || !selected?.available || (preview?.scope === 'user' && !globalConfirmed)} onClick={() => void action(async () => {
+        if (!session) return;
+        if (!preview) { setPreview(await previewOptimizationChange(projectDir, session.id, target)); return; }
+        const result = await applyOptimizationChange(projectDir, session.id, preview); persist(result); setVerification(undefined); setPreview(undefined); setStep(3); void refresh();
+      })}>{busy ? t('opt.working') : t(preview ? 'opt.apply' : 'opt.review')}</button><button className="button secondary" disabled={busy} onClick={() => { setPreview(undefined); setStep(1); }}>{t('opt.later')}</button></div>
+      <details className="opt-limitations"><summary>{t('opt.limits')}</summary><p>{t('opt.pluginLimit')}</p><p>{t('opt.skillLimit')}</p><p>{t('opt.otherBlocks')}</p></details>
+    </div>}
+    {step === 3 && <div className="opt-verification" aria-live="polite"><h2>{t(operation?.status === 'restored' ? 'opt.restored' : verification?.status === 'removed' ? 'opt.verified' : operation ? 'opt.pending' : 'opt.noOperation')}</h2>
+      {operation ? <><p>{label(operation.target)} · {date(operation.createdAt)}</p><p>{t('opt.verificationDetail')}</p><ol><li>{t('opt.createTask', { project: projectDir })}</li><li>{t('opt.sendMessage')}</li><li>{t('opt.checkDetail')}</li></ol>
+        {verification && <p className={`opt-verification-result ${verification.status}`} role="status">{t(verification.status === 'removed' ? 'opt.removedDetail' : verification.status === 'present' ? 'opt.stillPresent' : verification.reason === 'config-changed' ? 'opt.configChanged' : 'opt.noFreshSession')}{verification.sessionId && <code>{verification.sessionId}</code>}</p>}
+        {operation.status === 'pending' && <div className="opt-actions"><button className="button primary" disabled={busy} onClick={() => void action(async () => setVerification(await checkOptimizationChange(projectDir, operation.id)))}>{busy ? t('opt.working') : t('opt.checkNewSession')}</button><button className="button secondary" disabled={busy} onClick={() => setUndoPending(true)}><Undo2 size={17} />{t('opt.undo')}</button></div>}
+        {undoPending && <div className="opt-confirm"><p>{t('opt.undoConfirm')}</p><button className="button secondary" disabled={busy} onClick={() => void action(async () => { persist(await undoOptimizationChange(projectDir, operation.id)); setUndoPending(false); setVerification(undefined); void refresh(); })}>{t('opt.confirmUndo')}</button><button className="button ghost" onClick={() => setUndoPending(false)}>{t('opt.cancel')}</button></div>}
+      </> : <><p>{t('opt.noOperationDetail')}</p><button className="button primary" onClick={() => setStep(2)}>{t('opt.backSuggestions')}</button></>}
+    </div>}
+    {data && <footer className="opt-footnote">{t('opt.disclaimer')}<details><summary>{t('opt.dataSource')}</summary><p>{t('opt.priceDate', { date: data.priceDate })} · {t('opt.updatedAt', { date: date(data.generatedAt) })}</p>{session && <><code>{session.sourcePath}</code><p>Codex {session.version ?? '—'} · {t(session.completeHeader ? 'opt.headerComplete' : 'opt.headerIncomplete')}</p></>}{data.diagnostics.map((item, index) => <p key={index}>{item}</p>)}</details></footer>}
+  </section>;
+}

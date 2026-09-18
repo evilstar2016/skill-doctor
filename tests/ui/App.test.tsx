@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   pickSkillSourceDirectory: vi.fn(),
   getSnapshotHistory: vi.fn(),
   diffSnapshots: vi.fn(),
+  loadOptimization: vi.fn(),
 }));
 
 vi.mock('../../web/src/api', () => ({
@@ -62,6 +63,7 @@ describe('UI onboarding', () => {
     } });
     localStorage.clear();
     vi.clearAllMocks();
+    mocks.loadOptimization.mockResolvedValue({ projectDir: '/tmp/project', generatedAt: new Date().toISOString(), sessions: [], priceDate: '2026-09-07', diagnostics: [] });
     mocks.getBootstrap.mockResolvedValue({
       version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
       supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
@@ -91,6 +93,18 @@ describe('UI onboarding', () => {
       resources: { baseline: 1, current: 2, change: 1 },
       contextTokens: { baseline: 0, current: 10, change: 10 },
     });
+  });
+
+  it('keeps the fixed style controls independent of legacy theme preferences', async () => {
+    localStorage.setItem('skill-doctor-theme', 'light');
+    localStorage.setItem('skill-doctor-color-theme', 'cyan');
+    render(<App />);
+
+    await screen.findByRole('button', { name: '扫描设置' });
+    expect(screen.queryByRole('radiogroup', { name: '主题' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '切换配色主题' })).toBeNull();
+    expect(localStorage.getItem('skill-doctor-theme')).toBe('light');
+    expect(localStorage.getItem('skill-doctor-color-theme')).toBe('cyan');
   });
 
   it('switches the UI language and persists the selection', async () => {
@@ -401,8 +415,9 @@ describe('UI onboarding', () => {
     mocks.getResourceDetail.mockResolvedValue({ resource: aggregate, issues: [] });
 
     render(<App />);
-    const contextButtons = await screen.findAllByRole('button', { name: '上下文优化' });
+    const contextButtons = await screen.findAllByRole('button', { name: '优化建议' });
     fireEvent.click(contextButtons[contextButtons.length - 1]);
+    fireEvent.click(await screen.findByRole('button', { name: '查看静态资源占用' }));
     const aggregateLinks = await screen.findAllByText('Codex skill list');
     fireEvent.click(aggregateLinks[aggregateLinks.length - 1]);
 

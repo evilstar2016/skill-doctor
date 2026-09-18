@@ -1,0 +1,24 @@
+/* Unified empty states. Colors inherit the fixed theme. */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 12px;
+  padding: var(--space-12) var(--space-6);
+  margin: var(--space-8) auto; max-width: 460px;
+  color: var(--muted);
+}
+.empty-state-icon {
+  width: 56px; height: 56px; display: grid; place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2); color: var(--accent-text);
+  border: 1px solid var(--border);
+}
+.empty-state-icon svg { width: 26px; height: 26px; }
+.empty-state-title { font-size: 16px; font-weight: 650; color: var(--text); margin: 0; }
+.empty-state-desc { font-size: 13px; line-height: 1.6; margin: 0; max-width: 380px; }
+.empty-state-desc code {
+  font-size: 12px; background: var(--code); padding: 2px 6px; border-radius: 6px;
+}
+.empty-state-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px; }
+.empty-state.variant-warning .empty-state-icon { color: var(--warning-text); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, var(--border)); }
+.empty-state.variant-danger .empty-state-icon { color: var(--danger-text); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, var(--border)); }
+.empty-state.variant-info .empty-state-icon { color: var(--info-text); background: var(--info-soft); border-color: color-mix(in srgb, var(--info) 25%, var(--border)); }

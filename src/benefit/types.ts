@@ -210,6 +210,10 @@ export interface CodexSessionScanOptions {
   indexPath?: string;
   indexRetentionDays?: number;
   signal?: AbortSignal;
+  /** Skip historical context reconstruction when only recorded usage is needed. */
+  includeContext?: boolean;
+  /** Restrict to tasks created in this exact project, without parsing unrelated bodies. */
+  exactProjectOnly?: boolean;
 }
 
 export interface CodexSessionScanResult {

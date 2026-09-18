@@ -36,7 +36,7 @@ export function ContextPage({ snapshot, openResource, onToggle, active = true }:
       const resource = snapshot?.resources.find((entry) => entry.sourcePath === item.sourcePath && entry.name === item.name) ?? snapshot?.resources.find((entry) => entry.id === item.id);
       const cost = item.budgetScope === 'activation' ? item.activationEstimatedTokens : item.estimatedTokens;
       const known = hasKnownEstimate(item);
-      const canToggle = item.controllable === true && Boolean(item.id) && !item.sourcePaths?.length;
+      const canToggle = item.controllable === true && Boolean(item.id) && !item.sourcePaths?.length && !(item.platform === 'codex' && item.controlMethod === 'skills.config');
       return <div className={`cost-row ${item.enabled === false ? 'disabled' : ''}`} key={`${item.id ?? item.sourcePath}:${item.enabled}`}>
         <div className="cost-resource-cell"><button className="resource-link" aria-label={t('context.openResource', { name: item.name })} onClick={() => resource && openResource(resource)}><code>{item.name}</code><small>{item.platform} · {activationLabel(item.activation, t)}{item.sourcePaths?.length ? ` · ${t('context.aggregate', { count: item.sourcePaths.length })}` : ''}</small></button>{item.sourcePaths?.length ? <details className="cost-children"><summary>{t('context.showSources', { count: item.sourcePaths.length })}</summary><ul>{item.sourcePaths.map((path) => <li key={path}><code>{path}</code></li>)}</ul></details> : null}</div>
         <div className="cost-bar" aria-hidden={!known}><span style={{ width: `${known ? Math.max(2, cost / max * 100) : 0}%` }} /></div><strong>{known ? cost : '—'}</strong><span className="cost-unit">{known ? t('context.tokens') : t('context.notIncludedShort')}</span>

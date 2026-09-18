@@ -2,12 +2,35 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-### History-driven project controls
+### Codex optimization suggestions
 
-After an offline benefit audit, the UI offers per-item rationale, evidence, preview,
-confirmation and undo. Skills are controlled independently when supported. Plugin
-recommendations can be hidden individually or as a whole block **in this project**;
-installed plugins and global configuration are not disabled.
+Open `skill-doctor ui` and choose **Optimization suggestions** with Codex selected.
+The three-step flow highlights cumulative estimated token and API-equivalent cost
+savings, with a smaller first-response estimate and recorded turn/response counts.
+Savings follow retained target text per response; compaction and missing evidence
+are reported as coverage gaps, not extrapolated by multiplying turn counts.
+Supported actions:
+
+- Hide the automatic skill catalog: project `skills.include_instructions = false`.
+- Stop memory injection: user `memories.use_memories = false`, with global-impact confirmation.
+
+These actions are gated to the Desktop version tested in the investigation
+(`0.154.0-alpha.6.2`) and complete initial headers. Writes remain **pending** until
+a newly created task's JSONL proves the target block absent; undo restores only the
+changed key. Unknown prices/usage remain unknown, and estimates are not subscription
+bills or guaranteed savings. Analysis uses up to 20 recent tasks from the last 7 days.
+Single-skill disabling and recommendation-block disabling are not offered because
+their Desktop behavior has not been established reliably.
+
+### Legacy history-driven configuration writes
+
+**Warning:** the commands below can write configuration, but do not prove Desktop
+prompt removal. In particular, project-level skill rules and recommendation flags
+were ineffective in the tested Desktop version. Use the verified UI flow above;
+do not interpret a successful configuration write as realized token savings.
+
+The legacy workflow offers evidence, preview, confirmation and undo for configuration
+writes. It does not disable installed plugins or global configuration.
 
 ```sh
 # Run in the target project; keep this report private

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Boxes, Check, ChevronDown, CircleHelp, Clipboard,
   Download, FileCode2, Filter, FolderCog, FolderOpen, GitCompareArrows, History, Info, LayoutDashboard, LoaderCircle, Menu,
-  PackagePlus, Palette, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Trash2, X,
+  PackagePlus, Plus, RefreshCw, RotateCcw, Save, Search, Settings2, ShieldCheck, Sparkles, Trash2, X,
 } from 'lucide-react';
 import type { BootstrapPayload, DoctorSnapshot, ResourceDetailPayload, UiIssue, UiResource } from '../../src/application/types';
 import type { DetectedAgent } from '../../src/discovery/detectAgents';
@@ -25,12 +25,9 @@ import { HistoryPage as HistoryPageView } from './pages/HistoryPage';
 import { ContextOptimizationPage as ContextOptimizationPageView, type ContextOptimizationView } from './pages/ContextOptimizationPage';
 import { Detail, EmptyRows, FilterBar, HelpTip, InlineNotice, IssueCard, LaunchScreen, LoadingLine, PageHeading, PlatformIcon, ResourceStatus, ScanningEmpty, SettingSwitch, SeverityBadge, StatCard, StatusPill, activationLabel, copyText, kindLabel, platformLabel, resourceKindLabel, scopeLabel, severityLabel, shortPath, translateResultText } from './components/ui';
 import { I18nProvider, useTranslation } from './i18n';
-import { useTheme, type Theme } from './theme-manager';
-import { ThemeToggle } from './components/ThemeToggle';
 import { SkillDoctorLogo } from './components/SkillDoctorLogo';
 
 type Route = 'overview' | 'issues' | 'context' | 'resources' | 'history' | 'manage' | 'scan-paths';
-type ColorTheme = 'teal' | 'cyan';
 type AnalysisMode = 'standard' | 'deep' | 'custom';
 type ScanStatus = 'preparing' | 'complete' | 'partial' | 'failed' | 'cancelled';
 type ScanState = { id?: string; running: boolean; message: string; progress: number; status?: ScanStatus };
@@ -63,8 +60,6 @@ function AppContent() {
   const { locale, setLocale, t } = useTranslation();
   const [route, setRoute] = useState<Route>(() => routeFromHash());
   const [contextView, setContextView] = useState<ContextOptimizationView>(() => contextViewFromHash());
-  const [theme, setTheme] = useTheme();
-  const [colorTheme, setColorTheme] = useState<ColorTheme>(() => (localStorage.getItem('skill-doctor-color-theme') as ColorTheme) || 'teal');
   const [bootstrap, setBootstrap] = useState<BootstrapPayload | null>(null);
   const [snapshot, setSnapshot] = useState<DoctorSnapshot | null>(null);
   const [scanOptions, setScanOptions] = useState<ScanRequest>(() => loadScanOptions());
@@ -83,11 +78,6 @@ function AppContent() {
   const activeScanId = useRef<string | undefined>(undefined);
   const scanVersion = useRef(0);
   const startedAutomatically = useRef(false);
-
-  useEffect(() => {
-    document.documentElement.dataset.color = colorTheme;
-    localStorage.setItem('skill-doctor-color-theme', colorTheme);
-  }, [colorTheme]);
 
   useEffect(() => {
     const update = () => {
@@ -184,13 +174,13 @@ function AppContent() {
   }, [compare, selectedResource, selectedIssue, settingsOpen]);
 
   const navigate = (next: Route) => {
-    const hash = next === 'context' && contextView !== 'current' ? `/context?view=${contextView}` : `/${next}`;
+    const hash = next === 'context' ? `/context?view=${contextView}` : `/${next}`;
     window.location.hash = hash;
     setRoute(next);
   };
   const navigateContextView = (nextView: ContextOptimizationView) => {
     setContextView(nextView);
-    window.location.hash = nextView === 'current' ? '/context' : `/context?view=${nextView}`;
+    window.location.hash = `/context?view=${nextView}`;
     setRoute('context');
   };
   const openResource = async (resource: UiResource) => {
@@ -199,7 +189,7 @@ function AppContent() {
     catch (nextError) { setError(nextError instanceof Error ? nextError.message : String(nextError)); }
   };
   const reviewContextResource = (resource: UiResource) => {
-    if (!resource.controlId || resource.sourcePaths?.length) return;
+    if (!resource.controlId || resource.sourcePaths?.length || (resource.platform === 'codex' && resource.controlMethod === 'skills.config')) return;
     const enabling = resource.enabled === false;
     if (!window.confirm(t('context.toggleConfirm', { action: t(enabling ? 'context.enable' : 'context.disable'), name: resource.name }))) return;
     void toggleContextResource(resource.controlId, enabling).then((result) => {
@@ -248,10 +238,6 @@ function AppContent() {
           detectedAgents={detectedAgents}
           analysisMode={analysisMode}
           setAnalysisMode={chooseAnalysisMode}
-          theme={theme}
-          setTheme={setTheme}
-          colorTheme={colorTheme}
-          setColorTheme={setColorTheme}
           locale={locale}
           toggleLocale={() => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN')}
         />
@@ -333,6 +319,7 @@ function AppContent() {
         compare={(leftId, rightId) => setCompare({ leftId, rightId })}
         cleaned={() => { setSelectedIssue(null); refresh(); }}
         toggleContext={async (resource) => {
+          if (resource.platform === 'codex' && resource.controlMethod === 'skills.config') return;
           if (!resource.controlId || !window.confirm(t('context.toggleConfirm', { action: t('context.disable'), name: resource.name }))) return;
           try {
             const result = await toggleContextResource(resource.controlId, false);
@@ -391,11 +378,10 @@ function Topbar(props: {
   scanOptions: ScanRequest; setScanOptions: (value: ScanRequest) => void; runScan: () => void; cancel: () => void;
   selectAgent: (platform: ScanRequest['platform']) => void; detectedAgents: DetectedAgent[];
   analysisMode: AnalysisMode; setAnalysisMode: (mode: AnalysisMode) => void;
-  openSettings: () => void; theme: Theme; setTheme: (next: Theme) => void; colorTheme: ColorTheme; setColorTheme: (value: ColorTheme) => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
+  openSettings: () => void; locale: 'zh-CN' | 'en-US'; toggleLocale: () => void;
 }) {
   const { t } = useTranslation();
   const { bootstrap, scan, scanOptions, setScanOptions } = props;
-  const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const deepAvailable = Boolean(bootstrap?.capabilities.aiAuditConfigured || bootstrap?.capabilities.embeddingConfigured);
   return <><header className="topbar">
     <div className="target-block">
@@ -412,23 +398,6 @@ function Topbar(props: {
     <div className="top-actions">
       <label className="analysis-mode"><span>{t('topbar.analysis')}</span><select value={props.analysisMode} onChange={(event) => props.setAnalysisMode(event.target.value as AnalysisMode)}><option value="standard">{t('topbar.standard')}</option><option value="deep" disabled={!deepAvailable}>{deepAvailable ? t('topbar.deep') : t('topbar.deepUnavailable')}</option><option value="custom">{t('topbar.custom')}</option></select></label>
       <button className="icon-button" onClick={props.toggleLocale} aria-label={props.locale === 'zh-CN' ? t('language.switchToEnglish') : t('language.switchToChinese')}>{props.locale === 'zh-CN' ? 'EN' : 'ZH'}</button>
-      <div className="color-theme-control">
-        <button className="icon-button" onClick={() => setColorMenuOpen((value) => !value)} aria-label={t('topbar.themeColor')} aria-haspopup="menu" aria-expanded={colorMenuOpen}><Palette size={18} /></button>
-        {colorMenuOpen && <>
-          <button className="color-menu-backdrop" aria-hidden tabIndex={-1} onClick={() => setColorMenuOpen(false)} />
-          <div className="color-menu" role="menu" aria-label={t('topbar.themeColor')}>
-            <button className={`color-swatch ${props.colorTheme === 'teal' ? 'active' : ''}`} role="menuitemradio" aria-checked={props.colorTheme === 'teal'} onClick={() => { props.setColorTheme('teal'); setColorMenuOpen(false); }}>
-              <span className="swatch-dot" style={{ background: 'linear-gradient(135deg,#0e9e6e,#0b855c)' }} />
-              <span>{t('topbar.themeTeal')}</span>
-            </button>
-            <button className={`color-swatch ${props.colorTheme === 'cyan' ? 'active' : ''}`} role="menuitemradio" aria-checked={props.colorTheme === 'cyan'} onClick={() => { props.setColorTheme('cyan'); setColorMenuOpen(false); }}>
-              <span className="swatch-dot" style={{ background: 'linear-gradient(135deg,#0e9bc4,#0a7e9e)' }} />
-              <span>{t('topbar.themeCyan')}</span>
-            </button>
-          </div>
-        </>}
-      </div>
-      <ThemeToggle value={props.theme} onChange={props.setTheme} />
       <button className="icon-button" onClick={props.openSettings} aria-label={t('topbar.settings')}><Settings2 size={18} /></button>
       {(scan.running
         ? <button className="button secondary" onClick={props.cancel}><X size={17} />{t('topbar.cancel')}</button>
@@ -599,7 +568,7 @@ function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, t
   const { t } = useTranslation();
   const [removePath, setRemovePath] = useState(issue.cleanup?.removePath ?? issue.evidence.find((entry) => entry.path)?.path ?? ''); const [confirmation, setConfirmation] = useState(''); const [busy, setBusy] = useState(false);
   const controllableContextResources = issue.kind === 'context'
-    ? issue.resourceIds.map((id) => snapshot?.resources.find((resource) => resource.id === id)).filter((resource): resource is UiResource => Boolean(resource?.controllable && resource.controlId && resource.enabled !== false))
+    ? issue.resourceIds.map((id) => snapshot?.resources.find((resource) => resource.id === id)).filter((resource): resource is UiResource => Boolean(resource?.controllable && resource.controlId && resource.enabled !== false && !(resource.platform === 'codex' && resource.controlMethod === 'skills.config')))
     : [];
   return <Drawer title={translateResultText(issue.title, t)} subtitle={`${kindLabel(issue.kind, t)} · ${severityLabel(issue.severity, t)}`} close={close}><div className="issue-hero"><SeverityBadge severity={issue.severity} /><p>{translateResultText(issue.summary, t)}</p></div>
     <div className="drawer-section"><h4>{t('drawer.affected')}</h4><div className="linked-resources">{issue.resourceIds.map((id, index) => <button key={id} onClick={() => openResource(id)}><code>{issue.resourceNames[index] ?? id}</code><ArrowRight size={15} /></button>)}</div></div>
@@ -614,14 +583,15 @@ function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, t
 function ResourceDrawer({ resource, detail, close, openIssue, onManageSkill, onToggleResource }: { resource: UiResource; detail: ResourceDetailPayload | null; close: () => void; openIssue: (issue: UiIssue) => void; onManageSkill?: (name: string) => void; onToggleResource?: (resource: UiResource) => void }) {
   const { t } = useTranslation();
   const estimateKnown = resource.estimateStatus !== 'unknown' && resource.estimateStatus !== 'unsupported';
+  const canControl = resource.controllable && !(resource.platform === 'codex' && resource.controlMethod === 'skills.config');
   return <Drawer title={resource.name} subtitle={`${resource.kindLabel} · ${resource.shared ? t('drawer.sharedSubtitle', { count: resource.consumers.length }) : platformLabel(resource.platform)} · ${scopeLabel(resource.scope, t)}`} close={close}>
     <div className="resource-hero"><div><ResourceStatus status={resource.status} count={resource.issueIds.length} />{resource.shared && <span className="shared-badge">{t('drawer.shared')}</span>}</div><p>{translateResultText(resource.description || resource.recommendation || t('drawer.noDescription'), t)}</p></div>
-    <div className="detail-grid"><Detail label={t('drawer.activation')} value={activationLabel(resource.activation, t)} /><Detail label={t('drawer.fixed')} value={estimateKnown ? `${resource.fixedTokens} tokens` : '—'} /><Detail label={t('drawer.onDemand')} value={estimateKnown ? `${resource.activationTokens} tokens` : '—'} /><Detail label={t('drawer.controllable')} value={resource.controllable ? t('drawer.supported') : t('drawer.readonly')} /></div>
+    <div className="detail-grid"><Detail label={t('drawer.activation')} value={activationLabel(resource.activation, t)} /><Detail label={t('drawer.fixed')} value={estimateKnown ? `${resource.fixedTokens} tokens` : '—'} /><Detail label={t('drawer.onDemand')} value={estimateKnown ? `${resource.activationTokens} tokens` : '—'} /><Detail label={t('drawer.controllable')} value={canControl ? t('drawer.supported') : t('drawer.readonly')} /></div>
     {resource.shared && <div className="drawer-section"><h4>{t('drawer.consumers')}</h4><p className="shared-impact">{t('drawer.consumerImpact', { count: resource.consumers.length })}</p><div className="consumer-list">{resource.consumers.map((consumer) => <div key={`${consumer.platform}:${consumer.scope}`}><PlatformIcon platform={consumer.platform} /><span><strong>{platformLabel(consumer.platform)}</strong><small>{scopeLabel(consumer.scope, t)} · {activationLabel(consumer.activation, t)}{consumer.enabled === false ? ` · ${t('drawer.disabled')}` : ''}</small></span><code>{!estimateKnown || consumer.fixedTokens === undefined || consumer.activationTokens === undefined ? t('drawer.notCalculated') : `${consumer.fixedTokens + consumer.activationTokens} tokens`}</code></div>)}</div></div>}
     <div className="drawer-section"><h4>{resource.sourcePaths?.length ? t('drawer.sources', { count: resource.sourcePaths.length }) : t('drawer.source')}</h4>{(resource.sourcePaths ?? [resource.sourcePath]).map((path) => <div className="path-box" key={path}><code>{path}</code><button onClick={() => void navigator.clipboard.writeText(path)}><Clipboard size={14} /></button></div>)}{resource.configSource && <Detail label={t('drawer.configSource')} value={resource.configSource} />}{resource.installSource && <Detail label={t('drawer.installSource')} value={resource.installSource} />}{resource.repository && <Detail label={t('drawer.repository')} value={resource.repository} />}{resource.author && <Detail label={t('drawer.author')} value={resource.author} />}</div>
     <div className="drawer-section"><h4>{t('drawer.triggers')}</h4><div className="tag-list">{resource.triggers.length ? resource.triggers.map((trigger) => <span key={trigger}>{trigger}</span>) : <span className="muted">{t('drawer.noTriggers')}</span>}</div></div>
     <div className="drawer-section"><h4>{t('drawer.issues')}</h4>{detail ? <div className="linked-issues">{detail.issues.map((issue) => <button key={issue.id} onClick={() => openIssue(issue)}><SeverityBadge severity={issue.severity} /><span>{translateResultText(issue.title, t)}</span><ArrowRight size={15} /></button>)}{!detail.issues.length && <p className="muted">{t('drawer.noIssues')}</p>}</div> : <LoadingLine />}</div>
-    {onToggleResource && resource.controllable && resource.controlId && !resource.sourcePaths?.length && <div className="drawer-section"><button className="button secondary full" onClick={() => onToggleResource(resource)}>{t('context.reviewAdjust')}</button></div>}
+    {onToggleResource && canControl && resource.controlId && !resource.sourcePaths?.length && <div className="drawer-section"><button className="button secondary full" onClick={() => onToggleResource(resource)}>{t('context.reviewAdjust')}</button></div>}
     {detail?.skill?.relatedSkills?.length ? <div className="drawer-section"><h4>{t('drawer.related')}</h4><div className="related-list">{detail.skill.relatedSkills.map((related) => <div key={related.name}><code>{related.name}</code><span>{t('drawer.similar', { percent: Math.round(related.similarity * 100) })}</span></div>)}</div></div> : null}
     {onManageSkill && <div className="drawer-section"><button className="button secondary full" onClick={() => onManageSkill(resource.name)}><PackagePlus size={15} />{t('resources.manageSkill')}</button></div>}
   </Drawer>;
@@ -674,7 +644,7 @@ function contextViewFromHash(): ContextOptimizationView {
   const [path, query = ''] = raw.split('?', 2);
   if (path === 'benefit') return 'recommendations';
   const view = new URLSearchParams(query).get('view');
-  return view === 'recommendations' || view === 'evidence' ? view : 'current';
+  return view === 'current' || view === 'evidence' ? view : 'recommendations';
 }
 function initialScanOptions(payload: BootstrapPayload): ScanRequest {
   const preference = loadProjectPreference(payload.projectDir);

@@ -7,6 +7,7 @@ import { handleBenefitRoute } from './benefitHandlers';
 import { handleLibraryRoute } from './libraryHandlers';
 import { handleResourceRoute } from './resourceHandlers';
 import { handleScanRoute } from './scanHandlers';
+import { handleOptimizationRoute } from './optimizationHandlers';
 
 export async function handleApi(
   request: IncomingMessage,
@@ -15,7 +16,7 @@ export async function handleApi(
   serverContext: ApiServerContext,
 ): Promise<void> {
   const context = createApiRequestContext(serverContext);
-  for (const handler of [handleConfigRoute, handleBenefitRoute, handleScanRoute, handleLibraryRoute, handleResourceRoute]) {
+  for (const handler of [handleConfigRoute, handleOptimizationRoute, handleBenefitRoute, handleScanRoute, handleLibraryRoute, handleResourceRoute]) {
     if (await handler(request, response, url, context)) return;
   }
   sendJson(response, 404, { error: { code: 'not_found', message: 'API route not found.' } });

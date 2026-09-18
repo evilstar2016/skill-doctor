@@ -3,6 +3,7 @@ import type { ContextCostItem } from '../../../src/types/context';
 import type { Platform } from '../../../src/types/skill';
 import { BenefitPage, type BenefitView } from './BenefitPage';
 import { ContextPage } from './ContextPage';
+import { OptimizationWizard } from './OptimizationWizard';
 import { useTranslation } from '../i18n';
 import './contextOptimizationPage.css';
 
@@ -40,6 +41,13 @@ export function ContextOptimizationPage({
     { id: 'evidence', label: t('context.view.evidence'), detail: t('context.view.evidenceDetail') },
   ];
   const benefitView: BenefitView = view === 'evidence' ? 'evidence' : 'recommendations';
+
+  if (platform === 'codex') return active ? <section>
+    {view === 'current'
+      ? <><button className="button secondary" onClick={() => setView('recommendations')}>{t('opt.backSuggestions')}</button><ContextPage snapshot={snapshot} openResource={openResource} onToggle={onToggle} /></>
+      : <OptimizationWizard key={projectDir} projectDir={projectDir} />}
+    {view !== 'current' && <button className="button ghost compact" onClick={() => setView('current')}>{t('opt.staticResources')}</button>}
+  </section> : null;
 
   return <section className="context-optimization-page" hidden={!active} aria-label={t('context.optimizationLabel')}>
     <nav className="context-optimization-tabs" role="tablist" aria-label={t('context.views')}>

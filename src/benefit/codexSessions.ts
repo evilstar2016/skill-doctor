@@ -88,6 +88,8 @@ interface MutableAnalysis {
 }
 
 interface CollectJsonlOptions extends Required<Pick<CodexSessionScanOptions, 'maxFileBytes' | 'maxLineBytes'>> {
+  includeContext?: boolean;
+  exactProjectDir?: string;
   startOffset?: number;
   baseAnalysis?: CodexSessionFileAnalysis;
   signal?: AbortSignal;
@@ -744,6 +746,11 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
         if (meta) {
           mutable.meta = meta;
           mutable.cwdCandidates.push(...(meta.cwd ? [meta.cwd] : []));
+          if (options.exactProjectDir) {
+            let cwd: string | undefined;
+            try { cwd = meta.cwd ? realpathSync(meta.cwd) : undefined; } catch { /* Missing projects do not match. */ }
+            if (cwd !== options.exactProjectDir) break;
+          }
         } else {
           mutable.status = 'partial';
           diagnostics.push(diagnostic('session.invalid_meta', 'warning', 'Session metadata is missing a valid ID or timestamp', filePath, mutable.lineCount));
@@ -753,7 +760,7 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
 
       const payload = objectValue(parsed.payload);
       if (parsed.type === 'response_item' && payload) {
-        addContextRecord(mutable, parsed, filePath, mutable.lineCount, timestamp ?? mutable.firstTimestamp ?? new Date(0).toISOString());
+        if (options.includeContext !== false) addContextRecord(mutable, parsed, filePath, mutable.lineCount, timestamp ?? mutable.firstTimestamp ?? new Date(0).toISOString());
         continue;
       }
       if (parsed.type === 'turn_context' && payload) {
@@ -763,7 +770,7 @@ async function collectJsonl(filePath: string, archived: boolean, options: Collec
         continue;
       }
       if (parsed.type === 'world_state') {
-        addContextRecord(mutable, parsed, filePath, mutable.lineCount, timestamp ?? mutable.firstTimestamp ?? new Date(0).toISOString());
+        if (options.includeContext !== false) addContextRecord(mutable, parsed, filePath, mutable.lineCount, timestamp ?? mutable.firstTimestamp ?? new Date(0).toISOString());
         continue;
       }
       if (parsed.type === 'token_usage_record') {
@@ -1093,14 +1100,17 @@ function associatedAnalyses(
 
 export async function analyzeCodexSessionFile(
   filePath: string,
-  options: Pick<CodexSessionScanOptions, 'maxFileBytes' | 'maxLineBytes'> & {
+  options: Pick<CodexSessionScanOptions, 'maxFileBytes' | 'maxLineBytes' | 'includeContext'> & {
     archived?: boolean;
     startOffset?: number;
     baseAnalysis?: CodexSessionFileAnalysis;
     signal?: AbortSignal;
+    exactProjectDir?: string;
   } = {},
 ): Promise<CodexSessionFileAnalysis> {
   return collectJsonl(filePath, options.archived === true, {
+    includeContext: options.includeContext,
+    exactProjectDir: options.exactProjectDir,
     maxFileBytes: options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
     maxLineBytes: options.maxLineBytes ?? DEFAULT_MAX_LINE_BYTES,
     ...(options.startOffset !== undefined ? { startOffset: options.startOffset } : {}),
@@ -1240,7 +1250,7 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
   const skipped: CodexSessionScanResult['skipped'] = [];
   const analyses: CodexSessionFileAnalysis[] = [];
   const skippedByReason: Record<string, number> = {};
-  const indexEnabled = options.useIndex === true;
+  const indexEnabled = options.useIndex === true && options.includeContext !== false && !options.exactProjectOnly;
   const indexPath = indexEnabled ? (options.indexPath ?? defaultSessionIndexPath(options.homeDir)) : undefined;
   const sessionIndex = indexPath ? await loadSessionIndex(indexPath) : undefined;
   const indexedByPath = new Map((sessionIndex?.entries ?? []).map((entry) => [entry.filePath, entry]));
@@ -1296,6 +1306,8 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
         if (needsContextText) {
           analysis = await analyzeCodexSessionFile(filePath, {
             archived,
+            includeContext: options.includeContext,
+            exactProjectDir: options.exactProjectOnly ? realpathSync(projectDir) : undefined,
             maxFileBytes: options.maxFileBytes,
             maxLineBytes: options.maxLineBytes,
             ...(options.signal ? { signal: options.signal } : {}),
@@ -1328,6 +1340,8 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
         if (appendIsSafe && indexed) {
           analysis = await analyzeCodexSessionFile(filePath, {
             archived,
+            includeContext: options.includeContext,
+            exactProjectDir: options.exactProjectOnly ? realpathSync(projectDir) : undefined,
             maxFileBytes: options.maxFileBytes,
             maxLineBytes: options.maxLineBytes,
             startOffset: indexed.readOffset,
@@ -1339,6 +1353,8 @@ export async function scanCodexSessions(options: CodexSessionScanOptions): Promi
           if (indexed) indexRebuiltFiles += 1;
           analysis = await analyzeCodexSessionFile(filePath, {
             archived,
+            includeContext: options.includeContext,
+            exactProjectDir: options.exactProjectOnly ? realpathSync(projectDir) : undefined,
             maxFileBytes: options.maxFileBytes,
             maxLineBytes: options.maxLineBytes,
             ...(options.signal ? { signal: options.signal } : {}),

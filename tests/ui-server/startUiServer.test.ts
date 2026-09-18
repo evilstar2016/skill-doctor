@@ -14,6 +14,28 @@ describe('Skill Doctor UI server', () => {
     cleanupTempRoots();
   });
 
+  it('restricts optimization to the authenticated server project and explicit undo confirmation', async () => {
+    const root = createTempRoot();
+    const projectDir = join(root, 'project');
+    const homeDir = join(root, 'home');
+    const uiDir = join(root, 'ui');
+    writeFile(join(projectDir, 'README.md'), 'project');
+    writeFile(join(homeDir, '.codex/config.toml'), '');
+    writeFile(join(uiDir, 'index.html'), '<div>Skill Doctor</div>');
+    handle = await startUiServer({ projectDir, homeDir, uiDir, port: 0 });
+    const baseUrl = `http://${handle.host}:${handle.port}`;
+    const session = await fetch(handle.url, { redirect: 'manual' });
+    const cookie = session.headers.get('set-cookie')!.split(';')[0];
+    const post = (body: unknown, authenticated = true) => fetch(`${baseUrl}/api/optimization`, {
+      method: 'POST', headers: { ...(authenticated ? { Cookie: cookie } : {}), Origin: baseUrl, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    expect((await post({ action: 'overview', projectDir }, false)).status).toBe(401);
+    expect((await post({ action: 'overview', projectDir })).status).toBe(200);
+    expect((await post({ action: 'overview', projectDir: homeDir })).status).toBe(400);
+    expect((await post({ action: 'undo', projectDir, operationId: 'unconfirmed' })).status).toBe(400);
+    expect(fs.readFileSync(join(homeDir, '.codex/config.toml'), 'utf8')).toBe('');
+  });
+
   it('protects the UI with a session and streams a complete product snapshot', async () => {
     const root = createTempRoot();
     const projectDir = join(root, 'project');
