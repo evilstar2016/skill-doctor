@@ -37,6 +37,10 @@ describe('optimization wizard', () => {
   async function open() { render(<OptimizationWizard projectDir="/project" />); await screen.findByRole('heading', { name: '先从哪项开始？' }); }
   it('starts with suggestions and shows recorded session costs without double-counting cache', async () => {
     await open();
+    expect(screen.getAllByText('当前开启')).toHaveLength(3);
+    fireEvent.focus(screen.getByRole('button', { name: '隐藏自动技能目录：详细说明与推荐依据' }));
+    expect(screen.getByRole('tooltip').textContent).toContain('这里提供的是“关闭建议”，不是“重新开启”');
+    fireEvent.keyDown(screen.getByRole('button', { name: '隐藏自动技能目录：详细说明与推荐依据' }), { key: 'Escape' });
     expect(screen.getByText('420')).toBeTruthy();
     expect(screen.getByText('1 个 task · 2 个 turn · 3 次模型响应')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('$0.003 – $0.03')).toBeTruthy();
@@ -147,6 +151,17 @@ describe('optimization wizard', () => {
     await open();
     expect((screen.getByRole('checkbox', { name: /停止注入记忆/ }) as HTMLInputElement).checked).toBe(true);
   });
+  it('keeps an absent complete catalog selectable when config is on and explains the zero-savings session', async () => {
+    const updated = structuredClone(report);
+    updated.sessions[0].suggestions[0] = { ...updated.sessions[0].suggestions[0], available: true, reason: 'absent', tokens: 0, cost: undefined, cumulative: { coveredResponses: 0, pricedResponses: 0 }, configValues: { project: true, global: false, effective: true, source: 'project' } };
+    vi.mocked(api.loadOptimization).mockResolvedValue(updated);
+    await open();
+    expect((screen.getByRole('checkbox', { name: /隐藏自动技能目录/ }) as HTMLInputElement).disabled).toBe(false);
+    expect(screen.getByText(/本期有 1 个会话的初始会话头已经没有所选 block/)).toBeTruthy();
+    fireEvent.focus(screen.getByRole('button', { name: '隐藏自动技能目录：详细说明与推荐依据' }));
+    expect(screen.getByRole('tooltip').textContent).toContain('项目 显式开启、全局 显式关闭');
+    expect(screen.getByRole('tooltip').textContent).toContain('收益不明显');
+  });
   it('re-enables a disabled catalog with a preview and verifies restoration', async () => {
     const updated = structuredClone(report);
     Object.assign(updated.sessions[0].suggestions[0], { configuredOff: true, available: false, canEnable: true });
@@ -155,14 +170,33 @@ describe('optimization wizard', () => {
     vi.mocked(api.applyOptimizationChange).mockResolvedValue({ ...operation, targets: ['skill-catalog'], enabled: true });
     vi.mocked(api.checkOptimizationChange).mockResolvedValue({ status: 'present', matched: true, reason: 'fresh-header-observed' });
     await open();
+    fireEvent.focus(screen.getByRole('button', { name: '隐藏自动技能目录：详细说明与推荐依据' }));
+    expect(screen.getByRole('tooltip').textContent).toContain('开启后增益');
+    expect(screen.getByRole('tooltip').textContent).toContain('每次新会话会增加目录输入 Token');
     fireEvent.click(screen.getByRole('button', { name: '重新开启' }));
     const confirm = await screen.findByRole('button', { name: '确认开启 · 下个新会话生效' });
     expect(api.previewOptimizationChange).toHaveBeenCalledWith('/project', 'session-one', ['skill-catalog'], true);
     expect(screen.queryByRole('region', { name: '整段会话预计节省' })).toBeNull();
+    expect(screen.getByRole('region', { name: '重新开启前先看增益与缺点' }).textContent).toContain('恢复自动技能目录');
+    expect(screen.getByRole('region', { name: '重新开启前先看增益与缺点' }).textContent).toContain('增加目录输入 Token');
     fireEvent.click(confirm);
     await screen.findByRole('heading', { name: '设置已更新，等待新会话验证' });
     fireEvent.click(screen.getByRole('button', { name: '检查新会话' }));
     await screen.findByRole('heading', { name: '已验证：新会话中已恢复目标内容' });
+  });
+  it('shows re-enable explanations for every disabled optimization target', async () => {
+    const updated = structuredClone(report);
+    updated.sessions[0].suggestions = updated.sessions[0].suggestions.map((item) => ({ ...item, configuredOff: true, available: false, canEnable: true, reason: 'configured-off' as const }));
+    vi.mocked(api.loadOptimization).mockResolvedValue(updated);
+    await open();
+    expect(screen.getAllByRole('button', { name: '重新开启' })).toHaveLength(3);
+    for (const name of ['隐藏自动技能目录', '停止注入记忆', '关闭 Plugins 功能']) {
+      fireEvent.focus(screen.getByRole('button', { name: `${name}：详细说明与推荐依据` }));
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip.textContent).toContain('开启后增益');
+      expect(tooltip.textContent).toContain('开启后缺点');
+      fireEvent.keyDown(screen.getByRole('button', { name: `${name}：详细说明与推荐依据` }), { key: 'Escape' });
+    }
   });
   it('labels incomplete token and price coverage next to the cumulative amount', async () => {
     const partial = structuredClone(report);

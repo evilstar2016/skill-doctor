@@ -6,6 +6,7 @@ All notable changes to `skill-doctor` are documented here.
 
 ### Features
 
+- Default the context UI to Current Context for all agents. For Codex, show skill catalogs observed in trusted historical initial headers with session selection, provenance, explicit unknown/absent states, and an entry to Optimization Suggestions.
 - Compact optimization controls into rows with hover/focus explanations and history-based recommendation badges; highlight Token/cost savings above the fold and collapse the inline session preview by default. Recommendations use explicit references in the selected project's period and avoid inferring non-use from incomplete logs or unclassified tool calls.
 - Allow multiple Codex context controls to be selected and applied as one reversible operation; add the verified whole-Plugins control (`features.plugins = false`) and an in-page new-session header preview.
 - Emphasize cumulative session savings in Optimization Suggestions, with smaller first-response figures and recorded turn/response counts; track target retention and cache-price bounds per response, exposing incomplete coverage after compaction or missing data.
@@ -17,6 +18,7 @@ All notable changes to `skill-doctor` are documented here.
 - Include per-candidate rationale, evidence and control commands in text/HTML history reports, plus a copyable Agent + Skill prompt in the UI.
 
 ### Fixes
+- Remove ineffective project-level individual Codex skill controls from the UI and write APIs; ignore project skill-selector rules in local inventory while retaining user-level selectors and the separately verified whole-catalog control.
 - Keep known Codex controls usable after version upgrades with a fresh-session verification reminder; add confirmed re-enable actions for disabled blocks and verify restoration as well as removal.
 - Keep coverage-only context information out of the default issue count and navigation badge, show unknown estimates as unavailable, and restrict historical recommendations to Codex-supported analysis.
 - Count removable Skill descriptions in every response retaining their context, preserving whitespace and exposing a recommended, usage-capped cached-prefix cost scenario with matching per-model costs.

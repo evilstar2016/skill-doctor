@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   getSnapshotHistory: vi.fn(),
   diffSnapshots: vi.fn(),
   loadOptimization: vi.fn(),
+  loadCodexSkillCatalogs: vi.fn(),
 }));
 
 vi.mock('../../web/src/api', () => ({
@@ -64,6 +65,7 @@ describe('UI onboarding', () => {
     localStorage.clear();
     vi.clearAllMocks();
     mocks.loadOptimization.mockResolvedValue({ projectDir: '/tmp/project', generatedAt: new Date().toISOString(), sessions: [], priceDate: '2026-09-07', diagnostics: [] });
+    mocks.loadCodexSkillCatalogs.mockResolvedValue({ sessions: [], diagnostics: [] });
     mocks.getBootstrap.mockResolvedValue({
       version: 'test', projectDir: '/tmp/project', configPath: '/tmp/config.json', defaultScope: 'all',
       supportedPlatforms: ['codex'], detectedAgents: [codexAgent], capabilities: snapshot.capabilities, registry: [], snapshot: null,
@@ -207,7 +209,7 @@ describe('UI onboarding', () => {
     expect(screen.queryByText('状态良好')).toBeNull();
   });
 
-  it('offers a direct disable action for controllable context resources in an over-budget issue', async () => {
+  it('does not offer project skill disable actions even when an older snapshot marks them controllable', async () => {
     const resource = {
       id: 'resource-context', name: 'Large Skill', kind: 'skill', kindLabel: 'Skill', sourcePath: '/tmp/large-skill', platform: 'codex', scope: 'project',
       shared: false, consumers: [], controllable: true, controlId: 'skill:large-skill', enabled: true, triggers: [], fixedTokens: 3000, activationTokens: 0,
@@ -226,9 +228,8 @@ describe('UI onboarding', () => {
 
     render(<App />);
     fireEvent.click(await screen.findByText('固定上下文成本超过预算'));
-    fireEvent.click(await screen.findByRole('button', { name: '禁用 Large Skill' }));
-
-    await waitFor(() => expect(mocks.toggleContextResource).toHaveBeenCalledWith('skill:large-skill', false));
+    expect(screen.queryByRole('button', { name: '禁用 Large Skill' })).toBeNull();
+    expect(mocks.toggleContextResource).not.toHaveBeenCalled();
   });
 
   it('shows active resources by default and keeps unknown assets available through the status filter', async () => {
@@ -385,7 +386,7 @@ describe('UI onboarding', () => {
     expect(await screen.findByText('本次未计算')).toBeTruthy();
   });
 
-  it('shows the real member paths for a Codex skill-list aggregate', async () => {
+  it('lands on observed Codex context instead of scanned skill aggregates and links to optimization', async () => {
     const sourcePaths = [
       '/tmp/home/.codex/skills/global-helper/SKILL.md',
       '/tmp/project/.codex/skills/project-helper/SKILL.md',
@@ -417,14 +418,13 @@ describe('UI onboarding', () => {
     render(<App />);
     const contextButtons = await screen.findAllByRole('button', { name: '优化建议' });
     fireEvent.click(contextButtons[contextButtons.length - 1]);
-    fireEvent.click(await screen.findByRole('button', { name: '查看静态资源占用' }));
-    const aggregateLinks = await screen.findAllByText('Codex skill list');
-    fireEvent.click(aggregateLinks[aggregateLinks.length - 1]);
-
-    expect((await screen.findAllByText('聚合来源（2）')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(sourcePaths[0]).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(sourcePaths[1]).length).toBeGreaterThan(0);
-    expect(screen.queryByText('/tmp')).toBeNull();
+    expect(await screen.findByRole('heading', { name: '当前占用' })).toBeTruthy();
+    expect(screen.queryByText('Codex skill list')).toBeNull();
+    expect(screen.queryByRole('button', { name: /审阅调整/ })).toBeNull();
+    expect(mocks.loadCodexSkillCatalogs).toHaveBeenCalledWith('/tmp/project', expect.any(AbortSignal));
+    fireEvent.click(screen.getByRole('button', { name: '进入优化建议' }));
+    expect(await screen.findByRole('button', { name: '返回当前占用' })).toBeTruthy();
+    expect(window.location.hash).toBe('#/context?view=recommendations');
   });
 
   it('shows defaults and supports adding, saving and resetting Agent scan paths', async () => {

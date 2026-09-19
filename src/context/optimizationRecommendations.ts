@@ -41,7 +41,7 @@ export async function optimizationRecommendations(paths: string[], start: Date, 
         if (['function_call', 'custom_tool_call', 'tool_call'].includes(p.type)) calls++;
         if (p.type !== 'message' || p.role !== 'user') continue;
         if (!Array.isArray(p.content)) { complete = false; continue; }
-        const text = p.content.filter((part, i) => typeof part.text === 'string' && (!kinds || kinds[i] === 'text' || kinds[i] === 'user_prompt')).map((part) => part.text).join('\n');
+        const text = p.content.filter((part: { text?: unknown }, i: number) => typeof part.text === 'string' && (!kinds || kinds[i] === 'text' || kinds[i] === 'user_prompt')).map((part: { text: string }) => part.text).join('\n');
         if (!text.trim()) continue;
         // Exclude quoted/code examples from explicit invocation evidence.
         const request = userText(text);

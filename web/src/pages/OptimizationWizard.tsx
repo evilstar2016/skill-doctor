@@ -90,6 +90,10 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const periodSessions = data?.sessions ?? [];
   const session = data?.sessions.find((item) => item.id === sessionId) ?? data?.sessions[0];
   const selectedSuggestions = selectedTargets.map((id) => session?.suggestions.find((item) => item.id === id)).filter((item): item is OptimizationSuggestion => Boolean(item));
+  const sessionsWithoutSelectedBlocks = new Set(periodSessions.filter((item) => selectedTargets.some((target) => {
+    const suggestion = item.suggestions.find((candidate) => candidate.id === target);
+    return suggestion?.reason === 'absent' && (suggestion.cumulative?.coveredResponses ?? 0) === 0;
+  })).map((item) => item.id)).size;
   const selectionScope = selectedSuggestions.some((item) => item.scope === 'user') ? selectedSuggestions.some((item) => item.scope === 'project') ? 'mixed' : 'user' : 'project';
   const selectionReady = selectedSuggestions.length > 0 && selectedSuggestions.every((item) => item.available);
   const periodUsage = sumUsage(periodSessions);
@@ -114,6 +118,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const date = (value: string) => new Date(value).toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   const day = (value: string) => new Date(value).toLocaleDateString(locale, { month: '2-digit', day: '2-digit' });
   const label = (id: OptimizationTarget) => t(`opt.${id}.title`);
+  const configLabel = (value?: boolean) => value === true ? t('opt.configExplicitOn') : value === false ? t('opt.configExplicitOff') : t('opt.configUnset');
   const operationTargets = operation?.targets ?? (operation?.target ? [operation.target] : []);
 
   async function refresh(signal?: AbortSignal) {
@@ -218,13 +223,16 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
           <label className="opt-choice-name" htmlFor={`opt-${item.id}`}>{label(item.id)}</label>
           {recommended && <span className="opt-recommended"><Star size={12} fill="currentColor" />{t('opt.recommended')}</span>}
           <span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span>
-          {item.configuredOff && <span className="opt-off">{t('opt.off')}</span>}
+          {item.configuredOff ? <span className="opt-off">{t('opt.off')}</span> : item.available && <span className="opt-on">{t('opt.on')}</span>}
           <Help id={`opt-help-${item.id}`} label={t('opt.itemDetails', { item: label(item.id) })}>
             <strong>{label(item.id)}</strong><span>{t(`opt.${item.id}.summary`)}</span><span>{t(`opt.${item.id}.impactDetail`)}</span>
             <span>{t(item.scope === 'user' ? 'opt.globalDetail' : 'opt.projectDetail')}</span>
+            {!item.configuredOff && item.available && <span className="opt-current-state">{t('opt.currentlyOn')}</span>}
+            {item.id === 'skill-catalog' && item.configValues && <span>{t('opt.skillConfigState', { project: configLabel(item.configValues.project), global: configLabel(item.configValues.global), effective: configLabel(item.configValues.effective), source: t(`opt.configSource.${item.configValues.source}`) })}</span>}
             {item.reason && <span className="opt-reason">{t(`opt.reason.${item.reason}`)}</span>}
             {recommendation && <span>{t(`opt.recommendation.${recommendation.reason}`, { count: n(recommendation.explicitRequests), sessions: n(recommendation.sessions) })}</span>}
             {item.id === 'plugins' && recommended && <span className="opt-reason">{t('opt.pluginRecommendationCaution')}</span>}
+            {item.configuredOff && <><span className="opt-enable-benefit"><strong>{t('opt.enableBenefitLabel')}</strong>{t(`opt.${item.id}.enableBenefit`)}</span><span className="opt-enable-tradeoff"><strong>{t('opt.enableTradeoffLabel')}</strong>{t(`opt.${item.id}.enableTradeoff`)}</span></>}
           </Help>
           {item.configuredOff && <button className="button secondary compact" disabled={busy || loading || !item.canEnable} onClick={() => void action(async () => {
             setSelectedTargets([]); setGlobalConfirmed(false);
@@ -241,6 +249,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
             {displaySavings.cost && displaySavings.pricedResponses < displaySavings.coveredResponses && <small>{t('opt.partialCost', { count: n(displaySavings.pricedResponses) })}</small>}</div>
             <aside className="opt-first-saving" aria-label={t('opt.firstResponse')}><small>{t('opt.firstResponse')}</small><strong>{n(displayFirstResponse.tokens)} Token</strong><small>{moneyRange(displayFirstResponse.cost)}</small></aside></div>
           <small>{t('opt.savingsCoverage', { covered: n(displaySavings.coveredResponses), total: n(periodResponseCount), priced: n(displaySavings.pricedResponses) })}</small>
+          {sessionsWithoutSelectedBlocks > 0 && <small className="opt-savings-note">{t('opt.noBlockSavingsNote', { count: n(sessionsWithoutSelectedBlocks) })}</small>}
           <small>{selectedSuggestions.length ? t('opt.cumulativeDetail') : t('opt.noSelection')}</small></section></div>
       </div>
       <div className="opt-example-toggle"><button className="button ghost compact" aria-expanded={exampleOpen} aria-controls="opt-session-example" onClick={() => setExampleOpen(!exampleOpen)}>{t(exampleOpen ? 'opt.hideExample' : 'opt.showExample')}<ArrowRight size={15} /></button><small>{t('opt.previewPrompt')}</small></div>
@@ -257,7 +266,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
         </div>)}</div>
         <small className="opt-example-note">{t('opt.realPreviewNote')}</small>
       </section>}
-      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.after ? 'opt.enableDetail' : preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → ${preview.after}`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
+      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.after ? 'opt.enableDetail' : preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p>{preview.after && <section className="opt-enable-impact" aria-label={t('opt.enableImpactTitle')}><h4>{t('opt.enableImpactTitle')}</h4>{preview.targets.map((targetId) => <div key={targetId}><strong>{label(targetId)}</strong><p><b>{t('opt.enableBenefitLabel')}：</b>{t(`opt.${targetId}.enableBenefit`)}</p><p><b>{t('opt.enableTradeoffLabel')}：</b>{t(`opt.${targetId}.enableTradeoff`)}</p></div>)}</section>}<details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → ${preview.after}`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
       {previousPending && <p className="muted">{t('opt.finishPrevious')}</p>}
       <div className="opt-actions"><button className="button primary" disabled={busy || loading || (!preview?.after && (previousPending || !selectionReady)) || Boolean(preview && preview.scope !== 'project' && !globalConfirmed)} onClick={() => void action(async () => {
         if (!session || (!preview && !selectedTargets.length)) return;

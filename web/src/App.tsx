@@ -189,7 +189,7 @@ function AppContent() {
     catch (nextError) { setError(nextError instanceof Error ? nextError.message : String(nextError)); }
   };
   const reviewContextResource = (resource: UiResource) => {
-    if (!resource.controlId || resource.sourcePaths?.length || (resource.platform === 'codex' && resource.controlMethod === 'skills.config')) return;
+    if (!resource.controlId || resource.sourcePaths?.length || (resource.platform === 'codex' && (resource.kind === 'skill' || resource.controlMethod === 'skills.config'))) return;
     const enabling = resource.enabled === false;
     if (!window.confirm(t('context.toggleConfirm', { action: t(enabling ? 'context.enable' : 'context.disable'), name: resource.name }))) return;
     void toggleContextResource(resource.controlId, enabling).then((result) => {
@@ -249,7 +249,7 @@ function AppContent() {
           {route === 'overview' && <OverviewPageView snapshot={snapshot} scan={scan} runScan={refresh} openIssue={setSelectedIssue} navigateToResources={() => navigate('resources')} navigateToIssues={() => navigate('issues')} navigateToContext={() => navigateContextView('current')} navigateToOptimization={() => navigateContextView('recommendations')} />}
           {route === 'issues' && <IssuesPageView snapshot={snapshot} openIssue={setSelectedIssue} />}
           <ContextOptimizationPageView active={route === 'context'} view={contextView} setView={navigateContextView} snapshot={snapshot} projectDir={scanOptions.projectDir} platform={scanOptions.platform} snapshotId={snapshot?.id} tokenizer={scanOptions.tokenizer} tokenizerModel={scanOptions.tokenizerModel} openResource={openResource} onToggle={async (item) => {
-            if (!item.id) return;
+            if (!item.id || (item.platform === 'codex' && (item.resource === 'skill' || item.source === 'skill' || item.controlMethod === 'skills.config'))) return;
             const enabling = item.enabled === false;
             if (!window.confirm(t('context.toggleConfirm', { action: t(enabling ? 'context.enable' : 'context.disable'), name: item.name }))) return;
             try {
@@ -319,7 +319,7 @@ function AppContent() {
         compare={(leftId, rightId) => setCompare({ leftId, rightId })}
         cleaned={() => { setSelectedIssue(null); refresh(); }}
         toggleContext={async (resource) => {
-          if (resource.platform === 'codex' && resource.controlMethod === 'skills.config') return;
+          if (resource.platform === 'codex' && (resource.kind === 'skill' || resource.controlMethod === 'skills.config')) return;
           if (!resource.controlId || !window.confirm(t('context.toggleConfirm', { action: t('context.disable'), name: resource.name }))) return;
           try {
             const result = await toggleContextResource(resource.controlId, false);
@@ -568,7 +568,7 @@ function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, t
   const { t } = useTranslation();
   const [removePath, setRemovePath] = useState(issue.cleanup?.removePath ?? issue.evidence.find((entry) => entry.path)?.path ?? ''); const [confirmation, setConfirmation] = useState(''); const [busy, setBusy] = useState(false);
   const controllableContextResources = issue.kind === 'context'
-    ? issue.resourceIds.map((id) => snapshot?.resources.find((resource) => resource.id === id)).filter((resource): resource is UiResource => Boolean(resource?.controllable && resource.controlId && resource.enabled !== false && !(resource.platform === 'codex' && resource.controlMethod === 'skills.config')))
+    ? issue.resourceIds.map((id) => snapshot?.resources.find((resource) => resource.id === id)).filter((resource): resource is UiResource => Boolean(resource?.controllable && resource.controlId && resource.enabled !== false && !(resource.platform === 'codex' && (resource.kind === 'skill' || resource.controlMethod === 'skills.config'))))
     : [];
   return <Drawer title={translateResultText(issue.title, t)} subtitle={`${kindLabel(issue.kind, t)} · ${severityLabel(issue.severity, t)}`} close={close}><div className="issue-hero"><SeverityBadge severity={issue.severity} /><p>{translateResultText(issue.summary, t)}</p></div>
     <div className="drawer-section"><h4>{t('drawer.affected')}</h4><div className="linked-resources">{issue.resourceIds.map((id, index) => <button key={id} onClick={() => openResource(id)}><code>{issue.resourceNames[index] ?? id}</code><ArrowRight size={15} /></button>)}</div></div>
@@ -583,7 +583,7 @@ function IssueDrawer({ issue, snapshot, close, openResource, compare, cleaned, t
 function ResourceDrawer({ resource, detail, close, openIssue, onManageSkill, onToggleResource }: { resource: UiResource; detail: ResourceDetailPayload | null; close: () => void; openIssue: (issue: UiIssue) => void; onManageSkill?: (name: string) => void; onToggleResource?: (resource: UiResource) => void }) {
   const { t } = useTranslation();
   const estimateKnown = resource.estimateStatus !== 'unknown' && resource.estimateStatus !== 'unsupported';
-  const canControl = resource.controllable && !(resource.platform === 'codex' && resource.controlMethod === 'skills.config');
+  const canControl = resource.controllable && !(resource.platform === 'codex' && (resource.kind === 'skill' || resource.controlMethod === 'skills.config'));
   return <Drawer title={resource.name} subtitle={`${resource.kindLabel} · ${resource.shared ? t('drawer.sharedSubtitle', { count: resource.consumers.length }) : platformLabel(resource.platform)} · ${scopeLabel(resource.scope, t)}`} close={close}>
     <div className="resource-hero"><div><ResourceStatus status={resource.status} count={resource.issueIds.length} />{resource.shared && <span className="shared-badge">{t('drawer.shared')}</span>}</div><p>{translateResultText(resource.description || resource.recommendation || t('drawer.noDescription'), t)}</p></div>
     <div className="detail-grid"><Detail label={t('drawer.activation')} value={activationLabel(resource.activation, t)} /><Detail label={t('drawer.fixed')} value={estimateKnown ? `${resource.fixedTokens} tokens` : '—'} /><Detail label={t('drawer.onDemand')} value={estimateKnown ? `${resource.activationTokens} tokens` : '—'} /><Detail label={t('drawer.controllable')} value={canControl ? t('drawer.supported') : t('drawer.readonly')} /></div>
@@ -644,7 +644,7 @@ function contextViewFromHash(): ContextOptimizationView {
   const [path, query = ''] = raw.split('?', 2);
   if (path === 'benefit') return 'recommendations';
   const view = new URLSearchParams(query).get('view');
-  return view === 'current' || view === 'evidence' ? view : 'recommendations';
+  return view === 'recommendations' || view === 'evidence' ? view : 'current';
 }
 function initialScanOptions(payload: BootstrapPayload): ScanRequest {
   const preference = loadProjectPreference(payload.projectDir);

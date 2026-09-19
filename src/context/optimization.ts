@@ -26,6 +26,11 @@ interface StoredOperation extends OptimizationOperation {
   beforeValues: Partial<Record<OptimizationTarget, boolean>>;
   fingerprint: string;
 }
+interface SkillCatalogConfig {
+  projectPath: string;
+  globalPath: string;
+  values: NonNullable<OptimizationSession['suggestions'][number]['configValues']>;
+}
 
 function targetDefinition(target: OptimizationTarget) {
   if (!Object.hasOwn(TARGETS, target)) throw new Error('Unsupported optimization target.');
@@ -72,6 +77,15 @@ function configValue(raw: string, target: OptimizationTarget): boolean | undefin
   const value = parseTOML<Config>(raw)[def.table]?.[def.key];
   if (value !== undefined && typeof value !== 'boolean') throw new Error('Expected a boolean configuration value.');
   return value;
+}
+
+function skillCatalogConfig(projectDir: string, homeDir?: string): SkillCatalogConfig {
+  const projectPath = configPath(projectDir, 'skill-catalog', homeDir);
+  const globalPath = configPath(projectDir, 'memory', homeDir);
+  const project = configValue(read(projectPath), 'skill-catalog');
+  const global = configValue(read(globalPath), 'skill-catalog');
+  const source = project !== undefined ? 'project' : global !== undefined ? 'global' : 'default';
+  return { projectPath, globalPath, values: { ...(project === undefined ? {} : { project }), ...(global === undefined ? {} : { global }), effective: project ?? global ?? true, source } };
 }
 
 // Preserve comments and unrelated keys; unsupported TOML layouts fail closed.
@@ -188,6 +202,7 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
   const project = realpathSync(projectDir);
   const latestVersion = scan.selected[0]?.analysis.meta?.cliVersion;
   const maxPrice = findMostExpensiveBenefitPrice(DEFAULT_BENEFIT_PRICE_TABLE);
+  const skillConfig = skillCatalogConfig(projectDir, homeDir);
   const seen = new Set<string>();
   const sessions: OptimizationSession[] = await Promise.all(scan.selected.filter(({ session }) => {
     if (!session.cwd || !existsSync(session.cwd) || realpathSync(session.cwd) !== project || seen.has(session.sessionId)) return false;
@@ -205,24 +220,32 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
     const costs = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, maxPrice) : { amount: undefined });
     const actualCosts = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, findBenefitPrice(r.model, DEFAULT_BENEFIT_PRICE_TABLE)) : { amount: undefined });
     const model = records[0]?.model ?? analysis.modelContexts[0]?.model;
-    const initial = header.complete ? Object.fromEntries(Object.keys(TARGETS).map((id) => [id, counter.count(targetText(header, id as OptimizationTarget))])) : {};
+    const initial: Partial<Record<OptimizationTarget, number>> = {};
+    if (header.complete) {
+      for (const id of Object.keys(TARGETS) as OptimizationTarget[]) {
+        const text = targetText(header, id);
+        if (text) initial[id] = counter.count(text);
+      }
+    }
     const observations = await responseTargetTokens(session.filePath, records, initial);
     const suggestions: OptimizationSession['suggestions'] = (Object.keys(TARGETS) as OptimizationTarget[]).map((id) => {
       const def = TARGETS[id];
       const path = configPath(projectDir, id, homeDir);
-      const configuredOff = configValue(read(path), id) === false;
+      const configValues = id === 'skill-catalog' ? skillConfig.values : undefined;
+      const configuredOff = id === 'skill-catalog' ? configValues!.effective === false : configValue(read(path), id) === false;
       const observed = targetText(header, id);
       const tokens = header.complete ? counter.count(observed ?? '') : undefined;
       const versionSupported = /^\d+\.\d+\.\d+/.test(latestVersion ?? header.version ?? '');
       const versionWarning = header.version !== VERIFIED_VERSION || Boolean(latestVersion && latestVersion !== VERIFIED_VERSION);
       const overridden = hasConfigOverride(projectDir, id, homeDir);
-      const available = header.complete && versionSupported && Boolean(observed) && !configuredOff && !overridden;
+      const available = header.complete && versionSupported && !configuredOff && !overridden && (id === 'skill-catalog' || Boolean(observed));
       const cost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'max') : undefined;
       const actualCost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'actual') : undefined;
       const cumulative = cumulativeSavings(id, records, observations, 'max');
       const actualCumulative = cumulativeSavings(id, records, observations, 'actual');
-      return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, canEnable: configuredOff && versionSupported && !overridden, versionWarning, tokens, cost, actualCost,
-        cumulative: { ...cumulative, actualCost: actualCumulative.cost, actualPricedResponses: actualCumulative.pricedResponses },
+      const knownZeroCumulative = id === 'skill-catalog' && header.complete && !observed && cumulative.tokens === undefined;
+      return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, canEnable: configuredOff && versionSupported && !overridden, ...(configValues ? { configValues } : {}), versionWarning, tokens, cost, actualCost,
+        cumulative: { ...cumulative, ...(knownZeroCumulative ? { tokens: 0 } : {}), actualCost: actualCumulative.cost, actualPricedResponses: actualCumulative.pricedResponses },
         reason: overridden ? 'config-override' : configuredOff ? 'configured-off' : !header.complete ? 'incomplete-header' : !versionSupported ? 'unsupported-version' : !observed ? 'absent' : undefined };
     });
     const amount = (items: Array<{ amount?: number }>): number | undefined => {

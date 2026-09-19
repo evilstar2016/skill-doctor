@@ -2138,7 +2138,7 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
     }));
   });
 
-  it('context disable makes subsequent Codex cost runs lower for skills, MCP, and plugins', () => {
+  it('context disable reduces MCP and plugin estimates but refuses project skill controls', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -2186,9 +2186,10 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
     const pluginId = 'codex:plugin:notes:skill:note-helper';
 
     expect(before.summary.totalEstimatedTokens).toBeGreaterThan(0);
-    expect(runCli(['context', 'disable', '--platform', 'codex', '--id', skillId, '--json'], cwd, home).status).toBe(0);
+    const skillControl = runCli(['context', 'disable', '--platform', 'codex', '--id', skillId, '--json'], cwd, home);
+    expect(JSON.parse(skillControl.stdout)).toMatchObject({ supported: false, changed: false });
     const afterSkill = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
-    expect(afterSkill.summary.totalEstimatedTokens).toBeLessThan(before.summary.totalEstimatedTokens);
+    expect(afterSkill.summary.totalEstimatedTokens).toBe(before.summary.totalEstimatedTokens);
 
     expect(runCli(['context', 'disable', '--platform', 'codex', '--id', 'codex:mcp:github', '--json'], cwd, home).status).toBe(0);
     const afterMcp = JSON.parse(runCli(['cost', '--platform', 'codex', '--json'], cwd, home).stdout);
@@ -2200,11 +2201,10 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
 
     const withDisabledResult = runCli(['cost', '--platform', 'codex', '--show-disable', '--json'], cwd, home);
     const withDisabled = JSON.parse(withDisabledResult.stdout);
-    expect(withDisabled.summary.totalEstimatedTokens).toBe(0);
+    expect(withDisabled.summary.totalEstimatedTokens).toBeGreaterThan(0);
     expect(withDisabled.summary.disabledEstimatedTokens).toBeGreaterThan(0);
-    expect(withDisabled.items).toEqual([]);
+    expect(withDisabled.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: skillId, enabled: true, controllable: false })]));
     expect(withDisabled.disabledItems).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: skillId, resource: 'skill', enabled: false }),
       expect.objectContaining({ id: 'codex:mcp:github', resource: 'mcp', enabled: false }),
       expect.objectContaining({ id: pluginId, resource: 'plugin', enabled: false }),
     ]));
@@ -2212,10 +2212,10 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
     const disabledText = runCli(['cost', '--platform', 'codex', '--show-disable'], cwd, home).stdout;
     expect(disabledText).toContain('Disabled resources (not counted):');
     expect(disabledText).toContain('Use the enable subcommand to turn them on.');
-    expect(disabledText).toContain(`skill-doctor context enable --id ${JSON.stringify(skillId)} --platform codex`);
+    expect(disabledText).not.toContain(`skill-doctor context enable --id ${JSON.stringify(skillId)} --platform codex`);
   });
 
-  it('context disable writes project Codex config for a skill resource id', () => {
+  it('context disable reports project skill control as unsupported without writing config', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -2229,18 +2229,16 @@ describe.skipIf(process.platform === 'win32')('CLI integration — context cost'
     const realSkillPath = join(realpathSync(cwd), '.codex', 'skills', 'codex-review', 'SKILL.md');
     const result = runCli(['context', 'disable', '--id', `codex:skill:${realSkillPath}`, '--platform', 'codex', '--json'], cwd, home);
     const payload = JSON.parse(result.stdout);
-    const config = readFileSync(join(cwd, '.codex', 'config.toml'), 'utf8');
 
     expect(result.status).toBe(0);
     expect(payload).toEqual(expect.objectContaining({
       id: `codex:skill:${realSkillPath}`,
-      enabled: false,
-      requiresNewSession: true,
-      message: expect.stringContaining('Start a new Codex session or restart Codex'),
+      supported: false,
+      changed: false,
+      requiresNewSession: false,
+      recommendation: expect.stringContaining('Project-level skills.config'),
     }));
-    expect(config).toContain('[[skills.config]]');
-    expect(config).toContain(`path = "${realSkillPath}"`);
-    expect(config).toContain('enabled = false');
+    expect(existsSync(join(cwd, '.codex', 'config.toml'))).toBe(false);
   });
 
   it('context disable reports AGENTS resources as unsupported without writing config', () => {

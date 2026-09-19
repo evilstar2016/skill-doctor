@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseTOML } from 'confbox/toml';
 import { applyOptimization, editOptimizationConfig, optimizationOverview, previewOptimization, readOptimizationHeader, undoOptimization, verifyOptimization } from '../../src/context/optimization';
 import { scanCodexSessions } from '../../src/benefit/codexSessions';
+import { readCodexSkillCatalogs } from '../../src/context/codexSkillCatalog';
 
 describe('verified optimization flow', () => {
   let root: string; let project: string; let home: string; let sessions: string;
@@ -15,10 +16,11 @@ describe('verified optimization flow', () => {
     mkdirSync(join(project, '.codex'), { recursive: true }); mkdirSync(sessions, { recursive: true });
   });
   afterEach(() => { vi.useRealTimers(); rmSync(root, { recursive: true, force: true }); });
-  function fixture(id = 'baseline', options: { skill?: boolean; memory?: boolean; plugins?: boolean; fork?: boolean; mismatch?: boolean; version?: string; timestamp?: string; ordinal?: number; model?: string } = {}) {
+  function fixture(id = 'baseline', options: { skill?: boolean; skillText?: string; memory?: boolean; plugins?: boolean; fork?: boolean; mismatch?: boolean; version?: string; timestamp?: string; ordinal?: number; model?: string } = {}) {
     const timestamp = options.timestamp ?? new Date(now.getTime() - 60_000).toISOString();
     const kinds = ['generic.developer_instructions', ...(options.skill === false ? [] : ['host_skills.instructions']), ...(options.memory === false ? [] : ['memories.instructions']), ...(options.plugins === false ? [] : ['plugins.usage_instructions', 'plugins.recommendations'])];
     const texts: Record<string, string> = { 'generic.developer_instructions': 'Base instructions', 'host_skills.instructions': '<skills_instructions>Skills available for coding</skills_instructions>', 'memories.instructions': 'Historical preferences and working conventions.', 'plugins.usage_instructions': 'Plugin tools and skills available.', 'plugins.recommendations': 'Recommended plugins for this task.' };
+    if (options.skillText !== undefined) texts['host_skills.instructions'] = options.skillText;
     const entries = [
       { type: 'session_meta', payload: { id, cwd: project, timestamp, cli_version: options.version ?? '0.154.0-alpha.6.2', source: 'cli', history_mode: 'paginated', history_base: { end_ordinal_exclusive: options.fork ? 120 : 0 }, ...(options.fork ? { forked_from_id: 'parent' } : {}) } },
       { type: 'response_item', payload: { type: 'message', role: 'developer', content: kinds.map((kind) => ({ type: 'input_text', text: texts[kind] })), internal_chat_message_metadata_passthrough: { content_item_kinds: options.mismatch ? kinds.slice(1) : kinds } } },
@@ -37,6 +39,36 @@ describe('verified optimization flow', () => {
     expect(readOptimizationHeader(fixture('mismatch', { mismatch: true })).complete).toBe(false);
     expect(readOptimizationHeader(fixture('fragment', { ordinal: 4 })).complete).toBe(false);
   });
+  it('reads actual header skills and resolves root aliases without requiring files on disk', async () => {
+    fixture('observed', { skillText: '<skills_instructions>\n### Skill roots\n- `r0` = `/missing/skills`\n### Available skills\n- tools:writer: Write documents. (file: r0/writer/SKILL.md)\n</skills_instructions>' });
+    const { sessions: [catalog] } = await readCodexSkillCatalogs(project, home);
+    expect(catalog).toMatchObject({ sessionId: 'observed', status: 'present', skills: [{ name: 'tools:writer', description: 'Write documents.', sourcePath: '/missing/skills/writer/SKILL.md' }] });
+    expect(catalog.tokens).toBeGreaterThan(0);
+  });
+  it('distinguishes missing catalogs from inherited, mismatched, and incomplete headers', async () => {
+    fixture('absent', { skill: false }); fixture('fork', { fork: true }); fixture('mismatch', { mismatch: true });
+    fixture('truncated', { skillText: '<skills_instructions>\n### Available skills\n- unfinished: Example' });
+    const { sessions: catalogs } = await readCodexSkillCatalogs(project, home);
+    expect(catalogs.find((item) => item.sessionId === 'absent')).toMatchObject({ status: 'absent', tokens: 0, skills: [] });
+    for (const id of ['fork', 'mismatch', 'truncated']) expect(catalogs.find((item) => item.sessionId === id)).toMatchObject({ status: 'unknown', skills: [] });
+  });
+  it('does not mistake skill tags in memory for the real catalog or invent a filesystem fallback', async () => {
+    const path = fixture('quoted', { skill: false });
+    const entries = readFileSync(path, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    entries[1].payload.content[1].text = '<skills_instructions>\n### Available skills\n- invented: Not a real catalog\n</skills_instructions>';
+    writeFileSync(path, entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    const report = await readCodexSkillCatalogs(project, home);
+    expect(report.sessions[0]).toMatchObject({ status: 'absent', skills: [] });
+    rmSync(path);
+    expect((await readCodexSkillCatalogs(project, home)).sessions).toEqual([]);
+  });
+  it('uses recent activity order without falling back from a newer absent catalog to an older present one', async () => {
+    fixture('older', { timestamp: '2026-08-01T12:00:00Z' });
+    fixture('newer', { skill: false });
+    const report = await readCodexSkillCatalogs(project, home);
+    expect(report.sessions.map((item) => item.sessionId)).toEqual(['newer', 'older']);
+    expect(report.sessions[0].status).toBe('absent');
+  });
   it('reports session usage and bounded savings without double-counting cached input or reasoning', async () => {
     fixture();
     const { sessions: [session] } = await optimizationOverview(project, home);
@@ -48,6 +80,18 @@ describe('verified optimization flow', () => {
     expect(session.suggestions[2].tokens).toBeGreaterThan(0);
     const original = '<skills_instructions>Skills available for coding</skills_instructions>';
     expect(session.headerBlocks?.find((block) => block.kind === 'host_skills.instructions')).toEqual({ kind: 'host_skills.instructions', excerpt: original.slice(0, 50), characters: original.length, target: 'skill-catalog' });
+  });
+  it('uses project-over-global skill catalog configuration and keeps absent complete sessions selectable with zero savings', async () => {
+    fixture('observed');
+    fixture('absent', { skill: false });
+    const global = join(home, '.codex/config.toml');
+    writeFileSync(global, '[skills]\ninclude_instructions = false\n');
+    let report = await optimizationOverview(project, home);
+    expect(report.sessions.find((session) => session.id === 'observed')?.suggestions[0]).toMatchObject({ configuredOff: true, available: false, canEnable: true, configValues: { global: false, effective: false, source: 'global' } });
+    writeFileSync(join(project, '.codex/config.toml'), '[skills]\ninclude_instructions = true\n');
+    report = await optimizationOverview(project, home);
+    expect(report.sessions.find((session) => session.id === 'observed')?.suggestions[0]).toMatchObject({ configuredOff: false, available: true, configValues: { project: true, global: false, effective: true, source: 'project' } });
+    expect(report.sessions.find((session) => session.id === 'absent')?.suggestions[0]).toMatchObject({ available: true, reason: 'absent', tokens: 0, cumulative: { tokens: 0, coveredResponses: 0, pricedResponses: 0 } });
   });
   it('defaults to the highest-priced model while retaining the actual model estimate', async () => {
     fixture('cheap', { model: 'gpt-5.6-luna' });

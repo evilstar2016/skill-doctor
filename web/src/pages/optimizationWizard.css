@@ -117,6 +117,7 @@
 .optimization-wizard .opt-scope.global { background: var(--warning-soft); color: var(--warning-text); }
 .opt-recommended { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 750; color: var(--warning-text); background: var(--warning-soft); border-radius: var(--radius-pill); padding: 4px 6px; }
 .opt-off { font-size: 11px; color: var(--muted); }
+.opt-on { font-size: 11px; color: var(--success-text); }
 .opt-help { position: relative; display: inline-flex; vertical-align: middle; }
 .opt-choice .opt-help { position: static; }
 .opt-info { display: inline-flex; padding: 5px; border: 0; border-radius: var(--radius-pill); color: var(--accent); background: transparent; cursor: pointer; }
@@ -125,11 +126,21 @@
 .opt-options-heading .opt-tooltip { left: -180px; right: auto; }
 .opt-tooltip > span { display: block; margin-top: 8px; }
 .optimization-wizard .opt-tooltip strong { font-size: 15px; }
+.optimization-wizard .opt-tooltip .opt-enable-benefit, .optimization-wizard .opt-tooltip .opt-enable-tradeoff { padding-top: 8px; border-top: 1px solid var(--border); }
+.optimization-wizard .opt-tooltip .opt-enable-benefit strong, .optimization-wizard .opt-tooltip .opt-enable-tradeoff strong { display: inline; margin-right: 4px; font-size: 12px; color: var(--accent-text); }
+.optimization-wizard .opt-tooltip .opt-enable-tradeoff strong { color: var(--warning-text); }
+.opt-enable-impact { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.opt-enable-impact h4 { margin: 0 0 10px; color: var(--accent-text); }
+.opt-enable-impact > div + div { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.opt-enable-impact p { margin: 6px 0 0; }
+.opt-enable-impact b { color: var(--accent-text); }
+.opt-enable-impact p:last-child b { color: var(--warning-text); }
 .opt-compact-note { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .optimization-wizard .opt-selection-meta { margin: 0; font-size: 12px; }
 .optimization-wizard .opt-impact { display: block; margin: 0; padding: 22px; border-radius: var(--radius-lg); background: var(--bg-deep); color: var(--surface); border-top: 4px solid var(--highlight); }
 .optimization-wizard .opt-impact h3 { color: var(--surface); margin-bottom: 6px; }
 .optimization-wizard .opt-impact small { color: var(--surface-3); max-width: none; }
+.optimization-wizard .opt-impact .opt-savings-note { color: var(--highlight); }
 .optimization-wizard .opt-saving { color: var(--highlight); font-size: clamp(32px, 3.6vw, 50px); font-weight: 800; letter-spacing: -1px; margin: 12px 0 4px; }
 .optimization-wizard .opt-saving span { font-size: 18px; letter-spacing: 0; }
 .optimization-wizard .opt-money { color: var(--surface); font-size: clamp(20px, 2.2vw, 28px); font-weight: 750; }

@@ -241,7 +241,7 @@ skill-doctor cost --platform codex --show-disable       # 单独显示已禁用�
 skill-doctor cost --platform codex --resource plugin --include-cache  # 盘点缓存 UI 条目，不增加 token 成本
 ```
 
-不传 `--scope` 时，`cost` 使用 `all` 范围：当前项目资源加上已启用的用户/全局资源。例如，`~/.codex/plugins/` 下 plugin 的已启用 skill 会以 `scope: global` 出现，因为它会影响所有 Codex 项目；`[[skills.config]]` 选择器仍可单独禁用 plugin skill。使用 `--scope project` 可只查看当前项目配置的文件。
+不传 `--scope` 时，`cost` 使用 `all` 范围：当前项目资源加上已启用的用户/全局资源。例如，`~/.codex/plugins/` 下 plugin 的已启用 skill 会以 `scope: global` 出现，因为它会影响所有 Codex 项目；用户层 `[[skills.config]]` 选择器仍可单独禁用 plugin skill，但项目层选择器无效。使用 `--scope project` 可只查看当前项目配置的文件。
 
 Codex 报告中的 `Estimated token tax`、`items` 和 `resources` 只包含当前启用的上下文。加上 `--show-disable` 后，已禁用的 skill、MCP server、plugin 等资源会显示在独立的 `Disabled resources (not counted)` 区域；JSON 输出使用 `disabledItems` 和 `disabledResources`。可控制的条目会附带对应的 `context enable` 命令。旧参数 `--include-disabled` 仍作为兼容别名保留。
 
@@ -308,7 +308,7 @@ Codex 控制能力：
 
 | 资源 | 成本预览 | 自动启用/禁用 | 写入位置 |
 |------|----------|---------------|----------|
-| Skills | 启动时的 skill 元数据和 activation-risk 文本 | 仅配置；需新任务验证 | `[[skills.config]]` 的 `path` 和 `enabled` |
+| Skills | Codex UI 使用历史初始会话头中的真实目录；CLI cost 仍为静态元数据估算 | 不支持项目级单技能控制 | Codex 不读取项目层 `skills.config` 禁用规则；单技能需在 User/SessionFlags 层管理 |
 | MCP servers | server 配置，以及可访问时的 live `tools/list` | 仅配置；需新任务验证 | `[mcp_servers.<name>] enabled` |
 | MCP tools | 可控 MCP server 下的单个 live tool | 仅配置；需新任务验证 | `[mcp_servers.<name>]` 的 `enabled_tools` / `disabled_tools` |
 | Plugins | plugin 提供的 skills 和 MCP tools | 仅配置；需新任务验证 | `[plugins."<id>"] enabled` |
@@ -316,6 +316,8 @@ Codex 控制能力：
 | Memories | memory 存在状态，以及可近似读取时的文本 | 不支持 | 标记为 `memory-context-unknown`；需要手动改 Codex memory 设置/配置 |
 
 `context enable|disable` 只写入配置中的项目级 Codex 控制文件，通常是 `.codex/config.toml`；它不会编辑全局 `~/.codex/config.toml`、plugin manifest、skill 文件、`AGENTS.md` 或 memory 存储。结果会区分 `changed`/`controlStatus: configured` 与运行时验证，并返回 `requiresNewSession: true`。请新建 Codex task 或重启 Codex 后，用 `skill-doctor context blocks --file <新会话.jsonl> --json` 检查 `verification` 和 provenance，再判断会话头是否真的移除。
+
+所有 Agent 的上下文页面默认进入“当前占用”。Codex 从当前项目最近 20 个本地历史会话的可信 `host_skills.instructions` / `<skills_instructions>` 初始会话头中展示技能名称、描述、目录路径和 block Token 估算，可切换会话查看。没有历史或只有继承／不完整会话头时显示未知，不用磁盘技能清单替代实际观察。这些是历史证据，不代表实时上下文或技能已被调用。页面提供进入“优化建议”的引导；隐藏整个自动技能目录的能力仍然保留，与禁用单个技能不同。
 
 估算限制：
 

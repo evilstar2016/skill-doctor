@@ -27,6 +27,13 @@ const controlPreview = {
 };
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 describe('HistoryControlPanel', () => {
+  it('rejects stale project skill controls even when marked source-supported', () => {
+    const stale = { ...history, usageProfile: [{ ...history.usageProfile[1], sourcePath: '/project/.agents/skills/review/SKILL.md', control: 'source-supported' }] } as OfflineHistoryAnalysis;
+    render(<HistoryControlPanel history={stale} jobId="job" projectDir="/project" />);
+    expect(screen.queryByRole('button', { name: '审阅禁用' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '预览此项目的禁用' })).toBeNull();
+    expect(mocks.previewBenefitControl).not.toHaveBeenCalled();
+  });
   it('previews project block control and never applies until confirmation', async () => {
     mocks.previewBenefitControl.mockResolvedValue(controlPreview);
     mocks.applyBenefitControl.mockResolvedValue({ operationId: 'operation', configPath: '/project/.codex/config.toml' });

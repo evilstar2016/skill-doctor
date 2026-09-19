@@ -519,7 +519,7 @@ skill-doctor cost --platform codex --show-disable       # show disabled resource
 skill-doctor cost --platform codex --resource plugin --include-cache  # inventory cached UI entries; zero token tax
 ```
 
-Without `--scope`, `cost` uses `all`: current-project resources plus enabled user/global resources. For example, an enabled skill from a plugin under `~/.codex/plugins/` is reported as `scope: global` because it can affect every Codex project; `[[skills.config]]` selectors still disable individual plugin skills. Use `--scope project` to inspect only files configured in the current project.
+Without `--scope`, `cost` uses `all`: current-project resources plus enabled user/global resources. For example, an enabled skill from a plugin under `~/.codex/plugins/` is reported as `scope: global` because it can affect every Codex project; user-layer `[[skills.config]]` selectors still disable individual plugin skills, but project-layer selectors do not. Use `--scope project` to inspect only files configured in the current project.
 
 The Codex report includes only active context in `Estimated token tax`, `items`, and `resources`. With `--show-disable`, disabled skills, MCP servers, plugins, and other resources appear in a separate `Disabled resources (not counted)` section; JSON output uses `disabledItems` and `disabledResources`. Each controllable entry includes the corresponding `context enable` command. The former `--include-disabled` flag remains available as a compatibility alias.
 
@@ -529,7 +529,7 @@ Codex controls:
 
 | Resource | Cost preview | Automatic enable/disable | Written control |
 |----------|--------------|--------------------------|-----------------|
-| Skills | Startup skill metadata plus activation-risk text | Config-only; fresh-task verification required | `[[skills.config]]` with `path` and `enabled` |
+| Skills | Historical initial-header catalog in the Codex UI; static metadata estimates in CLI cost reports | No project-level per-skill control | Project `skills.config` rules are ignored by Codex; manage individual skills at User/SessionFlags scope |
 | MCP servers | Server config plus live `tools/list` when reachable | Config-only; fresh-task verification required | `[mcp_servers.<name>] enabled` |
 | MCP tools | Individual live tools under a controllable MCP server | Config-only; fresh-task verification required | `enabled_tools` / `disabled_tools` on `[mcp_servers.<name>]` |
 | Plugins | Plugin-contributed skills and MCP tools | Config-only; fresh-task verification required | `[plugins."<id>"] enabled` |
@@ -537,6 +537,8 @@ Codex controls:
 | Memories | Memory presence and approximate text when available | No | Reported as `memory-context-unknown`; change Codex memory settings/config manually |
 
 `context enable|disable` writes only the configured project Codex control file, normally `.codex/config.toml`; it does not edit global `~/.codex/config.toml`, plugin manifests, skill files, `AGENTS.md`, or memory storage. Results distinguish `changed`/`controlStatus: configured` from runtime verification and return `requiresNewSession: true`; start a new Codex session or restart Codex, then inspect its JSONL before claiming a header block was removed.
+
+The context UI defaults to Current Context for every agent. For Codex, it lists skills from trusted `host_skills.instructions` / `<skills_instructions>` initial-header blocks in the latest 20 local project sessions. Select a session to inspect names, descriptions, resolved catalog paths and the block's Token estimate. Missing history or inherited/incomplete headers remain unknown instead of falling back to filesystem inventory. These are historical observations, not live context or proof of skill activation. The page links to Optimization Suggestions; hiding the entire automatic catalog remains available there and is distinct from disabling an individual skill.
 
 Estimate limitations:
 

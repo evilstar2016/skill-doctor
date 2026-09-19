@@ -3,6 +3,7 @@ import type { ContextCostItem } from '../../../src/types/context';
 import type { Platform } from '../../../src/types/skill';
 import { BenefitPage, type BenefitView } from './BenefitPage';
 import { ContextPage } from './ContextPage';
+import { CodexCurrentContext } from './CodexCurrentContext';
 import { OptimizationWizard } from './OptimizationWizard';
 import { useTranslation } from '../i18n';
 import './contextOptimizationPage.css';
@@ -44,7 +45,7 @@ export function ContextOptimizationPage({
 
   if (platform === 'codex') return active ? <section>
     {view === 'current'
-      ? <><button className="button secondary" onClick={() => setView('recommendations')}>{t('opt.backSuggestions')}</button><ContextPage snapshot={snapshot} openResource={openResource} onToggle={onToggle} /></>
+      ? <CodexCurrentContext key={projectDir} projectDir={projectDir} snapshot={snapshot} onOptimize={() => setView('recommendations')} openResource={openResource} onToggle={onToggle} />
       : <OptimizationWizard key={projectDir} projectDir={projectDir} />}
     {view !== 'current' && <button className="button ghost compact" onClick={() => setView('current')}>{t('opt.staticResources')}</button>}
   </section> : null;

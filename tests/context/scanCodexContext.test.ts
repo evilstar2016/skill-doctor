@@ -103,7 +103,7 @@ describe('scanCodexContextEntries', () => {
         context: expect.objectContaining({
           resource: 'skill',
           enabled: true,
-          controllable: true,
+          controllable: false,
           controlPath: join(cwd, '.codex', 'config.toml'),
           controlMethod: 'skills.config',
           estimateStatus: 'estimated',
@@ -152,7 +152,7 @@ describe('scanCodexContextEntries', () => {
     ]);
   });
 
-  it.skipIf(process.platform === 'win32')('lets a project skill selector override the user-level selector for the same candidate', async () => {
+  it.skipIf(process.platform === 'win32')('ignores project skill selectors instead of overriding user-level state', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -169,12 +169,12 @@ describe('scanCodexContextEntries', () => {
       'enabled = true',
     ].join('\n'));
 
-    const entries = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'skill' });
+    const entries = await scanCodexContextEntries(cwd, { homeDir: home, resource: 'skill', includeDisabled: true });
 
     expect(entries).toEqual([
       expect.objectContaining({
         sourcePath: skillPath,
-        context: expect.objectContaining({ enabled: true }),
+        context: expect.objectContaining({ enabled: false }),
       }),
     ]);
   });

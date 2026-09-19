@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { parseTOML } from 'confbox/toml';
 import type { HistoryCandidate } from '../benefit/historyTypes';
@@ -35,7 +35,6 @@ export function publicControlPreview(preview: HistoryControlPreview) {
 
 export function candidateControl(item: HistoryCandidate): HistoryControlTarget | undefined {
   if (item.kind === 'recommended_plugins') return { kind: 'recommendation', id: item.id };
-  if (item.sourcePath && item.control !== 'unverified' && !/\/plugins\/cache\/|\/\.system\//.test(item.sourcePath)) return { kind: 'skill', id: item.sourcePath };
   return undefined;
 }
 
@@ -114,29 +113,7 @@ export function previewHistoryControl(projectDir: string, target: HistoryControl
     if (!enabled) next.push({ type: 'plugin', id: target.id });
     after = setField(before, 'tool_suggest', 'disabled_tools', next);
   } else if (target.kind === 'skill') {
-    if (!isAbsolute(target.id) || !target.id.endsWith('/SKILL.md') || !existsSync(target.id) || /\/plugins\/cache\/|\/\.system\//.test(target.id) || /\/plugins\/cache\/|\/\.system\//.test(realpathSync(target.id))) throw new Error('Independent Skill control is not verified for this source.');
-    const parsed = parseTOML<Config>(before);
-    const entries = parsed.skills?.config ?? [];
-    if (!Array.isArray(entries)) throw new Error('Unsupported skills.config layout.');
-    const matching = entries.filter((item) => item.path === target.id);
-    if (matching.length > 1) throw new Error('Duplicate Skill configuration.');
-    const expected = structuredClone(parsed);
-    expected.skills ??= {};
-    expected.skills.config ??= [];
-    if (matching.length) {
-      expected.skills.config.find((item: any) => item.path === target.id).enabled = enabled;
-      let changed = false;
-      after = before.replace(/^\[\[skills\.config\]\][ \t]*(?:#.*)?\r?\n[\s\S]*?(?=^\[|(?![\s\S]))/gm, (block) => {
-        if (parseTOML<Config>(block).skills.config[0].path !== target.id) return block;
-        changed = true;
-        return /^\s*enabled\s*=/m.test(block) ? block.replace(/^[ \t]*enabled\s*=.*$/m, `enabled = ${enabled}`) : `${block.trimEnd()}\nenabled = ${enabled}\n`;
-      });
-      if (!changed) throw new Error('Unsupported Skill table layout.');
-    } else {
-      expected.skills.config.push({ path: target.id, enabled });
-      after = `${before}\n[[skills.config]]\npath = ${JSON.stringify(target.id)}\nenabled = ${enabled}\n`;
-    }
-    if (!isDeepStrictEqual(parseTOML(after), expected)) throw new Error('Unsupported Skill TOML layout; no configuration changed.');
+    throw new Error('Project-level skills.config rules do not disable individual Codex skills. Use Codex user/session controls instead.');
   } else throw new Error('Unsupported control target.');
   const digest = hash(JSON.stringify({ projectDir: resolve(projectDir), target, enabled, before, after, inherited }));
   return { target, enabled, projectDir: resolve(projectDir), configPath, digest, before, after, changed: before !== after, scope: 'project', requiresNewSession: true,

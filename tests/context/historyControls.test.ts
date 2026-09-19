@@ -57,15 +57,14 @@ describe('history project controls', () => {
     expect(() => undoHistoryControl(project, result.operationId)).toThrow('subsequent');
     expect(readFileSync(config, 'utf8')).toContain('# user edit');
   });
-  it('writes and restores a single Skill without changing its siblings', () => {
+  it('rejects legacy per-skill project writes and preserves existing rules', () => {
     const skill = join(root, 'SKILL.md'); writeFileSync(skill, 'fixture');
     writeFileSync(config, `[[skills.config]]\npath = ${JSON.stringify(skill)}\nenabled = true\n[[skills.config]]\npath = "/other/SKILL.md"\nenabled = true\n`);
     const target = { kind: 'skill' as const, id: skill };
-    const preview = previewHistoryControl(project, target, false, home);
-    expect(parseTOML<any>(preview.after).skills.config.map((item: any) => item.enabled)).toEqual([false, true]);
-    const result = applyHistoryControl(project, target, false, preview.digest, home);
-    undoHistoryControl(project, result.operationId);
-    expect(readFileSync(config, 'utf8')).toBe(preview.before);
+    const before = readFileSync(config, 'utf8');
+    expect(() => previewHistoryControl(project, target, false, home)).toThrow('Project-level skills.config');
+    expect(() => applyHistoryControl(project, target, false, 'old-digest', home)).toThrow('Project-level skills.config');
+    expect(readFileSync(config, 'utf8')).toBe(before);
   });
   it('rejects unsupported layouts and symlinked configuration without writing', () => {
     writeFileSync(config, 'tool_suggest.disabled_tools = []\n');

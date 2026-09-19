@@ -192,11 +192,11 @@ async function scanSkillEntries(
           resource: 'skill',
           configSource: dirEntry.configSource,
           enabled,
-          controllable: true,
+          controllable: false,
           controlPath,
           controlMethod: 'skills.config',
           estimateStatus: 'estimated',
-          controlStatus: 'configured',
+          controlStatus: 'not-controllable',
         },
       };
     });
@@ -529,12 +529,14 @@ function loadCodexEffectiveState(projectDir: string, homeDir: string, codexHome?
   const skillSelectors: CodexSkillSelector[] = [];
   const pluginEnabled = new Map<string, boolean>();
   let memoriesEnabled: boolean | undefined;
+  const userConfigPath = resolveCodexPath('~/.codex/config.toml', projectDir, homeDir, codexHome);
 
   for (const configPath of codexStateConfigPaths(projectDir, homeDir, codexHome)) {
     const raw = readText(configPath);
     if (!raw) continue;
 
-    const blocks = raw.split(/(?=^\[\[skills\.config\]\])/gm).filter((block) => block.startsWith('[[skills.config]]'));
+    // Codex only reads individual skill rules from User/SessionFlags, not Project.
+    const blocks = configPath === userConfigPath ? raw.split(/(?=^\[\[skills\.config\]\])/gm).filter((block) => block.startsWith('[[skills.config]]')) : [];
     for (const block of blocks) {
       const enabled = block.match(/^\s*enabled\s*=\s*(true|false)\s*$/m)?.[1];
       if (!enabled) continue;

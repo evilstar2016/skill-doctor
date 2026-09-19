@@ -24,11 +24,11 @@ interface OperationState {
 }
 
 function controlAvailable(item: HistoryCandidate): boolean {
-  return item.kind === 'recommended_plugins'
-    || (item.kind === 'skills_instructions' && ['source-supported', 'config-only', 'already-disabled'].includes(item.control) && Boolean(item.sourcePath) && !/\/plugins\/cache\/|\/\.system\//.test(item.sourcePath ?? ''));
+  return item.kind === 'recommended_plugins';
 }
 
 function controlStatusLabel(item: HistoryCandidate, t: ReturnType<typeof useTranslation>['t']): string {
+  if (item.kind === 'skills_instructions') return t('context.controlNotControllable');
   if (item.controlStatus === 'runtime-verified') return t('context.controlVerified');
   if (item.controlStatus === 'host-overridden') return t('context.controlOverridden');
   if (item.controlStatus === 'not-controllable') return t('context.controlNotControllable');

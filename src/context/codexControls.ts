@@ -49,7 +49,7 @@ export async function toggleCodexResource(
   }
 
   const context = 'context' in entry ? entry.context : undefined;
-  if (context?.controllable === false || getEntryResource(entry) === 'agents' || getEntryResource(entry) === 'memory') {
+  if (context?.controllable === false || ['skill', 'agents', 'memory'].includes(getEntryResource(entry) ?? '')) {
     return {
       id,
       name: entry.name,
@@ -77,8 +77,6 @@ export async function toggleCodexResource(
       allowlist: 'toolAllowlist' in entry ? entry.toolAllowlist : [],
       denylist: 'toolDenylist' in entry ? entry.toolDenylist : [],
     });
-  } else if (resource === 'skill') {
-    changed = upsertSkillConfig(configPath, entry.sourcePath, enabled);
   } else if (resource === 'plugin') {
     const pluginId = parsePluginId(id);
     if (!pluginId) throw new Error(`Cannot resolve plugin id for resource: ${id}`);
@@ -103,28 +101,6 @@ export async function toggleCodexResource(
     verificationReason: 'Configuration was written and read back; a fresh Desktop task JSONL is required to verify the session header.',
     message: 'Config updated (config-only). Start a new Codex session or restart Codex, then inspect its session JSONL to verify the header.',
   };
-}
-
-function upsertSkillConfig(configPath: string, skillPath: string, enabled: boolean): boolean {
-  const raw = readConfig(configPath);
-  const blocks = raw.split(/(?=^\[\[skills\.config\]\])/gm);
-  let updated = false;
-  const next = blocks.map((block) => {
-    if (!block.startsWith('[[skills.config]]')) return block;
-    const pathMatch = block.match(/^\s*path\s*=\s*(['"])(.*?)\1\s*$/m);
-    if (pathMatch?.[2] !== skillPath) return block;
-    updated = true;
-    return upsertScalarInBlock(block, 'enabled', String(enabled));
-  }).join('');
-
-  if (updated) {
-    return writeConfig(configPath, next);
-  }
-
-  return writeConfig(
-    configPath,
-    appendBlock(raw, ['[[skills.config]]', `path = ${quoteTomlString(skillPath)}`, `enabled = ${enabled}`].join('\n')),
-  );
 }
 
 function upsertTableBoolean(configPath: string, tableName: string, key: string, value: boolean): boolean {
@@ -262,6 +238,7 @@ function removeUnique(values: string[], value: string): string[] {
 }
 
 function getUnsupportedRecommendation(resource: string | undefined, entry: unknown): string | undefined {
+  if (resource === 'skill') return 'Project-level skills.config rules do not disable individual Codex skills. Use Codex user/session controls, or review hiding the whole automatic skill catalog in Optimization Suggestions.';
   const recommendation = entry && typeof entry === 'object' && 'recommendation' in entry
     && typeof entry.recommendation === 'string' ? entry.recommendation : undefined;
   if (resource === 'agents') {

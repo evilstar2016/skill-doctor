@@ -15,7 +15,23 @@
 .cost-children ul { display: grid; gap: 3px; max-height: 120px; margin: 5px 0 0; padding-left: 16px; overflow: auto; }
 .cost-children code { word-break: break-all; }
 .cost-row > strong { font-variant-numeric: tabular-nums; }
+.codex-context-next { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; margin-bottom: 16px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--accent-soft); }
+.codex-context-next strong { color: var(--accent-text); }
+.codex-context-next p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.codex-context-next .button { flex-shrink: 0; }
+.codex-catalog-session { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
+.codex-catalog-session select { max-width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.codex-catalog-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 18px 0; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.codex-current-context > .muted { font-size: 13px; line-height: 1.7; }
+.codex-observed-skills { list-style: none; padding: 0; display: grid; gap: 10px; }
+.codex-observed-skills li { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.codex-observed-skills strong { color: var(--accent-text); }
+.codex-observed-skills p { margin: 6px 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.codex-observed-skills code, .codex-catalog-source code { font-size: 12px; overflow-wrap: anywhere; }
+.codex-catalog-source, .codex-static-context { margin: 20px 0; font-size: 13px; }
+.codex-catalog-source summary, .codex-static-context summary { cursor: pointer; color: var(--accent-text); }
 @media (max-width: 760px) {
+  .codex-context-next { align-items: stretch; flex-direction: column; }
   .context-optimization-tabs { grid-template-columns: 1fr; }
   .context-optimization-tabs button { padding: 9px 11px; }
 }

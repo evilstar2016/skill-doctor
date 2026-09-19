@@ -32,6 +32,11 @@ describe('Skill Doctor UI server', () => {
     expect((await post({ action: 'overview', projectDir }, false)).status).toBe(401);
     expect((await post({ action: 'overview', projectDir })).status).toBe(200);
     expect((await post({ action: 'overview', projectDir: homeDir })).status).toBe(400);
+    expect((await post({ action: 'skill-catalogs', projectDir }, false)).status).toBe(401);
+    const catalogs = await post({ action: 'skill-catalogs', projectDir });
+    expect(catalogs.status).toBe(200);
+    expect(await catalogs.json()).toMatchObject({ sessions: [] });
+    expect((await post({ action: 'skill-catalogs', projectDir: homeDir })).status).toBe(400);
     expect((await post({ action: 'undo', projectDir, operationId: 'unconfirmed' })).status).toBe(400);
     expect(fs.readFileSync(join(homeDir, '.codex/config.toml'), 'utf8')).toBe('');
   });

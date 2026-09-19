@@ -29,7 +29,7 @@ function readFile(path: string): string {
 }
 
 describe('toggleCodexResource', () => {
-  it.skipIf(process.platform === 'win32')('disables and enables skills through project skills.config idempotently', async () => {
+  it.skipIf(process.platform === 'win32')('rejects project skill toggles without creating or modifying configuration', async () => {
     const root = tempRoot();
     const cwd = join(root, 'workspace');
     const home = join(root, 'home');
@@ -40,14 +40,12 @@ describe('toggleCodexResource', () => {
     const disabled = await toggleCodexResource(cwd, `codex:skill:${skillPath}`, false, { homeDir: home });
     const disabledAgain = await toggleCodexResource(cwd, `codex:skill:${skillPath}`, false, { homeDir: home });
     const enabled = await toggleCodexResource(cwd, `codex:skill:${skillPath}`, true, { homeDir: home });
-    const config = readFile(configPath);
-
-    expect(disabled).toEqual(expect.objectContaining({ supported: true, changed: true, enabled: false, requiresNewSession: true, controlStatus: 'configured', runtimeVerified: false }));
-    expect(disabledAgain).toEqual(expect.objectContaining({ supported: true, changed: false, enabled: false }));
-    expect(enabled).toEqual(expect.objectContaining({ supported: true, changed: true, enabled: true }));
-    expect(config.match(/\[\[skills\.config\]\]/g)).toHaveLength(1);
-    expect(config).toContain(`path = "${skillPath}"`);
-    expect(config).toContain('enabled = true');
+    for (const result of [disabled, disabledAgain, enabled]) expect(result).toMatchObject({ supported: false, changed: false, requiresNewSession: false, controlStatus: 'not-controllable' });
+    expect(disabled.recommendation).toContain('Project-level skills.config rules do not disable');
+    expect(existsSync(configPath)).toBe(false);
+    writeFile(configPath, '# preserve user configuration\n');
+    await toggleCodexResource(cwd, `codex:skill:${skillPath}`, false, { homeDir: home });
+    expect(readFile(configPath)).toBe('# preserve user configuration\n');
   });
 
   it('disables and enables MCP servers through project mcp_servers enabled', async () => {

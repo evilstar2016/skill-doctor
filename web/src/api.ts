@@ -12,6 +12,9 @@ import type { SnapshotHistoryDiff, SnapshotHistoryEntry } from '../../src/histor
 import type { BenefitReport } from '../../src/benefit/types';
 import type { HistoryControlPreview } from '../../src/context/historyControls';
 import type { OptimizationOperation, OptimizationOverview, OptimizationPeriod, OptimizationPreview, OptimizationTarget, OptimizationVerification } from '../../src/context/optimizationTypes';
+import type { CodexSkillCatalogReport } from '../../src/context/codexSkillCatalog';
+
+export const loadCodexSkillCatalogs = (projectDir: string, signal?: AbortSignal): Promise<CodexSkillCatalogReport> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'skill-catalogs', projectDir }), signal });
 
 export const loadOptimization = (projectDir: string, signal?: AbortSignal, period: OptimizationPeriod = 'month'): Promise<OptimizationOverview> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'overview', projectDir, period }), signal });
 export const previewOptimizationChange = (projectDir: string, sessionId: string, targets: OptimizationTarget | OptimizationTarget[], enabled = false): Promise<OptimizationPreview> => request('/api/optimization', { method: 'POST', body: JSON.stringify({ action: 'preview', projectDir, sessionId, targets: Array.isArray(targets) ? targets : [targets], enabled }) });

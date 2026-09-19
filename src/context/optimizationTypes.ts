@@ -9,6 +9,12 @@ export interface OptimizationRecommendation {
   sessions: number;
   messages: number;
 }
+export interface OptimizationConfigValues {
+  project?: boolean;
+  global?: boolean;
+  effective: boolean;
+  source: 'project' | 'global' | 'default';
+}
 export interface OptimizationSuggestion {
   id: OptimizationTarget;
   scope: 'project' | 'user';
@@ -17,6 +23,7 @@ export interface OptimizationSuggestion {
   configuredOff: boolean;
   available: boolean;
   canEnable?: boolean;
+  configValues?: OptimizationConfigValues;
   versionWarning?: boolean;
   reason?: 'configured-off' | 'incomplete-header' | 'unsupported-version' | 'absent' | 'config-override';
   tokens?: number;
