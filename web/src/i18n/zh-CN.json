@@ -1,4 +1,11 @@
 {
+  "opt.enable": "重新开启",
+  "opt.confirmEnable": "确认开启 · 下个新会话生效",
+  "opt.enableDetail": "重新开启所选功能，会恢复相应上下文或能力，Token 开销可能增加。下方列出将修改的配置；全局项影响所有项目。",
+  "opt.enabledVerified": "已验证：新会话中已恢复目标内容",
+  "opt.enabledDetail": "新会话已观察到目标内容恢复。动态推荐列表仍取决于当时可用的候选。",
+  "opt.enableNotObserved": "配置已开启，但新会话尚未观察到目标内容。请检查功能依赖或配置覆盖。",
+  "opt.versionWarning": "此会话使用 Codex {{version}}；开关已在 0.154.0-alpha.6.2 验证。可以修改，当前版本的实际效果需通过新会话确认。",
   "opt.staticResources": "查看静态资源占用",
   "opt.title": "优化建议",
   "opt.subtitle": "先看影响，再确认修改。",

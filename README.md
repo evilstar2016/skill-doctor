@@ -19,9 +19,11 @@ Supported actions:
 - Stop memory injection: user `memories.use_memories = false`, with global-impact confirmation.
 - Turn off Plugins entirely: user `features.plugins = false`, which removes both `plugins.usage_instructions` and `plugins.recommendations` in a new task; this also disables plugin tools and skill discovery.
 
-These actions are gated to the Desktop version tested in the investigation
-(`0.154.0-alpha.6.2`) and complete initial headers. Writes remain **pending** until
-a newly created task's JSONL proves the target block absent; undo restores only the
+These controls were tested on Desktop `0.154.0-alpha.6.2`. Other identifiable versions
+show a verification reminder rather than locking the controls. Closing requires a
+complete initial header; already disabled controls offer Re-enable without requiring
+the missing block in the header. Writes remain **pending** until
+a newly created task's JSONL confirms removal or restoration; undo restores only the
 changed key. Unknown prices/usage remain unknown, and estimates are not subscription
 bills or guaranteed savings. Analysis covers the selected month or week; the detail
 table shows up to 20 tasks without truncating the period total.

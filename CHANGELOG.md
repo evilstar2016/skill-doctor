@@ -16,6 +16,7 @@ All notable changes to `skill-doctor` are documented here.
 - Include per-candidate rationale, evidence and control commands in text/HTML history reports, plus a copyable Agent + Skill prompt in the UI.
 
 ### Fixes
+- Keep known Codex controls usable after version upgrades with a fresh-session verification reminder; add confirmed re-enable actions for disabled blocks and verify restoration as well as removal.
 - Keep coverage-only context information out of the default issue count and navigation badge, show unknown estimates as unavailable, and restrict historical recommendations to Codex-supported analysis.
 - Count removable Skill descriptions in every response retaining their context, preserving whitespace and exposing a recommended, usage-capped cached-prefix cost scenario with matching per-model costs.
 - Rehydrate historical context when appending to metadata-only session indexes, and validate optimizer inventory fingerprints using the preview's resource scope and normalization.

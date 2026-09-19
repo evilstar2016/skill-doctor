@@ -212,14 +212,15 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
       const configuredOff = configValue(read(path), id) === false;
       const observed = targetText(header, id);
       const tokens = header.complete ? counter.count(observed ?? '') : undefined;
-      const versionSupported = header.version === VERIFIED_VERSION && (!latestVersion || latestVersion === VERIFIED_VERSION);
+      const versionSupported = /^\d+\.\d+\.\d+/.test(latestVersion ?? header.version ?? '');
+      const versionWarning = header.version !== VERIFIED_VERSION || Boolean(latestVersion && latestVersion !== VERIFIED_VERSION);
       const overridden = hasConfigOverride(projectDir, id, homeDir);
       const available = header.complete && versionSupported && Boolean(observed) && !configuredOff && !overridden;
       const cost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'max') : undefined;
       const actualCost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'actual') : undefined;
       const cumulative = cumulativeSavings(id, records, observations, 'max');
       const actualCumulative = cumulativeSavings(id, records, observations, 'actual');
-      return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, tokens, cost, actualCost,
+      return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, canEnable: configuredOff && versionSupported && !overridden, versionWarning, tokens, cost, actualCost,
         cumulative: { ...cumulative, actualCost: actualCumulative.cost, actualPricedResponses: actualCumulative.pricedResponses },
         reason: overridden ? 'config-override' : configuredOff ? 'configured-off' : !header.complete ? 'incomplete-header' : !versionSupported ? 'unsupported-version' : !observed ? 'absent' : undefined };
     });
@@ -237,21 +238,21 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
   return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
 }
 
-export async function previewOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], homeDir?: string): Promise<OptimizationPreview> {
+export async function previewOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], homeDir?: string, enabled = false): Promise<OptimizationPreview> {
   const targets = normalizeTargets(targetsInput);
   const overview = await optimizationOverview(projectDir, homeDir);
   const suggestions = targets.map((target) => overview.sessions.find((s) => s.id === sessionId)?.suggestions.find((s) => s.id === target));
-  if (suggestions.some((suggestion) => !suggestion?.available)) throw new Error('This optimization is unavailable or already configured. Refresh the analysis.');
+  if (suggestions.some((suggestion) => !(enabled ? suggestion?.canEnable : suggestion?.available))) throw new Error('This optimization is unavailable or already configured. Refresh the analysis.');
   const available = suggestions as NonNullable<typeof suggestions[number]>[];
   const before = Object.fromEntries(targets.map((target, index) => [target, configValue(read(available[index].configPath), target)])) as Partial<Record<OptimizationTarget, boolean>>;
-  const state = { projectDir: realpathSync(projectDir), sessionId, targets, fingerprint: fingerprint(projectDir, homeDir) };
+  const state = { projectDir: realpathSync(projectDir), sessionId, targets, enabled, fingerprint: fingerprint(projectDir, homeDir) };
   return {
     targets,
     scope: scopeFor(available),
     configPaths: [...new Set(available.map((suggestion) => suggestion.configPath))],
     configKeys: available.map((suggestion) => suggestion.configKey),
     before,
-    after: false,
+    after: enabled,
     confirmation: hash(JSON.stringify(state)),
   };
 }
@@ -306,8 +307,8 @@ function writeConfigSet(before: Map<string, ConfigSnapshot>, after: Map<string, 
   }
 }
 
-export async function applyOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], confirmation: string, homeDir?: string): Promise<OptimizationOperation> {
-  const preview = await previewOptimization(projectDir, sessionId, targetsInput, homeDir);
+export async function applyOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], confirmation: string, homeDir?: string, enabled = false): Promise<OptimizationOperation> {
+  const preview = await previewOptimization(projectDir, sessionId, targetsInput, homeDir, enabled);
   if (preview.confirmation !== confirmation) throw new Error('Configuration changed. Review this optimization again.');
   const beforeFingerprint = fingerprint(projectDir, homeDir);
   return withConfigLocks(preview.configPaths, () => {
@@ -316,10 +317,11 @@ export async function applyOptimization(projectDir: string, sessionId: string, t
     const after = new Map<string, string>(preview.configPaths.map((path) => [path, before.get(path)!.text]));
     for (const target of preview.targets) {
       const path = configPath(projectDir, target, homeDir);
-      after.set(path, editOptimizationConfig(after.get(path) ?? '', target, false));
+      after.set(path, editOptimizationConfig(after.get(path) ?? '', target, enabled));
     }
     const operation: StoredOperation = { id: randomUUID(), target: preview.targets[0], targets: preview.targets, projectDir: realpathSync(projectDir), configPath: preview.configPaths[0], configPaths: preview.configPaths, createdAt: new Date().toISOString(), version: VERIFIED_VERSION, beforeValues: preview.before, status: 'pending', fingerprint: '' };
     const dir = operationsDir(projectDir, homeDir);
+    operation.enabled = enabled;
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const operationPath = join(dir, `${operation.id}.json`);
     // Persist recovery metadata before changing configuration; never store the complete config.
@@ -356,11 +358,11 @@ export function undoOptimization(projectDir: string, id: string, homeDir?: strin
   if (operation.status !== 'pending') throw new Error('Operation already restored.');
   return withConfigLocks(operation.configPaths, () => {
     const before = new Map<string, ConfigSnapshot>(operation.configPaths.map((path) => [path, { text: read(path), existed: existsSync(path) }]));
-    const after = new Map<string, string>(before.entries().map(([path, snapshot]) => [path, snapshot.text]));
+    const after = new Map<string, string>([...before.entries()].map(([path, snapshot]) => [path, snapshot.text]));
     for (const target of operation.targets) {
       const path = configPath(projectDir, target, homeDir);
       const current = after.get(path) ?? '';
-      if (configValue(current, target) !== false) throw new Error('Target setting changed externally; refusing to overwrite it.');
+      if (configValue(current, target) !== (operation.enabled ?? false)) throw new Error('Target setting changed externally; refusing to overwrite it.');
       after.set(path, editOptimizationConfig(current, target, operation.beforeValues[target]));
     }
     writeConfigSet(before, after);
@@ -375,11 +377,11 @@ export async function verifyOptimization(projectDir: string, id: string, homeDir
   const op = loadOperation(projectDir, id, homeDir);
   if (op.status !== 'pending' || fingerprint(projectDir, homeDir) !== op.fingerprint) return { status: 'unknown', reason: 'config-changed' };
   const overview = await optimizationOverview(projectDir, homeDir);
-  const fresh = overview.sessions.find((s) => Date.parse(s.timestamp) > Date.parse(op.createdAt) && s.completeHeader && s.version === op.version);
+  const fresh = overview.sessions.find((s) => Date.parse(s.timestamp) > Date.parse(op.createdAt) && s.completeHeader);
   if (!fresh) return { status: 'unknown', reason: 'new-task-required' };
   if (fingerprint(projectDir, homeDir) !== op.fingerprint) return { status: 'unknown', reason: 'config-changed' };
   const header = readOptimizationHeader(fresh.sourcePath);
   if (!header.complete) return { status: 'unknown', reason: 'incomplete-header' };
   const targets = op.targets.map((id) => ({ id, status: targetDefinition(id).kinds.some((kind) => Boolean(header.kinds[kind])) ? 'present' as const : 'removed' as const }));
-  return { status: targets.some((target) => target.status === 'present') ? 'present' : 'removed', reason: 'fresh-header-observed', sessionId: fresh.id, sourcePath: fresh.sourcePath, targets };
+  return { status: targets.some((target) => target.status === 'present') ? 'present' : 'removed', matched: targets.every((target) => target.status === (op.enabled ? 'present' : 'removed')), reason: 'fresh-header-observed', sessionId: fresh.id, sourcePath: fresh.sourcePath, targets };
 }

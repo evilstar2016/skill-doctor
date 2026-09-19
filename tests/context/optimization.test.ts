@@ -103,6 +103,23 @@ describe('verified optimization flow', () => {
     expect(report.sessions[0].suggestions.every((item) => !item.available)).toBe(true);
     await expect(previewOptimization(project, 'future', 'memory', home)).rejects.toThrow('unavailable');
   });
+  it('allows a newer runtime and re-enables an already disabled block without requiring its presence', async () => {
+    fixture('baseline', { version: '0.155.0-alpha.9', skill: false });
+    const config = join(project, '.codex/config.toml');
+    writeFileSync(config, '[skills]\ninclude_instructions = false\n');
+    const report = await optimizationOverview(project, home);
+    expect(report.sessions[0].suggestions[1]).toMatchObject({ available: true, versionWarning: true });
+    expect(report.sessions[0].suggestions[0]).toMatchObject({ available: false, canEnable: true });
+    const preview = await previewOptimization(project, 'baseline', 'skill-catalog', home, true);
+    await expect(applyOptimization(project, 'baseline', 'skill-catalog', preview.confirmation, home, false)).rejects.toThrow();
+    const op = await applyOptimization(project, 'baseline', 'skill-catalog', preview.confirmation, home, true);
+    expect(parseTOML<any>(readFileSync(config, 'utf8')).skills.include_instructions).toBe(true);
+    vi.setSystemTime(now.getTime() + 2000);
+    fixture('fresh', { version: '0.155.0-alpha.9', timestamp: new Date(now.getTime() + 1000).toISOString() });
+    expect(await verifyOptimization(project, op.id, home)).toMatchObject({ status: 'present', matched: true });
+    undoOptimization(project, op.id, home);
+    expect(parseTOML<any>(readFileSync(config, 'utf8')).skills.include_instructions).toBe(false);
+  });
   it('shows one row per task when another rollout file repeats the same session ID', async () => {
     const path = fixture();
     writeFileSync(join(sessions, 'duplicate.jsonl'), readFileSync(path, 'utf8'));

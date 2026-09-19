@@ -10,6 +10,8 @@ export interface OptimizationSuggestion {
   configKey: string;
   configuredOff: boolean;
   available: boolean;
+  canEnable?: boolean;
+  versionWarning?: boolean;
   reason?: 'configured-off' | 'incomplete-header' | 'unsupported-version' | 'absent' | 'config-override';
   tokens?: number;
   cost?: { lower: number; upper: number; currency: string };
@@ -56,7 +58,7 @@ export interface OptimizationPreview {
   configPaths: string[];
   configKeys: string[];
   before: Partial<Record<OptimizationTarget, boolean>>;
-  after: false;
+  after: boolean;
   confirmation: string;
 }
 export interface OptimizationOperation {
@@ -66,6 +68,7 @@ export interface OptimizationOperation {
   configPaths: string[];
   createdAt: string;
   version: string;
+  enabled?: boolean;
   status: 'pending' | 'restored';
   /** Legacy fields are read only for operations created before multi-select. */
   target?: OptimizationTarget;
@@ -76,5 +79,6 @@ export interface OptimizationVerification {
   reason: string;
   sessionId?: string;
   sourcePath?: string;
+  matched?: boolean;
   targets?: Array<{ id: OptimizationTarget; status: 'removed' | 'present' }>;
 }

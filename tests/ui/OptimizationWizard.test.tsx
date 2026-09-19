@@ -104,7 +104,7 @@ describe('optimization wizard', () => {
     vi.mocked(api.loadOptimization).mockResolvedValue(unavailable);
     await open();
     expect((screen.getByRole('button', { name: '查看并确认修改' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getAllByText('金额暂不可估').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('region', { name: '整段会话预计节省' })).toBeNull();
     expect(screen.getByText('会话头不完整，暂不能提供此操作。')).toBeTruthy();
   });
   it('restores pending progress and reports errors without claiming success', async () => {
@@ -122,6 +122,23 @@ describe('optimization wizard', () => {
     vi.mocked(api.loadOptimization).mockResolvedValue(updated);
     await open();
     expect((screen.getByRole('checkbox', { name: /停止注入记忆/ }) as HTMLInputElement).checked).toBe(true);
+  });
+  it('re-enables a disabled catalog with a preview and verifies restoration', async () => {
+    const updated = structuredClone(report);
+    Object.assign(updated.sessions[0].suggestions[0], { configuredOff: true, available: false, canEnable: true });
+    vi.mocked(api.loadOptimization).mockResolvedValue(updated);
+    vi.mocked(api.previewOptimizationChange).mockResolvedValue({ ...preview, after: true, before: { 'skill-catalog': false } });
+    vi.mocked(api.applyOptimizationChange).mockResolvedValue({ ...operation, targets: ['skill-catalog'], enabled: true });
+    vi.mocked(api.checkOptimizationChange).mockResolvedValue({ status: 'present', matched: true, reason: 'fresh-header-observed' });
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: '重新开启' }));
+    const confirm = await screen.findByRole('button', { name: '确认开启 · 下个新会话生效' });
+    expect(api.previewOptimizationChange).toHaveBeenCalledWith('/project', 'session-one', ['skill-catalog'], true);
+    expect(screen.queryByRole('region', { name: '整段会话预计节省' })).toBeNull();
+    fireEvent.click(confirm);
+    await screen.findByRole('heading', { name: '设置已更新，等待新会话验证' });
+    fireEvent.click(screen.getByRole('button', { name: '检查新会话' }));
+    await screen.findByRole('heading', { name: '已验证：新会话中已恢复目标内容' });
   });
   it('labels incomplete token and price coverage next to the cumulative amount', async () => {
     const partial = structuredClone(report);

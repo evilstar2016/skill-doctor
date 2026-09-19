@@ -23,12 +23,12 @@ export async function handleOptimizationRoute(request: IncomingMessage, response
     }
     case 'preview': {
       const targets = Array.isArray(body.targets) ? body.targets as OptimizationTarget[] : [body.target as OptimizationTarget];
-      result = await previewOptimization(project, requiredString(body.sessionId, 'sessionId'), targets, context.homeDir);
+      result = await previewOptimization(project, requiredString(body.sessionId, 'sessionId'), targets, context.homeDir, body.enabled === true);
       break;
     }
     case 'apply': {
       const targets = Array.isArray(body.targets) ? body.targets as OptimizationTarget[] : [body.target as OptimizationTarget];
-      result = await applyOptimization(project, requiredString(body.sessionId, 'sessionId'), targets, requiredString(body.confirmation, 'confirmation'), context.homeDir);
+      result = await applyOptimization(project, requiredString(body.sessionId, 'sessionId'), targets, requiredString(body.confirmation, 'confirmation'), context.homeDir, body.enabled === true);
       break;
     }
     case 'verify': result = await verifyOptimization(project, requiredString(body.operationId, 'operationId'), context.homeDir); break;

@@ -100,7 +100,8 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const displayCostCoverage = pricingMode === 'max' ? periodCostCoverage : periodActualCostCoverage;
   const displaySavings = pricingMode === 'max' ? periodSavings : { ...periodSavings, cost: periodSavings.actualCost, pricedResponses: periodSavings.actualPricedResponses ?? 0 };
   const displayFirstResponse = pricingMode === 'max' ? firstResponseSavings : { ...firstResponseSavings, cost: firstResponseSavings.actualCost };
-  const previousPending = operation?.status === 'pending' && verification?.status !== 'removed';
+  const verified = verification?.matched ?? (verification?.status === 'removed' && !operation?.enabled);
+  const previousPending = operation?.status === 'pending' && !verified;
   const date = (value: string) => new Date(value).toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   const day = (value: string) => new Date(value).toLocaleDateString(locale, { month: '2-digit', day: '2-digit' });
   const label = (id: OptimizationTarget) => t(`opt.${id}.title`);
@@ -115,7 +116,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
       const current = next.sessions.find((item) => item.id === sessionId);
       const initial = current ?? next.sessions.find((item) => item.suggestions.some((suggestion) => suggestion.available)) ?? next.sessions[0];
       if (initial && initial.id !== sessionId) {
-        setSessionId(initial.id); setSelectedTargets([initial.suggestions.find((item) => item.available)?.id ?? 'skill-catalog']);
+        setSessionId(initial.id); setSelectedTargets(initial.suggestions.filter((item) => item.available).slice(0, 1).map((item) => item.id));
       } else if (initial) {
         setSelectedTargets((currentTargets) => {
           const available = currentTargets.filter((id) => initial.suggestions.some((item) => item.id === id && item.available));
@@ -197,12 +198,17 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
     </div>}
     {step === 2 && session && <div className="opt-select">
       <h2>{t('opt.startWhere')}</h2><p>{t('opt.selectDetail')}</p>
+      {session.suggestions.some((item) => item.versionWarning) && <p className="opt-reason">{t('opt.versionWarning', { version: session.version ?? '—' })}</p>}
       <fieldset className="opt-choices"><legend className="sr-only">{t('opt.selectDetail')}</legend>{session.suggestions.map((item) => {
         const checked = selectedTargets.includes(item.id);
-        return <label key={item.id} className={`opt-choice ${checked ? 'selected' : ''} ${!item.available ? 'unavailable' : ''}`}>
-          <input type="checkbox" name="optimization" value={item.id} checked={checked} onChange={() => choose(item.id)} disabled={busy || !item.available} />
+        return <div key={item.id} className={`opt-choice ${checked ? 'selected' : ''} ${!item.available && !item.canEnable ? 'unavailable' : ''}`}>
+          <input type="checkbox" aria-label={label(item.id)} name="optimization" value={item.id} checked={checked} onChange={() => choose(item.id)} disabled={busy || !item.available} />
           <span><strong>{label(item.id)}</strong><span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span><small>{t(`opt.${item.id}.summary`)}</small>{item.reason && <small className="opt-reason">{t(`opt.reason.${item.reason}`)}</small>}</span><ChevronRight size={21} />
-        </label>;
+          {item.configuredOff && <button className="button secondary compact" disabled={busy || loading || !item.canEnable} onClick={() => void action(async () => {
+            setSelectedTargets([]); setGlobalConfirmed(false);
+            setPreview(await previewOptimizationChange(projectDir, session.id, [item.id], true));
+          })}>{t('opt.enable')}</button>}
+        </div>;
       })}</fieldset>
       <p className="opt-selection-meta">{t('opt.selectedCount', { count: n(selectedTargets.length) })}{selectionScope !== 'project' && <span>{t('opt.globalImpact')}</span>}</p>
       {selectedSuggestions.length > 0 && <>
@@ -217,18 +223,18 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
           <section><h3>{t('opt.needToKnow')}</h3>{selectedSuggestions.map((item) => <div className="opt-impact-line" key={item.id}><FileText size={25} /><div><strong>{label(item.id)} · {t(`opt.${item.id}.impact`)}</strong><small>{t(`opt.${item.id}.impactDetail`)}</small></div></div>)}<div className="opt-impact-line"><Layers size={25} /><div><strong>{t(selectionScope === 'project' ? 'opt.projectOnly' : 'opt.allProjects')}</strong><small>{t(selectionScope === 'project' ? 'opt.projectDetail' : 'opt.globalDetail')}</small></div></div><div className="opt-impact-line"><Clock3 size={25} /><div><strong>{t('opt.nextSession')}</strong><small>{t('opt.nextSessionDetail')}</small></div></div></section></div>
         <section className="opt-example" aria-label={t('opt.exampleTitle')}><div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3><p>{t('opt.exampleDetail')}</p></div><span>{t('opt.exampleNewSession')}</span></div><div className="opt-example-grid"><div className="opt-example-pane before"><small>{t('opt.exampleBefore')}</small><pre>{selectedTargets.map((id) => t(`opt.${id}.exampleBlock`)).join('\n')}</pre></div><ArrowRight className="opt-example-arrow" size={22} /><div className="opt-example-pane after"><small>{t('opt.exampleAfter')}</small><pre>{t('opt.exampleRemaining')}</pre></div></div><div className="opt-example-result">{selectedTargets.map((id) => <span key={id}>{label(id)}：{t(`opt.${id}.exampleAfter`)}</span>)}</div><small className="opt-example-note">{t('opt.exampleDisclaimer')}</small></section>
       </>}
-      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → false`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
+      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.after ? 'opt.enableDetail' : preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → ${preview.after}`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
       {previousPending && <p className="muted">{t('opt.finishPrevious')}</p>}
-      <div className="opt-actions"><button className="button primary" disabled={busy || loading || previousPending || !selectionReady || Boolean(preview && preview.scope !== 'project' && !globalConfirmed)} onClick={() => void action(async () => {
-        if (!session || !selectedTargets.length) return;
+      <div className="opt-actions"><button className="button primary" disabled={busy || loading || (!preview?.after && (previousPending || !selectionReady)) || Boolean(preview && preview.scope !== 'project' && !globalConfirmed)} onClick={() => void action(async () => {
+        if (!session || (!preview && !selectedTargets.length)) return;
         if (!preview) { setPreview(await previewOptimizationChange(projectDir, session.id, selectedTargets)); return; }
         const result = await applyOptimizationChange(projectDir, session.id, preview); persist(result); setVerification(undefined); setPreview(undefined); setStep(3); void refresh();
-      })}>{busy ? t('opt.working') : t(preview ? 'opt.apply' : 'opt.review')}</button><button className="button secondary" disabled={busy} onClick={() => { setPreview(undefined); setStep(1); }}>{t('opt.later')}</button></div>
+      })}>{busy ? t('opt.working') : t(preview?.after ? 'opt.confirmEnable' : preview ? 'opt.apply' : 'opt.review')}</button><button className="button secondary" disabled={busy} onClick={() => { setPreview(undefined); setStep(1); }}>{t('opt.later')}</button></div>
       <details className="opt-limitations"><summary>{t('opt.limits')}</summary><p>{t('opt.pluginLimit')}</p><p>{t('opt.skillLimit')}</p><p>{t('opt.otherBlocks')}</p></details>
     </div>}
-    {step === 3 && <div className="opt-verification" aria-live="polite"><h2>{t(operation?.status === 'restored' ? 'opt.restored' : verification?.status === 'removed' ? 'opt.verified' : operation ? 'opt.pending' : 'opt.noOperation')}</h2>
+    {step === 3 && <div className="opt-verification" aria-live="polite"><h2>{t(operation?.status === 'restored' ? 'opt.restored' : verified ? operation?.enabled ? 'opt.enabledVerified' : 'opt.verified' : operation ? 'opt.pending' : 'opt.noOperation')}</h2>
       {operation ? <><p>{operationTargets.map((targetId) => label(targetId)).join(' + ')} · {date(operation.createdAt)}</p><p>{t('opt.verificationDetail')}</p><ol><li>{t('opt.createTask', { project: projectDir })}</li><li>{t('opt.sendMessage')}</li><li>{t('opt.checkDetail')}</li></ol>
-        {verification && <p className={`opt-verification-result ${verification.status}`} role="status">{t(verification.status === 'removed' ? 'opt.removedDetail' : verification.status === 'present' ? 'opt.stillPresent' : verification.reason === 'config-changed' ? 'opt.configChanged' : 'opt.noFreshSession')}{verification.sessionId && <code>{verification.sessionId}</code>}</p>}
+        {verification && <p className={`opt-verification-result ${verification.status}`} role="status">{t(operation.enabled && verification.status !== 'unknown' ? verified ? 'opt.enabledDetail' : 'opt.enableNotObserved' : verification.status === 'removed' ? 'opt.removedDetail' : verification.status === 'present' ? 'opt.stillPresent' : verification.reason === 'config-changed' ? 'opt.configChanged' : 'opt.noFreshSession')}{verification.sessionId && <code>{verification.sessionId}</code>}</p>}
         {operation.status === 'pending' && <div className="opt-actions"><button className="button primary" disabled={busy} onClick={() => void action(async () => setVerification(await checkOptimizationChange(projectDir, operation.id)))}>{busy ? t('opt.working') : t('opt.checkNewSession')}</button><button className="button secondary" disabled={busy} onClick={() => setUndoPending(true)}><Undo2 size={17} />{t('opt.undo')}</button></div>}
         {undoPending && <div className="opt-confirm"><p>{t('opt.undoConfirm')}</p><button className="button secondary" disabled={busy} onClick={() => void action(async () => { persist(await undoOptimizationChange(projectDir, operation.id)); setUndoPending(false); setVerification(undefined); void refresh(); })}>{t('opt.confirmUndo')}</button><button className="button ghost" onClick={() => setUndoPending(false)}>{t('opt.cancel')}</button></div>}
       </> : <><p>{t('opt.noOperationDetail')}</p><button className="button primary" onClick={() => setStep(2)}>{t('opt.backSuggestions')}</button></>}
