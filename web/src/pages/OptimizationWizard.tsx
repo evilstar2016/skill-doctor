@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowRight, Check, ChevronRight, Clock3, FileText, Layers, RefreshCw, Undo2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, Info, Star, FileText, RefreshCw, Undo2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { CodexUsage } from '../../../src/benefit/types';
 import type { OptimizationOperation, OptimizationOverview, OptimizationPeriod, OptimizationPricingMode, OptimizationPreview, OptimizationSuggestion, OptimizationTarget, OptimizationVerification } from '../../../src/context/optimizationTypes';
 import { applyOptimizationChange, checkOptimizationChange, loadOptimization, previewOptimizationChange, undoOptimizationChange } from '../api';
@@ -8,6 +8,14 @@ import { InlineNotice } from '../components/ui';
 import './optimizationWizard.css';
 
 type MoneyRange = NonNullable<OptimizationSuggestion['cost']>;
+
+function Help({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <span className="opt-help" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }} onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); } }}>
+    <button type="button" className="opt-info" aria-label={label} aria-describedby={open ? id : undefined} aria-expanded={open} onFocus={() => setOpen(true)} onClick={() => setOpen(true)}><Info size={17} /></button>
+    {open && <span id={id} role="tooltip" className="opt-tooltip">{children}</span>}
+  </span>;
+}
 
 function sumMoney(values: Array<MoneyRange | undefined>): MoneyRange | undefined {
   const known = values.filter((value): value is MoneyRange => Boolean(value));
@@ -74,6 +82,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const [operation, setOperation] = useState<OptimizationOperation>();
   const [verification, setVerification] = useState<OptimizationVerification>();
   const [undoPending, setUndoPending] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
   const storageKey = `skill-doctor:optimization:${projectDir}`;
   const n = (value?: number) => value === undefined ? '—' : value.toLocaleString(locale);
   const usd = (value?: number) => value === undefined ? '—' : `$${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
@@ -154,6 +163,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
     setPreview(undefined); setGlobalConfirmed(false);
   }
   function chooseSession(id: string) {
+    setExampleOpen(false);
     setSessionId(id); setPreview(undefined); setGlobalConfirmed(false);
     const next = data?.sessions.find((item) => item.id === id);
     if (next) setSelectedTargets((current) => {
@@ -197,13 +207,25 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
       <div className="opt-table-wrap"><table><caption>{t('opt.periodSessions', { count: n(periodSessions.length) })}</caption><thead><tr><th>{t('opt.session')}</th><th>Token</th><th>{t('opt.apiEstimate')}</th><th>{t('opt.action')}</th></tr></thead><tbody>{data?.sessions.slice(0, 20).map((item) => <tr key={item.id}><td>{date(item.timestamp)}<small>{item.model ?? t('opt.unknownModel')} · {item.id.slice(-6)}</small></td><td>{n(item.usage?.totalTokens)}</td><td>{usd(pricingMode === 'max' ? item.cost : item.actualCost)}</td><td><button className="button secondary compact" onClick={() => { chooseSession(item.id); setStep(2); }}>{t('opt.viewSuggestions')}<ArrowRight size={14} /></button></td></tr>)}</tbody></table></div>
     </div>}
     {step === 2 && session && <div className="opt-select">
-      <h2>{t('opt.startWhere')}</h2><p>{t('opt.selectDetail')}</p>
-      {session.suggestions.some((item) => item.versionWarning) && <p className="opt-reason">{t('opt.versionWarning', { version: session.version ?? '—' })}</p>}
+      <div className="opt-decision-grid"><div className="opt-options">
+      <div className="opt-options-heading"><h2>{t('opt.startWhere')}</h2><Help id="opt-selection-help" label={t('opt.details')}><span>{t('opt.selectDetail')}</span>{session.suggestions.some((item) => item.versionWarning) && <span>{t('opt.versionWarning', { version: session.version ?? '—' })}</span>}</Help></div>
       <fieldset className="opt-choices"><legend className="sr-only">{t('opt.selectDetail')}</legend>{session.suggestions.map((item) => {
         const checked = selectedTargets.includes(item.id);
+        const recommendation = data?.recommendations?.[item.id];
+        const recommended = recommendation && recommendation.reason !== 'insufficient-evidence';
         return <div key={item.id} className={`opt-choice ${checked ? 'selected' : ''} ${!item.available && !item.canEnable ? 'unavailable' : ''}`}>
-          <input type="checkbox" aria-label={label(item.id)} name="optimization" value={item.id} checked={checked} onChange={() => choose(item.id)} disabled={busy || !item.available} />
-          <span><strong>{label(item.id)}</strong><span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span><small>{t(`opt.${item.id}.summary`)}</small>{item.reason && <small className="opt-reason">{t(`opt.reason.${item.reason}`)}</small>}</span><ChevronRight size={21} />
+          <input id={`opt-${item.id}`} type="checkbox" aria-label={label(item.id)} name="optimization" value={item.id} checked={checked} onChange={() => choose(item.id)} disabled={busy || !item.available} />
+          <label className="opt-choice-name" htmlFor={`opt-${item.id}`}>{label(item.id)}</label>
+          {recommended && <span className="opt-recommended"><Star size={12} fill="currentColor" />{t('opt.recommended')}</span>}
+          <span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span>
+          {item.configuredOff && <span className="opt-off">{t('opt.off')}</span>}
+          <Help id={`opt-help-${item.id}`} label={t('opt.itemDetails', { item: label(item.id) })}>
+            <strong>{label(item.id)}</strong><span>{t(`opt.${item.id}.summary`)}</span><span>{t(`opt.${item.id}.impactDetail`)}</span>
+            <span>{t(item.scope === 'user' ? 'opt.globalDetail' : 'opt.projectDetail')}</span>
+            {item.reason && <span className="opt-reason">{t(`opt.reason.${item.reason}`)}</span>}
+            {recommendation && <span>{t(`opt.recommendation.${recommendation.reason}`, { count: n(recommendation.explicitRequests), sessions: n(recommendation.sessions) })}</span>}
+            {item.id === 'plugins' && recommended && <span className="opt-reason">{t('opt.pluginRecommendationCaution')}</span>}
+          </Help>
           {item.configuredOff && <button className="button secondary compact" disabled={busy || loading || !item.canEnable} onClick={() => void action(async () => {
             setSelectedTargets([]); setGlobalConfirmed(false);
             setPreview(await previewOptimizationChange(projectDir, session.id, [item.id], true));
@@ -211,18 +233,18 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
         </div>;
       })}</fieldset>
       <p className="opt-selection-meta">{t('opt.selectedCount', { count: n(selectedTargets.length) })}{selectionScope !== 'project' && <span>{t('opt.globalImpact')}</span>}</p>
-      {selectedSuggestions.length > 0 && <>
+      <p className="opt-compact-note">{t('opt.nextSessionDetail')}</p>
+      </div>
         <div className="opt-impact"><section aria-label={t(displaySavings.coveredResponses === periodResponseCount && periodResponseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}><h3>{t(displaySavings.coveredResponses === periodResponseCount && periodResponseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}</h3>
           <small>{t('opt.periodSummary', { sessions: n(periodSessions.length), turns: n(periodTurnCount), responses: n(periodResponseCount) })}</small>
-          <small className="opt-selected-session">{t('opt.selectedSession', { date: session.timestamp ? date(session.timestamp) : '—' })}</small>
           <div className="opt-savings-layout"><div className="opt-total-saving"><div className="opt-saving">{n(displaySavings.tokens)} <span>Token</span></div><div className="opt-money">{moneyRange(displaySavings.cost)}</div>
             {displaySavings.cost && displaySavings.pricedResponses < displaySavings.coveredResponses && <small>{t('opt.partialCost', { count: n(displaySavings.pricedResponses) })}</small>}</div>
             <aside className="opt-first-saving" aria-label={t('opt.firstResponse')}><small>{t('opt.firstResponse')}</small><strong>{n(displayFirstResponse.tokens)} Token</strong><small>{moneyRange(displayFirstResponse.cost)}</small></aside></div>
           <small>{t('opt.savingsCoverage', { covered: n(displaySavings.coveredResponses), total: n(periodResponseCount), priced: n(displaySavings.pricedResponses) })}</small>
-          <small>{t('opt.cumulativeDetail')}</small></section>
-          <section><h3>{t('opt.needToKnow')}</h3>{selectedSuggestions.map((item) => <div className="opt-impact-line" key={item.id}><FileText size={25} /><div><strong>{label(item.id)} · {t(`opt.${item.id}.impact`)}</strong><small>{t(`opt.${item.id}.impactDetail`)}</small></div></div>)}<div className="opt-impact-line"><Layers size={25} /><div><strong>{t(selectionScope === 'project' ? 'opt.projectOnly' : 'opt.allProjects')}</strong><small>{t(selectionScope === 'project' ? 'opt.projectDetail' : 'opt.globalDetail')}</small></div></div><div className="opt-impact-line"><Clock3 size={25} /><div><strong>{t('opt.nextSession')}</strong><small>{t('opt.nextSessionDetail')}</small></div></div></section></div>
-      </>}
-      <section className="opt-example" aria-label={t('opt.exampleTitle')}>
+          <small>{selectedSuggestions.length ? t('opt.cumulativeDetail') : t('opt.noSelection')}</small></section></div>
+      </div>
+      <div className="opt-example-toggle"><button className="button ghost compact" aria-expanded={exampleOpen} aria-controls="opt-session-example" onClick={() => setExampleOpen(!exampleOpen)}>{t(exampleOpen ? 'opt.hideExample' : 'opt.showExample')}<ArrowRight size={15} /></button><small>{t('opt.previewPrompt')}</small></div>
+      {exampleOpen && <section id="opt-session-example" className="opt-example" aria-label={t('opt.exampleTitle')}>
         <div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3><p>{projectDir} · {date(session.timestamp)} · {session.id}</p></div></div>
         {!session.completeHeader && <p>{t('opt.previewIncomplete')}</p>}
         <div className="opt-example-grid">{(['before', 'after'] as const).map((side) => <div className={`opt-example-pane ${side}`} key={side}>
@@ -234,7 +256,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
           {!(session.headerBlocks ?? []).some((block) => side === 'before' || !block.target || !selectedTargets.includes(block.target)) && <p>{t('opt.noPreviewBlocks')}</p>}
         </div>)}</div>
         <small className="opt-example-note">{t('opt.realPreviewNote')}</small>
-      </section>
+      </section>}
       {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.after ? 'opt.enableDetail' : preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → ${preview.after}`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
       {previousPending && <p className="muted">{t('opt.finishPrevious')}</p>}
       <div className="opt-actions"><button className="button primary" disabled={busy || loading || (!preview?.after && (previousPending || !selectionReady)) || Boolean(preview && preview.scope !== 'project' && !globalConfirmed)} onClick={() => void action(async () => {

@@ -3,6 +3,12 @@ import type { CodexUsage } from '../benefit/types';
 export type OptimizationTarget = 'skill-catalog' | 'memory' | 'plugins';
 export type OptimizationPeriod = 'week' | 'month';
 export type OptimizationPricingMode = 'max' | 'actual';
+export interface OptimizationRecommendation {
+  reason: 'explicit-repeat' | 'no-observed-use' | 'insufficient-evidence';
+  explicitRequests: number;
+  sessions: number;
+  messages: number;
+}
 export interface OptimizationSuggestion {
   id: OptimizationTarget;
   scope: 'project' | 'user';
@@ -52,6 +58,7 @@ export interface OptimizationOverview {
   sessions: OptimizationSession[];
   priceDate: string;
   diagnostics: string[];
+  recommendations?: Partial<Record<OptimizationTarget, OptimizationRecommendation>>;
 }
 export interface OptimizationPreview {
   targets: OptimizationTarget[];

@@ -61,12 +61,32 @@ describe('optimization wizard', () => {
     expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('600')).toBeTruthy();
     fireEvent.click(screen.getByRole('checkbox', { name: /关闭 Plugins 功能/ }));
     expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('840')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: '关闭后会话示例' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '查看会话变化' }));
     const example = screen.getByRole('region', { name: '关闭后会话示例' });
     expect(example.textContent).toContain('Real memory excerpt…');
     expect(example.textContent).toContain('100 个字符');
     expect(example.querySelector('.after')!.textContent).not.toContain('Real memory excerpt');
     expect(example.querySelector('.after')!.textContent).not.toContain('Real plugin excerpt');
     expect(example.querySelector('.after')!.textContent).toContain('Retained instructions');
+    fireEvent.click(screen.getByRole('button', { name: '收起会话示例' }));
+    expect(screen.queryByRole('region', { name: '关闭后会话示例' })).toBeNull();
+  });
+  it('shows evidence on hover or keyboard focus without applying recommended changes', async () => {
+    vi.mocked(api.loadOptimization).mockResolvedValue({ ...structuredClone(report), recommendations: { plugins: { reason: 'explicit-repeat', explicitRequests: 3, sessions: 2, messages: 3 } } });
+    await open();
+    expect(screen.getByText('推荐')).toBeTruthy();
+    const help = screen.getByRole('button', { name: '关闭 Plugins 功能：详细说明与推荐依据' });
+    fireEvent.focus(help);
+    expect(screen.getByRole('tooltip').textContent).toContain('主动指定 3 次');
+    expect(screen.getByRole('tooltip').textContent).toContain('主动指定插件不保证仍可使用');
+    fireEvent.keyDown(help, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.mouseEnter(help.parentElement!);
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    fireEvent.mouseLeave(help.parentElement!);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(api.applyOptimizationChange).not.toHaveBeenCalled();
   });
   it('requires preview, keeps writes pending until verification, and confirms undo', async () => {
     await open();
@@ -108,6 +128,7 @@ describe('optimization wizard', () => {
     await open();
     expect((screen.getByRole('button', { name: '查看并确认修改' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByRole('region', { name: '整段会话预计节省' })).toBeNull();
+    fireEvent.focus(screen.getByRole('button', { name: '隐藏自动技能目录：详细说明与推荐依据' }));
     expect(screen.getByText('会话头不完整，暂不能提供此操作。')).toBeTruthy();
   });
   it('restores pending progress and reports errors without claiming success', async () => {

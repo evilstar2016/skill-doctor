@@ -70,7 +70,7 @@ export function removeCatalogEntries(text: string, kind: CatalogKind, ids: Set<s
   return lines.filter((_line, index) => !removed.has(index)).join('\n');
 }
 
-function userText(text: string): string {
+export function userText(text: string): string {
   text = text.replace(/>>>\s*TRANSCRIPT START[\s\S]*?(?:TRANSCRIPT END(?:\s*<<<)?|$)/gi, ' ');
   const request = text.lastIndexOf('## My request:');
   return (request >= 0 ? text.slice(request + '## My request:'.length) : text)

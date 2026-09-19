@@ -9,6 +9,7 @@ import { calculateBenefitCost, DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice, fi
 import type { CodexUsage } from '../benefit/types';
 import { createTokenCounter } from './tokenCounter';
 import { cumulativeSavings, responseSavingsCost, responseTargetTokens } from './optimizationSavings';
+import { optimizationRecommendations } from './optimizationRecommendations';
 import type { OptimizationOperation, OptimizationOverview, OptimizationPeriod, OptimizationPreview, OptimizationSession, OptimizationTarget, OptimizationVerification } from './optimizationTypes';
 
 // Version of the Desktop fresh-task experiments in codex-context-block-verification.md.
@@ -240,7 +241,8 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
       costCoverage: costs.filter((cost) => cost.amount !== undefined).length,
       actualCostCoverage: actualCosts.filter((cost) => cost.amount !== undefined).length, suggestions };
   }));
-  return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
+  const recommendations = await optimizationRecommendations(sessions.map((session) => session.sourcePath), bounds.start, bounds.end);
+  return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, recommendations, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
 }
 
 export async function previewOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], homeDir?: string, enabled = false): Promise<OptimizationPreview> {
