@@ -1,6 +1,6 @@
 import type { CodexUsage } from '../benefit/types';
 
-export type OptimizationTarget = 'skill-catalog' | 'memory';
+export type OptimizationTarget = 'skill-catalog' | 'memory' | 'plugins';
 export type OptimizationPeriod = 'week' | 'month';
 export type OptimizationPricingMode = 'max' | 'actual';
 export interface OptimizationSuggestion {
@@ -51,26 +51,30 @@ export interface OptimizationOverview {
   diagnostics: string[];
 }
 export interface OptimizationPreview {
-  target: OptimizationTarget;
-  scope: 'project' | 'user';
-  configPath: string;
-  configKey: string;
-  before?: boolean;
+  targets: OptimizationTarget[];
+  scope: 'project' | 'user' | 'mixed';
+  configPaths: string[];
+  configKeys: string[];
+  before: Partial<Record<OptimizationTarget, boolean>>;
   after: false;
   confirmation: string;
 }
 export interface OptimizationOperation {
   id: string;
   projectDir: string;
-  target: OptimizationTarget;
-  configPath: string;
+  targets: OptimizationTarget[];
+  configPaths: string[];
   createdAt: string;
   version: string;
   status: 'pending' | 'restored';
+  /** Legacy fields are read only for operations created before multi-select. */
+  target?: OptimizationTarget;
+  configPath?: string;
 }
 export interface OptimizationVerification {
   status: 'removed' | 'present' | 'unknown';
   reason: string;
   sessionId?: string;
   sourcePath?: string;
+  targets?: Array<{ id: OptimizationTarget; status: 'removed' | 'present' }>;
 }

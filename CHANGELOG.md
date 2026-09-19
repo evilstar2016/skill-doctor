@@ -6,6 +6,7 @@ All notable changes to `skill-doctor` are documented here.
 
 ### Features
 
+- Allow multiple Codex context controls to be selected and applied as one reversible operation; add the verified whole-Plugins control (`features.plugins = false`) and an in-page new-session header preview.
 - Emphasize cumulative session savings in Optimization Suggestions, with smaller first-response figures and recorded turn/response counts; track target retention and cache-price bounds per response, exposing incomplete coverage after compaction or missing data.
 - Make the default cost view a full current-month total with a current-week switch; price by the highest bundled model by default and expose a subdued actual-model toggle with separate period coverage.
 - Add the Codex three-step Optimization Suggestions page: per-task recorded usage, bounded first-response cost estimates, verified catalog/memory controls, explicit global confirmation, fresh-task JSONL verification and narrow-key undo. Unsupported or overridden controls remain unavailable.

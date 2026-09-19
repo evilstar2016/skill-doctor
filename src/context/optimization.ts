@@ -14,17 +14,39 @@ import type { OptimizationOperation, OptimizationOverview, OptimizationPeriod, O
 // Version of the Desktop fresh-task experiments in codex-context-block-verification.md.
 const VERIFIED_VERSION = '0.154.0-alpha.6.2';
 const TARGETS = {
-  'skill-catalog': { table: 'skills', key: 'include_instructions', kind: 'host_skills.instructions', scope: 'project' },
-  memory: { table: 'memories', key: 'use_memories', kind: 'memories.instructions', scope: 'user' },
+  'skill-catalog': { table: 'skills', key: 'include_instructions', kinds: ['host_skills.instructions'], scope: 'project' },
+  memory: { table: 'memories', key: 'use_memories', kinds: ['memories.instructions'], scope: 'user' },
+  plugins: { table: 'features', key: 'plugins', kinds: ['plugins.usage_instructions', 'plugins.recommendations'], scope: 'user' },
 } as const;
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const read = (path: string) => existsSync(path) ? readFileSync(path, 'utf8') : '';
 type Config = Record<string, Record<string, unknown>>;
-interface StoredOperation extends OptimizationOperation { before?: boolean; fingerprint: string }
+interface StoredOperation extends OptimizationOperation {
+  beforeValues: Partial<Record<OptimizationTarget, boolean>>;
+  fingerprint: string;
+}
 
 function targetDefinition(target: OptimizationTarget) {
   if (!Object.hasOwn(TARGETS, target)) throw new Error('Unsupported optimization target.');
   return TARGETS[target];
+}
+
+function normalizeTargets(targets: OptimizationTarget | OptimizationTarget[]): OptimizationTarget[] {
+  const values = Array.isArray(targets) ? targets : [targets];
+  const unique = [...new Set(values)];
+  if (!unique.length) throw new Error('At least one optimization target is required.');
+  unique.forEach((target) => targetDefinition(target));
+  return unique;
+}
+
+function targetText(header: Header, target: OptimizationTarget): string {
+  return targetDefinition(target).kinds.map((kind) => header.kinds[kind] ?? '').filter(Boolean).join('');
+}
+
+function scopeFor(suggestions: Array<{ scope: 'project' | 'user' }>): 'project' | 'user' | 'mixed' {
+  const hasProject = suggestions.some((suggestion) => suggestion.scope === 'project');
+  const hasUser = suggestions.some((suggestion) => suggestion.scope === 'user');
+  return hasProject && hasUser ? 'mixed' : hasUser ? 'user' : 'project';
 }
 
 function codexHome(homeDir = homedir()): string {
@@ -137,12 +159,11 @@ function hasConfigOverride(projectDir: string, target: OptimizationTarget, homeD
     paths.add(join(dir, '.codex/config.toml'));
     if (dirname(dir) === dir) break;
   }
-  if (target === 'skill-catalog' && configPath(projectDir, target, homeDir) === userPath) return true;
-  const { table, key } = TARGETS[target];
+  const { table, key, scope } = targetDefinition(target);
   return [...paths].some((path) => {
     const config = parseTOML<Record<string, any>>(read(path));
     // Active profile/host overrides cannot be resolved from a historical task.
-    return (target === 'memory' && path !== userPath && config[table]?.[key] !== undefined)
+    return (scope === 'user' && path !== userPath && config[table]?.[key] !== undefined)
       || Object.values(config.profiles ?? {}).some((profile: any) => profile?.[table]?.[key] !== undefined);
   });
 }
@@ -183,13 +204,13 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
     const costs = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, maxPrice) : { amount: undefined });
     const actualCosts = records.map((r) => r.quality === 'complete' ? calculateBenefitCost(r.usage, findBenefitPrice(r.model, DEFAULT_BENEFIT_PRICE_TABLE)) : { amount: undefined });
     const model = records[0]?.model ?? analysis.modelContexts[0]?.model;
-    const initial = header.complete ? Object.fromEntries(Object.entries(TARGETS).map(([id, def]) => [id, counter.count(header.kinds[def.kind] ?? '')])) : {};
+    const initial = header.complete ? Object.fromEntries(Object.keys(TARGETS).map((id) => [id, counter.count(targetText(header, id as OptimizationTarget))])) : {};
     const observations = await responseTargetTokens(session.filePath, records, initial);
     const suggestions: OptimizationSession['suggestions'] = (Object.keys(TARGETS) as OptimizationTarget[]).map((id) => {
       const def = TARGETS[id];
       const path = configPath(projectDir, id, homeDir);
       const configuredOff = configValue(read(path), id) === false;
-      const observed = header.kinds[def.kind];
+      const observed = targetText(header, id);
       const tokens = header.complete ? counter.count(observed ?? '') : undefined;
       const versionSupported = header.version === VERIFIED_VERSION && (!latestVersion || latestVersion === VERIFIED_VERSION);
       const overridden = hasConfigOverride(projectDir, id, homeDir);
@@ -216,13 +237,23 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
   return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
 }
 
-export async function previewOptimization(projectDir: string, sessionId: string, target: OptimizationTarget, homeDir?: string): Promise<OptimizationPreview> {
+export async function previewOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], homeDir?: string): Promise<OptimizationPreview> {
+  const targets = normalizeTargets(targetsInput);
   const overview = await optimizationOverview(projectDir, homeDir);
-  const suggestion = overview.sessions.find((s) => s.id === sessionId)?.suggestions.find((s) => s.id === target);
-  if (!suggestion?.available) throw new Error('This optimization is unavailable or already configured. Refresh the analysis.');
-  const before = configValue(read(suggestion.configPath), target);
-  const state = { projectDir: realpathSync(projectDir), sessionId, target, fingerprint: fingerprint(projectDir, homeDir) };
-  return { target, scope: suggestion.scope, configPath: suggestion.configPath, configKey: suggestion.configKey, before, after: false, confirmation: hash(JSON.stringify(state)) };
+  const suggestions = targets.map((target) => overview.sessions.find((s) => s.id === sessionId)?.suggestions.find((s) => s.id === target));
+  if (suggestions.some((suggestion) => !suggestion?.available)) throw new Error('This optimization is unavailable or already configured. Refresh the analysis.');
+  const available = suggestions as NonNullable<typeof suggestions[number]>[];
+  const before = Object.fromEntries(targets.map((target, index) => [target, configValue(read(available[index].configPath), target)])) as Partial<Record<OptimizationTarget, boolean>>;
+  const state = { projectDir: realpathSync(projectDir), sessionId, targets, fingerprint: fingerprint(projectDir, homeDir) };
+  return {
+    targets,
+    scope: scopeFor(available),
+    configPaths: [...new Set(available.map((suggestion) => suggestion.configPath))],
+    configKeys: available.map((suggestion) => suggestion.configKey),
+    before,
+    after: false,
+    confirmation: hash(JSON.stringify(state)),
+  };
 }
 
 function operationsDir(projectDir: string, homeDir = homedir()): string {
@@ -237,32 +268,71 @@ function atomicWrite(path: string, text: string): void {
   finally { if (existsSync(temp)) unlinkSync(temp); }
 }
 
-function withConfigLock<T>(path: string, run: () => T): T {
-  assertSafePath(path);
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  const lock = `${path}.skill-doctor.lock`;
-  writeFileSync(lock, '', { flag: 'wx', mode: 0o600 });
-  try { return run(); } finally { unlinkSync(lock); }
+function withConfigLocks<T>(paths: string[], run: () => T): T {
+  const locks: string[] = [];
+  try {
+    for (const path of [...new Set(paths)].sort()) {
+      assertSafePath(path);
+      mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+      const lock = `${path}.skill-doctor.lock`;
+      writeFileSync(lock, '', { flag: 'wx', mode: 0o600 });
+      locks.push(lock);
+    }
+    return run();
+  } finally {
+    for (const lock of locks.reverse()) if (existsSync(lock)) unlinkSync(lock);
+  }
 }
 
-export async function applyOptimization(projectDir: string, sessionId: string, target: OptimizationTarget, confirmation: string, homeDir?: string): Promise<OptimizationOperation> {
-  const preview = await previewOptimization(projectDir, sessionId, target, homeDir);
+interface ConfigSnapshot { text: string; existed: boolean }
+
+function writeConfigSet(before: Map<string, ConfigSnapshot>, after: Map<string, string>): void {
+  const written: string[] = [];
+  try {
+    for (const [path, text] of after) {
+      atomicWrite(path, text);
+      written.push(path);
+      if (read(path) !== text) throw new Error('Configuration read-back failed.');
+    }
+  } catch (error) {
+    for (const path of written.reverse()) {
+      const snapshot = before.get(path)!;
+      try {
+        if (snapshot.existed) atomicWrite(path, snapshot.text);
+        else if (existsSync(path)) unlinkSync(path);
+      } catch { /* Preserve the original failure; the operation remains recoverable. */ }
+    }
+    throw error;
+  }
+}
+
+export async function applyOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], confirmation: string, homeDir?: string): Promise<OptimizationOperation> {
+  const preview = await previewOptimization(projectDir, sessionId, targetsInput, homeDir);
   if (preview.confirmation !== confirmation) throw new Error('Configuration changed. Review this optimization again.');
   const beforeFingerprint = fingerprint(projectDir, homeDir);
-  return withConfigLock(preview.configPath, () => {
+  return withConfigLocks(preview.configPaths, () => {
     if (fingerprint(projectDir, homeDir) !== beforeFingerprint) throw new Error('Configuration changed during confirmation.');
-    const before = read(preview.configPath);
-    const after = editOptimizationConfig(before, target, false);
-    const operation: StoredOperation = { id: randomUUID(), target, projectDir: realpathSync(projectDir), configPath: preview.configPath, createdAt: new Date().toISOString(), version: VERIFIED_VERSION, before: preview.before, status: 'pending', fingerprint: '' };
+    const before = new Map<string, ConfigSnapshot>(preview.configPaths.map((path) => [path, { text: read(path), existed: existsSync(path) }]));
+    const after = new Map<string, string>(preview.configPaths.map((path) => [path, before.get(path)!.text]));
+    for (const target of preview.targets) {
+      const path = configPath(projectDir, target, homeDir);
+      after.set(path, editOptimizationConfig(after.get(path) ?? '', target, false));
+    }
+    const operation: StoredOperation = { id: randomUUID(), target: preview.targets[0], targets: preview.targets, projectDir: realpathSync(projectDir), configPath: preview.configPaths[0], configPaths: preview.configPaths, createdAt: new Date().toISOString(), version: VERIFIED_VERSION, beforeValues: preview.before, status: 'pending', fingerprint: '' };
     const dir = operationsDir(projectDir, homeDir);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const operationPath = join(dir, `${operation.id}.json`);
     // Persist recovery metadata before changing configuration; never store the complete config.
-    atomicWrite(join(dir, `${operation.id}.json`), JSON.stringify(operation));
-    atomicWrite(preview.configPath, after);
-    if (read(preview.configPath) !== after) throw new Error('Configuration read-back failed.');
-    operation.fingerprint = fingerprint(projectDir, homeDir);
-    atomicWrite(join(dir, `${operation.id}.json`), JSON.stringify(operation));
-    const { before: _before, fingerprint: _fingerprint, ...publicOperation } = operation;
+    atomicWrite(operationPath, JSON.stringify(operation));
+    try {
+      writeConfigSet(before, after);
+      operation.fingerprint = fingerprint(projectDir, homeDir);
+      atomicWrite(operationPath, JSON.stringify(operation));
+    } catch (error) {
+      if (existsSync(operationPath)) unlinkSync(operationPath);
+      throw error;
+    }
+    const { beforeValues: _beforeValues, fingerprint: _fingerprint, ...publicOperation } = operation;
     return publicOperation;
   });
 }
@@ -271,21 +341,32 @@ function loadOperation(projectDir: string, id: string, homeDir?: string): Stored
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Invalid operation ID.');
   const path = join(operationsDir(projectDir, homeDir), `${id}.json`);
   assertSafePath(path);
-  const operation = JSON.parse(readFileSync(path, 'utf8')) as StoredOperation;
-  if (operation.projectDir !== realpathSync(projectDir) || operation.configPath !== configPath(projectDir, operation.target, homeDir)) throw new Error('Operation project mismatch.');
+  const raw = JSON.parse(readFileSync(path, 'utf8')) as StoredOperation & { before?: boolean };
+  const targets = raw.targets?.length ? raw.targets : raw.target ? [raw.target] : [];
+  const configPaths = raw.configPaths?.length ? raw.configPaths : raw.configPath ? [raw.configPath] : [];
+  const beforeValues = raw.beforeValues ?? (raw.target && raw.before !== undefined ? { [raw.target]: raw.before } : {});
+  const operation = { ...raw, targets, configPaths, beforeValues } as StoredOperation;
+  const expectedPaths = [...new Set(targets.map((target) => configPath(projectDir, target, homeDir)))];
+  if (operation.projectDir !== realpathSync(projectDir) || expectedPaths.length !== configPaths.length || expectedPaths.some((expected) => !configPaths.includes(expected))) throw new Error('Operation project mismatch.');
   return operation;
 }
 
 export function undoOptimization(projectDir: string, id: string, homeDir?: string): OptimizationOperation {
   const operation = loadOperation(projectDir, id, homeDir);
   if (operation.status !== 'pending') throw new Error('Operation already restored.');
-  return withConfigLock(operation.configPath, () => {
-    const current = read(operation.configPath);
-    if (configValue(current, operation.target) !== false) throw new Error('Target setting changed externally; refusing to overwrite it.');
-    atomicWrite(operation.configPath, editOptimizationConfig(current, operation.target, operation.before));
+  return withConfigLocks(operation.configPaths, () => {
+    const before = new Map<string, ConfigSnapshot>(operation.configPaths.map((path) => [path, { text: read(path), existed: existsSync(path) }]));
+    const after = new Map<string, string>(before.entries().map(([path, snapshot]) => [path, snapshot.text]));
+    for (const target of operation.targets) {
+      const path = configPath(projectDir, target, homeDir);
+      const current = after.get(path) ?? '';
+      if (configValue(current, target) !== false) throw new Error('Target setting changed externally; refusing to overwrite it.');
+      after.set(path, editOptimizationConfig(current, target, operation.beforeValues[target]));
+    }
+    writeConfigSet(before, after);
     operation.status = 'restored';
     atomicWrite(join(operationsDir(projectDir, homeDir), `${id}.json`), JSON.stringify(operation));
-    const { before: _before, fingerprint: _fingerprint, ...publicOperation } = operation;
+    const { beforeValues: _beforeValues, fingerprint: _fingerprint, ...publicOperation } = operation;
     return publicOperation;
   });
 }
@@ -299,5 +380,6 @@ export async function verifyOptimization(projectDir: string, id: string, homeDir
   if (fingerprint(projectDir, homeDir) !== op.fingerprint) return { status: 'unknown', reason: 'config-changed' };
   const header = readOptimizationHeader(fresh.sourcePath);
   if (!header.complete) return { status: 'unknown', reason: 'incomplete-header' };
-  return { status: header.kinds[TARGETS[op.target].kind] ? 'present' : 'removed', reason: 'fresh-header-observed', sessionId: fresh.id, sourcePath: fresh.sourcePath };
+  const targets = op.targets.map((id) => ({ id, status: targetDefinition(id).kinds.some((kind) => Boolean(header.kinds[kind])) ? 'present' as const : 'removed' as const }));
+  return { status: targets.some((target) => target.status === 'present') ? 'present' : 'removed', reason: 'fresh-header-observed', sessionId: fresh.id, sourcePath: fresh.sourcePath, targets };
 }

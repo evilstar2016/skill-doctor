@@ -12,10 +12,11 @@ const report: OptimizationOverview = {
   sessions: [{ id: 'session-one', timestamp: '2026-09-18T11:00:00Z', version: '0.154.0-alpha.6.2', model: 'gpt-6-astra', sourcePath: '/home/.codex/sessions/one.jsonl', completeHeader: true,
     usage: { inputTokens: 1000, cachedInputTokens: 800, cacheWriteInputTokens: 0, outputTokens: 100, reasoningOutputTokens: 20, totalTokens: 1100 }, responseCount: 3, turnCount: 2, cost: 0.0131, actualCost: 0.000292, costCoverage: 3, actualCostCoverage: 3,
     suggestions: [{ id: 'skill-catalog', scope: 'project', configPath: '/project/.codex/config.toml', configKey: 'skills.include_instructions', configuredOff: false, available: true, tokens: 140, cost: { lower: 0.001, upper: 0.01, currency: 'USD' }, actualCost: { lower: 0.0001, upper: 0.001, currency: 'USD' }, cumulative: { tokens: 420, coveredResponses: 3, pricedResponses: 3, actualPricedResponses: 3, cost: { lower: 0.003, upper: 0.03, currency: 'USD' }, actualCost: { lower: 0.0003, upper: 0.003, currency: 'USD' } } },
-      { id: 'memory', scope: 'user', configPath: '/home/.codex/config.toml', configKey: 'memories.use_memories', configuredOff: false, available: true, tokens: 60 }] }],
+      { id: 'memory', scope: 'user', configPath: '/home/.codex/config.toml', configKey: 'memories.use_memories', configuredOff: false, available: true, tokens: 60, cost: { lower: 0.0004, upper: 0.004, currency: 'USD' }, actualCost: { lower: 0.00004, upper: 0.0004, currency: 'USD' }, cumulative: { tokens: 180, coveredResponses: 3, pricedResponses: 3, actualPricedResponses: 3, cost: { lower: 0.0012, upper: 0.012, currency: 'USD' }, actualCost: { lower: 0.00012, upper: 0.0012, currency: 'USD' } } },
+      { id: 'plugins', scope: 'user', configPath: '/home/.codex/config.toml', configKey: 'features.plugins', configuredOff: false, available: true, tokens: 80, cost: { lower: 0.0005, upper: 0.005, currency: 'USD' }, actualCost: { lower: 0.00005, upper: 0.0005, currency: 'USD' }, cumulative: { tokens: 240, coveredResponses: 3, pricedResponses: 3, actualPricedResponses: 3, cost: { lower: 0.0015, upper: 0.015, currency: 'USD' }, actualCost: { lower: 0.00015, upper: 0.0015, currency: 'USD' } } }] }],
 };
-const preview: OptimizationPreview = { target: 'skill-catalog', scope: 'project', configPath: '/project/.codex/config.toml', configKey: 'skills.include_instructions', after: false, confirmation: 'digest' };
-const operation = { id: 'operation-id', projectDir: '/project', target: 'skill-catalog' as const, configPath: preview.configPath, createdAt: report.generatedAt, version: '0.154.0-alpha.6.2', status: 'pending' as const };
+const preview: OptimizationPreview = { targets: ['skill-catalog'], scope: 'project', configPaths: ['/project/.codex/config.toml'], configKeys: ['skills.include_instructions'], before: { 'skill-catalog': true }, after: false, confirmation: 'digest' };
+const operation = { id: 'operation-id', projectDir: '/project', targets: ['skill-catalog'] as const, configPaths: ['/project/.codex/config.toml'], createdAt: report.generatedAt, version: '0.154.0-alpha.6.2', status: 'pending' as const };
 
 describe('optimization wizard', () => {
   beforeEach(() => {
@@ -53,6 +54,17 @@ describe('optimization wizard', () => {
     expect(screen.getAllByText('$0.000292').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: '切换费用计价方式' }).textContent).toContain('恢复最高价估算');
   });
+  it('allows multiple controls, sums their effect, and shows a new-session header example', async () => {
+    await open();
+    fireEvent.click(screen.getByRole('checkbox', { name: /停止注入记忆/ }));
+    expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('600')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: /关闭 Plugins 功能/ }));
+    expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('840')).toBeTruthy();
+    const example = screen.getByRole('region', { name: '关闭后会话示例' });
+    expect(example.textContent).toContain('<memories.instructions>');
+    expect(example.textContent).toContain('<plugins_instructions>');
+    expect(example.textContent).toContain('新建 task 后生效');
+  });
   it('requires preview, keeps writes pending until verification, and confirms undo', async () => {
     await open();
     fireEvent.click(screen.getByRole('button', { name: '查看并确认修改' }));
@@ -70,15 +82,16 @@ describe('optimization wizard', () => {
     expect(api.undoOptimizationChange).toHaveBeenCalledWith('/project', operation.id);
   });
   it('requires explicit global consent and clears confirmation when changing the selection', async () => {
-    vi.mocked(api.previewOptimizationChange).mockResolvedValue({ ...preview, target: 'memory', scope: 'user', configKey: 'memories.use_memories' });
+    vi.mocked(api.previewOptimizationChange).mockResolvedValue({ ...preview, targets: ['memory'], scope: 'user', configPaths: ['/home/.codex/config.toml'], configKeys: ['memories.use_memories'], before: { memory: true } });
     await open();
-    fireEvent.click(screen.getByRole('radio', { name: /停止注入记忆/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /隐藏自动技能目录/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /停止注入记忆/ }));
     fireEvent.click(screen.getByRole('button', { name: '查看并确认修改' }));
     const apply = await screen.findByRole('button', { name: '确认修改 · 下个新会话生效' });
     expect((apply as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('checkbox', { name: '我理解此修改影响本机所有 Codex 项目' }));
     expect((apply as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(screen.getByRole('radio', { name: /隐藏自动技能目录/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /停止注入记忆/ }));
     expect(screen.queryByRole('region', { name: '确认这次修改' })).toBeNull();
     expect(api.applyOptimizationChange).not.toHaveBeenCalled();
   });
@@ -87,6 +100,7 @@ describe('optimization wizard', () => {
     unavailable.sessions[0].usage = undefined; unavailable.sessions[0].cost = undefined;
     unavailable.sessions[0].suggestions[0] = { ...unavailable.sessions[0].suggestions[0], available: false, reason: 'incomplete-header', tokens: undefined, cost: undefined, cumulative: undefined };
     unavailable.sessions[0].suggestions[1].available = false;
+    unavailable.sessions[0].suggestions[2].available = false;
     vi.mocked(api.loadOptimization).mockResolvedValue(unavailable);
     await open();
     expect((screen.getByRole('button', { name: '查看并确认修改' }) as HTMLButtonElement).disabled).toBe(true);
@@ -107,7 +121,7 @@ describe('optimization wizard', () => {
     updated.sessions[0].suggestions[0].available = false;
     vi.mocked(api.loadOptimization).mockResolvedValue(updated);
     await open();
-    expect((screen.getByRole('radio', { name: /停止注入记忆/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: /停止注入记忆/ }) as HTMLInputElement).checked).toBe(true);
   });
   it('labels incomplete token and price coverage next to the cumulative amount', async () => {
     const partial = structuredClone(report);

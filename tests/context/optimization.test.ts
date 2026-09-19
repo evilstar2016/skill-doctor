@@ -15,10 +15,10 @@ describe('verified optimization flow', () => {
     mkdirSync(join(project, '.codex'), { recursive: true }); mkdirSync(sessions, { recursive: true });
   });
   afterEach(() => { vi.useRealTimers(); rmSync(root, { recursive: true, force: true }); });
-  function fixture(id = 'baseline', options: { skill?: boolean; memory?: boolean; fork?: boolean; mismatch?: boolean; version?: string; timestamp?: string; ordinal?: number; model?: string } = {}) {
+  function fixture(id = 'baseline', options: { skill?: boolean; memory?: boolean; plugins?: boolean; fork?: boolean; mismatch?: boolean; version?: string; timestamp?: string; ordinal?: number; model?: string } = {}) {
     const timestamp = options.timestamp ?? new Date(now.getTime() - 60_000).toISOString();
-    const kinds = ['generic.developer_instructions', ...(options.skill === false ? [] : ['host_skills.instructions']), ...(options.memory === false ? [] : ['memories.instructions'])];
-    const texts: Record<string, string> = { 'generic.developer_instructions': 'Base instructions', 'host_skills.instructions': '<skills_instructions>Skills available for coding</skills_instructions>', 'memories.instructions': 'Historical preferences and working conventions.' };
+    const kinds = ['generic.developer_instructions', ...(options.skill === false ? [] : ['host_skills.instructions']), ...(options.memory === false ? [] : ['memories.instructions']), ...(options.plugins === false ? [] : ['plugins.usage_instructions', 'plugins.recommendations'])];
+    const texts: Record<string, string> = { 'generic.developer_instructions': 'Base instructions', 'host_skills.instructions': '<skills_instructions>Skills available for coding</skills_instructions>', 'memories.instructions': 'Historical preferences and working conventions.', 'plugins.usage_instructions': 'Plugin tools and skills available.', 'plugins.recommendations': 'Recommended plugins for this task.' };
     const entries = [
       { type: 'session_meta', payload: { id, cwd: project, timestamp, cli_version: options.version ?? '0.154.0-alpha.6.2', source: 'cli', history_mode: 'paginated', history_base: { end_ordinal_exclusive: options.fork ? 120 : 0 }, ...(options.fork ? { forked_from_id: 'parent' } : {}) } },
       { type: 'response_item', payload: { type: 'message', role: 'developer', content: kinds.map((kind) => ({ type: 'input_text', text: texts[kind] })), internal_chat_message_metadata_passthrough: { content_item_kinds: options.mismatch ? kinds.slice(1) : kinds } } },
@@ -44,6 +44,8 @@ describe('verified optimization flow', () => {
     expect(session.cost).toBeCloseTo(0.0131);
     expect(session.suggestions[0]).toMatchObject({ available: true, scope: 'project' });
     expect(session.suggestions[0].cost!.upper).toBeGreaterThan(session.suggestions[0].cost!.lower);
+    expect(session.suggestions[2]).toMatchObject({ id: 'plugins', available: true, scope: 'user', configKey: 'features.plugins' });
+    expect(session.suggestions[2].tokens).toBeGreaterThan(0);
   });
   it('defaults to the highest-priced model while retaining the actual model estimate', async () => {
     fixture('cheap', { model: 'gpt-5.6-luna' });
@@ -160,6 +162,26 @@ describe('verified optimization flow', () => {
     expect(await verifyOptimization(project, op.id, home)).toMatchObject({ status: 'present' });
     undoOptimization(project, op.id, home);
     expect(parseTOML<any>(readFileSync(global, 'utf8')).memories.use_memories).toBe(true);
+  });
+  it('applies project and global controls together and verifies every selected block', async () => {
+    fixture();
+    const config = join(project, '.codex/config.toml');
+    const global = join(home, '.codex/config.toml');
+    writeFileSync(config, 'model = "local"\n');
+    writeFileSync(global, '[memories]\nuse_memories = true\ngenerate_memories = true\n');
+    const preview = await previewOptimization(project, 'baseline', ['skill-catalog', 'memory', 'plugins'], home);
+    expect(preview).toMatchObject({ targets: ['skill-catalog', 'memory', 'plugins'], scope: 'mixed', configKeys: ['skills.include_instructions', 'memories.use_memories', 'features.plugins'], after: false });
+    const op = await applyOptimization(project, 'baseline', ['skill-catalog', 'memory', 'plugins'], preview.confirmation, home);
+    expect(op.targets).toEqual(['skill-catalog', 'memory', 'plugins']);
+    expect(parseTOML<any>(readFileSync(config, 'utf8'))).toMatchObject({ model: 'local', skills: { include_instructions: false } });
+    expect(parseTOML<any>(readFileSync(global, 'utf8'))).toMatchObject({ memories: { use_memories: false, generate_memories: true }, features: { plugins: false } });
+    vi.setSystemTime(now.getTime() + 2000);
+    fixture('fresh', { skill: false, memory: false, plugins: false, timestamp: new Date(now.getTime() + 1000).toISOString() });
+    expect(await verifyOptimization(project, op.id, home)).toMatchObject({ status: 'removed', sessionId: 'fresh', targets: [{ id: 'skill-catalog', status: 'removed' }, { id: 'memory', status: 'removed' }, { id: 'plugins', status: 'removed' }] });
+    expect(undoOptimization(project, op.id, home).status).toBe('restored');
+    expect(parseTOML<any>(readFileSync(config, 'utf8'))).toMatchObject({ model: 'local' });
+    expect(parseTOML<any>(readFileSync(global, 'utf8'))).toMatchObject({ memories: { use_memories: true, generate_memories: true } });
+    expect(parseTOML<any>(readFileSync(global, 'utf8')).features?.plugins).toBeUndefined();
   });
   it('rejects unsupported layouts, arbitrary targets, and symlinked configuration', async () => {
     expect(() => editOptimizationConfig('skills.include_instructions = true', 'skill-catalog', false)).toThrow();

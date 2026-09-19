@@ -17,14 +17,17 @@ Supported actions:
 
 - Hide the automatic skill catalog: project `skills.include_instructions = false`.
 - Stop memory injection: user `memories.use_memories = false`, with global-impact confirmation.
+- Turn off Plugins entirely: user `features.plugins = false`, which removes both `plugins.usage_instructions` and `plugins.recommendations` in a new task; this also disables plugin tools and skill discovery.
 
 These actions are gated to the Desktop version tested in the investigation
 (`0.154.0-alpha.6.2`) and complete initial headers. Writes remain **pending** until
 a newly created task's JSONL proves the target block absent; undo restores only the
 changed key. Unknown prices/usage remain unknown, and estimates are not subscription
-bills or guaranteed savings. Analysis uses up to 20 recent tasks from the last 7 days.
-Single-skill disabling and recommendation-block disabling are not offered because
-their Desktop behavior has not been established reliably.
+bills or guaranteed savings. Analysis covers the selected month or week; the detail
+table shows up to 20 tasks without truncating the period total.
+Single-skill disabling and standalone recommendation-block disabling are not offered
+because their Desktop behavior has not been established reliably. The Plugins action
+is intentionally a whole-feature switch, not a hide-only recommendation switch.
 
 ### Legacy history-driven configuration writes
 

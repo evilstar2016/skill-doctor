@@ -6,7 +6,12 @@ import type { OptimizationPricingMode, OptimizationSuggestion, OptimizationTarge
 import { createTokenCounter } from './tokenCounter';
 
 type TargetTokens = Partial<Record<OptimizationTarget, number>>;
-const kinds = new Map<string, OptimizationTarget>([['host_skills.instructions', 'skill-catalog'], ['memories.instructions', 'memory']]);
+const kinds = new Map<string, OptimizationTarget>([
+  ['host_skills.instructions', 'skill-catalog'],
+  ['memories.instructions', 'memory'],
+  ['plugins.usage_instructions', 'plugins'],
+  ['plugins.recommendations', 'plugins'],
+]);
 
 /** Follow only observed target text, never multiply an initial header by turn count. */
 export async function responseTargetTokens(path: string, records: CodexUsageRecord[], initial: TargetTokens): Promise<Map<number, TargetTokens>> {

@@ -44,13 +44,27 @@ function sumSavings(sessions: OptimizationOverview['sessions'], target: Optimiza
   return { tokens: tokenSessions ? tokens : undefined, cost: sumMoney(costs), actualCost: sumMoney(actualCosts), coveredResponses, pricedResponses, actualPricedResponses };
 }
 
+function sumSelectedSavings(sessions: OptimizationOverview['sessions'], targets: OptimizationTarget[]): NonNullable<OptimizationSuggestion['cumulative']> {
+  const parts = targets.map((target) => sumSavings(sessions, target));
+  const totalResponses = sessions.reduce((sum, session) => sum + session.responseCount, 0);
+  const tokens = parts.some((part) => part.tokens !== undefined) ? parts.reduce((sum, part) => sum + (part.tokens ?? 0), 0) : undefined;
+  return {
+    tokens,
+    cost: sumMoney(parts.map((part) => part.cost)),
+    actualCost: sumMoney(parts.map((part) => part.actualCost)),
+    coveredResponses: Math.min(totalResponses, Math.max(0, ...parts.map((part) => part.coveredResponses))),
+    pricedResponses: Math.min(totalResponses, Math.max(0, ...parts.map((part) => part.pricedResponses))),
+    actualPricedResponses: Math.min(totalResponses, Math.max(0, ...parts.map((part) => part.actualPricedResponses ?? 0))),
+  };
+}
+
 export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const { t, locale } = useTranslation();
   const [data, setData] = useState<OptimizationOverview>();
   const [period, setPeriod] = useState<OptimizationPeriod>('month');
   const [pricingMode, setPricingMode] = useState<OptimizationPricingMode>('max');
   const [sessionId, setSessionId] = useState('');
-  const [target, setTarget] = useState<OptimizationTarget>('skill-catalog');
+  const [selectedTargets, setSelectedTargets] = useState<OptimizationTarget[]>(['skill-catalog']);
   const [step, setStep] = useState(2);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -66,7 +80,9 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const moneyRange = (cost?: { lower: number; upper: number }) => !cost ? t('opt.costUnknown') : cost.lower === cost.upper ? usd(cost.lower) : `${usd(cost.lower)} – ${usd(cost.upper)}`;
   const periodSessions = data?.sessions ?? [];
   const session = data?.sessions.find((item) => item.id === sessionId) ?? data?.sessions[0];
-  const selected = session?.suggestions.find((item) => item.id === target);
+  const selectedSuggestions = selectedTargets.map((id) => session?.suggestions.find((item) => item.id === id)).filter((item): item is OptimizationSuggestion => Boolean(item));
+  const selectionScope = selectedSuggestions.some((item) => item.scope === 'user') ? selectedSuggestions.some((item) => item.scope === 'project') ? 'mixed' : 'user' : 'project';
+  const selectionReady = selectedSuggestions.length > 0 && selectedSuggestions.every((item) => item.available);
   const periodUsage = sumUsage(periodSessions);
   const periodResponseCount = periodSessions.reduce((sum, item) => sum + item.responseCount, 0);
   const periodTurnCount = periodSessions.reduce((sum, item) => sum + (item.turnCount ?? 0), 0);
@@ -74,8 +90,12 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const periodActualCost = sumAmount(periodSessions.map((item) => item.actualCost));
   const periodCostCoverage = periodSessions.reduce((sum, item) => sum + item.costCoverage, 0);
   const periodActualCostCoverage = periodSessions.reduce((sum, item) => sum + (item.actualCostCoverage ?? item.costCoverage), 0);
-  const periodSavings = sumSavings(periodSessions, target);
-  const firstResponseSavings = { tokens: selected?.tokens, cost: selected?.cost, actualCost: selected?.actualCost };
+  const periodSavings = sumSelectedSavings(periodSessions, selectedTargets);
+  const firstResponseSavings = {
+    tokens: selectedSuggestions.some((item) => item.tokens !== undefined) ? selectedSuggestions.reduce((sum, item) => sum + (item.tokens ?? 0), 0) : undefined,
+    cost: sumMoney(selectedSuggestions.map((item) => item.cost)),
+    actualCost: sumMoney(selectedSuggestions.map((item) => item.actualCost)),
+  };
   const displayCost = pricingMode === 'max' ? periodCost : periodActualCost;
   const displayCostCoverage = pricingMode === 'max' ? periodCostCoverage : periodActualCostCoverage;
   const displaySavings = pricingMode === 'max' ? periodSavings : { ...periodSavings, cost: periodSavings.actualCost, pricedResponses: periodSavings.actualPricedResponses ?? 0 };
@@ -84,6 +104,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const date = (value: string) => new Date(value).toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   const day = (value: string) => new Date(value).toLocaleDateString(locale, { month: '2-digit', day: '2-digit' });
   const label = (id: OptimizationTarget) => t(`opt.${id}.title`);
+  const operationTargets = operation?.targets ?? (operation?.target ? [operation.target] : []);
 
   async function refresh(signal?: AbortSignal) {
     setLoading(true); setError(''); setPreview(undefined);
@@ -94,9 +115,15 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
       const current = next.sessions.find((item) => item.id === sessionId);
       const initial = current ?? next.sessions.find((item) => item.suggestions.some((suggestion) => suggestion.available)) ?? next.sessions[0];
       if (initial && initial.id !== sessionId) {
-        setSessionId(initial.id); setTarget(initial.suggestions.find((item) => item.available)?.id ?? 'skill-catalog');
+        setSessionId(initial.id); setSelectedTargets([initial.suggestions.find((item) => item.available)?.id ?? 'skill-catalog']);
+      } else if (initial) {
+        setSelectedTargets((currentTargets) => {
+          const available = currentTargets.filter((id) => initial.suggestions.some((item) => item.id === id && item.available));
+          return available.length ? available : initial.suggestions.filter((item) => item.available).slice(0, 1).map((item) => item.id);
+        });
       } else if (!initial) {
         setSessionId('');
+        setSelectedTargets([]);
       }
     }
     catch (e) { if (!signal?.aborted) setError(String(e)); }
@@ -121,8 +148,18 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
     setBusy(true); setError('');
     try { await run(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
   }
-  function choose(id: OptimizationTarget) { setTarget(id); setPreview(undefined); setGlobalConfirmed(false); }
-  function chooseSession(id: string) { setSessionId(id); setPreview(undefined); setGlobalConfirmed(false); }
+  function choose(id: OptimizationTarget) {
+    setSelectedTargets((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setPreview(undefined); setGlobalConfirmed(false);
+  }
+  function chooseSession(id: string) {
+    setSessionId(id); setPreview(undefined); setGlobalConfirmed(false);
+    const next = data?.sessions.find((item) => item.id === id);
+    if (next) setSelectedTargets((current) => {
+      const available = current.filter((targetId) => next.suggestions.some((item) => item.id === targetId && item.available));
+      return available.length ? available : next.suggestions.filter((item) => item.available).slice(0, 1).map((item) => item.id);
+    });
+  }
 
   return <section className="optimization-wizard" aria-label={t('opt.title')}>
     <header className="opt-heading"><div><h1>{t('opt.title')}</h1><p>{t('opt.subtitle')}</p></div>
@@ -160,30 +197,37 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
     </div>}
     {step === 2 && session && <div className="opt-select">
       <h2>{t('opt.startWhere')}</h2><p>{t('opt.selectDetail')}</p>
-      <fieldset className="opt-choices"><legend className="sr-only">{t('opt.selectDetail')}</legend>{session.suggestions.map((item) => <label key={item.id} className={`opt-choice ${target === item.id ? 'selected' : ''}`}>
-        <input type="radio" name="optimization" value={item.id} checked={target === item.id} onChange={() => choose(item.id)} disabled={busy} />
-        <span><strong>{label(item.id)}</strong><span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span><small>{t(`opt.${item.id}.summary`)}</small>{item.reason && <small className="opt-reason">{t(`opt.reason.${item.reason}`)}</small>}</span><ChevronRight size={21} />
-      </label>)}</fieldset>
-      {selected && <div className="opt-impact"><section aria-label={t(displaySavings.coveredResponses === periodResponseCount && periodResponseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}><h3>{t(displaySavings.coveredResponses === periodResponseCount && periodResponseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}</h3>
-        <small>{t('opt.periodSummary', { sessions: n(periodSessions.length), turns: n(periodTurnCount), responses: n(periodResponseCount) })}</small>
-        <small className="opt-selected-session">{t('opt.selectedSession', { date: session.timestamp ? date(session.timestamp) : '—' })}</small>
-        <div className="opt-savings-layout"><div className="opt-total-saving"><div className="opt-saving">{n(displaySavings.tokens)} <span>Token</span></div><div className="opt-money">{moneyRange(displaySavings.cost)}</div>
-          {displaySavings.cost && displaySavings.pricedResponses < displaySavings.coveredResponses && <small>{t('opt.partialCost', { count: n(displaySavings.pricedResponses) })}</small>}</div>
-          <aside className="opt-first-saving" aria-label={t('opt.firstResponse')}><small>{t('opt.firstResponse')}</small><strong>{n(displayFirstResponse.tokens)} Token</strong><small>{moneyRange(displayFirstResponse.cost)}</small></aside></div>
-        <small>{t('opt.savingsCoverage', { covered: n(displaySavings.coveredResponses), total: n(periodResponseCount), priced: n(displaySavings.pricedResponses) })}</small>
-        <small>{t('opt.cumulativeDetail')}</small></section>
-        <section><h3>{t('opt.needToKnow')}</h3><div className="opt-impact-line"><FileText size={25} /><div><strong>{t(`opt.${target}.impact`)}</strong><small>{t(`opt.${target}.impactDetail`)}</small></div></div><div className="opt-impact-line"><Layers size={25} /><div><strong>{t(selected.scope === 'user' ? 'opt.allProjects' : 'opt.projectOnly')}</strong><small>{t(selected.scope === 'user' ? 'opt.globalDetail' : 'opt.projectDetail')}</small></div></div><div className="opt-impact-line"><Clock3 size={25} /><div><strong>{t('opt.nextSession')}</strong><small>{t('opt.nextSessionDetail')}</small></div></div></section></div>}
-      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.confirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPath}</code><code>{preview.configKey}: {String(preview.before ?? 'default')} → false</code></details>{preview.scope === 'user' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
+      <fieldset className="opt-choices"><legend className="sr-only">{t('opt.selectDetail')}</legend>{session.suggestions.map((item) => {
+        const checked = selectedTargets.includes(item.id);
+        return <label key={item.id} className={`opt-choice ${checked ? 'selected' : ''} ${!item.available ? 'unavailable' : ''}`}>
+          <input type="checkbox" name="optimization" value={item.id} checked={checked} onChange={() => choose(item.id)} disabled={busy || !item.available} />
+          <span><strong>{label(item.id)}</strong><span className={`opt-scope ${item.scope === 'user' ? 'global' : ''}`}>{t(item.scope === 'user' ? 'opt.globalImpact' : 'opt.projectOnly')}</span><small>{t(`opt.${item.id}.summary`)}</small>{item.reason && <small className="opt-reason">{t(`opt.reason.${item.reason}`)}</small>}</span><ChevronRight size={21} />
+        </label>;
+      })}</fieldset>
+      <p className="opt-selection-meta">{t('opt.selectedCount', { count: n(selectedTargets.length) })}{selectionScope !== 'project' && <span>{t('opt.globalImpact')}</span>}</p>
+      {selectedSuggestions.length > 0 && <>
+        <div className="opt-impact"><section aria-label={t(displaySavings.coveredResponses === periodResponseCount && periodResponseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}><h3>{t(displaySavings.coveredResponses === periodResponseCount && periodResponseCount > 0 ? 'opt.totalSavings' : 'opt.coveredSavings')}</h3>
+          <small>{t('opt.periodSummary', { sessions: n(periodSessions.length), turns: n(periodTurnCount), responses: n(periodResponseCount) })}</small>
+          <small className="opt-selected-session">{t('opt.selectedSession', { date: session.timestamp ? date(session.timestamp) : '—' })}</small>
+          <div className="opt-savings-layout"><div className="opt-total-saving"><div className="opt-saving">{n(displaySavings.tokens)} <span>Token</span></div><div className="opt-money">{moneyRange(displaySavings.cost)}</div>
+            {displaySavings.cost && displaySavings.pricedResponses < displaySavings.coveredResponses && <small>{t('opt.partialCost', { count: n(displaySavings.pricedResponses) })}</small>}</div>
+            <aside className="opt-first-saving" aria-label={t('opt.firstResponse')}><small>{t('opt.firstResponse')}</small><strong>{n(displayFirstResponse.tokens)} Token</strong><small>{moneyRange(displayFirstResponse.cost)}</small></aside></div>
+          <small>{t('opt.savingsCoverage', { covered: n(displaySavings.coveredResponses), total: n(periodResponseCount), priced: n(displaySavings.pricedResponses) })}</small>
+          <small>{t('opt.cumulativeDetail')}</small></section>
+          <section><h3>{t('opt.needToKnow')}</h3>{selectedSuggestions.map((item) => <div className="opt-impact-line" key={item.id}><FileText size={25} /><div><strong>{label(item.id)} · {t(`opt.${item.id}.impact`)}</strong><small>{t(`opt.${item.id}.impactDetail`)}</small></div></div>)}<div className="opt-impact-line"><Layers size={25} /><div><strong>{t(selectionScope === 'project' ? 'opt.projectOnly' : 'opt.allProjects')}</strong><small>{t(selectionScope === 'project' ? 'opt.projectDetail' : 'opt.globalDetail')}</small></div></div><div className="opt-impact-line"><Clock3 size={25} /><div><strong>{t('opt.nextSession')}</strong><small>{t('opt.nextSessionDetail')}</small></div></div></section></div>
+        <section className="opt-example" aria-label={t('opt.exampleTitle')}><div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3><p>{t('opt.exampleDetail')}</p></div><span>{t('opt.exampleNewSession')}</span></div><div className="opt-example-grid"><div className="opt-example-pane before"><small>{t('opt.exampleBefore')}</small><pre>{selectedTargets.map((id) => t(`opt.${id}.exampleBlock`)).join('\n')}</pre></div><ArrowRight className="opt-example-arrow" size={22} /><div className="opt-example-pane after"><small>{t('opt.exampleAfter')}</small><pre>{t('opt.exampleRemaining')}</pre></div></div><div className="opt-example-result">{selectedTargets.map((id) => <span key={id}>{label(id)}：{t(`opt.${id}.exampleAfter`)}</span>)}</div><small className="opt-example-note">{t('opt.exampleDisclaimer')}</small></section>
+      </>}
+      {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → false`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
       {previousPending && <p className="muted">{t('opt.finishPrevious')}</p>}
-      <div className="opt-actions"><button className="button primary" disabled={busy || loading || previousPending || !selected?.available || (preview?.scope === 'user' && !globalConfirmed)} onClick={() => void action(async () => {
-        if (!session) return;
-        if (!preview) { setPreview(await previewOptimizationChange(projectDir, session.id, target)); return; }
+      <div className="opt-actions"><button className="button primary" disabled={busy || loading || previousPending || !selectionReady || Boolean(preview && preview.scope !== 'project' && !globalConfirmed)} onClick={() => void action(async () => {
+        if (!session || !selectedTargets.length) return;
+        if (!preview) { setPreview(await previewOptimizationChange(projectDir, session.id, selectedTargets)); return; }
         const result = await applyOptimizationChange(projectDir, session.id, preview); persist(result); setVerification(undefined); setPreview(undefined); setStep(3); void refresh();
       })}>{busy ? t('opt.working') : t(preview ? 'opt.apply' : 'opt.review')}</button><button className="button secondary" disabled={busy} onClick={() => { setPreview(undefined); setStep(1); }}>{t('opt.later')}</button></div>
       <details className="opt-limitations"><summary>{t('opt.limits')}</summary><p>{t('opt.pluginLimit')}</p><p>{t('opt.skillLimit')}</p><p>{t('opt.otherBlocks')}</p></details>
     </div>}
     {step === 3 && <div className="opt-verification" aria-live="polite"><h2>{t(operation?.status === 'restored' ? 'opt.restored' : verification?.status === 'removed' ? 'opt.verified' : operation ? 'opt.pending' : 'opt.noOperation')}</h2>
-      {operation ? <><p>{label(operation.target)} · {date(operation.createdAt)}</p><p>{t('opt.verificationDetail')}</p><ol><li>{t('opt.createTask', { project: projectDir })}</li><li>{t('opt.sendMessage')}</li><li>{t('opt.checkDetail')}</li></ol>
+      {operation ? <><p>{operationTargets.map((targetId) => label(targetId)).join(' + ')} · {date(operation.createdAt)}</p><p>{t('opt.verificationDetail')}</p><ol><li>{t('opt.createTask', { project: projectDir })}</li><li>{t('opt.sendMessage')}</li><li>{t('opt.checkDetail')}</li></ol>
         {verification && <p className={`opt-verification-result ${verification.status}`} role="status">{t(verification.status === 'removed' ? 'opt.removedDetail' : verification.status === 'present' ? 'opt.stillPresent' : verification.reason === 'config-changed' ? 'opt.configChanged' : 'opt.noFreshSession')}{verification.sessionId && <code>{verification.sessionId}</code>}</p>}
         {operation.status === 'pending' && <div className="opt-actions"><button className="button primary" disabled={busy} onClick={() => void action(async () => setVerification(await checkOptimizationChange(projectDir, operation.id)))}>{busy ? t('opt.working') : t('opt.checkNewSession')}</button><button className="button secondary" disabled={busy} onClick={() => setUndoPending(true)}><Undo2 size={17} />{t('opt.undo')}</button></div>}
         {undoPending && <div className="opt-confirm"><p>{t('opt.undoConfirm')}</p><button className="button secondary" disabled={busy} onClick={() => void action(async () => { persist(await undoOptimizationChange(projectDir, operation.id)); setUndoPending(false); setVerification(undefined); void refresh(); })}>{t('opt.confirmUndo')}</button><button className="button ghost" onClick={() => setUndoPending(false)}>{t('opt.cancel')}</button></div>}

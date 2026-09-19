@@ -14,7 +14,6 @@ export async function handleOptimizationRoute(request: IncomingMessage, response
     sendJson(response, 400, { error: 'Open the UI for this project before optimizing it.' });
     return true;
   }
-  const target = body.target as OptimizationTarget;
   let result: unknown;
   switch (body.action) {
     case 'overview': {
@@ -22,8 +21,16 @@ export async function handleOptimizationRoute(request: IncomingMessage, response
       result = await optimizationOverview(project, context.homeDir, period);
       break;
     }
-    case 'preview': result = await previewOptimization(project, requiredString(body.sessionId, 'sessionId'), target, context.homeDir); break;
-    case 'apply': result = await applyOptimization(project, requiredString(body.sessionId, 'sessionId'), target, requiredString(body.confirmation, 'confirmation'), context.homeDir); break;
+    case 'preview': {
+      const targets = Array.isArray(body.targets) ? body.targets as OptimizationTarget[] : [body.target as OptimizationTarget];
+      result = await previewOptimization(project, requiredString(body.sessionId, 'sessionId'), targets, context.homeDir);
+      break;
+    }
+    case 'apply': {
+      const targets = Array.isArray(body.targets) ? body.targets as OptimizationTarget[] : [body.target as OptimizationTarget];
+      result = await applyOptimization(project, requiredString(body.sessionId, 'sessionId'), targets, requiredString(body.confirmation, 'confirmation'), context.homeDir);
+      break;
+    }
     case 'verify': result = await verifyOptimization(project, requiredString(body.operationId, 'operationId'), context.homeDir); break;
     case 'undo':
       if (body.confirmation !== body.operationId) {

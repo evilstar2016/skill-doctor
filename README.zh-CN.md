@@ -9,11 +9,12 @@
 
 - 隐藏自动技能目录：项目配置 `skills.include_instructions = false`。
 - 停止注入记忆：用户配置 `memories.use_memories = false`，需确认全局影响。
+- 完全关闭 Plugins：用户配置 `features.plugins = false`，新 task 中会同时移除 `plugins.usage_instructions` 和 `plugins.recommendations`；插件工具与技能发现也会关闭。
 
 操作仅在调查验证过的 Desktop 版本 `0.154.0-alpha.6.2` 且初始会话头完整时开放。
 配置写入后显示「待验证」，需手动新建 Desktop task，再读取其 JSONL 检查目标是否消失。
 支持只恢复本次目标键的撤销；缺失用量或价格不虚构数字，美元金额不代表订阅账单或保证节省。
-单个技能和推荐插件块的可靠关闭尚未确认，页面不提供相应禁用按钮。
+单个技能和推荐插件块的独立关闭尚未可靠确认，页面不提供相应按钮；Plugins 选项是整个功能开关，不是只隐藏推荐列表。
 
 ### 旧版历史配置写入工具
 
