@@ -238,12 +238,13 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
       const versionSupported = /^\d+\.\d+\.\d+/.test(latestVersion ?? header.version ?? '');
       const versionWarning = header.version !== VERIFIED_VERSION || Boolean(latestVersion && latestVersion !== VERIFIED_VERSION);
       const overridden = hasConfigOverride(projectDir, id, homeDir);
-      const available = header.complete && versionSupported && !configuredOff && !overridden && (id === 'skill-catalog' || Boolean(observed));
+      const canSelectWithoutObservedBlock = id === 'skill-catalog' || id === 'plugins';
+      const available = header.complete && versionSupported && !configuredOff && !overridden && (canSelectWithoutObservedBlock || Boolean(observed));
       const cost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'max') : undefined;
       const actualCost = tokens !== undefined && records[0] ? responseSavingsCost(tokens, records[0], 'actual') : undefined;
       const cumulative = cumulativeSavings(id, records, observations, 'max');
       const actualCumulative = cumulativeSavings(id, records, observations, 'actual');
-      const knownZeroCumulative = id === 'skill-catalog' && header.complete && !observed && cumulative.tokens === undefined;
+      const knownZeroCumulative = canSelectWithoutObservedBlock && header.complete && !observed && cumulative.tokens === undefined;
       return { id, scope: def.scope, configPath: path, configKey: `${def.table}.${def.key}`, configuredOff, available, canEnable: configuredOff && versionSupported && !overridden, ...(configValues ? { configValues } : {}), versionWarning, tokens, cost, actualCost,
         cumulative: { ...cumulative, ...(knownZeroCumulative ? { tokens: 0 } : {}), actualCost: actualCumulative.cost, actualPricedResponses: actualCumulative.pricedResponses },
         reason: overridden ? 'config-override' : configuredOff ? 'configured-off' : !header.complete ? 'incomplete-header' : !versionSupported ? 'unsupported-version' : !observed ? 'absent' : undefined };

@@ -84,6 +84,7 @@ describe('verified optimization flow', () => {
   it('uses project-over-global skill catalog configuration and keeps absent complete sessions selectable with zero savings', async () => {
     fixture('observed');
     fixture('absent', { skill: false });
+    fixture('plugins-absent', { plugins: false });
     const global = join(home, '.codex/config.toml');
     writeFileSync(global, '[skills]\ninclude_instructions = false\n');
     let report = await optimizationOverview(project, home);
@@ -92,6 +93,7 @@ describe('verified optimization flow', () => {
     report = await optimizationOverview(project, home);
     expect(report.sessions.find((session) => session.id === 'observed')?.suggestions[0]).toMatchObject({ configuredOff: false, available: true, configValues: { project: true, global: false, effective: true, source: 'project' } });
     expect(report.sessions.find((session) => session.id === 'absent')?.suggestions[0]).toMatchObject({ available: true, reason: 'absent', tokens: 0, cumulative: { tokens: 0, coveredResponses: 0, pricedResponses: 0 } });
+    expect(report.sessions.find((session) => session.id === 'plugins-absent')?.suggestions[2]).toMatchObject({ available: true, reason: 'absent', tokens: 0, cumulative: { tokens: 0, coveredResponses: 0, pricedResponses: 0 } });
   });
   it('defaults to the highest-priced model while retaining the actual model estimate', async () => {
     fixture('cheap', { model: 'gpt-5.6-luna' });
