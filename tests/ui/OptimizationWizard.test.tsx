@@ -10,6 +10,7 @@ vi.mock('../../web/src/api', () => ({ loadOptimization: vi.fn(), previewOptimiza
 const report: OptimizationOverview = {
   projectDir: '/project', generatedAt: '2026-09-18T12:00:00Z', period: 'month', periodStart: '2026-09-01T00:00:00Z', periodEnd: '2026-09-18T12:00:00Z', maxPriceModel: 'gpt-6-astra', priceDate: '2026-09-07', diagnostics: [],
   sessions: [{ id: 'session-one', timestamp: '2026-09-18T11:00:00Z', version: '0.154.0-alpha.6.2', model: 'gpt-6-astra', sourcePath: '/home/.codex/sessions/one.jsonl', completeHeader: true,
+    headerBlocks: [{ kind: 'memories.instructions', excerpt: 'Real memory excerpt', characters: 100, target: 'memory' }, { kind: 'plugins.usage_instructions', excerpt: 'Real plugin excerpt', characters: 19, target: 'plugins' }, { kind: 'generic.developer_instructions', excerpt: 'Retained instructions', characters: 21 }],
     usage: { inputTokens: 1000, cachedInputTokens: 800, cacheWriteInputTokens: 0, outputTokens: 100, reasoningOutputTokens: 20, totalTokens: 1100 }, responseCount: 3, turnCount: 2, cost: 0.0131, actualCost: 0.000292, costCoverage: 3, actualCostCoverage: 3,
     suggestions: [{ id: 'skill-catalog', scope: 'project', configPath: '/project/.codex/config.toml', configKey: 'skills.include_instructions', configuredOff: false, available: true, tokens: 140, cost: { lower: 0.001, upper: 0.01, currency: 'USD' }, actualCost: { lower: 0.0001, upper: 0.001, currency: 'USD' }, cumulative: { tokens: 420, coveredResponses: 3, pricedResponses: 3, actualPricedResponses: 3, cost: { lower: 0.003, upper: 0.03, currency: 'USD' }, actualCost: { lower: 0.0003, upper: 0.003, currency: 'USD' } } },
       { id: 'memory', scope: 'user', configPath: '/home/.codex/config.toml', configKey: 'memories.use_memories', configuredOff: false, available: true, tokens: 60, cost: { lower: 0.0004, upper: 0.004, currency: 'USD' }, actualCost: { lower: 0.00004, upper: 0.0004, currency: 'USD' }, cumulative: { tokens: 180, coveredResponses: 3, pricedResponses: 3, actualPricedResponses: 3, cost: { lower: 0.0012, upper: 0.012, currency: 'USD' }, actualCost: { lower: 0.00012, upper: 0.0012, currency: 'USD' } } },
@@ -61,9 +62,11 @@ describe('optimization wizard', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /关闭 Plugins 功能/ }));
     expect(within(screen.getByRole('region', { name: '整段会话预计节省' })).getByText('840')).toBeTruthy();
     const example = screen.getByRole('region', { name: '关闭后会话示例' });
-    expect(example.textContent).toContain('<memories.instructions>');
-    expect(example.textContent).toContain('<plugins_instructions>');
-    expect(example.textContent).toContain('新建 task 后生效');
+    expect(example.textContent).toContain('Real memory excerpt…');
+    expect(example.textContent).toContain('100 个字符');
+    expect(example.querySelector('.after')!.textContent).not.toContain('Real memory excerpt');
+    expect(example.querySelector('.after')!.textContent).not.toContain('Real plugin excerpt');
+    expect(example.querySelector('.after')!.textContent).toContain('Retained instructions');
   });
   it('requires preview, keeps writes pending until verification, and confirms undo', async () => {
     await open();

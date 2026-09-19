@@ -1,4 +1,10 @@
 {
+  "opt.realBefore": "Before · actual selected session",
+  "opt.realAfter": "After · selected blocks removed",
+  "opt.blockCharacters": "{{count}} characters",
+  "opt.previewIncomplete": "Incomplete header; only observed fragments are shown.",
+  "opt.noPreviewBlocks": "No blocks to display",
+  "opt.realPreviewNote": "From the selected session JSONL: first 50 Unicode characters and full character count per block. The right side simulates removal; verify the actual effect in a new session.",
   "opt.enable": "Re-enable",
   "opt.confirmEnable": "Confirm enable · applies to a new session",
   "opt.enableDetail": "Re-enable the selected functionality and its context. Token usage may increase. Review the settings below; global settings affect every project.",

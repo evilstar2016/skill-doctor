@@ -46,6 +46,8 @@ describe('verified optimization flow', () => {
     expect(session.suggestions[0].cost!.upper).toBeGreaterThan(session.suggestions[0].cost!.lower);
     expect(session.suggestions[2]).toMatchObject({ id: 'plugins', available: true, scope: 'user', configKey: 'features.plugins' });
     expect(session.suggestions[2].tokens).toBeGreaterThan(0);
+    const original = '<skills_instructions>Skills available for coding</skills_instructions>';
+    expect(session.headerBlocks?.find((block) => block.kind === 'host_skills.instructions')).toEqual({ kind: 'host_skills.instructions', excerpt: original.slice(0, 50), characters: original.length, target: 'skill-catalog' });
   });
   it('defaults to the highest-priced model while retaining the actual model estimate', async () => {
     fixture('cheap', { model: 'gpt-5.6-luna' });

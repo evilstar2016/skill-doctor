@@ -142,3 +142,4 @@ All notable changes to `skill-doctor` are documented here.
 
 - Initial public release.
 - Added local skill scanning and terminal reporting.
+- Replace illustrative optimization headers with real selected-session blocks, showing the first 50 Unicode characters and full character counts before and after selected removals.

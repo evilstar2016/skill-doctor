@@ -32,6 +32,7 @@ export interface OptimizationSession {
   model?: string;
   sourcePath: string;
   completeHeader: boolean;
+  headerBlocks?: Array<{ kind: string; excerpt: string; characters: number; target?: OptimizationTarget }>;
   usage?: CodexUsage;
   responseCount: number;
   turnCount?: number;

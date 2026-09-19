@@ -221,8 +221,20 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
           <small>{t('opt.savingsCoverage', { covered: n(displaySavings.coveredResponses), total: n(periodResponseCount), priced: n(displaySavings.pricedResponses) })}</small>
           <small>{t('opt.cumulativeDetail')}</small></section>
           <section><h3>{t('opt.needToKnow')}</h3>{selectedSuggestions.map((item) => <div className="opt-impact-line" key={item.id}><FileText size={25} /><div><strong>{label(item.id)} · {t(`opt.${item.id}.impact`)}</strong><small>{t(`opt.${item.id}.impactDetail`)}</small></div></div>)}<div className="opt-impact-line"><Layers size={25} /><div><strong>{t(selectionScope === 'project' ? 'opt.projectOnly' : 'opt.allProjects')}</strong><small>{t(selectionScope === 'project' ? 'opt.projectDetail' : 'opt.globalDetail')}</small></div></div><div className="opt-impact-line"><Clock3 size={25} /><div><strong>{t('opt.nextSession')}</strong><small>{t('opt.nextSessionDetail')}</small></div></div></section></div>
-        <section className="opt-example" aria-label={t('opt.exampleTitle')}><div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3><p>{t('opt.exampleDetail')}</p></div><span>{t('opt.exampleNewSession')}</span></div><div className="opt-example-grid"><div className="opt-example-pane before"><small>{t('opt.exampleBefore')}</small><pre>{selectedTargets.map((id) => t(`opt.${id}.exampleBlock`)).join('\n')}</pre></div><ArrowRight className="opt-example-arrow" size={22} /><div className="opt-example-pane after"><small>{t('opt.exampleAfter')}</small><pre>{t('opt.exampleRemaining')}</pre></div></div><div className="opt-example-result">{selectedTargets.map((id) => <span key={id}>{label(id)}：{t(`opt.${id}.exampleAfter`)}</span>)}</div><small className="opt-example-note">{t('opt.exampleDisclaimer')}</small></section>
       </>}
+      <section className="opt-example" aria-label={t('opt.exampleTitle')}>
+        <div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3><p>{projectDir} · {date(session.timestamp)} · {session.id}</p></div></div>
+        {!session.completeHeader && <p>{t('opt.previewIncomplete')}</p>}
+        <div className="opt-example-grid">{(['before', 'after'] as const).map((side) => <div className={`opt-example-pane ${side}`} key={side}>
+          <h4>{t(side === 'before' ? 'opt.realBefore' : 'opt.realAfter')}</h4>
+          {(session.headerBlocks ?? []).filter((block) => side === 'before' || !block.target || !selectedTargets.includes(block.target)).map((block) => <article className="opt-real-block" key={block.kind}>
+            <strong>{block.kind}</strong><small>{t('opt.blockCharacters', { count: n(block.characters) })}</small>
+            <pre>{block.excerpt}{block.characters > 50 ? '…' : ''}</pre>
+          </article>)}
+          {!(session.headerBlocks ?? []).some((block) => side === 'before' || !block.target || !selectedTargets.includes(block.target)) && <p>{t('opt.noPreviewBlocks')}</p>}
+        </div>)}</div>
+        <small className="opt-example-note">{t('opt.realPreviewNote')}</small>
+      </section>
       {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.after ? 'opt.enableDetail' : preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p><details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → ${preview.after}`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}
       {previousPending && <p className="muted">{t('opt.finishPrevious')}</p>}
       <div className="opt-actions"><button className="button primary" disabled={busy || loading || (!preview?.after && (previousPending || !selectionReady)) || Boolean(preview && preview.scope !== 'project' && !globalConfirmed)} onClick={() => void action(async () => {

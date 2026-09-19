@@ -229,6 +229,11 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
       return priced.length ? priced.reduce((sum, item) => sum + item.amount, 0) : undefined;
     };
     return { id: session.sessionId, timestamp: session.timestamp, version: header.version, model, sourcePath: session.filePath, completeHeader: header.complete, usage,
+      headerBlocks: Object.entries(header.kinds).map(([kind, text]) => {
+        const characters = Array.from(text);
+        const target = (Object.keys(TARGETS) as OptimizationTarget[]).find((id) => (TARGETS[id].kinds as readonly string[]).includes(kind));
+        return { kind, excerpt: characters.slice(0, 50).join(''), characters: characters.length, target };
+      }),
       responseCount: records.length, turnCount: records.length && records.every((record) => record.rootTurnId || record.turnId) ? new Set(records.map((record) => record.rootTurnId ?? record.turnId)).size : undefined,
       cost: amount(costs),
       actualCost: amount(actualCosts),

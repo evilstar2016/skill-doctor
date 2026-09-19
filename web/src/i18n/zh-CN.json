@@ -1,4 +1,10 @@
 {
+  "opt.realBefore": "优化前 · 所选会话真实内容",
+  "opt.realAfter": "优化后 · 按勾选移除的预览",
+  "opt.blockCharacters": "{{count}} 个字符",
+  "opt.previewIncomplete": "此会话头不完整，仅展示已读取的片段。",
+  "opt.noPreviewBlocks": "没有可展示的 block",
+  "opt.realPreviewNote": "来自所选会话 JSONL，每个 block 展示前 50 个 Unicode 字符及原文总字符数。右侧模拟移除勾选内容，实际效果需在新会话验证。",
   "opt.enable": "重新开启",
   "opt.confirmEnable": "确认开启 · 下个新会话生效",
   "opt.enableDetail": "重新开启所选功能，会恢复相应上下文或能力，Token 开销可能增加。下方列出将修改的配置；全局项影响所有项目。",

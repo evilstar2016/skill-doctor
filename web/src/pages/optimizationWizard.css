@@ -57,7 +57,10 @@
 .opt-example h3 { margin: 0 0 5px; font-size: 19px; }
 .opt-example p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .opt-example-heading > span { flex: 0 0 auto; padding: 5px 9px; color: var(--accent-text); background: var(--accent-soft); border-radius: var(--radius-pill); font-size: 11px; }
-.opt-example-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 14px; margin-top: 18px; }
+.opt-example-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; margin-top: 18px; }
+.opt-real-block { padding: 12px 0; border-top: 1px solid var(--border); }
+.opt-real-block strong { font-size: 12px; overflow-wrap: anywhere; }
+.opt-example-heading p { overflow-wrap: anywhere; }
 .opt-example-pane { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .opt-example-pane small { display: block; color: var(--muted); font-size: 11px; }
 .opt-example-pane pre { min-height: 56px; margin: 10px 0 0; color: var(--text); font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
