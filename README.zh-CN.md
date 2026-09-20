@@ -60,7 +60,7 @@ CLI 帮助必须包含 `context control`；旧版本不能用禁用已安装插�
 
 ## 30 秒试用
 
-当前版本：npm 上的 [`v0.6.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.6.0)。
+当前版本：npm 上的 [`v0.7.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.7.0)。
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -86,15 +86,15 @@ npx @evilstar2025/skill-doctor dashboard
 如果你使用 WorkBuddy，可以直接指定平台：
 
 ```bash
-npx @evilstar2025/skill-doctor@0.6.0 scan --platform workbuddy
-npx @evilstar2025/skill-doctor@0.6.0 cost --platform workbuddy
+npx @evilstar2025/skill-doctor@0.7.0 scan --platform workbuddy
+npx @evilstar2025/skill-doctor@0.7.0 cost --platform workbuddy
 ```
 
 如果你使用 InfCode，可以直接指定平台：
 
 ```bash
-npx @evilstar2025/skill-doctor@0.6.0 scan --platform infcode
-npx @evilstar2025/skill-doctor@0.6.0 cost --platform infcode
+npx @evilstar2025/skill-doctor@0.7.0 scan --platform infcode
+npx @evilstar2025/skill-doctor@0.7.0 cost --platform infcode
 ```
 
 如果结果显示 `0` 个 project skills，建议先跑下面的安全 demo。demo 会展示已知的重复、冲突和审计结果，不需要先扫描你的私人配置。

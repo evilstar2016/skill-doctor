@@ -2,7 +2,7 @@
 
 All notable changes to `skill-doctor` are documented here.
 
-## Unreleased
+## 0.7.0 - 2026-09-20
 
 ### Features
 

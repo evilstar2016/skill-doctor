@@ -83,7 +83,7 @@ Use it when Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, WorkBuddy
 
 ## Try it in 30 seconds
 
-Current release: [`v0.6.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.6.0) on npm.
+Current release: [`v0.7.0`](https://github.com/evilstar2016/skill-doctor/releases/tag/v0.7.0) on npm.
 
 ```bash
 npx @evilstar2025/skill-doctor scan
@@ -109,15 +109,15 @@ npx @evilstar2025/skill-doctor dashboard
 For WorkBuddy users, target the platform explicitly:
 
 ```bash
-npx @evilstar2025/skill-doctor@0.6.0 scan --platform workbuddy
-npx @evilstar2025/skill-doctor@0.6.0 cost --platform workbuddy
+npx @evilstar2025/skill-doctor@0.7.0 scan --platform workbuddy
+npx @evilstar2025/skill-doctor@0.7.0 cost --platform workbuddy
 ```
 
 For InfCode users, target the platform explicitly:
 
 ```bash
-npx @evilstar2025/skill-doctor@0.6.0 scan --platform infcode
-npx @evilstar2025/skill-doctor@0.6.0 cost --platform infcode
+npx @evilstar2025/skill-doctor@0.7.0 scan --platform infcode
+npx @evilstar2025/skill-doctor@0.7.0 cost --platform infcode
 ```
 
 If it reports `0` project skills, try the safe demo below first. That gives you known duplicate/conflict/audit findings before you scan private local setup.
