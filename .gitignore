@@ -30,6 +30,7 @@ dev-doc/
 /docs/design/
 /docs/optimization-qa/
 
-# 内部材料
+# 内部引流材料：仅本地保留，不进入开源仓库
+/CODEX_OPTIMIZATION_SHOWCASE.zh-CN.md
 /CODEX_OPTIMIZATION_WECHAT.zh-CN.md
-
+/assets/manual/codex-optimization/
