@@ -19,6 +19,7 @@ All notable changes to `skill-doctor` are documented here.
 - Include per-candidate rationale, evidence and control commands in text/HTML history reports, plus a copyable Agent + Skill prompt in the UI.
 
 ### Fixes
+- Compare session previews against the earliest scanned complete original header containing skills, memories, and Plugins; show full text in aligned block pairs and leave disabled blocks blank on the right.
 - Remove ineffective project-level individual Codex skill controls from the UI and write APIs; ignore project skill-selector rules in local inventory while retaining user-level selectors and the separately verified whole-catalog control.
 - Keep known Codex controls usable after version upgrades with a fresh-session verification reminder; add confirmed re-enable actions for disabled blocks and verify restoration as well as removal.
 - Keep coverage-only context information out of the default issue count and navigation badge, show unknown estimates as unavailable, and restrict historical recommendations to Codex-supported analysis.

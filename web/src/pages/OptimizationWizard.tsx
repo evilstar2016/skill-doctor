@@ -83,6 +83,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   const [verification, setVerification] = useState<OptimizationVerification>();
   const [undoPending, setUndoPending] = useState(false);
   const [exampleOpen, setExampleOpen] = useState(false);
+  const [expandedPreviewBlocks, setExpandedPreviewBlocks] = useState<Set<string>>(() => new Set());
   const storageKey = `skill-doctor:optimization:${projectDir}`;
   const n = (value?: number) => value === undefined ? '—' : value.toLocaleString(locale);
   const usd = (value?: number) => value === undefined ? '—' : `$${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
@@ -123,6 +124,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
 
   async function refresh(signal?: AbortSignal) {
     setLoading(true); setError(''); setPreview(undefined);
+    setExpandedPreviewBlocks(new Set());
     try {
       const next = await loadOptimization(projectDir, signal, period);
       if (signal?.aborted) return;
@@ -169,6 +171,7 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
   }
   function chooseSession(id: string) {
     setExampleOpen(false);
+    setExpandedPreviewBlocks(new Set());
     setSessionId(id); setPreview(undefined); setGlobalConfirmed(false);
     const next = data?.sessions.find((item) => item.id === id);
     if (next) setSelectedTargets((current) => {
@@ -252,18 +255,43 @@ export function OptimizationWizard({ projectDir }: { projectDir: string }) {
           {sessionsWithoutSelectedBlocks > 0 && <small className="opt-savings-note">{t('opt.noBlockSavingsNote', { count: n(sessionsWithoutSelectedBlocks) })}</small>}
           <small>{selectedSuggestions.length ? t('opt.cumulativeDetail') : t('opt.noSelection')}</small></section></div>
       </div>
-      <div className="opt-example-toggle"><button className="button ghost compact" aria-expanded={exampleOpen} aria-controls="opt-session-example" onClick={() => setExampleOpen(!exampleOpen)}>{t(exampleOpen ? 'opt.hideExample' : 'opt.showExample')}<ArrowRight size={15} /></button><small>{t('opt.previewPrompt')}</small></div>
+      <div className="opt-example-toggle"><button className="button ghost compact" aria-expanded={exampleOpen} aria-controls="opt-session-example" onClick={() => {
+        const nextOpen = !exampleOpen;
+        setExampleOpen(nextOpen);
+        if (!nextOpen) setExpandedPreviewBlocks(new Set());
+      }}>{t(exampleOpen ? 'opt.hideExample' : 'opt.showExample')}<ArrowRight size={15} /></button><small>{t('opt.previewPrompt')}</small></div>
       {exampleOpen && <section id="opt-session-example" className="opt-example" aria-label={t('opt.exampleTitle')}>
-        <div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3><p>{projectDir} · {date(session.timestamp)} · {session.id}</p></div></div>
-        {!session.completeHeader && <p>{t('opt.previewIncomplete')}</p>}
-        <div className="opt-example-grid">{(['before', 'after'] as const).map((side) => <div className={`opt-example-pane ${side}`} key={side}>
-          <h4>{t(side === 'before' ? 'opt.realBefore' : 'opt.realAfter')}</h4>
-          {(session.headerBlocks ?? []).filter((block) => side === 'before' || !block.target || !selectedTargets.includes(block.target)).map((block) => <article className="opt-real-block" key={block.kind}>
-            <strong>{block.kind}</strong><small>{t('opt.blockCharacters', { count: n(block.characters) })}</small>
-            <pre>{block.excerpt}{block.characters > 50 ? '…' : ''}</pre>
-          </article>)}
-          {!(session.headerBlocks ?? []).some((block) => side === 'before' || !block.target || !selectedTargets.includes(block.target)) && <p>{t('opt.noPreviewBlocks')}</p>}
-        </div>)}</div>
+        <div className="opt-example-heading"><div><h3>{t('opt.exampleTitle')}</h3>{data?.previewBaseline && <p>{projectDir} · {date(data.previewBaseline.timestamp)} · {data.previewBaseline.id}</p>}</div></div>
+        {!data?.previewBaseline ? <p>{t('opt.noBaseline')}</p> : <div className="opt-aligned-diff">
+          <div className="opt-diff-row"><h4>{t('opt.realBefore')}</h4><h4>{t('opt.realAfter')}</h4></div>
+          {data.previewBaseline.blocks.map((block, index) => {
+            const removed = Boolean(block.target && (preview?.targets.includes(block.target) ? !preview.after : selectedTargets.includes(block.target) || session.suggestions.find((item) => item.id === block.target)?.configuredOff));
+            const blockKey = `${index}:${block.kind}`;
+            const blockId = `opt-preview-block-${index}`;
+            const expanded = expandedPreviewBlocks.has(blockKey);
+            const characters = Array.from(block.text);
+            const visibleText = expanded || characters.length <= 200 ? block.text : `${characters.slice(0, 200).join('')}…`;
+            const toggleBlock = () => setExpandedPreviewBlocks((current) => {
+              const next = new Set(current);
+              if (next.has(blockKey)) next.delete(blockKey); else next.add(blockKey);
+              return next;
+            });
+            const toggleLabel = t(expanded ? 'opt.collapseBlock' : 'opt.expandBlock');
+            const blockToggle = (contentId: string) => <button type="button" className="opt-real-block-toggle" aria-expanded={expanded} aria-controls={contentId} onClick={toggleBlock}>
+              <span className="opt-real-block-heading"><strong>{block.kind}</strong><span className={`opt-diff-badge ${removed ? 'deleted' : 'retained'}`}>{t(`opt.diff.${removed ? 'deleted' : 'retained'}`)}</span></span>
+              <small>{t('opt.blockCharacters', { count: n(characters.length) })}{characters.length > 200 && !expanded ? ` · ${t('opt.previewCharacters', { count: 200 })}` : ''} · {toggleLabel}</small>
+            </button>;
+            return <div className="opt-diff-row" key={blockKey}>
+              <article className={`opt-example-pane before ${removed ? 'deleted' : ''}`}>
+                {blockToggle(`${blockId}-before`)}
+                <pre id={`${blockId}-before`}>{visibleText}</pre>
+              </article>
+              <article className={`opt-example-pane after ${removed ? 'opt-diff-empty' : ''}`} aria-label={removed ? t('opt.diff.deleted') : undefined}>
+                {!removed && <>{blockToggle(`${blockId}-after`)}<pre id={`${blockId}-after`}>{visibleText}</pre></>}
+              </article>
+            </div>;
+          })}
+        </div>}
         <small className="opt-example-note">{t('opt.realPreviewNote')}</small>
       </section>}
       {preview && <div className="opt-confirm" role="region" aria-label={t('opt.confirmTitle')}><h3>{t('opt.confirmTitle')}</h3><p>{t(preview.after ? 'opt.enableDetail' : preview.scope === 'project' ? 'opt.confirmDetail' : preview.scope === 'user' ? 'opt.globalConfirmDetail' : 'opt.mixedConfirmDetail')}</p>{preview.after && <section className="opt-enable-impact" aria-label={t('opt.enableImpactTitle')}><h4>{t('opt.enableImpactTitle')}</h4>{preview.targets.map((targetId) => <div key={targetId}><strong>{label(targetId)}</strong><p><b>{t('opt.enableBenefitLabel')}：</b>{t(`opt.${targetId}.enableBenefit`)}</p><p><b>{t('opt.enableTradeoffLabel')}：</b>{t(`opt.${targetId}.enableTradeoff`)}</p></div>)}</section>}<details><summary>{t('opt.technical')}</summary><code>{preview.configPaths.join('\n')}</code><code>{preview.targets.map((targetId, index) => `${preview.configKeys[index]}: ${String(preview.before[targetId] ?? 'default')} → ${preview.after}`).join('\n')}</code></details>{preview.scope !== 'project' && <label className="check-row"><input type="checkbox" checked={globalConfirmed} onChange={(e) => setGlobalConfirmed(e.target.checked)} />{t('opt.globalConsent')}</label>}</div>}

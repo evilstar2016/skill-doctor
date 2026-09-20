@@ -7,7 +7,15 @@ import { OptimizationWizard } from '../../web/src/pages/OptimizationWizard';
 import * as api from '../../web/src/api';
 
 vi.mock('../../web/src/api', () => ({ loadOptimization: vi.fn(), previewOptimizationChange: vi.fn(), applyOptimizationChange: vi.fn(), checkOptimizationChange: vi.fn(), undoOptimizationChange: vi.fn() }));
+const originalMemory = 'Original complete memory '.repeat(12);
+const retainedInstructions = 'Retained instructions '.repeat(12);
 const report: OptimizationOverview = {
+  previewBaseline: { id: 'original-session', timestamp: '2026-08-01T12:00:00Z', sourcePath: '/original.jsonl', blocks: [
+    { kind: 'host_skills.instructions', text: 'Original skill catalog', target: 'skill-catalog' },
+    { kind: 'memories.instructions', text: originalMemory, target: 'memory' },
+    { kind: 'plugins.usage_instructions', text: 'Original complete plugins', target: 'plugins' },
+    { kind: 'generic.developer_instructions', text: retainedInstructions },
+  ] },
   projectDir: '/project', generatedAt: '2026-09-18T12:00:00Z', period: 'month', periodStart: '2026-09-01T00:00:00Z', periodEnd: '2026-09-18T12:00:00Z', maxPriceModel: 'gpt-6-astra', priceDate: '2026-09-07', diagnostics: [],
   sessions: [{ id: 'session-one', timestamp: '2026-09-18T11:00:00Z', version: '0.154.0-alpha.6.2', model: 'gpt-6-astra', sourcePath: '/home/.codex/sessions/one.jsonl', completeHeader: true,
     headerBlocks: [{ kind: 'memories.instructions', excerpt: 'Real memory excerpt', characters: 100, target: 'memory' }, { kind: 'plugins.usage_instructions', excerpt: 'Real plugin excerpt', characters: 19, target: 'plugins' }, { kind: 'generic.developer_instructions', excerpt: 'Retained instructions', characters: 21 }],
@@ -68,11 +76,28 @@ describe('optimization wizard', () => {
     expect(screen.queryByRole('region', { name: '关闭后会话示例' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '查看会话变化' }));
     const example = screen.getByRole('region', { name: '关闭后会话示例' });
-    expect(example.textContent).toContain('Real memory excerpt…');
-    expect(example.textContent).toContain('100 个字符');
-    expect(example.querySelector('.after')!.textContent).not.toContain('Real memory excerpt');
-    expect(example.querySelector('.after')!.textContent).not.toContain('Real plugin excerpt');
-    expect(example.querySelector('.after')!.textContent).toContain('Retained instructions');
+    expect(example.textContent).toContain('original-session');
+    expect(example.textContent).toContain('Original complete memory');
+    expect(example.textContent).toContain(`${originalMemory.length.toLocaleString('zh-CN')} 个字符`);
+    expect(example.textContent).toContain('默认显示前 200 个字符');
+    expect(example.textContent).not.toContain(originalMemory);
+    expect(example.textContent).not.toContain('Real memory excerpt');
+    expect([...example.querySelectorAll('.opt-real-block-toggle')].every((button) => button.getAttribute('aria-expanded') === 'false')).toBe(true);
+    expect(example.querySelectorAll('.opt-diff-empty')).toHaveLength(3);
+    for (const blank of example.querySelectorAll('.opt-diff-empty')) {
+      expect(blank.textContent).toBe('');
+      expect(blank.previousElementSibling?.textContent).toContain('删除');
+    }
+    const memoryRow = example.querySelectorAll('.opt-diff-row')[2] as HTMLElement;
+    fireEvent.click(within(memoryRow).getByRole('button', { name: /memories\.instructions/ }));
+    expect(memoryRow.querySelector('.before pre')?.textContent).toBe(originalMemory);
+    expect(memoryRow.querySelector('.after')?.textContent).toBe('');
+    const retainedRow = example.querySelector('.opt-diff-row:last-child') as HTMLElement;
+    fireEvent.click(within(retainedRow).getAllByRole('button', { name: /generic\.developer_instructions/ })[0]);
+    expect(retainedRow.querySelector('.before pre')?.textContent).toBe(retainedInstructions);
+    expect(retainedRow.querySelector('.after pre')?.textContent).toBe(retainedInstructions);
+    expect(example.querySelectorAll('.opt-diff-badge.deleted')).toHaveLength(3);
+    expect(example.querySelectorAll('.opt-diff-badge.retained').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: '收起会话示例' }));
     expect(screen.queryByRole('region', { name: '关闭后会话示例' })).toBeNull();
   });
@@ -91,6 +116,22 @@ describe('optimization wizard', () => {
     fireEvent.mouseLeave(help.parentElement!);
     expect(screen.queryByRole('tooltip')).toBeNull();
     expect(api.applyOptimizationChange).not.toHaveBeenCalled();
+  });
+  it('leaves configured-off blocks blank even when unselected and never invents a missing baseline', async () => {
+    const updated = structuredClone(report);
+    Object.assign(updated.sessions[0].suggestions[2], { configuredOff: true, available: false, canEnable: true });
+    vi.mocked(api.loadOptimization).mockResolvedValue(updated);
+    await open();
+    fireEvent.click(screen.getByRole('checkbox', { name: /隐藏自动技能目录/ }));
+    fireEvent.click(screen.getByRole('button', { name: '查看会话变化' }));
+    const example = screen.getByRole('region', { name: '关闭后会话示例' });
+    expect(example.querySelectorAll('.opt-diff-empty')).toHaveLength(1);
+    expect(example.querySelector('.opt-diff-empty')?.previousElementSibling?.textContent).toContain('Original complete plugins');
+    updated.previewBaseline = undefined;
+    vi.mocked(api.loadOptimization).mockResolvedValue(updated);
+    fireEvent.click(screen.getByRole('button', { name: '重新读取会话' }));
+    await screen.findByText(/已扫描历史中未找到/);
+    expect(example.querySelector('.opt-diff-row')).toBeNull();
   });
   it('requires preview, keeps writes pending until verification, and confirms undo', async () => {
     await open();

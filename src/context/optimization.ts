@@ -266,7 +266,16 @@ export async function optimizationOverview(projectDir: string, homeDir?: string,
       actualCostCoverage: actualCosts.filter((cost) => cost.amount !== undefined).length, suggestions };
   }));
   const recommendations = await optimizationRecommendations(sessions.map((session) => session.sourcePath), bounds.start, bounds.end);
-  return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, recommendations, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: scan.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
+  const history = await scanCodexSessions({ projectDir, homeDir, sinceMs: 0, untilMs: bounds.end.getTime(), limit: 5000, includeArchived: true, useIndex: false, includeContext: false, exactProjectOnly: true });
+  let previewBaseline: OptimizationOverview['previewBaseline'];
+  for (const { session } of [...history.selected].sort((a, b) => Date.parse(a.session.timestamp) - Date.parse(b.session.timestamp))) {
+    const header = readOptimizationHeader(session.filePath);
+    if (!header.complete || !(Object.keys(TARGETS) as OptimizationTarget[]).every((target) => targetText(header, target))) continue;
+    previewBaseline = { id: session.sessionId, timestamp: session.timestamp, sourcePath: session.filePath,
+      blocks: Object.entries(header.kinds).map(([kind, text]) => ({ kind, text, target: (Object.keys(TARGETS) as OptimizationTarget[]).find((id) => (TARGETS[id].kinds as readonly string[]).includes(kind)) })) };
+    break;
+  }
+  return { projectDir: realpathSync(projectDir), generatedAt: new Date().toISOString(), period, periodStart: bounds.start.toISOString(), periodEnd: bounds.end.toISOString(), maxPriceModel: maxPrice?.model ?? '—', sessions, previewBaseline, recommendations, priceDate: DEFAULT_BENEFIT_PRICE_TABLE.updatedAt, diagnostics: [...scan.diagnostics, ...history.diagnostics].filter((d) => d.severity !== 'info').map((d) => d.message).slice(0, 10) };
 }
 
 export async function previewOptimization(projectDir: string, sessionId: string, targetsInput: OptimizationTarget | OptimizationTarget[], homeDir?: string, enabled = false): Promise<OptimizationPreview> {

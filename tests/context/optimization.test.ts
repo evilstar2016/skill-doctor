@@ -103,6 +103,16 @@ describe('verified optimization flow', () => {
     expect(session.suggestions[0].cost!.upper).toBeGreaterThan(session.suggestions[0].actualCost!.upper);
     expect(session.suggestions[0].cumulative!.cost!.upper).toBeGreaterThan(session.suggestions[0].cumulative!.actualCost!.upper);
   });
+  it('keeps a complete original baseline outside the selected period without mixing session blocks', async () => {
+    fixture('oldest-incomplete', { timestamp: '2026-07-01T12:00:00Z', plugins: false });
+    fixture('original', { timestamp: '2026-08-01T12:00:00Z', skillText: 'Original skills '.repeat(20) });
+    fixture('current', { skill: false, plugins: false });
+    const report = await optimizationOverview(project, home, 'week');
+    expect(report.sessions.map((session) => session.id)).toEqual(['current']);
+    expect(report.previewBaseline?.id).toBe('original');
+    expect(report.previewBaseline?.blocks.find((block) => block.target === 'skill-catalog')?.text).toBe('Original skills '.repeat(20));
+    expect(new Set(report.previewBaseline?.blocks.map((block) => block.target))).toEqual(new Set([undefined, 'skill-catalog', 'memory', 'plugins']));
+  });
   it('scans the complete selected calendar period instead of a daily slice', async () => {
     fixture('month-old', { timestamp: '2026-09-03T12:00:00.000Z' });
     fixture('this-week', { timestamp: '2026-09-18T11:00:00.000Z' });

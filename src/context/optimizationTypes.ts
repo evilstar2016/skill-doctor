@@ -63,6 +63,12 @@ export interface OptimizationOverview {
   periodEnd: string;
   maxPriceModel: string;
   sessions: OptimizationSession[];
+  previewBaseline?: {
+    id: string;
+    timestamp: string;
+    sourcePath: string;
+    blocks: Array<{ kind: string; text: string; target?: OptimizationTarget }>;
+  };
   priceDate: string;
   diagnostics: string[];
   recommendations?: Partial<Record<OptimizationTarget, OptimizationRecommendation>>;
