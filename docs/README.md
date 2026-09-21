@@ -65,8 +65,8 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
   - WorkBuddy users can inspect platform-specific Skills and context cost without scanning other agent platforms.
 - **Usage**
   ```bash
-  npx @evilstar2025/skill-doctor@0.6.0 scan --platform workbuddy
-  npx @evilstar2025/skill-doctor@0.6.0 cost --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.7.0 scan --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.7.0 cost --platform workbuddy
   ```
 - **Notes**
   - The commands read local WorkBuddy Skills, long-term context files, and static MCP configuration; dynamic connector state is not treated as enabled without evidence.
@@ -77,8 +77,8 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
   - InfCode users can inspect platform-specific Skills, Rules, and context cost without scanning other agent platforms.
 - **Usage**
   ```bash
-  npx @evilstar2025/skill-doctor@0.6.0 scan --platform infcode
-  npx @evilstar2025/skill-doctor@0.6.0 cost --platform infcode
+  npx @evilstar2025/skill-doctor@0.7.0 scan --platform infcode
+  npx @evilstar2025/skill-doctor@0.7.0 cost --platform infcode
   ```
 - **Notes**
   - The commands read local InfCode Skills, Rules, and project MCP configuration.
@@ -273,7 +273,7 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
   | `--port N` | Listen port; default: random. |
   | `--no-open` | Do not auto-open the browser (the server still starts). |
 - **Notes**
-  - After starting, it prints a local URL with a session token; open it in a browser to use the full UI; press Ctrl+C to stop. See the [UI screenshots on GitHub Pages](https://evilstar2016.github.io/skill-doctor/) for details.
+  - After starting, it prints a local URL with a session token; open it in a browser to use the full UI; press Ctrl+C to stop. The current screenshot set uses a Codex project with project-level `.codex/skills`; see the [UI screenshots on GitHub Pages](https://evilstar2016.github.io/skill-doctor/) for details.
 
 ---
 

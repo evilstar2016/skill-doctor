@@ -14,7 +14,7 @@ const languages = [
     readme: 'README.md',
     indexTitle: 'skill-doctor — AI Agent Skills Audit Tool',
     indexDescription: 'Skill Doctor is a local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode for duplicates, conflicts, security risks, and context cost.',
-    manualTitle: 'skill-doctor manual v0.6.0',
+    manualTitle: 'skill-doctor manual v0.7.0',
     manualDescription: 'The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode, find conflicts, audit security risks, and measure context cost.',
   },
   {
@@ -25,7 +25,7 @@ const languages = [
     readme: 'README.zh-CN.md',
     indexTitle: 'skill-doctor — AI Agent Skills 审计工具',
     indexDescription: 'Skill Doctor 是一个本地 CLI，用于审计 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent 的 skills、rules、instructions 和 MCP 配置，发现重复、冲突、安全风险与上下文成本。',
-    manualTitle: 'skill-doctor 使用手册 v0.6.0',
+    manualTitle: 'skill-doctor 使用手册 v0.7.0',
     manualDescription: 'skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。',
   },
 ];
@@ -88,7 +88,8 @@ function localizeIndexPaths(html, language) {
 }
 
 function localizeManualPaths(html) {
-  return html.replace(/\.\.\/\.\.\/assets\//g, '../../../assets/');
+  html = html.replace(/\.\.\/\.\.\/assets\//g, '../../../assets/');
+  return html.replace(/src="\.\/(ui-(?:context|issues|manage|onboarding|overview|resources)\.png)"/g, 'src="../../pages/$1"');
 }
 
 function render(source, language, page) {

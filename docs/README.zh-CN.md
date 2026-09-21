@@ -65,8 +65,8 @@
   - WorkBuddy 用户可以只检查平台自己的 Skills 与上下文成本，不必先扫描其它 Agent 平台。
 - **使用方式**
   ```bash
-  npx @evilstar2025/skill-doctor@0.6.0 scan --platform workbuddy
-  npx @evilstar2025/skill-doctor@0.6.0 cost --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.7.0 scan --platform workbuddy
+  npx @evilstar2025/skill-doctor@0.7.0 cost --platform workbuddy
   ```
 - **说明**
   - 命令会读取本地 WorkBuddy Skills、长期上下文文件和静态 MCP 配置；没有证据时不会把动态连接器状态当成已启用资源。
@@ -77,8 +77,8 @@
   - InfCode 用户可以只检查平台自己的 Skills、Rules 与上下文成本，不必先扫描其它 Agent 平台。
 - **使用方式**
   ```bash
-  npx @evilstar2025/skill-doctor@0.6.0 scan --platform infcode
-  npx @evilstar2025/skill-doctor@0.6.0 cost --platform infcode
+  npx @evilstar2025/skill-doctor@0.7.0 scan --platform infcode
+  npx @evilstar2025/skill-doctor@0.7.0 cost --platform infcode
   ```
 - **说明**
   - 命令会读取本地 InfCode Skills、Rules 和项目 MCP 配置。
@@ -273,7 +273,7 @@
   | `--port N` | 监听端口，默认随机。 |
   | `--no-open` | 不自动打开浏览器（服务器仍正常启动）。 |
 - **说明**
-  - 启动后打印一个带 session token 的本地 URL；在浏览器打开即可使用全套可视化功能，按 Ctrl+C 停止。界面样例见 [GitHub Pages 上的截图](https://evilstar2016.github.io/skill-doctor/)。
+  - 启动后打印一个带 session token 的本地 URL；在浏览器打开即可使用全套可视化功能，按 Ctrl+C 停止。当前截图以只包含项目级 `.codex/skills` 的 Codex 项目为例，见 [GitHub Pages 上的截图](https://evilstar2016.github.io/skill-doctor/)。
 
 ---
 

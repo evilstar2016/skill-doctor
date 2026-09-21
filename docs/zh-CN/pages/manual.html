@@ -11,15 +11,15 @@
 <link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
-<meta property="og:title" content="skill-doctor 使用手册 v0.6.0">
+<meta property="og:title" content="skill-doctor 使用手册 v0.7.0">
 <meta property="og:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html">
 <meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="skill-doctor 使用手册 v0.6.0">
+<meta name="twitter:title" content="skill-doctor 使用手册 v0.7.0">
 <meta name="twitter:description" content="skill-doctor 使用手册：安装并运行 CLI，检查 Claude Code、Codex、Copilot、Cursor、WorkBuddy、InfCode 等 AI Agent skills 的重复、冲突、安全风险、上下文成本与 MCP 配置。">
 <meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
-<title>skill-doctor 使用手册 v0.6.0</title>
+<title>skill-doctor 使用手册 v0.7.0</title>
 <style>
   :root{
     --bg:#f6f8fa; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280;
@@ -85,6 +85,10 @@
     line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;}
   .term-body .prompt{color:var(--term-prompt);font-weight:700;}
   .term-body .cmd{color:var(--term-cmd);}
+  .ui-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px;}
+  .ui-gallery figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .ui-gallery img{display:block;width:100%;height:auto;}
+  .ui-gallery figcaption{padding:8px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;line-height:1.45;}
   footer{text-align:center;color:var(--muted);font-size:12.5px;padding:24px;}
   a{color:var(--accent);}
 </style>
@@ -98,13 +102,13 @@
   <img class="brand-mark" src="../../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1>skill-doctor 使用手册</h1>
   <p>本地 CLI，用于审计 AI 编码助手的技能：重复 · 冲突 · 安全风险 · 上下文成本</p>
-  <span class="ver">版本 v0.6.0 · 所有截图均为真实命令输出</span>
+  <span class="ver">版本 v0.7.0 · 所有截图均为真实命令输出</span>
 </header>
-<nav class="toc"><a href="#start">安装与运行</a><a href="#help">skill-doctor --help</a><a href="#scan">scan</a><a href="#show">show &lt;name&gt;</a><a href="#conflicts">conflicts</a><a href="#audit">audit</a><a href="#check">check</a><a href="#cleanup">cleanup</a><a href="#cost">cost / context</a><a href="#diff">diff &lt;a&gt; &lt;b&gt;</a><a href="#ui">ui</a><a href="#benefit">benefit 收益预估</a><a href="#dashboard">dashboard</a><a href="#install">install / uninstall</a><a href="#center">center</a><a href="#config">config</a></nav>
+<nav class="toc"><a href="#start">安装与运行</a><a href="#help">skill-doctor --help</a><a href="#scan">scan</a><a href="#show">show &lt;name&gt;</a><a href="#conflicts">conflicts</a><a href="#audit">audit</a><a href="#check">check</a><a href="#cleanup">cleanup</a><a href="#cost">cost / context</a><a href="#diff">diff &lt;a&gt; &lt;b&gt;</a><a href="#ui">ui</a><a href="#benefit">Codex 优化建议</a><a href="#dashboard">dashboard</a><a href="#install">install / uninstall</a><a href="#center">center</a><a href="#config">config</a></nav>
 <main>
   <section id="intro">
     <h2>怎么用这本手册</h2>
-    <p><a href="#benefit">新增：Codex 收益预估浏览器实操（5 张真实截图）</a></p>
+    <p><a href="#benefit">新增：当前 Codex 优化建议浏览器实操（5 张真实截图）</a></p>
     <div class="card">
       <p>每个命令一节，固定包含三块：<b>使用场景</b>（什么时候该用它）、<b>使用方式</b>（命令与常用参数）、<b>使用效果</b>（下方深色终端块为真实运行的彩色截图）。</p>
       <p class="note">约定：<code>--scope project</code> 只看当前仓库、避免扫到全局；<code>--json</code> 输出机器可读结果便于 CI。手册示例在一个含 1 个重复技能的示例项目里运行，所以多处会出现 <code>data-exporter 有 2 份</code> 的现象。</p>
@@ -118,7 +122,7 @@
         <p>skill-doctor 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。安装后即可在任意项目目录里使用。</p>
         <h3>使用方式</h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
-        <table class="flags"><thead><tr><th>选项</th><th>说明</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>全局安装，之后直接用 skill-doctor 命令</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>不安装，临时运行某条命令</td></tr><tr><td class="flag">skill-doctor --version</td><td>查看版本（本手册基于 0.6.0）</td></tr></tbody></table>
+        <table class="flags"><thead><tr><th>选项</th><th>说明</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>全局安装，之后直接用 skill-doctor 命令</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>不安装，临时运行某条命令</td></tr><tr><td class="flag">skill-doctor --version</td><td>查看版本（本手册基于 0.7.0）</td></tr></tbody></table>
         <h3>说明</h3><p class="note">Node.js ≥ 20。所有命令都可加 --json 输出机器可读结果，便于接入 CI。手册中的示例都在一个示例项目里运行：该项目故意把同名技能 data-exporter 放进了 .claude 与 .github 两套平台目录（制造 1 个重复），并放了 code-reviewer 用于对比演示。</p>
         <h3>使用效果</h3>
 
@@ -128,7 +132,7 @@
         <span class="term-title">skill-doctor — bash</span>
       </div>
       <pre class="term-body"><span class="prompt">$ </span><span class="cmd">skill-doctor --version</span>
-0.6.0
+0.7.0
 </pre>
     </div>
       </div>
@@ -507,11 +511,11 @@ Highest cost items:
       <h2><span class="cmd-tag">ui</span> ui — 启动 Web 仪表盘</h2>
       <div class="card">
         <h3>使用场景</h3>
-        <p>比起纯终端，你更想要一个可点的网页界面：总览、冲突、上下文成本、技能库一目了然。ui 会在本地起一个带鉴权会话的 Web 服务。</p>
+        <p>比起纯终端，你更想要一个可点的网页界面：Codex 项目的总览、问题、优化建议、扫描记录、资源清单和技能库一目了然。ui 会在本地起一个带鉴权会话的 Web 服务。</p>
         <h3>使用方式</h3>
         <div class="usage">$ skill-doctor ui --port 4173 --no-open</div>
         <table class="flags"><thead><tr><th>选项</th><th>说明</th></tr></thead><tbody><tr><td class="flag">[project-dir]</td><td>要分析的项目目录，默认当前目录</td></tr><tr><td class="flag">--port N</td><td>监听端口，默认随机</td></tr><tr><td class="flag">--no-open</td><td>不自动打开浏览器（服务器仍正常启动）</td></tr></tbody></table>
-        <h3>说明</h3><p class="note">启动后会打印一个带 session token 的本地 URL（下方真实输出）。在浏览器打开即可使用全套可视化功能；按 Ctrl+C 停止。</p>
+        <h3>说明</h3><p class="note">启动后会打印一个带 session token 的本地 URL（下方真实输出）。本手册的界面截图均来自一个只包含 Codex 项目级 <code>.codex/skills</code> 的当前示例项目，首次进入时选择 Codex；按 Ctrl+C 停止服务。</p>
         <h3>使用效果</h3>
 
     <div class="term">
@@ -524,60 +528,48 @@ Skill Doctor UI: http://127.0.0.1:4173/session/RJebkCY4F_lOCXp6llb3m1dIJcSdrPoEK
 Press Ctrl+C to stop.
 </pre>
     </div>
+        <p class="note">当前界面截图（示例项目只包含 Codex 项目级 <code>.codex/skills</code>）：</p>
+        <div class="ui-gallery">
+          <figure><img src="../../pages/ui-overview.png" alt="Codex project overview" loading="lazy"><figcaption>Codex 项目总览</figcaption></figure>
+          <figure><img src="../../pages/ui-onboarding.png" alt="Codex onboarding" loading="lazy"><figcaption>首次引导：选择 Codex</figcaption></figure>
+          <figure><img src="../../pages/ui-issues.png" alt="Codex project issues" loading="lazy"><figcaption>Codex 项目问题</figcaption></figure>
+          <figure><img src="../../pages/ui-context.png" alt="Codex context optimization" loading="lazy"><figcaption>Codex 上下文优化入口</figcaption></figure>
+          <figure><img src="../../pages/ui-resources.png" alt="Codex resources" loading="lazy"><figcaption>Codex 资源清单</figcaption></figure>
+          <figure><img src="../../pages/ui-manage.png" alt="Codex skill library" loading="lazy"><figcaption>Codex 技能库</figcaption></figure>
+        </div>
       </div>
     </section>
 
     <section id="benefit" style="scroll-margin-top:120px">
-      <h2><span class="cmd-tag">benefit</span> Codex 收益预估：浏览器实操</h2>
+      <h2><span class="cmd-tag">ui</span> Codex 优化建议：浏览器实操</h2>
       <div class="card">
-        <p>本节使用 skill-doctor 项目的真实 Codex 会话，2026-09-08 15:47（北京时间）在 Codex 内置浏览器运行。代码基线为 <code>b07db58</code>，截图保留实际结果。该功能已在此本地构建验证，不能仅凭版本号 0.6.0 判断已安装的 npm 包是否包含它。</p>
-        <h3>1. 准备 preview 方案，打开本地 UI</h3>
-        <p>先在目标项目中让 <code>skill-doctor-context-optimizer</code> 生成 preview，保存它返回的方案 ID。preview 会写入本地方案元数据，应用配置是另一个操作。本次仅使用已生成的候选方案，没有执行 apply。</p>
+        <p>本节按当前 v0.7.0 本地构建的 Codex 示例项目重新截图。示例只包含一个项目级 <code>.codex/skills</code> Skill；截图中的数据来自 1 个 task、9 个 turn、9 次模型响应。页面只做本地估算和修改前预览，没有执行配置写入。</p>
+        <h3>1. 打开 UI，进入「优化建议」</h3>
+        <p>在源码仓库安装依赖并构建，然后为目标项目启动本地 UI。首次引导选择 Codex；侧栏当前名称是「优化建议」，不再是旧版的「收益预估」。</p>
         <pre class="usage">npm run build
-node dist/index.js ui . --no-open</pre>
-        <p class="note">以上命令在源码仓库中运行，需要先安装项目依赖。打开终端本次打印的会话 URL；服务重启后使用新的 URL。首次引导选择目标项目与 Codex，进入侧栏「收益预估」。标准扫描默认不会启动 MCP 工具发现。</p>
-        <h3>2. 输入范围与方案，开始分析</h3>
-        <ol>
-          <li>最近小时数填 <code>24</code>；主会话上限填 <code>5</code>。上限不是保证数量，关联子会话文件另计。</li>
-          <li>粘贴你自己的 preview 方案 ID 或 JSON 路径，保持「包含 archived_sessions」未勾选。</li>
-          <li>点击「开始分析」，等待读取、关联和模拟完成。需要中止时点击「取消分析」。</li>
-        </ol>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/01-setup.jpg" alt="Benefit analysis setup: 24 hours, five main sessions, and a preview plan" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 1：分析参数与页面内的三步用户引导。截图中的方案 ID 仅属于本次演示。</figcaption></figure>
-        <h3>3. 先读覆盖率，再读节省数字</h3>
-        <table class="flags"><thead><tr><th>本次指标</th><th>实际结果</th></tr></thead><tbody>
-          <tr><td>样本</td><td>1 个主会话，8 个关联文件，820 条响应</td></tr>
-          <tr><td>历史输入 / 总 Token</td><td>130,760,339 / 131,248,078</td></tr>
-          <tr><td>可计价响应</td><td>548 / 820 (66.83%)</td></tr>
-          <tr><td>收益状态 / 响应覆盖率</td><td>unknown / 0.00%</td></tr>
-          <tr><td>库存校验 / 资源匹配 / 文本重建响应</td><td>mismatch / 0 of 3 / 0</td></tr>
+node dist/index.js ui /path/to/project --no-open</pre>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/01-selection.jpg" alt="Current Codex optimization selection step" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 1：当前 Codex 优化向导的「选择优化」步骤；默认选中项目级的「隐藏自动技能目录」，右侧显示覆盖率与估算节省。</figcaption></figure>
+        <h3>2. 先看会话开销</h3>
+        <p>点击「看会话开销」进入第 1 步。页面按本月/本周汇总任务、turn、Token 和 API 等价费用；「按实际使用模型」可以切换计价口径。</p>
+        <table class="flags"><thead><tr><th>示例指标</th><th>当前截图</th></tr></thead><tbody>
+          <tr><td>任务 / turn / 响应</td><td>1 / 9 / 9</td></tr>
+          <tr><td>总 Token</td><td>44,500</td></tr>
+          <tr><td>输入 / 输出 Token</td><td>41,100 / 2,720</td></tr>
+          <tr><td>缓存命中输入</td><td>20,550</td></tr>
+          <tr><td>API 等价估算</td><td>$0.6561 · gpt-6-astra 上限价</td></tr>
         </tbody></table>
-        <p class="note">Token 是每条历史响应的输入累加，同一段上下文可能重复计入，不能理解为独立文本量或全部按未缓存价计费。这个会话仍在继续，重跑时数字会变化。</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/02-result.jpg" alt="Actual result: 820 responses, 548 priced, and savings unavailable" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 2：「0」下方标注「不可估」，报告状态为 unknown。本次前后相同表示未应用收益推算，不是已经验证节省为零。</figcaption></figure>
-        <h3>4. 查看证据，并选择缓存情景</h3>
-        <p>本次存在 21 个历史快照，但三个候选资源均显示「Indexed snapshot retained only metadata, not host skill text」，当前库存校验为 mismatch。报告也包含部分历史文本，因此不能把这个结果概括为“会话里完全没有文本”。应继续核对相关响应的快照关联、正文回读和方案扫描范围。</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/03-evidence.jpg" alt="Evidence panel showing inventory mismatch and missing text for selected resource matches" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 3：证据面板帮助定位无法计算的环节。本次不是一个已验证节省金额的案例。</figcaption></figure>
-        <p>当报告提供缓存情景按钮时，按以下方式选择；本次报告没有生成情景，按钮未出现，因此本次没有验证切换操作。</p>
-        <table class="flags"><thead><tr><th>情景</th><th>选择引导</th></tr></thead><tbody>
-          <tr><td>历史缓存比例延续</td><td>先看这一项，了解假设优化后延续历史缓存比例时的等价费用；实际缓存命中仍可能变化。</td></tr>
-          <tr><td>缓存重建敏感性</td><td>再看这一项，观察更改上下文后缓存需要重建时费用如何变化。读取页面中的具体假设，不选择数字最漂亮的情景作为承诺。</td></tr>
-        </tbody></table>
-        <h3>5. 比较模型费用，筛选响应</h3>
-        <table class="flags"><thead><tr><th>模型</th><th>可计价 / 样本响应</th><th>报告内置价表估算（USD，前 → 后）</th></tr></thead><tbody>
-          <tr><td>gpt-5.6-luna</td><td>506 / 761</td><td>3.932726 → 3.932726</td></tr>
-          <tr><td>gpt-6-astra</td><td>42 / 48</td><td>13.634793 → 13.634793</td></tr>
-          <tr><td>codex-auto-review</td><td>0 / 11</td><td>— → —</td></tr>
-        </tbody></table>
-        <p class="note">这里只累计可计价部分；其余响应被排除，不能当作免费。这些金额是软件价表下的等价 API 估算，未核对真实账单，也不表示 ChatGPT/Codex 订阅额度节省。</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/04-model-costs.jpg" alt="Actual partial model-cost estimates and excluded response counts" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 4：模型费用与未计价响应说明。</figcaption></figure>
-        <p>在「逐响应明细」中，把「全部模型」改成 <code>gpt-6-astra</code>，可以只看该模型；会话和轮次下拉框可进一步缩小范围。筛选改变明细列表，不改变整份报告的总计。</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/05-model-filter.jpg" alt="Response details filtered to gpt-6-astra" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 5：实际切换模型下拉框后的 GPT-6 响应列表。</figcaption></figure>
-        <h3>6. 导出报告，复现分析</h3>
-        <p>点击「JSON」保存结构化报告，点击「HTML」保存静态报告。本次两个下载均已验证，文件名为 <code>skill-doctor-benefit.json</code> 和 <code>skill-doctor-benefit.html</code>。导出仍包含整份报告，不仅是当前筛选列表。</p>
-        <pre class="usage">node dist/index.js benefit --project . --since 24h --limit 5 --plan &lt;your-plan-id&gt; --format text</pre>
-        <p class="note">分享前检查导出内容：本次 JSON 的 sourcePath 字段已隐藏，但部分资源 ID 仍带本机路径。因此手册只收录上述界面截图和汇总数字，不附原始报告。</p>
-        <h3>如何描述本次效果</h3>
-        <p>“Skill Doctor 可以把项目最近一天的 Codex 会话汇总成 Token 基线、模型费用估算和可追溯的响应明细。此次真实样本读取了 820 条响应，548 条可计价；优化方案的历史收益因证据不足仍不可估。”</p>
-        <p class="note">先前 preview 的 79.9% 只表示该次扫描范围内固定上下文从约 354 降至 71 Token 的静态估算。不能写成“会话 Token 或费用节省 79.9%”。</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/02-cost-overview.jpg" alt="Current Codex session cost overview" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 2：当前版本的会话用量与费用总览。金额是软件价格表下的 API 等价估算，不是 Codex 订阅账单。</figcaption></figure>
+        <h3>3. 查看关闭后的会话对比</h3>
+        <p>回到第 2 步点击「查看会话变化」。当前页面会把历史会话头部按 block 并排展示：选中的 <code>host_skills.instructions</code> 标成「删除」，记忆和 Plugins 等未选内容保留。这里是证据和对齐预览，不是已经运行过的新会话。</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/03-context-diff.jpg" alt="Current Codex before and after context block preview" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 3：关闭后会话示例。左侧是历史 block，右侧是对齐预览；只有选中的 block 被标记为删除。</figcaption></figure>
+        <h3>4. 修改前检查确认预览</h3>
+        <p>点击「查看并确认修改」后，页面显示受影响的配置范围、目标和「下个新会话生效」提示。截图停在确认按钮之前；真正写入配置必须由用户明确确认。</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/04-confirmation.jpg" alt="Current Codex optimization confirmation preview" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 4：修改确认预览，包含配置详情入口与「确认修改·下个新会话生效」按钮。</figcaption></figure>
+        <h3>5. 写入后必须在新会话验证</h3>
+        <p>应用修改后进入第 3 步，向导会要求启动加载该项目配置的新 Codex 会话，再检查目标 block 是否消失。下面这张图保留了本次只读演示的空状态，因为没有点击确认按钮；它不会把预估误写成已实现节省。</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/05-verification.jpg" alt="Current Codex optimization verification step" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">图 5：当前版本的「验证效果」步骤。没有待验证修改时，页面明确提示先完成选择与确认。</figcaption></figure>
+        <h3>如何理解这组数字</h3>
+        <p>这次示例中，选中的项目级技能目录显示每次响应约 60 Token、9/9 次响应覆盖，累计约 540 Token；费用区间为 $0.00108–$0.0108。它们是按历史 block、模型价格和缓存边界推算的潜在影响，不是已确认的账单节省。会话新增、Codex 版本、配置和价格表变化后，数字都会变化。</p>
       </div>
     </section>
 

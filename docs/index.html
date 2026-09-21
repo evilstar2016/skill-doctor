@@ -28,7 +28,7 @@
   "name": "skill-doctor",
   "applicationCategory": "DeveloperApplication",
   "description": "Local-first CLI for auditing AI agent skills, rules, instructions, and MCP configuration across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode for duplicates, conflicts, security risks, and context cost.",
-  "softwareVersion": "0.6.0",
+  "softwareVersion": "0.7.0",
   "url": "https://evilstar2016.github.io/skill-doctor/",
   "downloadUrl": "https://www.npmjs.com/package/@evilstar2025/skill-doctor",
   "codeRepository": "https://github.com/evilstar2016/skill-doctor",
@@ -114,21 +114,21 @@
   </div>
 
   <h2 class="section"><span class="zh">skill-doctor ui 界面样例</span><span class="en">skill-doctor UI screenshots</span></h2>
-  <p class="zh" style="margin-top:0;color:var(--muted)">以下是 <code>skill-doctor ui</code> 启动的本地 Web 仪表盘在各视图下的真实截图。首次启动会有一个引导对话框（Onboarding），帮你选择要分析的 AI 平台。</p>
-  <p class="en" style="margin-top:0;color:var(--muted)">Real screenshots of the local web dashboard launched by <code>skill-doctor ui</code>, across its views. The first launch shows an onboarding dialog to pick which AI platform to analyze.</p>
+  <p class="zh" style="margin-top:0;color:var(--muted)">以下截图均来自 <code>skill-doctor ui</code> 在一个只包含 Codex 项目级 <code>.codex/skills</code> 的当前示例项目上的实际运行结果。首次启动会显示引导对话框，选择 Codex 后进入当前 UI。</p>
+  <p class="en" style="margin-top:0;color:var(--muted)">These screenshots were captured from <code>skill-doctor ui</code> running against a current example project containing only project-level <code>.codex/skills</code>. The first launch shows the onboarding dialog with Codex selected.</p>
   <div class="gallery">
-    <figure class="shot"><img src="./pages/ui-overview.png" alt="overview">
-      <figcaption><span class="zh">总览（Overview）— 技能、冲突、成本一眼掌握</span><span class="en">Overview — skills, conflicts, and cost at a glance</span></figcaption></figure>
-    <figure class="shot"><img src="./pages/ui-onboarding.png" alt="onboarding">
-      <figcaption><span class="zh">引导（Onboarding）— 首次启动选择平台</span><span class="en">Onboarding — pick a platform on first launch</span></figcaption></figure>
-    <figure class="shot"><img src="./pages/ui-issues.png" alt="issues">
-      <figcaption><span class="zh">待处理（Issues）— 安全 / 冲突 / 预算问题清单</span><span class="en">Issues — security / conflict / budget findings</span></figcaption></figure>
-    <figure class="shot"><img src="./pages/ui-context.png" alt="context">
-      <figcaption><span class="zh">上下文成本（Context）— 每轮 token 拆解与评级</span><span class="en">Context — per-turn token breakdown and grades</span></figcaption></figure>
-    <figure class="shot"><img src="./pages/ui-resources.png" alt="resources">
-      <figcaption><span class="zh">资源清单（Resources）— 各平台技能 / MCP 盘点</span><span class="en">Resources — per-platform skills / MCP inventory</span></figcaption></figure>
-    <figure class="shot"><img src="./pages/ui-manage.png" alt="manage">
-      <figcaption><span class="zh">技能库（Manage）— 统一技能中心与安装记录</span><span class="en">Manage — the unified skill center &amp; install records</span></figcaption></figure>
+    <figure class="shot"><img src="./pages/ui-overview.png" alt="Codex project overview">
+      <figcaption><span class="zh">Codex 项目总览（Overview）— 技能、问题与占用概览</span><span class="en">Codex project overview — skills, issues, and context usage</span></figcaption></figure>
+    <figure class="shot"><img src="./pages/ui-onboarding.png" alt="Codex onboarding">
+      <figcaption><span class="zh">首次引导（Onboarding）— 选择 Codex 项目</span><span class="en">Onboarding — select the Codex project</span></figcaption></figure>
+    <figure class="shot"><img src="./pages/ui-issues.png" alt="Codex project issues">
+      <figcaption><span class="zh">问题（Issues）— Codex 项目问题清单</span><span class="en">Issues — the Codex project issue list</span></figcaption></figure>
+    <figure class="shot"><img src="./pages/ui-context.png" alt="Codex context optimization">
+      <figcaption><span class="zh">优化建议（Context）— Codex 会话技能注入与优化入口</span><span class="en">Context — Codex skill injection and optimization entry point</span></figcaption></figure>
+    <figure class="shot"><img src="./pages/ui-resources.png" alt="Codex resources">
+      <figcaption><span class="zh">资源清单（Resources）— Codex skills 资源盘点</span><span class="en">Resources — Codex skill inventory</span></figcaption></figure>
+    <figure class="shot"><img src="./pages/ui-manage.png" alt="Codex skill library">
+      <figcaption><span class="zh">技能库（Manage）— Codex skill 中心与安装状态</span><span class="en">Manage — the Codex skill center and install status</span></figcaption></figure>
   </div>
 
   <div class="note">

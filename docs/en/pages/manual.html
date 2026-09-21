@@ -11,15 +11,15 @@
 <link rel="alternate" hreflang="x-default" href="https://evilstar2016.github.io/skill-doctor/pages/manual.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="skill-doctor">
-<meta property="og:title" content="skill-doctor manual v0.6.0">
+<meta property="og:title" content="skill-doctor manual v0.7.0">
 <meta property="og:description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode, find conflicts, audit security risks, and measure context cost.">
 <meta property="og:url" content="https://evilstar2016.github.io/skill-doctor/en/pages/manual.html">
 <meta property="og:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="skill-doctor manual v0.6.0">
+<meta name="twitter:title" content="skill-doctor manual v0.7.0">
 <meta name="twitter:description" content="The skill-doctor manual explains how to install and run the CLI, inspect AI agent skills across Claude Code, Codex, Copilot, Cursor, WorkBuddy, and InfCode, find conflicts, audit security risks, and measure context cost.">
 <meta name="twitter:image" content="https://evilstar2016.github.io/skill-doctor/pages/ui-overview.png">
-<title>skill-doctor manual v0.6.0</title>
+<title>skill-doctor manual v0.7.0</title>
 <style>
   :root{
     --bg:#f6f8fa; --panel:#ffffff; --ink:#1f2328; --muted:#6b7280;
@@ -85,6 +85,10 @@
     line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;}
   .term-body .prompt{color:var(--term-prompt);font-weight:700;}
   .term-body .cmd{color:var(--term-cmd);}
+  .ui-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px;}
+  .ui-gallery figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .ui-gallery img{display:block;width:100%;height:auto;}
+  .ui-gallery figcaption{padding:8px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;line-height:1.45;}
   footer{text-align:center;color:var(--muted);font-size:12.5px;padding:24px;}
   a{color:var(--accent);}
 </style>
@@ -98,13 +102,13 @@
   <img class="brand-mark" src="../../../assets/brand/skill-doctor-mark.svg" alt="Skill Doctor logo">
   <h1>skill-doctor manual</h1>
   <p>A local CLI for auditing AI-coding-assistant skills: duplicates · conflicts · security risks · context cost</p>
-  <span class="ver">Version v0.6.0 · every screenshot is a real command output</span>
+  <span class="ver">Version v0.7.0 · every screenshot is a real command output</span>
 </header>
-<nav class="toc"><a href="#start">Install &amp; Run</a><a href="#help">skill-doctor --help</a><a href="#scan">scan</a><a href="#show">show &lt;name&gt;</a><a href="#conflicts">conflicts</a><a href="#audit">audit</a><a href="#check">check</a><a href="#cleanup">cleanup</a><a href="#cost">cost / context</a><a href="#diff">diff &lt;a&gt; &lt;b&gt;</a><a href="#ui">ui</a><a href="#benefit">benefit</a><a href="#dashboard">dashboard</a><a href="#install">install / uninstall</a><a href="#center">center</a><a href="#config">config</a></nav>
+<nav class="toc"><a href="#start">Install &amp; Run</a><a href="#help">skill-doctor --help</a><a href="#scan">scan</a><a href="#show">show &lt;name&gt;</a><a href="#conflicts">conflicts</a><a href="#audit">audit</a><a href="#check">check</a><a href="#cleanup">cleanup</a><a href="#cost">cost / context</a><a href="#diff">diff &lt;a&gt; &lt;b&gt;</a><a href="#ui">ui</a><a href="#benefit">Codex optimization</a><a href="#dashboard">dashboard</a><a href="#install">install / uninstall</a><a href="#center">center</a><a href="#config">config</a></nav>
 <main>
   <section id="intro">
     <h2>How to read this manual</h2>
-    <p><a href="#benefit">New: Codex benefit estimation walkthrough with five real screenshots</a></p>
+    <p><a href="#benefit">New: current Codex optimization walkthrough with five real screenshots</a></p>
     <div class="card">
       <p>Each command gets its own section with three blocks: <b>Scenario</b> (when to reach for it), <b>Usage</b> (the command and common flags), <b>Effect</b> (the dark terminal block below is a real, colorized screenshot of the run).</p>
       <p class="note">Conventions: <code>--scope project</code> scopes to the current repo and avoids touching global config; <code>--json</code> emits machine-readable output for CI. The example project contains 1 duplicate skill, so you will see "data-exporter has 2 copies" appear in several places.</p>
@@ -118,7 +122,7 @@
         <p>skill-doctor is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode, etc.): duplicates, conflicts, security risks, and context cost. Install it once and use it in any project directory.</p>
         <h3>Usage</h3>
         <div class="usage">$ npm i -g @evilstar2025/skill-doctor</div>
-        <table class="flags"><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>Install globally, then use the `skill-doctor` command directly.</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>Run a command on the fly without installing.</td></tr><tr><td class="flag">skill-doctor --version</td><td>Print the version (this manual targets 0.6.0).</td></tr></tbody></table>
+        <table class="flags"><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody><tr><td class="flag">npm i -g @evilstar2025/skill-doctor</td><td>Install globally, then use the `skill-doctor` command directly.</td></tr><tr><td class="flag">npx @evilstar2025/skill-doctor &lt;cmd&gt;</td><td>Run a command on the fly without installing.</td></tr><tr><td class="flag">skill-doctor --version</td><td>Print the version (this manual targets 0.7.0).</td></tr></tbody></table>
         <h3>Notes</h3><p class="note">Requires Node.js ≥ 20. Every command accepts `--json` for machine-readable output, which is convenient for CI. The examples in this manual run against a sample project that intentionally puts a skill named `data-exporter` into both `.claude` and `.github` (creating 1 duplicate) and also contains `code-reviewer` for diff demos.</p>
         <h3>Effect</h3>
 
@@ -128,7 +132,7 @@
         <span class="term-title">skill-doctor — bash</span>
       </div>
       <pre class="term-body"><span class="prompt">$ </span><span class="cmd">skill-doctor --version</span>
-0.6.0
+0.7.0
 </pre>
     </div>
       </div>
@@ -507,11 +511,11 @@ Highest cost items:
       <h2><span class="cmd-tag">ui</span> ui — launch the web dashboard</h2>
       <div class="card">
         <h3>Scenario</h3>
-        <p>When you prefer a clickable web UI over the terminal — with overview, conflicts, context cost, and the skill library at a glance — `ui` starts a local web server with session-based auth.</p>
+        <p>When you prefer a clickable web UI over the terminal — with a Codex project's overview, issues, optimization suggestions, scan history, resource inventory, and skill library at a glance — `ui` starts a local web server with session-based auth.</p>
         <h3>Usage</h3>
         <div class="usage">$ skill-doctor ui --port 4173 --no-open</div>
         <table class="flags"><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody><tr><td class="flag">[project-dir]</td><td>Project directory to analyze (default: current).</td></tr><tr><td class="flag">--port N</td><td>Listen port; default: random.</td></tr><tr><td class="flag">--no-open</td><td>Do not auto-open the browser (server still starts).</td></tr></tbody></table>
-        <h3>Notes</h3><p class="note">After starting, the CLI prints a local URL with a session token (see the real output below). Open it in a browser to use the full UI; press Ctrl+C to stop.</p>
+        <h3>Notes</h3><p class="note">After starting, the CLI prints a local URL with a session token (see the real output below). The UI screenshots in this manual use a current example project containing only project-level <code>.codex/skills</code>, with Codex selected on first launch; press Ctrl+C to stop.</p>
         <h3>Effect</h3>
 
     <div class="term">
@@ -524,60 +528,48 @@ Skill Doctor UI: http://127.0.0.1:4173/session/RJebkCY4F_lOCXp6llb3m1dIJcSdrPoEK
 Press Ctrl+C to stop.
 </pre>
     </div>
+        <p class="note">Current UI screenshots (the example project contains only project-level <code>.codex/skills</code>):</p>
+        <div class="ui-gallery">
+          <figure><img src="../../pages/ui-overview.png" alt="Codex project overview" loading="lazy"><figcaption>Codex project overview</figcaption></figure>
+          <figure><img src="../../pages/ui-onboarding.png" alt="Codex onboarding" loading="lazy"><figcaption>Onboarding: select Codex</figcaption></figure>
+          <figure><img src="../../pages/ui-issues.png" alt="Codex project issues" loading="lazy"><figcaption>Codex project issues</figcaption></figure>
+          <figure><img src="../../pages/ui-context.png" alt="Codex context optimization" loading="lazy"><figcaption>Codex context optimization</figcaption></figure>
+          <figure><img src="../../pages/ui-resources.png" alt="Codex resources" loading="lazy"><figcaption>Codex resources</figcaption></figure>
+          <figure><img src="../../pages/ui-manage.png" alt="Codex skill library" loading="lazy"><figcaption>Codex skill library</figcaption></figure>
+        </div>
       </div>
     </section>
 
     <section id="benefit" style="scroll-margin-top:120px">
-      <h2><span class="cmd-tag">benefit</span> Codex benefit estimation: browser walkthrough</h2>
+      <h2><span class="cmd-tag">ui</span> Codex optimization: browser walkthrough</h2>
       <div class="card">
-        <p>This walkthrough ran against real Codex sessions for the skill-doctor project in the Codex in-app browser at 15:47 China time on September 8, 2026. The code baseline is <code>b07db58</code>; screenshots preserve the actual results. This local build was verified. A package version of 0.6.0 alone does not establish that an installed npm package includes this feature.</p>
-        <h3>1. Prepare a preview plan and open the local UI</h3>
-        <p>First ask <code>skill-doctor-context-optimizer</code> to generate a preview in the target project and keep its plan ID. Preview writes local plan metadata; applying configuration changes is a separate operation. This run used an existing candidate plan without applying it.</p>
+        <p>These screenshots were recaptured from the current v0.7.0 local build with a Codex example project. The example contains one project-level <code>.codex/skills</code> Skill; the visible sample has 1 task, 9 turns, and 9 model responses. The UI stays local and read-only through the preview step; no configuration was written.</p>
+        <h3>1. Open the UI and choose Optimization</h3>
+        <p>Install dependencies and build from the source checkout, then start the local UI for the target project. Select Codex in onboarding. The current sidebar label is Optimization, replacing the old Benefit estimation wording.</p>
         <pre class="usage">npm run build
-node dist/index.js ui . --no-open</pre>
-        <p class="note">Run these commands from the source checkout with dependencies installed. Open the session URL printed by this server invocation; use the new URL after restarting the server. In onboarding, select the target project and Codex, then open Benefit estimation in the sidebar. Standard scanning does not start MCP tool discovery by default.</p>
-        <h3>2. Set the range and plan, then run analysis</h3>
-        <ol>
-          <li>Set the lookback to <code>24</code> hours and the main-session limit to <code>5</code>. This is a maximum, not a guaranteed sample count; related child-session files are counted separately.</li>
-          <li>Paste your own preview plan ID or JSON path and leave archived sessions unchecked.</li>
-          <li>Click Start analysis and wait for reading, association, and simulation to finish. Use Cancel analysis to stop the job if needed.</li>
-        </ol>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/01-setup.jpg" alt="Benefit analysis setup: 24 hours, five main sessions, and a preview plan" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 1: Analysis parameters and the three-step guide. The pictured plan ID belongs only to this demonstration.</figcaption></figure>
-        <h3>3. Read coverage before savings</h3>
-        <table class="flags"><thead><tr><th>Metric in this run</th><th>Observed result</th></tr></thead><tbody>
-          <tr><td>Sample</td><td>1 main session, 8 related files, 820 responses</td></tr>
-          <tr><td>Historical input / total tokens</td><td>130,760,339 / 131,248,078</td></tr>
-          <tr><td>Priced responses</td><td>548 / 820 (66.83%)</td></tr>
-          <tr><td>Savings status / response coverage</td><td>unknown / 0.00%</td></tr>
-          <tr><td>Inventory validation / resource matches / reconstructed responses</td><td>mismatch / 0 of 3 / 0</td></tr>
+node dist/index.js ui /path/to/project --no-open</pre>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/01-selection.jpg" alt="Current Codex optimization selection step" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 1: The current Codex optimization wizard at Select optimization. The project-level automatic Skill catalog option is selected, with coverage and estimated savings on the right.</figcaption></figure>
+        <h3>2. Read the session-cost baseline first</h3>
+        <p>Click View session cost to open step 1. The page summarizes tasks, turns, tokens, and API-equivalent cost for the month or week. Use the pricing toggle to switch between the maximum-model and actual-model views.</p>
+        <table class="flags"><thead><tr><th>Example metric</th><th>Current screenshot</th></tr></thead><tbody>
+          <tr><td>Tasks / turns / responses</td><td>1 / 9 / 9</td></tr>
+          <tr><td>Total tokens</td><td>44,500</td></tr>
+          <tr><td>Input / output tokens</td><td>41,100 / 2,720</td></tr>
+          <tr><td>Cached input</td><td>20,550</td></tr>
+          <tr><td>API-equivalent estimate</td><td>$0.6561 · gpt-6-astra 上限价</td></tr>
         </tbody></table>
-        <p class="note">Input tokens are summed across historical responses, so repeated context can be counted multiple times. This is neither a unique-text count nor an entirely uncached billing total. This session is still active, so rerunning changes the numbers.</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/02-result.jpg" alt="Actual result: 820 responses, 548 priced, and savings unavailable" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 2: The zero cards are labelled unavailable, and report status is unknown. Equal before/after totals mean no savings projection was applied; they do not verify zero benefit.</figcaption></figure>
-        <h3>4. Inspect evidence and choose a cache scenario</h3>
-        <p>There were 21 historical snapshots, but all three candidate resources reported “Indexed snapshot retained only metadata, not host skill text”; inventory validation was mismatch. The report also contained some historical text, so this does not establish that the session had no text. Relevant response-to-snapshot associations, text reloading, and plan scan scope still need investigation.</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/03-evidence.jpg" alt="Evidence panel showing inventory mismatch and missing text for selected resource matches" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 3: The evidence panel identifies gaps that prevent estimation. This run does not demonstrate a verified monetary saving.</figcaption></figure>
-        <p>When the report provides cache-scenario buttons, use the guidance below. This report generated no scenarios and displayed no buttons, so scenario switching was not verified in this run.</p>
-        <table class="flags"><thead><tr><th>Scenario</th><th>When to choose it</th></tr></thead><tbody>
-          <tr><td>Historical cache ratio</td><td>Start here to estimate equivalent cost assuming the historical cache ratio continues. Actual cache hits may change.</td></tr>
-          <tr><td>Cache rebuild sensitivity</td><td>Then inspect how rebuilding the cache after a context change affects costs. Read the displayed assumption rather than treating the most attractive number as a promise.</td></tr>
-        </tbody></table>
-        <h3>5. Compare model costs and filter responses</h3>
-        <table class="flags"><thead><tr><th>Model</th><th>Priced / sampled responses</th><th>Estimate using the report's price table (USD, before → after)</th></tr></thead><tbody>
-          <tr><td>gpt-5.6-luna</td><td>506 / 761</td><td>3.932726 → 3.932726</td></tr>
-          <tr><td>gpt-6-astra</td><td>42 / 48</td><td>13.634793 → 13.634793</td></tr>
-          <tr><td>codex-auto-review</td><td>0 / 11</td><td>— → —</td></tr>
-        </tbody></table>
-        <p class="note">Only priceable responses contribute to these amounts. Excluded responses are not free. These are API-equivalent estimates under the software's price table, not verified invoices or ChatGPT/Codex subscription savings.</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/04-model-costs.jpg" alt="Actual partial model-cost estimates and excluded response counts" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 4: Model costs and reasons for excluded responses.</figcaption></figure>
-        <p>In response details, change All models to <code>gpt-6-astra</code>. Session and turn filters narrow the table further. Filtering changes the detail list, not the report totals.</p>
-        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/05-model-filter.jpg" alt="Response details filtered to gpt-6-astra" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 5: The GPT-6 response list after changing the model selector.</figcaption></figure>
-        <h3>6. Export the report and reproduce the analysis</h3>
-        <p>Click JSON for structured output and HTML for a static report. Both downloads were verified as <code>skill-doctor-benefit.json</code> and <code>skill-doctor-benefit.html</code>. Exports contain the whole report, not only the filtered rows.</p>
-        <pre class="usage">node dist/index.js benefit --project . --since 24h --limit 5 --plan &lt;your-plan-id&gt; --format text</pre>
-        <p class="note">Inspect exports before sharing: sourcePath fields were hidden in this JSON, but some resource IDs still contained local paths. This manual includes only the screenshots and aggregate figures, not the raw exports.</p>
-        <h3>How to describe this result</h3>
-        <p>“Skill Doctor summarizes a project's recent Codex sessions into a token baseline, model-cost estimates, and traceable response details. This real sample contained 820 responses, of which 548 were priceable; historical savings from the optimization plan remained unavailable because of evidence gaps.”</p>
-        <p class="note">The earlier preview's 79.9% referred only to a static estimate of fixed context decreasing from approximately 354 to 71 tokens within that scan scope. It must not be presented as a 79.9% reduction in session tokens or cost.</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/02-cost-overview.jpg" alt="Current Codex session cost overview" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 2: The current session-usage and cost overview. The amount is an API-equivalent estimate from the software price table, not a Codex subscription bill.</figcaption></figure>
+        <h3>3. Inspect the after-change context preview</h3>
+        <p>Return to step 2 and click View session changes. The current page shows historical session-header blocks side by side: the selected <code>host_skills.instructions</code> block is marked deleted while unselected memory and Plugins blocks are retained. This is an evidence-aligned preview, not a re-run of a new session.</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/03-context-diff.jpg" alt="Current Codex before and after context block preview" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 3: The after-change session example. Historical blocks are on the left and the aligned preview is on the right; only the selected block is marked for deletion.</figcaption></figure>
+        <h3>4. Review the confirmation preview before changing config</h3>
+        <p>Click Review and confirm change to see the affected scope, target, and the notice that the change takes effect in the next new session. This screenshot stops before confirmation; writing configuration still requires an explicit user action.</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/04-confirmation.jpg" alt="Current Codex optimization confirmation preview" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 4: The confirmation preview with a configuration-details disclosure and the Confirm change · effective next new session action.</figcaption></figure>
+        <h3>5. Verify in a new session after writing</h3>
+        <p>After applying a change, step 3 asks you to start a new Codex session that loads the project configuration and check whether the target block is gone. This read-only walkthrough leaves the empty state because Confirm was not clicked; it does not turn an estimate into realized savings.</p>
+        <figure style="margin:16px 0"><img src="../../../assets/manual/codex-benefit/05-verification.jpg" alt="Current Codex optimization verification step" loading="lazy" style="width:100%;height:auto;border:1px solid #e3e8ee;border-radius:10px"><figcaption class="note">Figure 5: The current Verify effect step. When no change is pending, the page explicitly asks you to select, review, and confirm an optimization first.</figcaption></figure>
+        <h3>How to interpret these numbers</h3>
+        <p>In this example, the selected project-level Skill catalog shows about 60 Tokens per response, covering 9/9 responses, for a cumulative estimate of about 540 Tokens; the displayed cost range is $0.00108–$0.0108. These are potential impacts projected from historical blocks, model prices, and cache bounds—not confirmed bill savings. New sessions, Codex versions, configuration, and price-table changes will change the numbers.</p>
       </div>
     </section>
 
