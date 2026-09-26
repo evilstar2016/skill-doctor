@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice, findMostExpensiveBenefitPrice } from '../benefit/prices';
+import { calculateBenefitCost, DEFAULT_BENEFIT_PRICE_TABLE, findBenefitPrice, findMostExpensiveBenefitPrice } from '../benefit/prices';
 import type { CodexUsageRecord } from '../benefit/types';
 import type { OptimizationPricingMode, OptimizationSuggestion, OptimizationTarget } from './optimizationTypes';
 import { createTokenCounter } from './tokenCounter';
@@ -83,8 +83,18 @@ export function responseSavingsCost(tokens: number, record: CodexUsageRecord, mo
   if (record.quality !== 'complete' || tokens > usage.inputTokens || !price || price.inputPerMillion === undefined || price.cachedInputPerMillion === undefined || price.inputTiers?.length || price.maxInputTokens === undefined || usage.inputTokens > price.maxInputTokens || usage.cacheWriteInputTokens !== 0) return undefined;
   const minCached = Math.max(0, tokens - (usage.inputTokens - usage.cachedInputTokens));
   const maxCached = Math.min(tokens, usage.cachedInputTokens);
-  const endpoints = [minCached, maxCached].map((cached) => ((tokens - cached) * price.inputPerMillion! + cached * price.cachedInputPerMillion!) / 1_000_000);
-  return { lower: Math.min(...endpoints), upper: Math.max(...endpoints), currency: price.currency };
+  if (!price.longContext) {
+    const endpoints = [minCached, maxCached].map((cached) => ((tokens - cached) * price.inputPerMillion! + cached * price.cachedInputPerMillion!) / 1_000_000);
+    return { lower: Math.min(...endpoints), upper: Math.max(...endpoints), currency: price.currency };
+  }
+  const before = calculateBenefitCost(usage, price).amount;
+  if (before === undefined) return undefined;
+  const endpoints = [minCached, maxCached].map((cached) => {
+    const after = calculateBenefitCost({ ...usage, inputTokens: usage.inputTokens - tokens, cachedInputTokens: usage.cachedInputTokens - cached }, price).amount;
+    return after === undefined ? undefined : before - after;
+  });
+  if (endpoints.some((value) => value === undefined)) return undefined;
+  return { lower: Math.min(...endpoints as number[]), upper: Math.max(...endpoints as number[]), currency: price.currency };
 }
 
 export function cumulativeSavings(target: OptimizationTarget, records: CodexUsageRecord[], observations: Map<number, TargetTokens>, mode: OptimizationPricingMode = 'actual'): NonNullable<OptimizationSuggestion['cumulative']> {

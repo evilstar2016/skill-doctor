@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseTOML } from 'confbox/toml';
 import { applyOptimization, editOptimizationConfig, optimizationOverview, previewOptimization, readOptimizationHeader, undoOptimization, verifyOptimization } from '../../src/context/optimization';
+import { responseSavingsCost } from '../../src/context/optimizationSavings';
+import type { CodexUsageRecord } from '../../src/benefit/types';
 import { scanCodexSessions } from '../../src/benefit/codexSessions';
 import { readCodexSkillCatalogs } from '../../src/context/codexSkillCatalog';
 
@@ -95,6 +97,18 @@ describe('verified optimization flow', () => {
     expect(report.sessions.find((session) => session.id === 'absent')?.suggestions[0]).toMatchObject({ available: true, reason: 'absent', tokens: 0, cumulative: { tokens: 0, coveredResponses: 0, pricedResponses: 0 } });
     expect(report.sessions.find((session) => session.id === 'plugins-absent')?.suggestions[2]).toMatchObject({ available: true, reason: 'absent', tokens: 0, cumulative: { tokens: 0, coveredResponses: 0, pricedResponses: 0 } });
   });
+  it.each([
+    ['gpt-6-sol', 0.00156],
+    ['gpt-6-luna', 0.000078],
+  ] as const)('calculates historical usage and savings for %s', async (model, expected) => {
+    fixture('new-model', { model });
+    const { sessions: [session] } = await optimizationOverview(project, home);
+    expect(session.actualCost).toBeCloseTo(expected, 10);
+    expect(session.actualCostCoverage).toBe(1);
+    expect(session.suggestions[0].actualCost!.lower).toBeGreaterThan(0);
+    expect(session.suggestions[0].cumulative!.actualPricedResponses).toBe(1);
+  });
+
   it('defaults to the highest-priced model while retaining the actual model estimate', async () => {
     fixture('cheap', { model: 'gpt-5.6-luna' });
     const { sessions: [session] } = await optimizationOverview(project, home);
@@ -273,4 +287,22 @@ describe('verified optimization flow', () => {
     report = await optimizationOverview(project, home);
     expect(report.sessions[0].suggestions[0]).toMatchObject({ available: false, reason: 'config-override' });
   });
+});
+
+
+it.each([
+  ['gpt-6-sol', 0.1, 0.001],
+  ['gpt-6-luna', 0.005, 0.00005],
+] as const)('includes full-request repricing when %s savings cross 272k', (model, outputSavings, tokenSavings) => {
+  const record: CodexUsageRecord = {
+    sessionId: 'test', threadId: 'test', responseId: 'response', timestamp: '2026-09-26T00:00:00Z',
+    model, sourcePath: '/fixture.jsonl', line: 1, archived: false, sourceKind: 'token_usage_record', quality: 'complete',
+    usage: { inputTokens: 272_100, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 20_000, reasoningOutputTokens: 0, totalTokens: 292_100 },
+  };
+  const result = responseSavingsCost(500, record);
+  const inputRate = model === 'gpt-6-sol' ? 2 : 0.1;
+  const expected = 272_100 * inputRate / 1_000_000 + tokenSavings + outputSavings;
+  expect(result?.lower).toBeCloseTo(expected, 10);
+  expect(result?.upper).toBeCloseTo(expected, 10);
+  expect(responseSavingsCost(0, record)).toEqual({ lower: 0, upper: 0, currency: 'USD' });
 });

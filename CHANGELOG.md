@@ -2,6 +2,12 @@
 
 All notable changes to `skill-doctor` are documented here.
 
+## Unreleased
+
+### Features
+
+- Add GPT-6 Sol and Luna Standard API-equivalent prices for historical session costs and optimization savings. Above 272,000 input tokens, apply 2x input/cache rates and 1.5x output rates to the full request; savings account for crossing that threshold. Prices verified against the official model pages on 2026-09-26; regional and other service-tier adjustments are excluded.
+
 ## 0.7.0 - 2026-09-20
 
 ### Features

@@ -5,11 +5,13 @@ import type { BenefitCostMetrics, BenefitPrice, BenefitPriceTable } from './type
 export const DEFAULT_BENEFIT_PRICE_TABLE: BenefitPriceTable = {
   schemaVersion: 1,
   name: 'OpenAI standard long-context API estimate',
-  updatedAt: '2026-09-07',
+  updatedAt: '2026-09-26',
   channel: 'api-equivalent',
   serviceTier: 'standard',
   unit: 'USD per 1M tokens',
   prices: [
+    { model: 'gpt-6-sol', provider: 'openai', currency: 'USD', inputPerMillion: 2, cachedInputPerMillion: 0.2, cacheWriteInputPerMillion: 2.5, outputPerMillion: 10, maxInputTokens: 1_050_000, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }, source: 'https://developers.openai.com/api/docs/models/gpt-6-sol', notes: 'Standard API estimate verified 2026-09-26; above 272k input tokens, long-context multipliers apply to the full request. Excludes regional and service-tier adjustments; not a subscription bill.' },
+    { model: 'gpt-6-luna', provider: 'openai', currency: 'USD', inputPerMillion: 0.1, cachedInputPerMillion: 0.01, cacheWriteInputPerMillion: 0.125, outputPerMillion: 0.5, maxInputTokens: 1_050_000, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }, source: 'https://developers.openai.com/api/docs/models/gpt-6-luna', notes: 'Standard API estimate verified 2026-09-26; above 272k input tokens, long-context multipliers apply to the full request. Excludes regional and service-tier adjustments; not a subscription bill.' },
     { model: 'gpt-6-astra', provider: 'openai', currency: 'USD', inputPerMillion: 20, cachedInputPerMillion: 2, cacheWriteInputPerMillion: 25, outputPerMillion: 75, maxInputTokens: 200_000, effectiveFrom: '2026-09-07', source: 'https://developers.openai.com/api/docs/pricing', notes: 'Single-tier estimate guarded at 200k input tokens; ChatGPT/Codex subscription usage is not an API bill.' },
     { model: 'gpt-5.6-sol', provider: 'openai', currency: 'USD', inputPerMillion: 8, cachedInputPerMillion: 0.8, cacheWriteInputPerMillion: 10, outputPerMillion: 30, maxInputTokens: 200_000, effectiveFrom: '2026-09-07', source: 'https://developers.openai.com/api/docs/pricing', notes: 'Single-tier estimate guarded at 200k input tokens; ChatGPT/Codex subscription usage is not an API bill.' },
     { model: 'gpt-5.6-terra', provider: 'openai', currency: 'USD', inputPerMillion: 4, cachedInputPerMillion: 0.4, cacheWriteInputPerMillion: 5, outputPerMillion: 18, maxInputTokens: 200_000, effectiveFrom: '2026-09-07', source: 'https://developers.openai.com/api/docs/pricing', notes: 'Single-tier estimate guarded at 200k input tokens; ChatGPT/Codex subscription usage is not an API bill.' },
@@ -22,6 +24,11 @@ function validPrice(value: unknown): value is BenefitPrice {
   if (!value || typeof value !== 'object') return false;
   const price = value as Record<string, unknown>;
   const validNumber = (candidate: unknown): boolean => candidate === undefined || (typeof candidate === 'number' && Number.isFinite(candidate) && candidate >= 0);
+  const longContext = price.longContext as Record<string, unknown> | undefined;
+  const validLongContext = longContext === undefined || (
+    longContext !== null && typeof longContext === 'object' && !Array.isArray(longContext)
+    && ['aboveInputTokens', 'inputMultiplier', 'outputMultiplier'].every((key) => typeof longContext[key] === 'number' && Number.isFinite(longContext[key]) && (longContext[key] as number) >= 0)
+  );
   const validTiers = price.inputTiers === undefined || (
     Array.isArray(price.inputTiers)
     && price.inputTiers.every((tier) => {
@@ -38,7 +45,9 @@ function validPrice(value: unknown): value is BenefitPrice {
     && typeof price.currency === 'string'
     && ['inputPerMillion', 'cachedInputPerMillion', 'cacheWriteInputPerMillion', 'outputPerMillion', 'maxInputTokens']
       .every((key) => validNumber(price[key]))
-    && validTiers;
+    && validTiers
+    && validLongContext
+    && !(longContext && price.inputTiers !== undefined);
 }
 
 export async function loadBenefitPriceTable(path?: string): Promise<BenefitPriceTable> {
@@ -73,6 +82,20 @@ export function findMostExpensiveBenefitPrice(table: BenefitPriceTable): Benefit
     .sort((left, right) => (right.inputPerMillion! - left.inputPerMillion!)
       || (right.cachedInputPerMillion! - left.cachedInputPerMillion!)
       || ((right.outputPerMillion ?? -1) - (left.outputPerMillion ?? -1)))[0];
+}
+
+/** Resolve full-request long-context rates, not marginal input tiers. */
+function resolveBenefitPrice(price: BenefitPrice | undefined, inputTokens: number): BenefitPrice | undefined {
+  if (!price?.longContext || inputTokens <= price.longContext.aboveInputTokens) return price;
+  const { inputMultiplier, outputMultiplier } = price.longContext;
+  return {
+    ...price,
+    longContext: undefined,
+    inputPerMillion: price.inputPerMillion === undefined ? undefined : price.inputPerMillion * inputMultiplier,
+    cachedInputPerMillion: price.cachedInputPerMillion === undefined ? undefined : price.cachedInputPerMillion * inputMultiplier,
+    cacheWriteInputPerMillion: price.cacheWriteInputPerMillion === undefined ? undefined : price.cacheWriteInputPerMillion * inputMultiplier,
+    outputPerMillion: price.outputPerMillion === undefined ? undefined : price.outputPerMillion * outputMultiplier,
+  };
 }
 
 function amount(tokens: number, pricePerMillion: number | undefined): number | undefined {
@@ -151,6 +174,7 @@ export function calculateBenefitCost(
   },
   price: BenefitPrice | undefined,
 ): BenefitCostMetrics {
+  price = resolveBenefitPrice(price, usage.inputTokens);
   if (!price) return { status: 'unknown' };
   const usageValues = [usage.inputTokens, usage.cachedInputTokens, usage.cacheWriteInputTokens, usage.outputTokens];
   if (usageValues.some((value) => !Number.isFinite(value) || value < 0)) {

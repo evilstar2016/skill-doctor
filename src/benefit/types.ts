@@ -370,6 +370,7 @@ export interface BenefitPrice {
   cacheWriteInputPerMillion?: number;
   outputPerMillion?: number;
   maxInputTokens?: number;
+  longContext?: { aboveInputTokens: number; inputMultiplier: number; outputMultiplier: number };
   inputTiers?: Array<{
     upToInputTokens?: number;
     inputPerMillion?: number;
