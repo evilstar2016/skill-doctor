@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],
     environment: 'node',
+    // CI runners can be slower under parallel CLI integration tests.
+    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

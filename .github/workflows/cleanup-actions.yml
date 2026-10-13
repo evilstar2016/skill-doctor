@@ -1,0 +1,41 @@
+name: Cleanup Actions History
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-actions.yml'
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete completed runs older than 3 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cutoff="$(date -u -d '3 days ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          expired_runs="$RUNNER_TEMP/expired-workflow-runs.txt"
+
+          # List all matching runs before deleting any, so pagination cannot skip entries.
+          gh api --paginate -X GET "repos/$GH_REPO/actions/runs" \
+            -f "created=<$cutoff" -f per_page=100 \
+            --jq '.workflow_runs[] | select(.status == "completed") | .id' > "$expired_runs"
+
+          count=0
+          while IFS= read -r run_id; do
+            [ -n "$run_id" ] || continue
+            gh api -X DELETE "repos/$GH_REPO/actions/runs/$run_id"
+            count=$((count + 1))
+          done < "$expired_runs"
+
+          echo "Deleted $count completed workflow runs older than 3 days (cutoff: $cutoff)."

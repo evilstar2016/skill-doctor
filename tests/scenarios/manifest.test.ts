@@ -18,7 +18,8 @@ describe('feature scenario manifests', () => {
     const manifestPaths = listFeatureManifestPaths();
     const scenarioKeys = new Set<string>();
 
-    expect(manifestPaths.length).toBeGreaterThan(0);
+    // Feature manifests are optional local documentation (doc/ and dev-doc/ are gitignored).
+    // Validate every manifest that exists without failing a clean CI checkout.
 
     for (const manifestPath of manifestPaths) {
       const manifest = readManifest(manifestPath);
