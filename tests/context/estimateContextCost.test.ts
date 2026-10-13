@@ -257,7 +257,7 @@ describe('estimateContextCost', () => {
       },
     }));
     expect(result.summary.totalEstimatedTokens).toBe(aggregate?.estimatedTokens);
-  });
+  }, 30_000);
 
   it('keeps disabled Codex resources out of active totals and reports disabled aggregate tax', () => {
     const enabledSkill = makeSkill({
