@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BootstrapPayload } from '../../src/application/types';
 
@@ -30,6 +30,10 @@ const bootstrap = {
 } as unknown as BootstrapPayload;
 
 describe('ManagePage unified Skill Center', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
