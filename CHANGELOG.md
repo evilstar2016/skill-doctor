@@ -33,6 +33,7 @@ All notable changes to `skill-doctor` are documented here.
 - Rehydrate historical context when appending to metadata-only session indexes, and validate optimizer inventory fingerprints using the preview's resource scope and normalization.
 
 ### Documentation
+- Document the `check`, `install`, `uninstall`, `center`, and `config` commands in both READMEs; extend the Pages command reference (EN/zh-CN) with `benefit`, `context blocks`, and `context control` sections; mark the installation-architecture and task-aware-optimization roadmap items with implementation status.
 - Refresh `skills/skill-doctor` to cover the v0.5.0 command surface, supported platforms, structured diagnostic workflows, UI/reporting, managed Skill operations, central-library migration, and Codex resource controls.
 - Correct the Skill's model capability checks and `diff` usage, and document when configured analysis, embedding, or MCP discovery can send data or start external processes.
 

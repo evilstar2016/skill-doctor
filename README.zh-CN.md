@@ -198,6 +198,16 @@ skill-doctor audit --report
 skill-doctor audit --json
 ```
 
+### `check`
+
+一键健康门禁：把安全审计、冲突检测和上下文 token 预算合成一个通过/失败结果，适合 CI 和 pre-commit。任一项不达标即退出码 1。
+
+```bash
+skill-doctor check --scope project --fail-on high
+skill-doctor check --fail-on med --budget-tokens 7000
+skill-doctor check --json
+```
+
 ### `cost` / `context`
 
 估算每轮对话都会付出的上下文 token 成本，并按预算给出等级。
@@ -348,6 +358,40 @@ skill-doctor ui
 skill-doctor ui ./my-project
 skill-doctor ui --no-open
 skill-doctor ui --port 43123
+```
+
+### `install` / `uninstall`
+
+通过统一技能中心管理技能：把本地目录或市场条目安装到目标平台的技能位置，或卸载已纳管的技能。省略 `--target` 时会尝试自动探测当前平台。
+
+```bash
+skill-doctor install ./my-skill --target claude      # 从本地路径安装
+skill-doctor install <slug> --target codex --link    # 市场安装，以链接代替复制
+skill-doctor uninstall my-skill --target claude
+skill-doctor uninstall my-skill --force              # 存在链接或备份时也强制移除
+```
+
+安装记录写入统一技能中心（`center.json`），UI 与其他命令保持同步。
+
+### `center`
+
+查看或迁移统一技能中心存储 `~/.skill-doctor/center.json`。
+
+```bash
+skill-doctor center migrate   # 从旧的 catalog/deployments/registry 文件一次性迁移
+skill-doctor center show      # 以 JSON 输出当前中心库内容
+```
+
+### `config`
+
+查看、设置并测试 `--analyze` 与 `--strategy embedding` 所用的模型配置（存储于 `~/.skill-doctor/config.json`）。
+
+```bash
+skill-doctor config view
+skill-doctor config set analysis --base-url https://api.openai.com/v1 --model gpt-4o-mini --api-key sk-...
+skill-doctor config set embedding --base-url http://localhost:11434/v1 --model bge-m3
+skill-doctor config test --service analysis
+skill-doctor config set analysis --clear-api-key
 ```
 
 ## 安全边界

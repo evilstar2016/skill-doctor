@@ -351,6 +351,16 @@ skill-doctor audit --json
 | `secret-leak` | MED | Instructions that output credentials, API keys, or passwords |
 | `network-call` | LOW | Instructions that POST or upload to external URLs |
 
+### `check`
+
+One-shot health gate that combines the security audit, conflict detection, and the context-token budget into a single pass/fail result — built for CI and pre-commit hooks. Exits 1 when any check fails.
+
+```bash
+skill-doctor check --scope project --fail-on high
+skill-doctor check --fail-on med --budget-tokens 7000
+skill-doctor check --json
+```
+
 ### `cost` / `context`
 
 Estimate per-turn context token tax and grade it against a budget.
@@ -587,6 +597,40 @@ The dashboard shows:
 - **Conflicts** — severity distribution bar and conflict pair cards with similarity scores
 - **Security audit** — 4-rule heatmap (shell-exec, destructive, secret-leak, network-call) and finding detail cards
 - **Cleanup suggestions** — duplicate skill pairs with keep/remove recommendations
+
+### `install` / `uninstall`
+
+Manage skills through the unified skill center: install a local directory or a marketplace entry into a platform's skill location, or remove a managed skill. Without `--target`, the CLI tries to detect the active platform.
+
+```bash
+skill-doctor install ./my-skill --target claude      # install from a local path
+skill-doctor install <slug> --target codex --link    # marketplace install, linked instead of copied
+skill-doctor uninstall my-skill --target claude
+skill-doctor uninstall my-skill --force              # remove even when links or backups exist
+```
+
+Installs are recorded in the skill center (`center.json`) so the UI and other commands stay in sync.
+
+### `center`
+
+Inspect or migrate the unified skill center store at `~/.skill-doctor/center.json`.
+
+```bash
+skill-doctor center migrate   # one-time migration from legacy catalog/deployments/registry files
+skill-doctor center show      # print the current center store as JSON
+```
+
+### `config`
+
+View, set, and test the model configuration used by `--analyze` and `--strategy embedding` (stored in `~/.skill-doctor/config.json`).
+
+```bash
+skill-doctor config view
+skill-doctor config set analysis --base-url https://api.openai.com/v1 --model gpt-4o-mini --api-key sk-...
+skill-doctor config set embedding --base-url http://localhost:11434/v1 --model bge-m3
+skill-doctor config test --service analysis
+skill-doctor config set analysis --clear-api-key
+```
 
 ## Platform coverage
 

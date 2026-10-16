@@ -31,6 +31,7 @@
 | `check` | 一键健康门禁（CI 首选） |
 | `cleanup` | 清理重复技能 |
 | `cost` / `context` | 估算上下文成本 |
+| `benefit` | 基于 Codex 历史估算优化收益 |
 | `diff <a> <b>` | 对比两个技能 |
 | `ui` | 启动 Web 仪表盘 |
 | `dashboard` | 生成静态总览报告 |
@@ -237,6 +238,55 @@
   | `--budget-tokens N` | 每轮预算，超过则标红。 |
   | `--fail-on-budget` | 超预算时退出码 1。 |
   | `--tokenizer openai\|approx` | 分词器；默认 `openai`（精确）。 |
+
+---
+
+## `benefit` — 基于 Codex 历史估算收益（只读）
+
+- **使用场景**
+  - 在动任何 Codex 配置之前，用本地最近的 Codex 会话历史模拟一份优化计划能省多少。`benefit` 不会写入 Codex 配置，也不会重新运行 Codex。
+- **使用方式**
+  ```bash
+  skill-doctor benefit --project . --format json --output benefit.json
+  skill-doctor benefit --project . --since 7d --limit 50 --plan <plan-id>
+  ```
+- **常用参数**
+  | 参数 | 说明 |
+  | --- | --- |
+  | `[project-dir]` | 要分析的项目目录，默认当前目录。 |
+  | `--since 24h\|7d\|ISO` | 按时间截断历史。 |
+  | `--limit N` | 限制会话数量。 |
+  | `--plan ID\|path` | 要模拟的优化计划；省略则进入全历史离线模式。 |
+  | `--format text\|json\|html\|csv` | 报告格式；`--output` 写入文件。 |
+  | `--redact` | 输出脱敏 JSON 报告用于分享。 |
+  | `--delete-index` / `--retention-days N` | 只清理 Skill Doctor 自己的元数据索引。 |
+- **注意**
+  - 报告把「实测用量」与「预估节省」分开呈现；金额为等价 API 价格估算，不是订阅账单。不带 `--plan` 时结果是「删除最新目录文本」的离线模拟，不是已实现的节省。
+
+---
+
+## `context blocks` / `context control` — 检查并写入 Codex 控制
+
+- **使用场景**
+  - `context blocks` 列出某次 Codex 会话 JSONL 初始头中观测到的 skills/memory/plugin 块——在新会话上运行它，验证控制项是否真正生效。`context control` 写入项目级 Codex 配置变更，带预览、摘要确认与冲突校验的撤销。
+- **使用方式**
+  ```bash
+  skill-doctor context blocks --file <session.jsonl> --json
+  skill-doctor context control --report benefit.json --kind recommended_plugins --id <id> --action disable
+  skill-doctor context control --undo <operation-id> --confirm <operation-id>
+  ```
+- **常用参数**
+  | 参数 | 说明 |
+  | --- | --- |
+  | `--file <path>` | 要检查的会话 JSONL（`blocks` 必需）。 |
+  | `--report <report.json>` | 提供控制依据的 benefit 报告。 |
+  | `--kind ...` | `skills_instructions` / `recommended_plugins` / `recommendations`。 |
+  | `--id <catalog-id>` | 要控制的 Skill / 插件 / 推荐条目。 |
+  | `--action enable\|disable` | 控制方向。 |
+  | `--confirm <preview-digest>` | 应用预览的变更（省略则仅预览）。 |
+  | `--undo <operation-id> --confirm <operation-id>` | 撤销已应用的操作。 |
+- **注意**
+  - 写入保持 pending，直到新开的 Codex 任务 JSONL 确认移除；`--undo` 只还原被改的键，并拒绝覆盖后续人工改动。私有备份位于 `.codex/skill-doctor-operations/`，不要提交。配置写入不等于运行时生效——务必在新会话上用 `context blocks` 验证。
 
 ---
 

@@ -31,6 +31,7 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
 | `check` | One-shot health gate (best for CI) |
 | `cleanup` | Remove duplicate skills |
 | `cost` / `context` | Estimate context cost |
+| `benefit` | Estimate savings from Codex history |
 | `diff <a> <b>` | Compare two skills |
 | `ui` | Launch the web dashboard |
 | `dashboard` | Export a static overview report |
@@ -237,6 +238,55 @@ This reference mirrors the [English HTML manual](https://evilstar2016.github.io/
   | `--budget-tokens N` | Per-turn budget; over-budget rows flagged. |
   | `--fail-on-budget` | Exit 1 when over budget. |
   | `--tokenizer openai\|approx` | Tokenizer; default `openai` (precise). |
+
+---
+
+## `benefit` — Estimate savings from Codex history (read-only)
+
+- **Scenario**
+  - Before touching any Codex configuration, estimate what an optimization plan would have saved against recent local Codex rollout sessions. `benefit` never writes Codex configuration and never re-runs Codex.
+- **Usage**
+  ```bash
+  skill-doctor benefit --project . --format json --output benefit.json
+  skill-doctor benefit --project . --since 7d --limit 50 --plan <plan-id>
+  ```
+- **Flags**
+  | Flag | Description |
+  | --- | --- |
+  | `[project-dir]` | Project whose Codex history is analyzed (default: current). |
+  | `--since 24h\|7d\|ISO` | Limit history by time. |
+  | `--limit N` | Cap the number of sessions. |
+  | `--plan ID\|path` | Optimization plan to simulate; omit for offline all-history mode. |
+  | `--format text\|json\|html\|csv` | Report format; `--output` writes to a file. |
+  | `--redact` | Write a redacted JSON report for sharing. |
+  | `--delete-index` / `--retention-days N` | Prune Skill Doctor's own metadata index only. |
+- **Notes**
+  - Reports keep observed usage separate from projected savings; money figures are API-equivalent estimates, not subscription bills. Without a plan, the result is an offline simulation of deleting latest-catalog text, not realized savings.
+
+---
+
+## `context blocks` / `context control` — Inspect and write Codex controls
+
+- **Scenario**
+  - `context blocks` lists the skills/memory/plugin blocks observed in a Codex session JSONL initial header — run it on a fresh session to verify a control actually took effect. `context control` writes project-level Codex configuration changes with preview, digest confirmation, and conflict-checked undo.
+- **Usage**
+  ```bash
+  skill-doctor context blocks --file <session.jsonl> --json
+  skill-doctor context control --report benefit.json --kind recommended_plugins --id <id> --action disable
+  skill-doctor context control --undo <operation-id> --confirm <operation-id>
+  ```
+- **Flags**
+  | Flag | Description |
+  | --- | --- |
+  | `--file <path>` | Session JSONL to inspect (required for `blocks`). |
+  | `--report <report.json>` | Benefit report that supplies the evidence for the control. |
+  | `--kind ...` | `skills_instructions` / `recommended_plugins` / `recommendations`. |
+  | `--id <catalog-id>` | The Skill/plugin/recommendation entry to control. |
+  | `--action enable\|disable` | Direction of the control. |
+  | `--confirm <preview-digest>` | Apply the previewed change (omit for preview-only). |
+  | `--undo <operation-id> --confirm <operation-id>` | Revert a previously applied operation. |
+- **Notes**
+  - Writes stay pending until a newly created Codex task's JSONL confirms removal; `--undo` restores only the changed key and refuses to overwrite later edits. Private backups live under `.codex/skill-doctor-operations/` — do not commit them. A configuration write is not runtime proof: always verify with `context blocks` on a fresh session.
 
 ---
 

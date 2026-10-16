@@ -29,13 +29,13 @@
    - Document how to add a new platform resolver.
    - Add small, well-scoped `good first issue` candidates.
 
-6. **Installation architecture convergence**
-   - Replace the separate simple-install and managed-deployment paths with one shared `InstallTarget` model containing `targetId`, platform, scope, directory, and layout.
-   - Route UI and CLI installs through the same preview/commit service, with one scope-aware registry and migration support for existing records.
-   - Share install API request/response contracts between the server and web client instead of duplicating them.
-   - Split source selection, target inventory, and registered-install management out of `ManagePage` when the unified service is adopted.
+6. **Installation architecture convergence** *(partially done)*
+   - Status: the unified `center.json` store (`src/library/centerStore.ts`) is implemented and is the single source of truth for CLI and UI; legacy `catalog.json` / `deployments.json` / `registry.json` files are read only during migration.
+   - Remaining: share install API request/response contracts between the server and web client instead of duplicating them, and split source selection, target inventory, and registered-install management out of `ManagePage`.
 
-7. **Task-aware resource optimization**
+7. **Task-aware resource optimization** *(largely shipped in v0.7.0)*
+   - Status: resource inventory, the Codex Optimization Suggestions UI flow, shared CLI/UI history-audit controls with preview, digest confirmation and undo, and fresh-session verification are implemented (see CHANGELOG 0.7.0).
+   - Remaining: broaden recommendations beyond Codex-supported controls, and keep distinguishing estimated context savings from runtime effects as coverage grows.
    - Inventory project and user resources when opening Skill Doctor or invoking the optimizer Skill, using static local discovery by default.
    - Use the user's task intent to recommend keeping, enabling, or disabling skills, MCP resources, and plugins, with explicit reasons and uncertain items left unchanged.
    - Share recommendation, preview, approval, and execution logic between UI and Skill entry points; initially execute only confirmed project-local disables through supported Codex controls.
