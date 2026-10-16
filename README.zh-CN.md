@@ -382,6 +382,8 @@ skill-doctor center migrate   # 从旧的 catalog/deployments/registry 文件一
 skill-doctor center show      # 以 JSON 输出当前中心库内容
 ```
 
+> 📖 想详细了解 UI 的「技能库」页面（中心库、待纳管/已纳管、安装状态、copy/link 部署等概念），请阅读[《技能库使用手册》](docs/skill-library-manual.md)（[HTML 版](docs/skill-library-manual.html)）。
+
 ### `config`
 
 查看、设置并测试 `--analyze` 与 `--strategy embedding` 所用的模型配置（存储于 `~/.skill-doctor/config.json`）。

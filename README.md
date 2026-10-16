@@ -620,6 +620,8 @@ skill-doctor center migrate   # one-time migration from legacy catalog/deploymen
 skill-doctor center show      # print the current center store as JSON
 ```
 
+> 📖 For a detailed walkthrough of the UI's Skill Library page (center library, pending vs. managed skills, installation statuses, copy/link deployment), see the [Skill Library manual](docs/skill-library-manual.md) (Chinese, [HTML version](docs/skill-library-manual.html)).
+
 ### `config`
 
 View, set, and test the model configuration used by `--analyze` and `--strategy embedding` (stored in `~/.skill-doctor/config.json`).
