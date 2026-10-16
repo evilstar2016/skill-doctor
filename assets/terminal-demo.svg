@@ -1,8 +1,74 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-labelledby="title desc">
   <title id="title">skill-doctor terminal demo</title>
-  <desc id="desc">A terminal screenshot showing skill-doctor detecting duplicate skills, conflicts, and security risks.</desc>
+  <desc id="desc">An animated terminal demo showing skill-doctor detecting duplicate skills, conflicts, and security risks.</desc>
+  <style>
+    /* Typing effect: the command text is revealed left-to-right by animating the
+       right inset of its clip-path in 37 discrete steps, synced with the cursor. */
+    .typed {
+      clip-path: inset(-6px 410px -6px -2px);
+      animation: typing 10s steps(37, end) infinite;
+    }
+    .cursor {
+      animation: cmove 10s steps(37, end) infinite, blink 1.06s infinite;
+    }
+    .scene { animation: sceneout 10s infinite; }
+    .r-title { animation: intitle 10s infinite; }
+    .s1 { animation: ins1 10s infinite; }
+    .s2 { animation: ins2 10s infinite; }
+    .s3 { animation: ins3 10s infinite; }
+    .s4 { animation: ins4 10s infinite; }
+    .card1 { animation: incard1 10s infinite; }
+    .card2 { animation: incard2 10s infinite; }
+    .card3 { animation: incard3 10s infinite; }
+    .f1 { animation: inf1 10s infinite; }
+    .f2 { animation: inf2 10s infinite; }
+    .f3 { animation: inf3 10s infinite; }
+
+    @keyframes typing {
+      0%, 3% { clip-path: inset(-6px 410px -6px -2px); }
+      24%, 100% { clip-path: inset(-6px -2px -6px -2px); }
+    }
+    @keyframes cmove {
+      0%, 3% { transform: translateX(0); }
+      24%, 100% { transform: translateX(400px); }
+    }
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    @keyframes sceneout {
+      0%, 93% { opacity: 1; }
+      97%, 100% { opacity: 0; }
+    }
+    @keyframes intitle { 0%, 25% { opacity: 0; } 28%, 100% { opacity: 1; } }
+    @keyframes ins1 { 0%, 28% { opacity: 0; } 31%, 100% { opacity: 1; } }
+    @keyframes ins2 { 0%, 31% { opacity: 0; } 34%, 100% { opacity: 1; } }
+    @keyframes ins3 { 0%, 34% { opacity: 0; } 37%, 100% { opacity: 1; } }
+    @keyframes ins4 { 0%, 37% { opacity: 0; } 40%, 100% { opacity: 1; } }
+    @keyframes incard1 {
+      0%, 32% { opacity: 0; transform: translateY(12px); }
+      36%, 100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes incard2 {
+      0%, 38% { opacity: 0; transform: translateY(12px); }
+      42%, 100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes incard3 {
+      0%, 44% { opacity: 0; transform: translateY(12px); }
+      48%, 100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes inf1 { 0%, 50% { opacity: 0; } 53%, 100% { opacity: 1; } }
+    @keyframes inf2 { 0%, 54% { opacity: 0; } 57%, 100% { opacity: 1; } }
+    @keyframes inf3 { 0%, 58% { opacity: 0; } 61%, 100% { opacity: 1; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .typed { animation: none; clip-path: none; }
+      .scene, .cursor, .r-title, .s1, .s2, .s3, .s4,
+      .card1, .card2, .card3, .f1, .f2, .f3 { animation: none; }
+    }
+  </style>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="48" y1="44" x2="912" y2="516">
       <stop offset="0%" stop-color="#101820"/>
       <stop offset="100%" stop-color="#16212b"/>
     </linearGradient>
@@ -18,33 +84,53 @@
   <circle cx="120" cy="66" r="6" fill="#28c840"/>
   <text x="150" y="72" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#8fa3b5">skill-doctor dashboard</text>
 
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">
-    <text x="78" y="126" fill="#8fd6ff">$ npx @evilstar2025/skill-doctor scan</text>
-    <text x="78" y="174" fill="#f7fbff" font-size="23" font-weight="700">SKILL DOCTOR REPORT</text>
-    <text x="78" y="214" fill="#c6d3dd">Total skills installed: </text>
-    <text x="338" y="214" fill="#ffffff" font-weight="700">15</text>
-    <text x="78" y="248" fill="#c6d3dd">Duplicates detected:   </text>
-    <text x="338" y="248" fill="#ffcc66" font-weight="700">1</text>
-    <text x="78" y="282" fill="#c6d3dd">Conflicts detected:    </text>
-    <text x="338" y="282" fill="#ff8a80" font-weight="700">2</text>
-    <text x="78" y="316" fill="#c6d3dd">Security findings:     </text>
-    <text x="338" y="316" fill="#ff8a80" font-weight="700">2</text>
+  <g class="scene">
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">
+      <!-- typed command: textLength pins monospace advance so the 37-step reveal aligns per character -->
+      <text class="typed" x="78" y="126" fill="#8fd6ff" textLength="400" lengthAdjust="spacing">$ npx @evilstar2025/skill-doctor scan</text>
+      <rect class="cursor" x="78" y="110" width="10" height="21" rx="2" fill="#8fd6ff"/>
+      <text class="r-title" x="78" y="174" fill="#f7fbff" font-size="23" font-weight="700">SKILL DOCTOR REPORT</text>
+      <g class="s1">
+        <text x="78" y="214" fill="#c6d3dd">Total skills installed: </text>
+        <text x="338" y="214" fill="#ffffff" font-weight="700">15</text>
+      </g>
+      <g class="s2">
+        <text x="78" y="248" fill="#c6d3dd">Duplicates detected:   </text>
+        <text x="338" y="248" fill="#ffcc66" font-weight="700">1</text>
+      </g>
+      <g class="s3">
+        <text x="78" y="282" fill="#c6d3dd">Conflicts detected:    </text>
+        <text x="338" y="282" fill="#ff8a80" font-weight="700">2</text>
+      </g>
+      <g class="s4">
+        <text x="78" y="316" fill="#c6d3dd">Security findings:     </text>
+        <text x="338" y="316" fill="#ff8a80" font-weight="700">2</text>
+      </g>
+    </g>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">
+      <g class="card1">
+        <rect x="484" y="126" width="344" height="84" rx="8" fill="#172a35" stroke="#2a4655"/>
+        <text x="508" y="154" fill="#ffcc66" font-weight="700">DUPLICATE</text>
+        <text x="508" y="178" fill="#dce7ee">ppt-master in global +</text>
+        <text x="508" y="196" fill="#dce7ee">project paths</text>
+      </g>
+      <g class="card2">
+        <rect x="484" y="228" width="344" height="84" rx="8" fill="#271d24" stroke="#5a3344"/>
+        <text x="508" y="256" fill="#ff8a80" font-weight="700">CONFLICT</text>
+        <text x="508" y="280" fill="#dce7ee">git-workflow overlaps</text>
+        <text x="508" y="298" fill="#dce7ee">github-automation</text>
+      </g>
+      <g class="card3">
+        <rect x="484" y="330" width="344" height="84" rx="8" fill="#211f16" stroke="#4d4527"/>
+        <text x="508" y="358" fill="#ffcc66" font-weight="700">SECURITY AUDIT</text>
+        <text x="508" y="382" fill="#dce7ee">secret leak + network</text>
+        <text x="508" y="400" fill="#dce7ee">call patterns</text>
+      </g>
+    </g>
+
+    <text class="f1" x="78" y="450" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#9fb2c3">Works locally. No skill upload required.</text>
+    <text class="f2" x="78" y="474" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#9fb2c3">Scan Claude Code, Cursor, Copilot, Codex, Gemini CLI,</text>
+    <text class="f3" x="78" y="498" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#9fb2c3">Windsurf, Kiro, Trae, OpenCode, and more.</text>
   </g>
-
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">
-    <rect x="484" y="126" width="344" height="72" rx="8" fill="#172a35" stroke="#2a4655"/>
-    <text x="508" y="156" fill="#ffcc66" font-weight="700">DUPLICATE</text>
-    <text x="508" y="182" fill="#dce7ee">ppt-master in global + project paths</text>
-
-    <rect x="484" y="222" width="344" height="88" rx="8" fill="#271d24" stroke="#5a3344"/>
-    <text x="508" y="252" fill="#ff8a80" font-weight="700">CONFLICT</text>
-    <text x="508" y="278" fill="#dce7ee">git-workflow overlaps github-automation</text>
-
-    <rect x="484" y="334" width="344" height="96" rx="8" fill="#211f16" stroke="#4d4527"/>
-    <text x="508" y="364" fill="#ffcc66" font-weight="700">SECURITY AUDIT</text>
-    <text x="508" y="390" fill="#dce7ee">secret leak + network call patterns</text>
-  </g>
-
-  <text x="78" y="456" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#9fb2c3">Works locally. No skill upload required.</text>
-  <text x="78" y="484" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#9fb2c3">Scan Claude Code, Cursor, Copilot, Codex, Gemini CLI, Windsurf, Kiro, Trae, OpenCode, and more.</text>
 </svg>
