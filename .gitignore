@@ -11,6 +11,8 @@ coverage/
 skill-doctor-*.html
 .superpowers/
 doc/*
+# Local competitor research tracker; keep it out of commits and pushes.
+/doc/competitor-tracker.md
 skill-backup/
 .env
 .vscode/
