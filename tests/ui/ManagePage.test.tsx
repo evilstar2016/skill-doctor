@@ -301,4 +301,89 @@ describe('ManagePage unified Skill Center', () => {
     await waitFor(() => expect(mocks.syncDeployment).toHaveBeenCalledWith('d-a', true));
     expect(setToast).toHaveBeenCalledWith('已重新同步');
   });
+
+  it('selects all managed rows via the header checkbox and batch-deploys them', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [
+        { id: 'a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [] },
+        { id: 'b', name: 'beta', sourceType: 'local', treeHash: 'sha256:b', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [] },
+      ],
+      physical: [],
+      importPlanId: 'plan-bulk-deploy',
+    });
+    mocks.getDeploymentTargets.mockResolvedValue([
+      { targetId: 'claude-global', platform: 'claude', scope: 'global', directory: '/home/.claude/skills' },
+      { targetId: 'claude-project', platform: 'claude', scope: 'project', directory: '/project/.claude/skills' },
+    ]);
+    mocks.previewDeployment.mockResolvedValue({ planId: 'preview-plan', targets: [{ targetId: 'claude-project', state: 'available', installedPath: '/project/.claude/skills/x' }] });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('checkbox', { name: '全选' }));
+    expect(screen.getByText('已选 2 个')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '批量部署' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('批量部署到目标 Agent')).toBeTruthy();
+    const path = await within(dialog).findByText('/home/.claude/skills');
+    fireEvent.click(within(path.closest('.deployment-target-card')!).getByRole('button', { name: '项目' }));
+
+    await waitFor(() => expect(mocks.previewDeployment).toHaveBeenCalledWith('a', ['claude-project'], 'copy'));
+    await waitFor(() => expect(mocks.previewDeployment).toHaveBeenCalledWith('b', ['claude-project'], 'copy'));
+    fireEvent.click(within(dialog).getByRole('button', { name: '以复制方式部署 2 个 skill 到 2 个目标' }));
+
+    await waitFor(() => expect(mocks.commitDeployment).toHaveBeenCalledWith('a', ['claude-project'], 'copy', 'preview-plan', false));
+    await waitFor(() => expect(mocks.commitDeployment).toHaveBeenCalledWith('b', ['claude-project'], 'copy', 'preview-plan', false));
+  });
+
+  it('batch-resyncs installations of selected managed skills', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [
+        { id: 'a', name: 'alpha', sourceType: 'local', treeHash: 'sha256:a', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [{ deploymentId: 'd-a', platform: 'claude', scope: 'global', mode: 'copy', installedPath: '/home/.claude/skills/alpha/SKILL.md', status: 'outdated', installedAt: '2026-01-01' }] },
+        { id: 'b', name: 'beta', sourceType: 'local', treeHash: 'sha256:b', addedAt: '2026-01-01', updatedAt: '2026-01-02', managed: true, installations: [{ deploymentId: 'd-b', platform: 'claude', scope: 'global', mode: 'copy', installedPath: '/home/.claude/skills/beta/SKILL.md', status: 'synced', installedAt: '2026-01-01' }] },
+      ],
+      physical: [],
+      importPlanId: 'plan-bulk-resync',
+    });
+    const setToast = vi.fn();
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={setToast} />);
+    fireEvent.click(await screen.findByRole('checkbox', { name: '全选' }));
+    fireEvent.click(screen.getByRole('button', { name: '批量同步' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '批量同步' }));
+
+    await waitFor(() => expect(mocks.syncDeployment).toHaveBeenCalledTimes(2));
+    expect(mocks.syncDeployment).toHaveBeenCalledWith('d-a', false);
+    expect(mocks.syncDeployment).toHaveBeenCalledWith('d-b', false);
+    expect(setToast).toHaveBeenCalledWith('已同步 2 个安装');
+  });
+
+  it('selects all pending skills in a group and batch-adopts them', async () => {
+    mocks.getCenterSkills.mockResolvedValue({
+      skills: [],
+      physical: [
+        { id: 'phys-1', name: 'local-review', rootPath: '/home/.claude/skills/local-review', platform: 'claude', scope: 'global', status: 'new', managed: false },
+        { id: 'phys-2', name: 'format-docs', rootPath: '/home/.claude/skills/format-docs', platform: 'claude', scope: 'global', status: 'new', managed: false },
+      ],
+      importPlanId: 'group-plan',
+    });
+    mocks.reclaimPhysicalAgentSkills.mockResolvedValue({
+      planId: 'group-plan',
+      outcomes: [{ candidateId: 'phys-1', status: 'linked' }, { candidateId: 'phys-2', status: 'linked' }],
+      needsRescan: false,
+    });
+
+    render(<ManagePage bootstrap={bootstrap} snapshot={null} onChanged={vi.fn()} setToast={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('checkbox', { name: '全选 Claude 分组' }));
+    expect(screen.getByText('已选 2 个')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '批量纳管' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '批量纳管' }));
+
+    await waitFor(() => expect(mocks.reclaimPhysicalAgentSkills).toHaveBeenCalledWith({
+      planId: 'group-plan',
+      decisions: [
+        { candidateId: 'phys-1', action: 'replace-with-link' },
+        { candidateId: 'phys-2', action: 'replace-with-link' },
+      ],
+    }));
+  });
 });

@@ -43,7 +43,7 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<Row | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [deploySkill, setDeploySkill] = useState<CenterSkillView | null>(null);
+  const [deploySkills, setDeploySkills] = useState<CenterSkillView[] | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [conflictCandidate, setConflictCandidate] = useState<CenterPhysicalView | null>(null);
   const [comparisonCandidate, setComparisonCandidate] = useState<CenterPhysicalView | null>(null);
@@ -107,6 +107,7 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     return [...groups.entries()];
   }, [filtered, selectedAgent]);
   const managedRows = filtered.filter((row): row is Extract<Row, { kind: 'managed' }> => row.kind === 'managed');
+  const allManagedSelected = managedRows.length > 0 && managedRows.every((row) => selected.has(row.id));
 
   const reload = () => { setSelected(new Set()); setDetail(null); setReloadKey((value) => value + 1); onChanged(); };
 
@@ -114,6 +115,27 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllManaged = () => {
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const row of managedRows) {
+        if (allManagedSelected) next.delete(row.id); else next.add(row.id);
+      }
+      return next;
+    });
+  };
+
+  const toggleGroupSelection = (ids: string[]) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      const allSelected = ids.length > 0 && ids.every((id) => next.has(id));
+      for (const id of ids) {
+        if (allSelected) next.delete(id); else next.add(id);
+      }
       return next;
     });
   };
@@ -185,6 +207,36 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     setConfirmation({ title: t('center.bulkReclaim'), message: t('center.bulkReclaimConfirm', { count: candidates.length }), confirmLabel: t('center.bulkReclaim'), onConfirm: () => reclaimCandidates(candidates.map((row) => ({ candidateId: row.candidate.id, action: 'replace-with-link' }))) });
   };
 
+  const bulkDeploy = () => {
+    if (selectedManaged.length === 0) return;
+    setDeploySkills(selectedManaged.map((row) => row.skill));
+  };
+
+  const bulkResync = () => {
+    if (selectedManaged.length === 0) return;
+    setConfirmation({ title: t('center.bulkResync'), message: t('center.bulkResyncConfirm', { count: selectedManaged.length }), confirmLabel: t('center.bulkResync'), onConfirm: bulkResyncConfirmed });
+  };
+
+  const bulkResyncConfirmed = async () => {
+    if (selectedManaged.length === 0) return;
+    setBusy(true);
+    try {
+      let synced = 0;
+      for (const row of selectedManaged) {
+        for (const installation of row.skill.installations) {
+          await syncDeployment(installation.deploymentId, installation.status === 'modified' || installation.status === 'conflict');
+          synced += 1;
+        }
+      }
+      setToast(t('center.bulkResynced', { count: synced }));
+      reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const bulkUninstall = () => {
     if (selectedManaged.length === 0) return;
     setConfirmation({ title: t('center.bulkUninstall'), message: t('center.bulkUninstallConfirm', { count: selectedManaged.length }), confirmLabel: t('center.bulkUninstall'), danger: true, onConfirm: bulkUninstallConfirmed });
@@ -227,7 +279,7 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     {loading ? <div className="loading-line"><LoaderCircle className="spin" size={16} />{t('common.loading')}</div> : center && center.skills.length === 0 && center.physical.length === 0 ? <EmptyState icon={Boxes} title={t('center.empty')} description={t('center.emptyHint')} /> : <>
       <section className="pending-section">
         <div className="library-section-heading"><h2>{t('center.pending')}</h2><p>{t('center.pendingHint')}</p></div>
-        {pendingGroups.length === 0 ? <p className="muted empty-copy">{t('center.noPending')}</p> : pendingGroups.map(([platform, candidates]) => <PendingGroup key={platform} platform={platform} candidates={candidates} selected={selected} onToggle={toggleSelect} onReclaim={reclaim} onResolveConflict={setConflictCandidate} onOpen={(candidate) => setDetail({ id: candidate.id, kind: 'physical', candidate })} busy={busy} />)}
+        {pendingGroups.length === 0 ? <p className="muted empty-copy">{t('center.noPending')}</p> : pendingGroups.map(([platform, candidates]) => <PendingGroup key={platform} platform={platform} candidates={candidates} selected={selected} onToggle={toggleSelect} onToggleGroup={toggleGroupSelection} onReclaim={reclaim} onResolveConflict={setConflictCandidate} onOpen={(candidate) => setDetail({ id: candidate.id, kind: 'physical', candidate })} busy={busy} />)}
       </section>
 
       <section className="managed-section">
@@ -241,8 +293,8 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
           </select>
         </FilterBar>
         {managedRows.length === 0 ? <p className="muted empty-copy">{t('center.noMatch')}</p> : <div className="center-list">
-          <div className="center-row center-header"><span /><span>{t('center.colName')}</span><span>{t('center.colSource')}</span><span>{t('center.colInstalls')}</span><span /></div>
-          {managedRows.map((row) => <CenterRowItem key={row.id} row={row} selected={selected.has(row.id)} onToggle={() => toggleSelect(row.id)} onOpen={() => setDetail(row)} onReclaim={reclaim} onDeploy={setDeploySkill} busy={busy} />)}
+          <div className="center-row center-header"><span><label className="row-check"><input aria-label={t('center.selectAll')} type="checkbox" checked={allManagedSelected} onChange={toggleAllManaged} /></label></span><span>{t('center.colName')}</span><span>{t('center.colSource')}</span><span>{t('center.colInstalls')}</span><span /></div>
+          {managedRows.map((row) => <CenterRowItem key={row.id} row={row} selected={selected.has(row.id)} onToggle={() => toggleSelect(row.id)} onOpen={() => setDetail(row)} onReclaim={reclaim} onDeploy={(skill) => setDeploySkills([skill])} busy={busy} />)}
         </div>}
       </section>
     </>}
@@ -250,26 +302,30 @@ export function ManagePage({ bootstrap, snapshot, onChanged, setToast, onViewIss
     {selected.size > 0 && <div className="bulk-bar">
       <span className="bulk-count">{t('center.selected', { count: selected.size })}</span>
       <div className="bulk-actions">
+        <button className="button primary compact" disabled={busy || selectedManaged.length === 0} onClick={bulkDeploy}><Rocket size={15} />{t('center.bulkDeploy')}</button>
         <button className="button primary compact" disabled={busy || selectedPhysical.every((row) => row.candidate.status === 'same-name-different-content')} onClick={bulkReclaim}><ArchiveRestore size={15} />{t('center.bulkReclaim')}</button>
+        <button className="button secondary compact" disabled={busy || selectedManaged.length === 0} onClick={bulkResync}><RefreshCw size={15} />{t('center.bulkResync')}</button>
         <button className="button danger compact" disabled={busy || selectedManaged.length === 0} onClick={bulkUninstall}><Trash2 size={15} />{t('center.bulkUninstall')}</button>
         <a className="button secondary compact" href="/api/export/dashboard" download><Download size={15} />{t('center.export')}</a>
         <button className="button ghost compact" onClick={() => setSelected(new Set())}>{t('center.clearSelection')}</button>
       </div>
     </div>}
 
-    {detail && <CenterDrawer row={detail} onClose={() => setDetail(null)} onReclaim={reclaim} onUninstall={unlinkDeployment} onResync={resync} onDeploy={setDeploySkill} onCompare={setComparisonCandidate} busy={busy} onViewIssues={onViewIssues} />}
+    {detail && <CenterDrawer row={detail} onClose={() => setDetail(null)} onReclaim={reclaim} onUninstall={unlinkDeployment} onResync={resync} onDeploy={(skill) => setDeploySkills([skill])} onCompare={setComparisonCandidate} busy={busy} onViewIssues={onViewIssues} />}
     {settingsOpen && center && <CenterSettingsDialog currentPath={library.rootPath} onClose={() => setSettingsOpen(false)} onSaved={() => { setSettingsOpen(false); reload(); }} />}
-    {deploySkill && <DeploymentDialog skill={deploySkill} onClose={() => setDeploySkill(null)} onDeployed={() => { setDeploySkill(null); reload(); }} setToast={setToast} />}
+    {deploySkills && <DeploymentDialog skills={deploySkills} onClose={() => setDeploySkills(null)} onDeployed={() => { setDeploySkills(null); reload(); }} setToast={setToast} />}
     {confirmation && <ConfirmDialog confirmation={confirmation} busy={busy} onCancel={() => setConfirmation(null)} onConfirm={async () => { const action = confirmation.onConfirm; setConfirmation(null); await action(); }} />}
     {conflictCandidate && <ConflictResolutionDialog candidate={conflictCandidate} busy={busy} onClose={() => setConflictCandidate(null)} onResolve={async (decision) => { setConflictCandidate(null); await reclaimCandidates([decision]); }} />}
     {comparisonCandidate && <SkillComparisonDialog candidate={comparisonCandidate} onClose={() => setComparisonCandidate(null)} />}
   </section>;
 }
 
-function PendingGroup({ platform, candidates, selected, onToggle, onReclaim, onResolveConflict, onOpen, busy }: { platform: Platform; candidates: CenterPhysicalView[]; selected: Set<string>; onToggle: (id: string) => void; onReclaim: (candidate: CenterPhysicalView) => void; onResolveConflict: (candidate: CenterPhysicalView) => void; onOpen: (candidate: CenterPhysicalView) => void; busy: boolean }) {
+function PendingGroup({ platform, candidates, selected, onToggle, onToggleGroup, onReclaim, onResolveConflict, onOpen, busy }: { platform: Platform; candidates: CenterPhysicalView[]; selected: Set<string>; onToggle: (id: string) => void; onToggleGroup: (ids: string[]) => void; onReclaim: (candidate: CenterPhysicalView) => void; onResolveConflict: (candidate: CenterPhysicalView) => void; onOpen: (candidate: CenterPhysicalView) => void; busy: boolean }) {
   const { t } = useTranslation();
+  const adoptable = candidates.filter((candidate) => candidate.status !== 'same-name-different-content');
+  const groupSelected = adoptable.length > 0 && adoptable.every((candidate) => selected.has(candidate.id));
   return <section className="pending-group">
-    <div className="pending-agent-heading"><PlatformIcon platform={platform} size={18} /><strong>{t('center.agentGroup', { agent: platformLabel(platform), count: candidates.length })}</strong></div>
+    <div className="pending-agent-heading"><label className="row-check"><input aria-label={t('center.selectGroup', { agent: platformLabel(platform) })} type="checkbox" checked={groupSelected} onChange={() => onToggleGroup(adoptable.map((candidate) => candidate.id))} /></label><PlatformIcon platform={platform} size={18} /><strong>{t('center.agentGroup', { agent: platformLabel(platform), count: candidates.length })}</strong></div>
     <div className="pending-table" role="table">
       <div className="pending-table-head" role="row"><span /><span>{t('center.colName')}</span><span>{t('center.pendingSource')}</span><span>{t('center.pendingScope')}</span><span>{t('center.pendingConflict')}</span><span>{t('center.pendingAction')}</span></div>
       {candidates.map((candidate) => {
@@ -496,25 +552,31 @@ type DeploymentPreviewTarget = { targetId: string; state: 'available' | 'managed
 type DeploymentTargetGroup = { platform: Platform; targets: DeploymentTarget[] };
 type ConflictDecision = 'replace' | 'keep' | 'skip';
 
-function DeploymentDialog({ skill, onClose, onDeployed, setToast }: { skill: CenterSkillView; onClose: () => void; onDeployed: () => void; setToast: (message: string) => void }) {
+function DeploymentDialog({ skills, onClose, onDeployed, setToast }: { skills: CenterSkillView[]; onClose: () => void; onDeployed: () => void; setToast: (message: string) => void }) {
   const { t } = useTranslation();
+  const multi = skills.length > 1;
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [mode, setMode] = useState<'copy' | 'symlink'>('copy');
-  const [preview, setPreview] = useState<{ planId: string; targets: DeploymentPreviewTarget[] } | null>(null);
+  const [previews, setPreviews] = useState<Record<string, { planId: string; targets: DeploymentPreviewTarget[] }>>({});
   const [decisions, setDecisions] = useState<Record<string, ConflictDecision>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { void getDeploymentTargets().then(setTargets).catch((err) => setError(err instanceof Error ? err.message : String(err))); }, []);
   useEffect(() => {
-    if (selectedIds.length === 0) { setPreview(null); return; }
+    if (selectedIds.length === 0) { setPreviews({}); return; }
     let active = true;
-    void previewDeployment(skill.id, selectedIds, mode).then((result) => { if (active) setPreview(result); }).catch((err) => { if (active) setError(err instanceof Error ? err.message : String(err)); });
+    void Promise.all(skills.map(async (skill) => [skill.id, await previewDeployment(skill.id, selectedIds, mode)] as const))
+      .then((entries) => { if (active) setPreviews(Object.fromEntries(entries)); })
+      .catch((err) => { if (active) setError(err instanceof Error ? err.message : String(err)); });
     return () => { active = false; };
-  }, [mode, selectedIds, skill.id]);
+  }, [mode, selectedIds, skills]);
 
-  const previewByTarget = new Map(preview?.targets.map((target) => [target.targetId, target]) ?? []);
+  const previewByPair = new Map<string, DeploymentPreviewTarget>();
+  for (const [skillId, preview] of Object.entries(previews)) {
+    for (const target of preview.targets) previewByPair.set(`${skillId}:${target.targetId}`, target);
+  }
   const targetGroups = useMemo<DeploymentTargetGroup[]>(() => {
     const grouped = new Map<Platform, DeploymentTarget[]>();
     for (const target of targets) grouped.set(target.platform, [...(grouped.get(target.platform) ?? []), target]);
@@ -523,13 +585,18 @@ function DeploymentDialog({ skill, onClose, onDeployed, setToast }: { skill: Cen
       targets: groupedTargets.sort((left, right) => left.scope.localeCompare(right.scope)),
     })).sort((left, right) => platformLabel(left.platform).localeCompare(platformLabel(right.platform)));
   }, [targets]);
-  const conflicts = selectedIds.filter((id) => previewByTarget.get(id)?.state === 'occupied');
-  const unresolved = conflicts.some((id) => !decisions[id]);
-  const effectiveIds = selectedIds.filter((id) => previewByTarget.get(id)?.state !== 'occupied' || decisions[id] === 'replace');
+  const conflicts = skills.flatMap((skill) => selectedIds.filter((targetId) => previewByPair.get(`${skill.id}:${targetId}`)?.state === 'occupied').map((targetId) => ({ key: `${skill.id}:${targetId}`, skillName: skill.name, targetId })));
+  const unresolved = conflicts.some((conflict) => !decisions[conflict.key]);
+  const effectiveIdsFor = (skillId: string) => selectedIds.filter((targetId) => previewByPair.get(`${skillId}:${targetId}`)?.state !== 'occupied' || decisions[`${skillId}:${targetId}`] === 'replace');
+  const totalEffective = skills.reduce((sum, skill) => sum + effectiveIdsFor(skill.id).length, 0);
 
   const toggleTarget = (targetId: string) => {
     setSelectedIds((current) => current.includes(targetId) ? current.filter((id) => id !== targetId) : [...current, targetId]);
-    setDecisions((current) => { const next = { ...current }; delete next[targetId]; return next; });
+    setDecisions((current) => {
+      const next: Record<string, ConflictDecision> = {};
+      for (const [key, value] of Object.entries(current)) if (!key.endsWith(`:${targetId}`)) next[key] = value;
+      return next;
+    });
   };
   const toggleTargetGroup = (group: DeploymentTargetGroup) => {
     const active = group.targets.find((target) => selectedIds.includes(target.targetId));
@@ -538,32 +605,36 @@ function DeploymentDialog({ skill, onClose, onDeployed, setToast }: { skill: Cen
   const selectTargetScope = (group: DeploymentTargetGroup, target: DeploymentTarget) => {
     setSelectedIds((current) => [...current.filter((id) => !group.targets.some((item) => item.targetId === id)), target.targetId]);
     setDecisions((current) => {
-      const next = { ...current };
-      for (const item of group.targets) delete next[item.targetId];
+      const next: Record<string, ConflictDecision> = {};
+      for (const [key, value] of Object.entries(current)) if (!group.targets.some((item) => key.endsWith(`:${item.targetId}`))) next[key] = value;
       return next;
     });
   };
   const deploy = async () => {
-    if (effectiveIds.length === 0 || unresolved) return;
+    if (selectedIds.length === 0 || unresolved) return;
     setBusy(true); setError(null);
     try {
-      const fresh = await previewDeployment(skill.id, effectiveIds, mode);
-      const force = fresh.targets.some((target) => target.state === 'occupied');
-      await commitDeployment(skill.id, effectiveIds, mode, fresh.planId, force);
-      setToast(t('center.deployedCount', { count: effectiveIds.length }));
+      for (const skill of skills) {
+        const ids = effectiveIdsFor(skill.id);
+        if (ids.length === 0) continue;
+        const fresh = await previewDeployment(skill.id, ids, mode);
+        const force = fresh.targets.some((target) => target.state === 'occupied');
+        await commitDeployment(skill.id, ids, mode, fresh.planId, force);
+      }
+      setToast(multi ? t('center.deployedCountMulti', { skills: skills.length }) : t('center.deployedCount', { count: effectiveIdsFor(skills[0].id).length }));
       onDeployed();
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
   };
 
   return <div className="drawer-overlay deployment-overlay" onClick={onClose}>
     <aside className="drawer deployment-drawer" role="dialog" aria-modal="true" aria-labelledby="deployment-title" onClick={(event) => event.stopPropagation()}>
-      <div className="deploy-drawer-head"><div><h3 id="deployment-title">{t('center.deployTitle')}</h3><div className="deploy-skill"><span className="deploy-skill-icon"><Boxes size={24} /></span><span><strong>{skill.name}</strong><small>{t('center.managedSkill')}</small></span></div></div><button className="button ghost compact" onClick={onClose} aria-label={t('common.close')}><X size={18} /></button></div>
+      <div className="deploy-drawer-head"><div><h3 id="deployment-title">{t(multi ? 'center.deployTitleMulti' : 'center.deployTitle')}</h3><div className="deploy-skill"><span className="deploy-skill-icon"><Boxes size={24} /></span><span><strong>{multi ? t('center.deploySkillsCount', { count: skills.length }) : skills[0].name}</strong><small>{multi ? skills.map((skill) => skill.name).join('、') : t('center.managedSkill')}</small></span></div></div><button className="button ghost compact" onClick={onClose} aria-label={t('common.close')}><X size={18} /></button></div>
       <div className="deploy-drawer-body">
         <section className="deployment-step"><h4><span>1</span>{t('center.selectTargets')}</h4><p>{t('center.selectTargetsHint')}</p><div className="deployment-target-list">{targetGroups.map((group) => {
           const activeTarget = group.targets.find((target) => selectedIds.includes(target.targetId));
           const displayedTarget = activeTarget ?? group.targets.find((target) => target.scope === 'global') ?? group.targets[0];
-          const targetPreview = activeTarget ? previewByTarget.get(activeTarget.targetId) : undefined;
-          const occupied = activeTarget && targetPreview?.state === 'occupied';
+          const targetPreview = displayedTarget ? skills.map((skill) => previewByPair.get(`${skill.id}:${displayedTarget.targetId}`)).find(Boolean) : undefined;
+          const occupied = Boolean(displayedTarget && targetPreview?.state === 'occupied');
           return <div className={`deployment-target-card ${activeTarget ? 'selected' : ''}`} key={group.platform}>
             <label className="deployment-target-main"><input type="checkbox" aria-label={`${t('center.selectTargets')}: ${platformLabel(group.platform)}`} checked={Boolean(activeTarget)} onChange={() => toggleTargetGroup(group)} /><PlatformIcon platform={group.platform} size={20} /><strong>{platformLabel(group.platform)}</strong></label>
             <div className="deployment-scope-controls">{group.targets.map((target) => <button type="button" className={activeTarget?.targetId === target.targetId ? 'active' : ''} key={target.targetId} onClick={() => selectTargetScope(group, target)}>{scopeLabel(target.scope, t)}</button>)}</div>
@@ -572,13 +643,13 @@ function DeploymentDialog({ skill, onClose, onDeployed, setToast }: { skill: Cen
           </div>;
         })}</div></section>
         <section className="deployment-step"><h4><span>2</span>{t('center.installMode')}</h4><p>{t('center.installModeHint')}</p><label className="deployment-choice"><input type="radio" name="mode" checked={mode === 'copy'} onChange={() => setMode('copy')} /><span><strong>{t('common.copy')}</strong><small>{t('center.copyHint')}</small></span></label><label className="deployment-choice"><input type="radio" name="mode" checked={mode === 'symlink'} onChange={() => setMode('symlink')} /><span><strong>{t('center.linkShort')}</strong><small>{t('center.linkHint')}</small></span></label></section>
-        {conflicts.length > 0 && <section className="deployment-step deployment-conflicts"><h4>3. {t('center.conflictPreview')}</h4>{conflicts.map((targetId) => {
-          const target = targets.find((item) => item.targetId === targetId);
-          return <div className="deployment-conflict" key={targetId}><strong>{target && `${platformLabel(target.platform)} · ${scopeLabel(target.scope, t)}`}</strong><span>{t('center.conflictDecisionHint')}</span><div>{(['replace', 'keep', 'skip'] as const).map((decision) => <label key={decision}><input type="radio" name={`conflict-${targetId}`} checked={decisions[targetId] === decision} onChange={() => setDecisions((current) => ({ ...current, [targetId]: decision }))} />{t(`center.conflict.${decision}`)}</label>)}</div></div>;
+        {conflicts.length > 0 && <section className="deployment-step deployment-conflicts"><h4>3. {t('center.conflictPreview')}</h4>{conflicts.map((conflict) => {
+          const target = targets.find((item) => item.targetId === conflict.targetId);
+          return <div className="deployment-conflict" key={conflict.key}><strong>{[multi ? conflict.skillName : null, target && `${platformLabel(target.platform)} · ${scopeLabel(target.scope, t)}`].filter(Boolean).join(' · ')}</strong><span>{t('center.conflictDecisionHint')}</span><div>{(['replace', 'keep', 'skip'] as const).map((decision) => <label key={decision}><input type="radio" name={`conflict-${conflict.key}`} checked={decisions[conflict.key] === decision} onChange={() => setDecisions((current) => ({ ...current, [conflict.key]: decision }))} />{t(`center.conflict.${decision}`)}</label>)}</div></div>;
         })}</section>}
         {error && <p className="form-error">{error}</p>}
       </div>
-      <div className="deploy-drawer-footer"><button className="button primary full deployment-submit" disabled={busy || selectedIds.length === 0 || unresolved || effectiveIds.length === 0} onClick={() => void deploy()}>{busy ? <LoaderCircle className="spin" size={17} /> : <Rocket size={17} />}{t('center.deploySummary', { count: effectiveIds.length, mode: mode === 'copy' ? t('common.copy') : t('center.linkShort') })}</button>{unresolved && <p className="muted deployment-blocked">{t('center.conflictBlocked')}</p>}</div>
+      <div className="deploy-drawer-footer"><button className="button primary full deployment-submit" disabled={busy || selectedIds.length === 0 || unresolved || totalEffective === 0} onClick={() => void deploy()}>{busy ? <LoaderCircle className="spin" size={17} /> : <Rocket size={17} />}{t(multi ? 'center.deploySummaryMulti' : 'center.deploySummary', { skills: skills.length, count: totalEffective, mode: mode === 'copy' ? t('common.copy') : t('center.linkShort') })}</button>{unresolved && <p className="muted deployment-blocked">{t('center.conflictBlocked')}</p>}</div>
     </aside>
   </div>;
 }
