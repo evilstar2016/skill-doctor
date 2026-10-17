@@ -20,4 +20,5 @@ export {
 } from './deployments';
 export { getCenterView } from './center';
 export { loadCenterLibrarySettings, saveCenterLibrarySettings } from '../library/centerSettings';
+export { migrateCenterLibrary, previewCenterLibraryChange } from '../library/centerMigration';
 export { compareResources, getResourceDetail } from './resourceQueries';

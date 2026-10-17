@@ -538,7 +538,7 @@ class DeploymentWriteError extends SkillDeploymentError {
 }
 
 /** Create a platform-appropriate directory link (symlink on Unix, junction on Windows). */
-function createSkillLink(targetPath: string, linkPath: string): void {
+export function createSkillLink(targetPath: string, linkPath: string): void {
   if (process.platform === 'win32') {
     fs.symlinkSync(resolve(targetPath), linkPath, 'junction');
   } else {

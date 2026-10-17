@@ -291,9 +291,26 @@ export async function getManagedSkillConflictDiff(candidateId: string): Promise<
   return request<ManagedSkillConflictDiff>(`/api/center/conflicts/${encodeURIComponent(candidateId)}/diff`);
 }
 
-export async function saveCenterLibraryPath(rootPath: string) {
-  return request<{ version: 1; rootPath: string }>('/api/center/settings', {
-    method: 'PUT', body: JSON.stringify({ rootPath }),
+export interface CenterLibraryChangePreview {
+  affected: number;
+  names: string[];
+}
+
+export interface CenterLibraryMigrationResult {
+  moved: number;
+  relinked: number;
+  skipped: string[];
+}
+
+export async function previewCenterLibraryChange(rootPath: string): Promise<CenterLibraryChangePreview> {
+  return request<CenterLibraryChangePreview>('/api/center/settings/preview', {
+    method: 'POST', body: JSON.stringify({ rootPath }),
+  });
+}
+
+export async function saveCenterLibraryPath(rootPath: string, migrate = false) {
+  return request<{ version: 1; rootPath: string; migration?: CenterLibraryMigrationResult }>('/api/center/settings', {
+    method: 'PUT', body: JSON.stringify({ rootPath, migrate }),
   });
 }
 

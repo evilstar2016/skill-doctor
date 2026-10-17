@@ -18,6 +18,8 @@ import {
   uninstallManagedSkillDeployment,
   loadCenterLibrarySettings,
   saveCenterLibrarySettings,
+  migrateCenterLibrary,
+  previewCenterLibraryChange,
 } from '../application/actions';
 import { normalizePlatformName } from '../platforms/registry';
 import { zhMessage } from '../i18n';
@@ -39,7 +41,19 @@ export async function handleLibraryRoute(
 
   if (request.method === 'PUT' && url.pathname === '/api/center/settings') {
     const body = await readJsonBody(request);
-    sendJson(response, 200, saveCenterLibrarySettings(requiredString(body.rootPath, 'rootPath'), context.homeDir));
+    const rootPath = requiredString(body.rootPath, 'rootPath');
+    if (body.migrate === true) {
+      const migration = migrateCenterLibrary(rootPath, context.homeDir);
+      sendJson(response, 200, { ...loadCenterLibrarySettings(context.homeDir), migration });
+    } else {
+      sendJson(response, 200, saveCenterLibrarySettings(rootPath, context.homeDir));
+    }
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/center/settings/preview') {
+    const body = await readJsonBody(request);
+    sendJson(response, 200, previewCenterLibraryChange(requiredString(body.rootPath, 'rootPath'), context.homeDir));
     return true;
   }
 

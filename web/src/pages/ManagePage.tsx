@@ -12,6 +12,7 @@ import {
   reclaimPhysicalAgentSkills,
   removeSkill,
   pickCenterLibraryPath,
+  previewCenterLibraryChange,
   saveCenterLibraryPath,
   syncDeployment,
   uninstallDeployment,
@@ -518,6 +519,7 @@ function StatusBadge({ status, label }: { status: CenterInstallationView['status
 function CenterSettingsDialog({ currentPath, onClose, onSaved }: { currentPath: string; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation();
   const [rootPath, setRootPath] = useState(currentPath);
+  const [preview, setPreview] = useState<{ affected: number; names: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -525,23 +527,43 @@ function CenterSettingsDialog({ currentPath, onClose, onSaved }: { currentPath: 
     setBusy(true); setError(null);
     try {
       const result = await pickCenterLibraryPath();
-      if (!('cancelled' in result)) setRootPath(result.rootPath);
+      if (!('cancelled' in result)) { setRootPath(result.rootPath); setPreview(null); }
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
   };
   const save = async () => {
     setBusy(true); setError(null);
-    try { await saveCenterLibraryPath(rootPath); onSaved(); } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
+    try {
+      const trimmed = rootPath.trim();
+      const result = await previewCenterLibraryChange(trimmed);
+      if (result.affected === 0) { await saveCenterLibraryPath(trimmed); onSaved(); return; }
+      setPreview(result);
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
+  };
+  const saveWithMigration = (migrate: boolean) => async () => {
+    setBusy(true); setError(null);
+    try { await saveCenterLibraryPath(rootPath.trim(), migrate); onSaved(); } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
   };
 
   return <div className="drawer-overlay" onClick={onClose}>
     <aside className="drawer center-settings-drawer" onClick={(event) => event.stopPropagation()}>
       <div className="drawer-head"><div><h3>{t('center.changeLibrary')}</h3><small>{t('center.librarySettingHint')}</small></div><button className="button ghost compact" onClick={onClose}><X size={16} /></button></div>
       <div className="drawer-body">
-        <label className="field"><span>{t('center.libraryPath')}</span><input value={rootPath} onChange={(event) => setRootPath(event.target.value)} /></label>
+        <label className="field"><span>{t('center.libraryPath')}</span><input value={rootPath} onChange={(event) => { setRootPath(event.target.value); setPreview(null); }} /></label>
         <button className="button secondary" disabled={busy} onClick={() => void choose()}><Boxes size={16} />{t('center.chooseDirectory')}</button>
         <p className="muted center-settings-note">{t('center.libraryChangeNotice')}</p>
+        {preview && <div role="alert">
+          <p className="muted center-settings-note"><TriangleAlert size={14} /> {t('center.migrateAffected', { count: preview.affected })}</p>
+          <p className="muted center-settings-note">{preview.names.slice(0, 5).join('、')}{preview.names.length > 5 ? ` +${preview.names.length - 5}` : ''}</p>
+          <p className="muted center-settings-note">{t('center.migrateRecommend')}</p>
+        </div>}
         {error && <p className="form-error">{error}</p>}
-        <div className="drawer-actions"><button className="button secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</button><button className="button primary" disabled={busy || !rootPath.trim()} onClick={() => void save()}>{t('common.save')}</button></div>
+        <div className="drawer-actions">
+          <button className="button secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</button>
+          {preview ? <>
+            <button className="button ghost" disabled={busy} onClick={() => void saveWithMigration(false)}>{t('center.switchWithoutMigrate')}</button>
+            <button className="button primary" disabled={busy} onClick={() => void saveWithMigration(true)}>{t('center.migrateAndSwitch')}</button>
+          </> : <button className="button primary" disabled={busy || !rootPath.trim()} onClick={() => void save()}>{t('common.save')}</button>}
+        </div>
       </div>
     </aside>
   </div>;
