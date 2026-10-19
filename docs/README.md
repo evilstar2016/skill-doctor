@@ -10,6 +10,8 @@
 
 > 👉 Want to see it in action? Open the **[English interactive HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html)** — real terminal screenshots and a UI walkthrough for every command.
 
+For screenshot-based workflows, see the [English user manual index](manuals/README.md).
+
 > `skill-doctor` is a local CLI that audits skills installed by AI coding assistants (Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode, etc.): duplicates, conflicts, security risks, and context cost. Every command accepts `--json` for machine-readable output, convenient for CI.
 
 This reference mirrors the [English HTML manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html); each command below covers **Scenario / Usage / Effect**.

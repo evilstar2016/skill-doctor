@@ -50,12 +50,22 @@ The focus is diagnosis of configuration already on your machine. `skill-doctor` 
 
 ## Documentation
 
+Browse the [user manual index](docs/manuals/README.md) by workflow.
+
 | Need | Guide |
 |------|-------|
+| Project health check: steps, real screenshots, and result interpretation | [Manual](docs/manuals/health-check.md) · [中文](docs/manuals/health-check.zh-CN.md) |
+| Find resources, trace sources, and review sharing and linked issues | [Manual](docs/manuals/resources.md) · [中文](docs/manuals/resources.zh-CN.md) |
+| Diagnose duplicates and trigger conflicts, compare files, and verify outcomes | [Manual](docs/manuals/conflicts.md) · [中文](docs/manuals/conflicts.zh-CN.md) |
+| Understand context estimates, locate costly resources, and adjust budgets | [Manual](docs/manuals/context-budget.md) · [中文](docs/manuals/context-budget.zh-CN.md) |
+| Interpret security levels, locate suspicious instructions, and review evidence | [Manual](docs/manuals/security-audit.md) · [中文](docs/manuals/security-audit.zh-CN.md) |
+| Codex context optimization, confirmation, and new-task verification | [Optimization workflow](docs/manuals/codex-optimization.md#optimization-workflow) · [Historical estimates](docs/manuals/codex-optimization.md#history-estimate) · [中文](docs/manuals/codex-optimization.zh-CN.md) |
+| Import and take over skills | [Import](docs/manuals/skill-library.md#import) · [Take over](docs/manuals/skill-library.md#take-over) · [Name conflicts](docs/manuals/skill-library.md#name-conflicts) · [中文](docs/manuals/skill-library.zh-CN.md#import) |
+| Deploy and uninstall skills | [Deployment and conflicts](docs/manuals/skill-library.md#deploy) · [Uninstall or delete](docs/manuals/skill-library.md#uninstall) · [中文](docs/manuals/skill-library.zh-CN.md#deploy) |
+| Sync and manage skills in bulk | [Installation status](docs/manuals/skill-library.md#installation-status) · [Sync](docs/manuals/skill-library.md#sync) · [Batch operations](docs/manuals/skill-library.md#batch-operations) · [中文](docs/manuals/skill-library.zh-CN.md#installation-status) |
 | Commands, options, configuration, and CI | [CLI reference](docs/README.md) |
 | Walkthroughs with terminal and UI screenshots | [Interactive manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html) |
 | Platform paths and test maturity | [Platform support](docs/platform-support.md) |
-| Codex context optimization and evidence limits | [Codex optimization guide](docs/codex-optimization.md) |
 | Sample output | [Safe demo findings](DEMO_OUTPUT.md) |
 | Compare with manual audits | [Comparison](COMPARISON.md) |
 | Contribute or add a platform | [Contributing](CONTRIBUTING.md) · [Platform adapter guide](ADDING_PLATFORM.md) |

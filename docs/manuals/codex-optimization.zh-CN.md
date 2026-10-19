@@ -1,8 +1,10 @@
-# Codex 优化与上下文成本估算
+# Codex 上下文优化使用手册
 
-[English](codex-optimization.md) | [中文](codex-optimization.zh-CN.md)
+[手册目录](README.zh-CN.md) · [返回 README](../../README.zh-CN.md#文档) · [English](codex-optimization.md)
 
-本文集中说明 Codex 专项优化流程及其证据边界；命令参数见[命令参考](README.zh-CN.md)。
+本文集中说明 Codex 专项优化流程及其证据边界；命令参数见[命令参考](../README.zh-CN.md)。
+
+<a id="optimization-workflow"></a>
 
 ## Codex 优化建议
 
@@ -44,9 +46,11 @@ Skill 使用 `--kind skills_instructions --id '<目录中的Skill名称>'`。ID 
 `history-control`、`history-undo` 入口，要求先输出完整证据报告，再等待用户确认。
 CLI 帮助必须包含 `context control`；旧版本不能用禁用已安装插件的命令代替。
 
+<a id="history-estimate"></a>
+
 ## `benefit`（Codex 历史收益预估）
 
-[查看浏览器实操图解：方案输入、结果解读、模型筛选与导出](zh-CN/pages/manual.html#benefit)。图解包含真实项目截图及本次无法估算收益的原因。
+[查看浏览器实操图解：方案输入、结果解读、模型筛选与导出](../zh-CN/pages/manual.html#benefit)。图解包含真实项目截图及本次无法估算收益的原因。
 
 将 Skill Doctor 优化方案与当前项目最近的 Codex rollout JSONL 会话对齐，预估
 输入 Token、总 Token 和等价 API 费用的变化。分析在本机完成，不重新执行 Codex，
@@ -128,7 +132,7 @@ Codex 控制能力：
 
 ## 延伸阅读
 
-- [命令参考](README.zh-CN.md)，查看命令参数与用法。
+- [命令参考](../README.zh-CN.md)，查看命令参数与用法。
 - [中文交互式手册](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html)。
-- [平台支持与验证范围](platform-support.zh-CN.md)。
+- [平台支持与验证范围](../platform-support.zh-CN.md)。
 - [English guide](codex-optimization.md).

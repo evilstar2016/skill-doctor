@@ -50,12 +50,22 @@ npx @evilstar2025/skill-doctor ui
 
 ## 文档
 
+按功能浏览[使用手册目录](docs/manuals/README.zh-CN.md)。
+
 | 需求 | 文档 |
 |------|------|
+| 第一次做项目体检：操作步骤、真实截图与结果解读 | [项目体检使用手册](docs/manuals/health-check.zh-CN.md) |
+| 查找资源、追溯来源、核对共享关系与关联问题 | [资源清单使用手册](docs/manuals/resources.zh-CN.md) |
+| 核对重复副本、诊断触发冲突与验证处理结果 | [重复与冲突诊断手册](docs/manuals/conflicts.zh-CN.md) |
+| 理解上下文估算、定位高成本资源与调整预算 | [上下文成本与预算手册](docs/manuals/context-budget.zh-CN.md) |
+| 理解安全等级、定位可疑指令与进行人工复核 | [安全审计手册](docs/manuals/security-audit.zh-CN.md) |
+| Codex 上下文优化、确认与新会话验证 | [优化流程](docs/manuals/codex-optimization.zh-CN.md#optimization-workflow) · [历史收益预估](docs/manuals/codex-optimization.zh-CN.md#history-estimate) |
+| 技能导入与纳管 | [导入新技能](docs/manuals/skill-library.zh-CN.md#import) · [纳管现有技能](docs/manuals/skill-library.zh-CN.md#take-over) · [同名冲突](docs/manuals/skill-library.zh-CN.md#name-conflicts) |
+| 技能部署与卸载 | [部署方式与目标冲突](docs/manuals/skill-library.zh-CN.md#deploy) · [卸载与删除的区别](docs/manuals/skill-library.zh-CN.md#uninstall) |
+| 技能同步与批量操作 | [安装状态](docs/manuals/skill-library.zh-CN.md#installation-status) · [同步](docs/manuals/skill-library.zh-CN.md#sync) · [批量操作](docs/manuals/skill-library.zh-CN.md#batch-operations) |
 | 命令、参数、配置与 CI | [命令参考](docs/README.zh-CN.md) |
 | 带终端和界面截图的操作讲解 | [中文交互式手册](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html) |
 | 平台路径与测试成熟度 | [平台支持说明](docs/platform-support.zh-CN.md) |
-| Codex 上下文优化与证据边界 | [Codex 优化指南](docs/codex-optimization.zh-CN.md) |
 | 样例输出 | [安全 demo 结果](DEMO_OUTPUT.md) |
 | 与手动审计对比 | [方案对比](COMPARISON.md) |
 | 参与贡献或添加平台 | [贡献指南](CONTRIBUTING.md) · [平台适配器指南](ADDING_PLATFORM.md) |

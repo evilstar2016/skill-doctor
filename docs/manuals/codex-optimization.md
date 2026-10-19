@@ -1,8 +1,10 @@
-# Codex optimization and context estimates
+# Codex context optimization manual
 
-[English](codex-optimization.md) | [中文](codex-optimization.zh-CN.md)
+[Manual index](README.md) · [Project README](../../README.md#documentation) · [中文](codex-optimization.zh-CN.md)
 
-This guide collects the Codex-specific optimization workflow and its evidence limits. It is a companion to the [CLI reference](README.md).
+This guide collects the Codex-specific optimization workflow and its evidence limits. It is a companion to the [CLI reference](../README.md).
+
+<a id="optimization-workflow"></a>
 
 ## Codex optimization suggestions
 
@@ -66,6 +68,8 @@ supports `history`, `history-control` and `history-undo`, sharing the CLI contro
 Ask it for a full evidence-backed report and preview before approving project changes.
 The CLI must list `context control` in its help; older builds must not substitute
 installed-plugin disabling for recommendation hiding.
+
+<a id="history-estimate"></a>
 
 ## `benefit` (Codex historical estimate)
 
@@ -211,7 +215,7 @@ Estimate limitations:
 
 ## Further reading
 
-- [CLI reference](README.md) for command options and usage.
+- [CLI reference](../README.md) for command options and usage.
 - [Interactive English manual](https://evilstar2016.github.io/skill-doctor/en/pages/manual.html).
-- [Platform support and validation](platform-support.md).
+- [Platform support and validation](../platform-support.md).
 - [中文指南](codex-optimization.zh-CN.md).

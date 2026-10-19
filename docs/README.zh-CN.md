@@ -10,6 +10,8 @@
 
 > 👉 想看图看效果？打开 **[中文图文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html)** —— 每个命令都有真实终端截图和界面走查。
 
+按实际操作流程查看图文手册，可浏览[中文手册目录](manuals/README.zh-CN.md)。
+
 > `skill-doctor` 是一个本地 CLI 工具，用于审计 AI 编码助手（Claude Code / Codex / Copilot / Cursor / WorkBuddy / InfCode 等）安装的「技能（skill）」：重复、冲突、安全风险与上下文成本。所有命令都支持 `--json` 输出，便于接入 CI。
 
 本说明文档与图文并茂的 **[中文使用手册（HTML）](https://evilstar2016.github.io/skill-doctor/zh-CN/pages/manual.html)** 内容类似：每个命令都覆盖 **使用场景 / 使用方式 / 使用效果** 三块。
