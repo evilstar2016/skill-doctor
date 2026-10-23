@@ -2,6 +2,10 @@
 
 Thanks for helping improve `skill-doctor`. The most useful contributions right now are small, reproducible reports from real agent setups.
 
+## Contribute in one paste
+
+New here? Copy the prompt in [docs/contribute-prompt.md](docs/contribute-prompt.md) ([中文](docs/contribute-prompt.zh-CN.md)) into your agent. It inspects your local setup, picks one of the three tracks below, verifies the change with the repository gates, and opens the pull request for you.
+
 ## Good first contributions
 
 - Report a false positive from `skill-doctor conflicts`.
