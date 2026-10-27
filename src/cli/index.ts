@@ -3,6 +3,7 @@
 // Load .env from the current working directory before any module reads
 // process.env (e.g. the opt-in LLM debug flag in src/llm/logging.ts).
 import 'dotenv/config';
+import { importSecurityReport, loadSecurityState, prepareSecurityTask, setSecurityEnabled, type SecurityMode } from '../security-component/component';
 
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -92,6 +93,30 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
   if (hasFlag(rest, '--help') || hasFlag(rest, '-h')) {
     process.stdout.write(getHelpText());
+    return;
+  }
+
+  if (command === 'security-component') {
+    try {
+      const [action] = rest;
+      let result: unknown;
+      if (action === 'enable' || action === 'disable') result = setSecurityEnabled(cwd, action === 'enable');
+      else if (action === 'status') result = loadSecurityState(cwd);
+      else if (action === 'prepare') {
+        const task = prepareSecurityTask(cwd, readFlagValue(rest, '--mode') as SecurityMode, readFlagValue(rest, '--scope') ?? '', readFlagValue(rest, '--revision') ?? '', readFlagValue(rest, '--design-report') ?? undefined);
+        process.stdout.write(task);
+        return;
+      } else if (action === 'import') {
+        const path = readFlagValue(rest, '--file');
+        if (!path) throw new Error('Use --file <security-report.json>.');
+        if (statSync(path).size > 1024 * 1024) throw new Error('Report exceeds 1 MiB.');
+        result = importSecurityReport(cwd, JSON.parse(readFileSync(path, 'utf8')));
+      } else throw new Error('Use security-component enable|disable|status|prepare|import.');
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    } catch (error) {
+      process.stderr.write(`${error instanceof Error ? error.message : 'Security component failed.'}\n`);
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -1195,6 +1220,9 @@ function getHelpText(): string {
     'skill-doctor',
     '',
     'Usage:',
+    '  skill-doctor security-component enable|disable|status',
+    '  skill-doctor security-component prepare --mode design|code --scope <description> --revision <commit> [--design-report <id>]',
+    '  skill-doctor security-component import --file <security-report.json>',
     '  skill-doctor scan [--platform PLATFORM] [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',

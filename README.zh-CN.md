@@ -76,3 +76,13 @@ npx @evilstar2025/skill-doctor ui
 ## License
 
 MIT — 见 [LICENSE](LICENSE)。
+
+## 可选安全设计与代码审计组件
+
+“问题”页提供默认关闭、按项目启用的 Cloudflare security-audit 组件。选择设计评审或代码审计，填写范围与代码版本，生成任务后复制到已有编码 Agent 执行，再导入 `security-report.json`。skill-doctor 不启动 Agent、不管理其凭据、不上传源码；运行前请在外部 Agent 检查模型数据共享、工具权限与隔离环境。
+
+CLI 对应命令为 `security-component enable|disable|status`、`security-component prepare --mode design|code --scope <范围> --revision <版本> [--design-report <设计报告ID>]` 和 `security-component import --file <路径>`。
+
+组件固定上游版本并保留 MIT 许可证。设计报告单独记录信任边界、威胁、假设和稳定的安全要求 ID；代码报告使用上游发现格式与校验器。关联设计报告时必须逐条提供验证状态与证据，“有问题”必须关联已确认发现。导入只校验格式，不代表 skill-doctor 独立确认漏洞，目标版本由外部报告声明。
+
+报告最大 1 MiB，保存在用户目录 `.skill-doctor/security-component/`，按项目路径隔离。重复导入不产生副本，关闭组件保留报告，现有扫描不受影响。安全设计评审属于 skill-doctor 的适配功能。

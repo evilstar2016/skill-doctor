@@ -1,3 +1,4 @@
+import { SecurityComponent } from '../components/SecurityComponent';
 import { ArrowRight, Check } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { DoctorSnapshot, UiIssue } from '../../../src/application/types';
@@ -13,6 +14,7 @@ export function IssuesPage({ snapshot, openIssue }: { snapshot: DoctorSnapshot |
     return (!query || haystack.includes(query.toLowerCase())) && (kind === 'all' || issue.kind === kind) && severityMatches;
   }), [snapshot, query, kind, severity]);
   return <section><PageHeading title={t('issues.title')} subtitle={t('issues.subtitle')}><span className="result-count">{t('issues.count', { count: issues.length })}</span></PageHeading>
+    <SecurityComponent />
     <FilterBar query={query} setQuery={setQuery} placeholder={t('issues.search')}>
       <select aria-label={t('issues.type')} value={kind} onChange={(event) => setKind(event.target.value)}><option value="all">{t('issues.allTypes')}</option><option value="security">{t('label.security')}</option><option value="conflict">{t('label.conflict')}</option><option value="duplicate">{t('label.duplicate')}</option><option value="context">{t('label.context')}</option></select>
       <select aria-label={t('issues.level')} value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="actionable">{t('issues.actionable')}</option><option value="all">{t('issues.allLevels')}</option><option value="high">{t('label.high')}</option><option value="med">{t('label.medium')}</option><option value="low">{t('label.low')}</option><option value="info">{t('label.info')}</option></select>

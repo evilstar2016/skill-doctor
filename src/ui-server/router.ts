@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+import { handleSecurityComponentRoute } from './securityComponentHandlers';
 import { sendJson } from './apiPrimitives';
 import { createApiRequestContext, type ApiServerContext } from './apiContext';
 import { handleConfigRoute } from './configHandlers';
@@ -16,7 +17,7 @@ export async function handleApi(
   serverContext: ApiServerContext,
 ): Promise<void> {
   const context = createApiRequestContext(serverContext);
-  for (const handler of [handleConfigRoute, handleOptimizationRoute, handleBenefitRoute, handleScanRoute, handleLibraryRoute, handleResourceRoute]) {
+  for (const handler of [handleSecurityComponentRoute, handleConfigRoute, handleOptimizationRoute, handleBenefitRoute, handleScanRoute, handleLibraryRoute, handleResourceRoute]) {
     if (await handler(request, response, url, context)) return;
   }
   sendJson(response, 404, { error: { code: 'not_found', message: 'API route not found.' } });

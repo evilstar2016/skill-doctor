@@ -76,3 +76,22 @@ For questions or redacted real-world drift reports, use [GitHub Discussions](htt
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Optional security design and code audit component
+
+The Issues page includes an optional Cloudflare security-audit component, disabled by default for each project. Enable it to prepare a design-review or code-audit task, copy the task to your existing coding Agent, then import `security-report.json`. skill-doctor does not launch an Agent, manage its credentials, or upload source code. Review data sharing, tool permissions, and execution isolation in your external Agent before running a task.
+
+The CLI provides the same workflow:
+
+```bash
+skill-doctor security-component enable
+skill-doctor security-component prepare --mode design --scope 'docs/design.md' --revision <commit>
+skill-doctor security-component import --file /outside/project/security-report.json
+skill-doctor security-component status
+skill-doctor security-component prepare --mode code --scope 'src/' --revision <commit> --design-report <imported-design-id>
+skill-doctor security-component disable
+```
+
+Tasks use the pinned upstream snapshot in `assets/security-audit/` and describe the versioned report envelope. Design reports contain trust boundaries, threats, assumptions, and stable requirement IDs. Code reports embed the upstream `findings.json` array, validated with its bundled schema and validator. Linking a design report requires an evidence-bearing check for every requirement; an `issue` must reference a confirmed finding. Conclusions are externally reported: successful import checks format, not exploitability or the truth of the evidence. Target paths and revision labels are reported provenance, not source attestation.
+
+Reports are stored locally under `~/.skill-doctor/security-component/`, separated by project path; duplicate imports are idempotent. Disabling retains reports. Imports are limited to 1 MiB. Existing configuration scans are independent of this component. The pinned upstream is MIT licensed; attribution and its license ship with the component. Design review is a skill-doctor adaptation.
