@@ -8,6 +8,10 @@ All notable changes to `skill-doctor` are documented here.
 
 - Add a default-off, project-scoped Cloudflare security-audit component with pinned MIT-licensed upstream assets. Prepare design-review and code-audit tasks for external coding Agents, import validated reports from CLI or the Issues page, and link code evidence to stable design requirements. Imported conclusions remain explicitly external and are not independently attested by skill-doctor.
 
+### Fixes
+
+- Show actionable, localized security-component errors instead of raw backend exceptions. Allow retrying failed component initialization without reloading the page.
+
 ## 0.7.1 - 2026-10-17
 
 ### Features
