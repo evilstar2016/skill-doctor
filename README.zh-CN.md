@@ -86,3 +86,5 @@ CLI 对应命令为 `security-component enable|disable|status`、`security-compo
 组件固定上游版本并保留 MIT 许可证。设计报告单独记录信任边界、威胁、假设和稳定的安全要求 ID；代码报告使用上游发现格式与校验器。关联设计报告时必须逐条提供验证状态与证据，“有问题”必须关联已确认发现。导入只校验格式，不代表 skill-doctor 独立确认漏洞，目标版本由外部报告声明。
 
 报告最大 1 MiB，保存在用户目录 `.skill-doctor/security-component/`，按项目路径隔离。重复导入不产生副本，关闭组件保留报告，现有扫描不受影响。安全设计评审属于 skill-doctor 的适配功能。
+
+[安全组件完整使用手册](SECURITY_COMPONENT_GUIDE.zh-CN.md)：首次使用、设计与代码关联、CLI、报告格式及常见问题。
