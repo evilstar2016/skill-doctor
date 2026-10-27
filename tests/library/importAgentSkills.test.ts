@@ -12,6 +12,11 @@ import { saveCenterLibrarySettings } from '../../src/library/centerSettings.js';
 import { getManagedSkillPaths } from '../../src/library/paths.js';
 import { cleanupTempRoots, createTempRoot, writeFile } from '../helpers/cliHarness.js';
 
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, readdirSync: vi.fn(actual.readdirSync) };
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   cleanupTempRoots();
@@ -66,7 +71,7 @@ describe('Agent skill import preview', () => {
     expect(plan.candidates[0]).toMatchObject({ platform: 'claude', scope: 'global', status: 'new' });
   });
 
-  it.skipIf(process.platform === 'win32')('classifies copies, name conflicts, links, invalid skills, and unreadable targets without changing files', () => {
+  it.skipIf(process.platform === 'win32')('classifies copies, name conflicts, links, invalid skills, and unreadable targets without changing files', async () => {
     const root = createTempRoot();
     const homeDir = join(root, 'home');
     const projectDir = join(root, 'project');
@@ -81,14 +86,25 @@ describe('Agent skill import preview', () => {
     fs.symlinkSync(managed.rootPath, join(skillsDir, 'managed-link'), 'dir');
     const unreadable = join(skillsDir, 'unreadable');
     writeSkill(unreadable, 'unreadable');
-    fs.chmodSync(unreadable, 0o000);
+    // Inject the permission error so root exercises the same unreadable-directory path.
+    const { readdirSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const deniedRead = vi.mocked(fs.readdirSync).mockImplementation((...args: Parameters<typeof fs.readdirSync>) => {
+      if (String(args[0]) === unreadable) {
+        throw Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+      }
+      return readdirSync(...args);
+    });
 
     let plan;
     try {
       plan = preview(homeDir, projectDir);
     } finally {
-      fs.chmodSync(unreadable, 0o755);
+      deniedRead.mockImplementation(readdirSync);
     }
+    expect(deniedRead.mock.calls.map(([path]) => String(path))).toContain(unreadable);
+    expect(plan.candidates.find((candidate) => candidate.rootPath === unreadable)).toMatchObject({
+      status: 'unreadable', allowedActions: ['skip'], diagnostic: 'Permission denied',
+    });
 
     expect(plan.candidates.map((candidate) => candidate.status)).toEqual(expect.arrayContaining([
       'identical-copy', 'same-name-different-content', 'managed-link', 'external-link', 'invalid', 'unreadable',
