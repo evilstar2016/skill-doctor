@@ -178,3 +178,7 @@ UI 与 CLI 只有在项目路径和运行用户的主目录一致时，才会共
 **只想检查已安装 Skill 中的危险指令**
 
 使用 skill-doctor 原有配置扫描与安全检查即可。这里新增的组件主要评审项目设计和应用代码，与已有配置扫描相互独立。
+
+## 9. 本地可复现案例
+
+仓库提供 [发票归属案例](examples/security-component-demo/README.md)，包含合成数据、故意缺少归属检查的函数、安全对照函数和三条真实断言。运行 `node examples/security-component-demo/reproduce.mjs` 即可观察跨用户读取与对照结果。它用于练习任务生成、设计关联和报告导入，不代表已完成独立模型审计。
