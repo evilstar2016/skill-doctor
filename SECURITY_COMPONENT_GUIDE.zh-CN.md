@@ -182,3 +182,7 @@ UI 与 CLI 只有在项目路径和运行用户的主目录一致时，才会共
 ## 9. 本地可复现案例
 
 仓库提供 [发票归属案例](examples/security-component-demo/README.md)，包含合成数据、故意缺少归属检查的函数、安全对照函数和三条真实断言。运行 `node examples/security-component-demo/reproduce.mjs` 即可观察跨用户读取与对照结果。它用于练习任务生成、设计关联和报告导入，不代表已完成独立模型审计。
+
+## 10. 验证自动发现，而不只验证导入
+
+使用 [自动发现盲测用例](examples/security-audit-benchmark/README.zh-CN.md)。它准备 6 个匿名模块，将标准答案放在目标目录之外，要求外部 Agent 自行发现并由新 Agent 验证，再按缺陷、修复和安全对照分别评分。不要向审计 Agent 提供评测 README 或 oracle。只有原始发现、复核与运行记录都存在时，才能把结果作为自动发现的证据。
