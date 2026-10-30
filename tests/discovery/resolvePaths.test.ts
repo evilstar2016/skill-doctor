@@ -43,6 +43,64 @@ describe('resolvePaths', () => {
     expect(claudeFiles.every((entry) => entry.installSource === '~/.claude/skills')).toBe(true);
   });
 
+  it('finds claude global commands and rules', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.claude', 'commands', 'deploy.md'));
+    writeFile(join(homeDir, '.claude', 'rules', 'style.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    expect(claudeFiles.map((entry) => entry.installSource).sort()).toEqual([
+      '~/.claude/commands',
+      '~/.claude/rules',
+    ]);
+    expect(claudeFiles.every((entry) => entry.scope === 'global')).toBe(true);
+  });
+
+  it('finds claude project rules and CLAUDE.local.md', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(cwd, '.claude', 'rules', 'testing', 'unit.md'));
+    writeFile(join(cwd, 'CLAUDE.local.md'));
+
+    const result = resolvePaths(cwd, { homeDir });
+    const claudeFiles = result.filter((entry) => entry.platform === 'claude');
+
+    expect(claudeFiles).toHaveLength(2);
+    expect(claudeFiles.every((entry) => entry.scope === 'project')).toBe(true);
+    expect(claudeFiles.map((entry) => entry.filePath).sort()).toEqual([
+      join(cwd, '.claude', 'rules', 'testing', 'unit.md'),
+      join(cwd, 'CLAUDE.local.md'),
+    ]);
+  });
+
+  it('includes claude subagents only for context cost discovery', () => {
+    const tempRoot = createTempRoot();
+    tempRoots.push(tempRoot);
+
+    const homeDir = join(tempRoot, 'home');
+    const cwd = join(tempRoot, 'workspace');
+
+    writeFile(join(homeDir, '.claude', 'agents', 'reviewer.md'));
+    writeFile(join(cwd, '.claude', 'agents', 'planner.md'));
+
+    const inventory = resolvePaths(cwd, { homeDir }).filter((entry) => entry.platform === 'claude');
+    const cost = resolvePaths(cwd, { homeDir, includeCostPaths: true }).filter((entry) => entry.platform === 'claude');
+
+    expect(inventory).toHaveLength(0);
+    expect(cost.map((entry) => entry.scope).sort()).toEqual(['global', 'project']);
+  });
+
   it('finds cursor project rule directories and .cursorrules files', () => {
     const tempRoot = createTempRoot();
     tempRoots.push(tempRoot);

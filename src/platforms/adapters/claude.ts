@@ -12,12 +12,18 @@ export const claudeAdapter: PlatformAdapter = {
   global: [
     { path: '~/.claude/CLAUDE.md', mode: 'single-file' },
     { path: '~/.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
+    { path: '~/.claude/commands', mode: 'recursive-dir', layout: 'files' },
+    { path: '~/.claude/rules', mode: 'recursive-dir', layout: 'files' },
+    { path: '~/.claude/agents', mode: 'recursive-dir', layout: 'files', costOnly: true },
   ],
   project: [
     { path: 'CLAUDE.md', mode: 'single-file' },
     { path: '.claude/CLAUDE.md', mode: 'single-file' },
     { path: '.claude/skills', mode: 'recursive-dir', layout: 'skill-dirs' },
     { path: '.claude/commands', mode: 'recursive-dir', layout: 'files' },
+    { path: 'CLAUDE.local.md', mode: 'single-file' },
+    { path: '.claude/rules', mode: 'recursive-dir', layout: 'files' },
+    { path: '.claude/agents', mode: 'recursive-dir', layout: 'files', costOnly: true },
   ],
   extensions: ['.md'],
   installTargets: [
@@ -31,6 +37,10 @@ export const claudeAdapter: PlatformAdapter = {
   costPolicy: {
     rules: [
       {
+        match: { pathIncludes: '/.claude/commands/', frontmatterTruthy: 'disable-model-invocation' },
+        profile: { mode: 'manual', kind: 'claude-skill-description' },
+      },
+      {
         match: { pathIncludes: '/.claude/commands/' },
         profile: {
           mode: 'metadata',
@@ -41,6 +51,14 @@ export const claudeAdapter: PlatformAdapter = {
             appliesTo: 'combined description and when_to_use skill listing',
           },
         },
+      },
+      {
+        match: { pathIncludes: '/.claude/rules/', frontmatterExists: 'paths' },
+        profile: { mode: 'file-scoped', kind: 'always-on-file' },
+      },
+      {
+        match: { pathIncludes: '/.claude/agents/' },
+        profile: { mode: 'metadata', kind: 'agent-skill-description' },
       },
       {
         match: { entryFile: true, frontmatterTruthy: 'disable-model-invocation' },

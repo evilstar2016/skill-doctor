@@ -23,6 +23,13 @@ function tempRoot(): string {
   return root;
 }
 
+function claudeCostItem(root: string, relativePath: string, content: string) {
+  const filePath = join(root, relativePath);
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, content, 'utf8');
+  return estimateContextCost([makeSkill({ name: 'fixture', sourcePath: filePath })]).items[0];
+}
+
 function makeSkill(overrides: Partial<SkillRecord> = {}): SkillRecord {
   return {
     name: 'review-helper',
@@ -148,6 +155,60 @@ describe('estimateContextCost', () => {
       value: 1536,
       appliesTo: 'combined description and when_to_use skill listing',
     });
+  });
+
+  it('keeps an ordinary Claude command as startup metadata', () => {
+    const item = claudeCostItem(
+      tempRoot(),
+      '.claude/commands/deploy.md',
+      '---\ndescription: Deploy the app.\n---\n\nDeploy it.\n',
+    );
+
+    expect(item?.kind).toBe('claude-skill-description');
+    expect(item?.activation).toBe('startup');
+  });
+
+  it('treats a Claude command with disable-model-invocation as manual', () => {
+    const item = claudeCostItem(
+      tempRoot(),
+      '.claude/commands/deploy.md',
+      '---\ndescription: Deploy the app.\ndisable-model-invocation: true\n---\n\nDeploy it.\n',
+    );
+
+    expect(item?.activation).toBe('manual');
+    expect(item?.estimatedTokens).toBe(0);
+  });
+
+  it('treats Claude rules without paths as always-on and path-scoped rules as file-scoped', () => {
+    const root = tempRoot();
+
+    const unscoped = claudeCostItem(root, '.claude/rules/style.md', '# Style\n\nUse 2 spaces.\n');
+    const scoped = claudeCostItem(
+      root,
+      '.claude/rules/api.md',
+      '---\npaths:\n  - "src/api/**/*.ts"\n---\n\n# API rules\n',
+    );
+
+    expect(unscoped?.activation).toBe('always-on');
+    expect(scoped?.activation).toBe('file-scoped');
+  });
+
+  it('treats CLAUDE.local.md as an always-on file', () => {
+    const item = claudeCostItem(tempRoot(), 'CLAUDE.local.md', '# Local prefs\n\nSandbox URL.\n');
+
+    expect(item?.activation).toBe('always-on');
+  });
+
+  it('estimates Claude subagent descriptions as startup metadata', () => {
+    const item = claudeCostItem(
+      tempRoot(),
+      '.claude/agents/reviewer.md',
+      '---\nname: reviewer\ndescription: Reviews code.\n---\n\n' + 'Long system prompt. '.repeat(500),
+    );
+
+    expect(item?.kind).toBe('agent-skill-description');
+    expect(item?.activation).toBe('startup');
+    expect(item?.estimatedTokens).toBeLessThan(50);
   });
 
   it('estimates always-on single-file rules from raw file content', () => {
