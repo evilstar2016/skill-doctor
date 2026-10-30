@@ -8,7 +8,7 @@ This page records the paths and test evidence implemented in the current reposit
 
 | Platform | Global paths | Project paths |
 |----------|--------------|---------------|
-| Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| Claude Code | `~/.claude/skills/`, `~/.claude/commands/`, `~/.claude/rules/`, `~/.claude/agents/` (cost only) | `.claude/skills/`, `.claude/commands/`, `.claude/rules/`, `CLAUDE.local.md`, `.claude/agents/` (cost only) |
 | Cursor | `~/.cursor/rules/` | `.cursor/rules/`, `.cursorrules` |
 | GitHub Copilot | `~/.copilot/skills/` | `.github/copilot-instructions.md`, `.github/instructions/`, `.github/prompts/`, `.github/skills/`, `.vscode/mcp.json` |
 | Codex | `~/.codex/AGENTS.md` | `AGENTS.md` |
@@ -35,7 +35,7 @@ The markers describe repository test evidence, not whether an untested feature i
 
 | Platform | Path confidence | Scan | Conflicts | Static audit | Skill cost | Static MCP cost | Known boundary |
 |----------|-----------------|------|-----------|--------------|------------|-----------------|----------------|
-| Claude Code | High | ✓ | ✓ | ✓ | ✓ | ✓ | Shared Skill pipeline and static MCP config |
+| Claude Code | High | ✓ | ✓ | ✓ | ✓ | ✓ | Shared Skill pipeline and static MCP config; subagent files are cost-only |
 | Cursor | High | ✓ | ✓ | ✓ | ✓ | ✓ | Shared Skill pipeline and static MCP config |
 | GitHub Copilot | High | ✓ | ✓ | ✓ | ✓ | ✓ | Instructions/prompts may be cost-only; conflicts and audit operate on Skills |
 | Codex | High | ✓ | ✓ | ✓ | ✓ | ✓ | History-based analysis and controls are Codex-specific; `AGENTS.md` control is unsupported |

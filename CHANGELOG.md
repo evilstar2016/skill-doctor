@@ -2,6 +2,16 @@
 
 All notable changes to `skill-doctor` are documented here.
 
+## Unreleased
+
+### Features
+
+- Extend Claude Code coverage to match the official `.claude` layout: scan `~/.claude/commands`, `~/.claude/rules`, `.claude/rules` and `CLAUDE.local.md`, and include `~/.claude/agents` and `.claude/agents` subagent descriptions in context cost estimates only. Rules without `paths` frontmatter count as always-on; path-scoped rules count as file-scoped.
+
+### Fixes
+
+- Count a Claude command with `disable-model-invocation: true` as manual instead of startup metadata, matching how skills with the same setting are already handled.
+
 ## 0.7.1 - 2026-10-17
 
 ### Features
