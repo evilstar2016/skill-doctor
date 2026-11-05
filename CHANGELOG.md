@@ -12,6 +12,10 @@ All notable changes to `skill-doctor` are documented here.
 
 - Count a Claude command with `disable-model-invocation: true` as manual instead of startup metadata, matching how skills with the same setting are already handled.
 
+### Security
+
+- Audit now flags compiled or opaque files bundled next to a `SKILL.md` (`.pyc`/`__pycache__`, `.so`, `.dll`, `.exe`, `.class`, `.jar`, `.node`, `.wasm`) with a new high-severity `bundled-executable` rule. Previously only the Markdown manifest was audited, so import-time code in such files passed the scan (evilstar2016/skill-doctor#11). Scanning the text of bundled scripts is not covered yet.
+
 ## 0.7.1 - 2026-10-17
 
 ### Features

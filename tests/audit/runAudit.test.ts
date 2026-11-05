@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import { runAudit } from '../../src/audit/runAudit';
 import type { SkillRecord } from '../../src/types/skill';
 
@@ -106,6 +109,49 @@ describe('runAudit', () => {
     it('does not flag general API documentation text', () => {
       const result = runAudit([makeSkill('safe', 'helps document REST APIs and endpoints')]);
       expect(result.findings.find((x) => x.ruleId === 'network-call')).toBeUndefined();
+    });
+  });
+
+  describe('R5 — bundled-executable', () => {
+    const tempDirs: string[] = [];
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+    });
+
+    function makeSkillDir(files: Record<string, string>): SkillRecord {
+      const root = mkdtempSync(join(tmpdir(), 'skill-doctor-audit-'));
+      tempDirs.push(root);
+      writeFileSync(join(root, 'SKILL.md'), '---\nname: bundled\ndescription: formats text\n---\n');
+      for (const [relativePath, content] of Object.entries(files)) {
+        const target = join(root, relativePath);
+        mkdirSync(join(target, '..'), { recursive: true });
+        writeFileSync(target, content);
+      }
+      return { ...makeSkill('bundled', 'formats text'), sourcePath: join(root, 'SKILL.md') };
+    }
+
+    it('flags compiled Python bytecode that the text rules cannot read', () => {
+      const result = runAudit([makeSkillDir({ '__pycache__/helper.cpython-312.pyc': 'x' })]);
+      const f = result.findings.find((x) => x.ruleId === 'bundled-executable');
+      expect(f).toBeDefined();
+      expect(f?.severity).toBe('high');
+      expect(f?.matchedText).toBe('__pycache__/helper.cpython-312.pyc');
+    });
+
+    it('flags native binaries nested in subdirectories', () => {
+      const result = runAudit([makeSkillDir({ 'bin/tool.so': 'x' })]);
+      expect(result.findings.find((x) => x.ruleId === 'bundled-executable')?.matchedText).toBe('bin/tool.so');
+    });
+
+    it('does not flag a skill that only bundles text files', () => {
+      const result = runAudit([makeSkillDir({ 'scripts/run.py': 'print(1)', 'references/notes.md': '# notes' })]);
+      expect(result.findings.find((x) => x.ruleId === 'bundled-executable')).toBeUndefined();
+    });
+
+    it('ignores skills whose file is not a SKILL.md, since their directory is shared', () => {
+      const skill = makeSkillDir({ 'helper.pyc': 'x' });
+      const result = runAudit([{ ...skill, sourcePath: join(skill.sourcePath, '..', 'rule.mdc') }]);
+      expect(result.findings.find((x) => x.ruleId === 'bundled-executable')).toBeUndefined();
     });
   });
 
