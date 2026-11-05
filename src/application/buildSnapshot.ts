@@ -491,6 +491,7 @@ function auditTitle(ruleId: string): string {
   return ({
     'shell-exec': 'i18n:audit.shellExecTitle', destructive: 'i18n:audit.destructiveTitle',
     'secret-leak': 'i18n:audit.secretLeakTitle', 'network-call': 'i18n:audit.networkCallTitle',
+    'bundled-executable': 'i18n:audit.bundledExecutableTitle',
   } as Record<string, string>)[ruleId] ?? 'i18n:audit.unknownTitle';
 }
 
@@ -498,6 +499,7 @@ function auditRecommendation(ruleId: string): string {
   return ({
     'shell-exec': 'i18n:audit.shellExecRecommendation', destructive: 'i18n:audit.destructiveRecommendation',
     'secret-leak': 'i18n:audit.secretLeakRecommendation', 'network-call': 'i18n:audit.networkCallRecommendation',
+    'bundled-executable': 'i18n:audit.bundledExecutableRecommendation',
   } as Record<string, string>)[ruleId] ?? 'i18n:audit.unknownRecommendation';
 }
 

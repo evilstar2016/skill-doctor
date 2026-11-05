@@ -1,6 +1,6 @@
 import type { SkillProvenance } from './skill';
 
-export type RuleId = 'shell-exec' | 'destructive' | 'secret-leak' | 'network-call';
+export type RuleId = 'shell-exec' | 'destructive' | 'secret-leak' | 'network-call' | 'bundled-executable';
 
 export interface AuditFinding {
   skillName: string;
