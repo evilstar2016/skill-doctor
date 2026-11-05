@@ -14,7 +14,7 @@ All notable changes to `skill-doctor` are documented here.
 
 ### Security
 
-- Audit now flags compiled or opaque files bundled next to a `SKILL.md` (`.pyc`/`__pycache__`, `.so`, `.dll`, `.exe`, `.class`, `.jar`, `.node`, `.wasm`) with a new high-severity `bundled-executable` rule. Previously only the Markdown manifest was audited, so import-time code in such files passed the scan (evilstar2016/skill-doctor#11). Scanning the text of bundled scripts is not covered yet.
+- Audit now flags compiled or opaque files bundled next to a `SKILL.md` (`.pyc`/`__pycache__`, `.so`, `.dll`, `.exe`, `.class`, `.jar`, `.node`, `.wasm`) with a new high-severity `bundled-executable` rule. Previously only the Markdown manifest was audited, so import-time code in such files passed the scan (evilstar2016/skill-doctor#11). The audit also applies the existing text rules to bundled script sources (`.py`, `.sh`, `.js`, `.ts`, `.ps1`, etc., up to 1 MB each), and the finding names the file. Note that scripts using `subprocess`/`os.system` will now raise `shell-exec`; the AI audit still reads only `SKILL.md`.
 
 ## 0.7.1 - 2026-10-17
 
