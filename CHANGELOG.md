@@ -12,6 +12,15 @@ All notable changes to `skill-doctor` are documented here.
 
 - Count a Claude command with `disable-model-invocation: true` as manual instead of startup metadata, matching how skills with the same setting are already handled.
 
+### Security
+
+- Close the bundled-code bypass in the audit (evilstar2016/skill-doctor#11). The audit used to read only a skill's name, description and triggers, so import-time code in files bundled next to `SKILL.md` was never inspected. It now also checks the skill folder:
+  - New high-severity `bundled-executable` rule for compiled or packed code: `.pyc`/`.pyo`/`.pyd`/`.pyz`/`.whl`/`.egg`, `.so`/`.dylib`/`.dll`/`.exe`, `.class`/`.jar`, `.node`, `.wasm`, any file whose header identifies it as ELF, Mach-O, WebAssembly, a Java class or Python 3.7+ bytecode regardless of its name, and `.pth` files with an `import` line (run by Python at startup).
+  - The existing text rules also run over bundled script sources (`.py`, `.sh`, `.js`, `.ts`, `.ps1`, etc., up to 1 MB each); findings name the file. Scripts using `subprocess`/`os.system` will now raise `shell-exec`; review them, or add the skill to `ignore.skillNames` once accepted.
+  - New medium-severity `unscanned-content` rule for content the audit cannot read: scripts over 1 MB and symbolic links to directories (never followed). Links to files are checked as their target.
+  - `node_modules`, `.git` and `.skill-doctor` inside a skill are no longer skipped silently. They are not entered by default (large trees are slow) but are reported: `skill-doctor audit` lists them and asks before scanning in an interactive terminal, prints a stderr notice otherwise, and accepts `--scan-heavy-dirs` to scan without asking. `--json` output gains `skippedDirectories`, and scans show a warning.
+  - Limits: matching is still pattern-based, so code that assembles names at run time or fetches its payload later is not detected, and the AI audit still reads only `SKILL.md`. See `docs/manuals/security-audit.md`.
+
 ## 0.7.1 - 2026-10-17
 
 ### Features

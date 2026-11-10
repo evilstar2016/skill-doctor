@@ -22,7 +22,7 @@ rules、instruction 文件和 MCP 配置。仓库：github.com/evilstar2016/skil
 
 轨道 A —— 报一个误报（最快，不写代码）
 适用场景：scan / conflicts / audit 报了某个其实没问题的东西。
-- 定位到具体命令，以及对应的 ruleId（shell-exec、destructive、secret-leak、network-call）
+- 定位到具体命令，以及对应的 ruleId（shell-exec、destructive、secret-leak、network-call、bundled-executable、unscanned-content）
   或冲突原因。
 - 脱敏：私有路径、内部 skill 正文、token、客户数据一律替换掉再贴。
 - 用 .github/ISSUE_TEMPLATE/false_positive.yml 提 issue，填写

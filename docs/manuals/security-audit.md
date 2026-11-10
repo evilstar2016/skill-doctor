@@ -14,7 +14,7 @@ This walkthrough uses the actual local environment without adding any risky reso
 - AI security audit, AI conflict analysis, and MCP tool discovery were all off. Disabled resources and plugin cache were not included.
 - This walkthrough only scanned, checked sources, and reviewed parts of the original instructions and scripts read-only. It did not run the Skill, install dependencies, log in, read authentication data, submit input, or change resources.
 
-In the current version, **standard security rules check names, descriptions, and trigger information**. They do not inspect the full contents line by line or execute attached scripts. AI audit is a separate optional entry point; it attempts to read the contents and send them, along with the name, platform, scope, and source, to the configured analysis service. Do not describe standard mode as a complete audit of the full contents.
+In the current version, **standard security rules check names, descriptions, and trigger information**, plus the files bundled in a Skill's own folder (see “Files bundled next to a Skill” in section 4). They do not inspect the full `SKILL.md` text line by line, and they never execute anything. AI audit is a separate optional entry point; it attempts to read the contents and send them, along with the name, platform, scope, and source, to the configured analysis service. Do not describe standard mode as a complete audit of the full contents.
 
 Figures 1–5 and 9–11 are screenshots of the product UI. Figures 6–8 are an attached **read-only review record of original local files**, with real line numbers and clear labels that they are not product pages or automated findings. The attached record is not a new Skill Doctor feature.
 
@@ -62,11 +62,26 @@ Severity helps prioritize review; it is not the probability of malicious behavio
 | Level | Typical signal in standard rules | What to review manually |
 | --- | --- | --- |
 | High risk | Shell execution instruction (<code>shell-exec</code>); destructive actions such as deleting or clearing data (<code>destructive</code>) | What runs, what it affects, whether there is a preview or backup, and who explicitly authorizes it; review high-impact behavior before use |
+| High risk | Compiled, packed, or import-time code bundled in the Skill folder that text rules cannot read (<code>bundled-executable</code>) | Where the file came from, whether source is available, and why a Skill needs a binary; remove it or replace it with reviewable source |
 | Medium risk | Descriptions about outputting, sending, or exposing credentials (<code>secret-leak</code>) | Whether real secrets are involved, the recipient and logs, and whether redacted values are used; actual leakage can be more serious than the default rule level |
+| Medium risk | Bundled content the audit could not read: a script over 1 MB, or a symbolic link to a directory (<code>unscanned-content</code>) | Read the named file or directory by hand, or shrink it so it can be scanned |
 | Low risk | Descriptions of external requests, uploads, or API calls (<code>network-call</code>) | Destination, fields sent, necessity, and authorization; low risk does not mean any data can be uploaded |
 | Notice | Page information such as evidence gaps that are not actionable issues | Read the reason and collect evidence; do not treat it as a completed security review |
 
 Static mode matches word forms. It may match a tutorial example, a prohibition, or a legitimate operation; it may also miss behavior in the full contents. Shell, network, and authentication capabilities all need context.
+
+### Files bundled next to a Skill
+
+For every folder-style Skill (a `SKILL.md`), the standard check also looks at the files in that folder. Single-file rules of other agents are not covered, because their folder is shared with other resources.
+
+- **Script sources** (`.py`, `.sh`, `.bash`, `.zsh`, `.js`, `.mjs`, `.cjs`, `.ts`, `.rb`, `.pl`, `.php`, `.ps1`, `.bat`, `.cmd`; up to 1 MB each) are matched against the same four rules as the description. The finding names the file, for example `(in scripts/setup.py)`. Each rule still reports once per Skill, and the Skill's own text is checked first.
+- **Compiled or packed code** is reported as `bundled-executable` because text rules cannot read it: `.pyc`, `.pyo`, `.pyd`, `.pyz`, `.whl`, `.egg`, `.so`, `.dylib`, `.dll`, `.exe`, `.class`, `.jar`, `.node`, `.wasm`, and any file whose header identifies it as ELF, Mach-O, WebAssembly, a Java class, or Python 3.7+ bytecode, whatever its name. A `.pth` file with an `import` line is reported as well, because Python runs it at startup.
+- **Content the audit could not read** is reported as `unscanned-content`: a script over 1 MB, or a symbolic link to a directory (directory links are never followed). A symbolic link to a file is checked as the file it points to.
+- **Large directories** (`node_modules`, `.git`, `.skill-doctor`) are not entered by default, so a big dependency tree does not slow every audit, but they are never skipped silently. In an interactive terminal, `skill-doctor audit` lists them and asks whether to scan them now. In scripts and CI it prints a notice on stderr and continues; add `--scan-heavy-dirs` to scan them without asking. `--json` output lists them under `skippedDirectories`, and scans in the UI show a warning. A zero result does not cover a directory that was skipped.
+
+**If a legitimate script triggers `shell-exec`:** the rules are written for prose and match code such as `subprocess.run(...)` or `os.system(...)` literally. Open the file named in the finding and check what it runs, with which input, and whether the Skill asks for confirmation first. If it is expected, record why you accept it. To stop the report, add the Skill's name to `ignore.skillNames` in `~/.skill-doctor/config.json`; this hides every finding for that Skill, including `bundled-executable`, so do it only after review.
+
+**Limits:** this is pattern matching, not analysis. Code that builds names at run time (for example assembling `__import__` from string pieces), encodes or downloads its payload later, or uses a file type not listed above is not detected. Treat a clean result as a first filter and read unfamiliar code yourself.
 
 ### If your environment has a security alert, how do you locate it?
 
