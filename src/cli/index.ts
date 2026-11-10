@@ -60,7 +60,7 @@ import { renderGroup } from '../render/renderGroup';
 import { renderReport } from '../render/renderReport';
 import { renderScan } from '../render/renderScan';
 import { renderShow } from '../render/renderShow';
-import type { AuditFinding } from '../types/audit';
+import type { AuditFinding, SkippedDirectory } from '../types/audit';
 import type { ContextCostItem, ContextCostResult, ContextResource, ContextTokenizerMode } from '../types/context';
 import type {
   ConflictDetectionOptions,
@@ -73,6 +73,21 @@ import type {
 } from '../types/skill';
 
 type CostSourceFilter = 'skill' | 'mcp' | 'all';
+
+function describeSkipped(skipped: SkippedDirectory[]): string {
+  const shown = skipped.slice(0, 3).map((item) => `${item.skillName}/${item.directory}`).join(', ');
+  return skipped.length > 3 ? `${shown}, +${skipped.length - 3} more` : shown;
+}
+
+async function confirmHeavyScan(skipped: SkippedDirectory[]): Promise<boolean> {
+  process.stderr.write(`skill-doctor: the audit skipped ${skipped.length} large director${skipped.length === 1 ? 'y' : 'ies'} inside skills:\n`);
+  for (const item of skipped.slice(0, 10)) process.stderr.write(`  ${item.skillName}/${item.directory}\n`);
+  if (skipped.length > 10) process.stderr.write(`  ... and ${skipped.length - 10} more\n`);
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  const answer = await new Promise<string>((resolve) => rl.question('Scan them now? This can be slow on large trees. [y/N]: ', resolve));
+  rl.close();
+  return /^y(es)?$/i.test(answer.trim());
+}
 
 export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const [command, ...rest] = argv;
@@ -285,7 +300,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const noCache = hasFlag(rest, '--no-cache');
     const llmOptions = readAnalysisLlmOptions();
     const provenanceCache = loadProvenanceCache();
-    const snapshot = await runHealthCheck({
+    const runAuditCheck = (auditHeavyDirectories: boolean) => runHealthCheck({
       projectDir: cwd,
       scope,
       includeContext: false,
@@ -295,7 +310,21 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       preserveUnfilteredAuditSummary: true,
       useAiAudit: useAi,
       aiAuditUseCache: !noCache,
+      auditHeavyDirectories,
     });
+    let snapshot = await runAuditCheck(hasFlag(rest, '--scan-heavy-dirs'));
+    const skippedDirectories = snapshot.audit.skippedDirectories ?? [];
+    if (skippedDirectories.length > 0) {
+      const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !jsonOutput && readReport(rest) === null;
+      if (interactive && await confirmHeavyScan(skippedDirectories)) {
+        snapshot = await runAuditCheck(true);
+      } else {
+        const single = skippedDirectories.length === 1;
+        process.stderr.write(interactive
+          ? 'skill-doctor: left them unscanned; compiled code hidden there was not checked.\n'
+          : `skill-doctor: skipped ${skippedDirectories.length} large ${single ? 'directory' : 'directories'} inside skills (${describeSkipped(skippedDirectories)}); compiled code hidden there was not checked. Re-run with --scan-heavy-dirs to include ${single ? 'it' : 'them'}.\n`);
+      }
+    }
     if (llmOptions && provenanceCache.size > 0) {
       saveProvenanceCache(provenanceCache);
     }
@@ -1198,7 +1227,7 @@ function getHelpText(): string {
     '  skill-doctor scan [--platform PLATFORM] [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--json] [--report [path]]',
     '  skill-doctor show <name> [--json]',
     '  skill-doctor conflicts [--scope project|global|all] [--strategy token|embedding] [--threshold N] [--embedding-model ID] [--analyze] [--kind duplicate|conflict|all] [--fail-on high|med|low] [--limit N] [--json]',
-    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--json] [--report [path]]',
+    '  skill-doctor audit [--scope project|global|all] [--severity high|med|low] [--fail-on high|med|low] [--ai] [--no-cache] [--scan-heavy-dirs] [--json] [--report [path]]',
     '  skill-doctor check [--scope project|global|all] [--fail-on high|med|low] [--budget-tokens N] [--json]',
     '  skill-doctor cleanup [--scope project|global|all] [--json]',
     '  skill-doctor benefit [project-dir] [--since 24h|7d|ISO] [--limit N] [--plan ID|path] [--include-archived] [--price-table path] [--tokenizer openai|approx] [--tokenizer-model model] [--retention-days N] [--format text|json|html|csv] [--redact] [--delete-index|--delete-index-entry path] [--output path] [--json]',

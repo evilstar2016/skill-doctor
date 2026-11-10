@@ -1,6 +1,6 @@
 import type { SkillProvenance } from './skill';
 
-export type RuleId = 'shell-exec' | 'destructive' | 'secret-leak' | 'network-call' | 'bundled-executable';
+export type RuleId = 'shell-exec' | 'destructive' | 'secret-leak' | 'network-call' | 'bundled-executable' | 'unscanned-content';
 
 export interface AuditFinding {
   skillName: string;
@@ -28,9 +28,16 @@ export interface AiFinding {
   evidence?: string;
 }
 
+export interface SkippedDirectory {
+  skillName: string;
+  sourcePath: string;
+  directory: string; // relative to the skill directory, e.g. node_modules
+}
+
 export interface AuditResult {
   scanned: number;
   findings: AuditFinding[];
   aiFindings?: AiFinding[];
+  skippedDirectories?: SkippedDirectory[];
   summary: Record<'high' | 'med' | 'low', number>;
 }

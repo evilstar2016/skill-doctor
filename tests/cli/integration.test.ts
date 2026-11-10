@@ -1043,6 +1043,45 @@ describe.skipIf(process.platform === 'win32')('CLI integration — audit', () =>
     expect(result.stdout).toContain('network-call');
   });
 
+  describe('audit with large directories inside a skill', () => {
+    function setup() {
+      const root = createTempRoot();
+      const cwd = join(root, 'workspace');
+      const home = join(root, 'home');
+      writeFile(
+        join(cwd, '.claude', 'skills', 'dep-skill', 'SKILL.md'),
+        ['---', 'name: dep-skill', 'description: formats text', '---'].join('\n'),
+      );
+      writeFile(join(cwd, '.claude', 'skills', 'dep-skill', 'node_modules', 'pkg', 'evil.pyc'), 'x');
+      return { cwd, home };
+    }
+
+    it('skips them without a TTY, tells the user on stderr, and keeps stdout clean', () => {
+      const { cwd, home } = setup();
+
+      const result = runCli(['audit', '--json'], cwd, home);
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain('skipped 1 large directory');
+      expect(result.stderr).toContain('dep-skill/node_modules');
+      expect(result.stderr).toContain('--scan-heavy-dirs');
+      const audit = JSON.parse(result.stdout);
+      expect(audit.findings).toHaveLength(0);
+      expect(audit.skippedDirectories).toEqual([expect.objectContaining({ skillName: 'dep-skill', directory: 'node_modules' })]);
+    });
+
+    it('scans them once the user passes --scan-heavy-dirs', () => {
+      const { cwd, home } = setup();
+
+      const result = runCli(['audit', '--scan-heavy-dirs', '--fail-on', 'high'], cwd, home);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain('bundled-executable');
+      expect(result.stdout).toContain('node_modules/pkg/evil.pyc');
+      expect(result.stderr).not.toContain('skipped');
+    });
+  });
+
   it('audit --severity high only shows high findings', () => {
     const root = createTempRoot();
     const cwd = join(root, 'workspace');

@@ -327,7 +327,7 @@ ${cards}
 /* ─── Section: Audit ───────────────────────────────── */
 
 function auditSection(auditResult: AuditResult): string {
-  const allRules: RuleId[] = ['shell-exec', 'destructive', 'secret-leak', 'network-call', 'bundled-executable'];
+  const allRules: RuleId[] = ['shell-exec', 'destructive', 'secret-leak', 'network-call', 'bundled-executable', 'unscanned-content'];
   const ruleCount: Record<string, number> = {};
   for (const r of allRules) ruleCount[r] = 0;
   for (const f of auditResult.findings) ruleCount[f.ruleId] = (ruleCount[f.ruleId] ?? 0) + 1;

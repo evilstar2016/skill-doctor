@@ -23,7 +23,7 @@ Before anything:
 TRACK A - report a false positive (fastest, no code)
 Use this when scan, conflicts, or audit flags something that is actually fine.
 - Pin down the exact command and the ruleId (shell-exec, destructive, secret-leak,
-  network-call) or the conflict reason.
+  network-call, bundled-executable, unscanned-content) or the conflict reason.
 - Redact private paths, internal skill text, tokens, and customer data.
 - File an issue using .github/ISSUE_TEMPLATE/false_positive.yml:
   Command / Finding / Expected behavior / skill-doctor version.

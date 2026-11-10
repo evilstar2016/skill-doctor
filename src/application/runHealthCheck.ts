@@ -77,7 +77,12 @@ export async function runHealthCheck(
   }), ignore);
 
   progress('audit', 'i18n:progress.audit');
-  const staticAudit = runAudit(analysisSkills);
+  const staticAudit = runAudit(analysisSkills, { includeHeavyDirectories: options.auditHeavyDirectories });
+  const skipped = staticAudit.skippedDirectories ?? [];
+  if (skipped.length > 0) {
+    const example = `${skipped[0].skillName}/${skipped[0].directory}`;
+    warnings.push(warning('audit', 'audit-directories-skipped', `i18n:warning.auditDirectoriesSkipped|count=${skipped.length}|example=${encodeURIComponent(example)}`));
+  }
   const findings = filterFindings(staticAudit.findings, ignore);
   let aiFindings = staticAudit.aiFindings ?? [];
   if (options.useAiAudit) {

@@ -67,10 +67,16 @@ export const RULES: AuditRule[] = [
   },
 ];
 
-// Not pattern-based: runAudit flags opaque binaries bundled next to a SKILL.md,
+// Not pattern-based: runAudit raises these from the files bundled next to a SKILL.md,
 // because the Markdown-only rules above can never inspect them.
 export const BUNDLED_EXECUTABLE_RULE = {
   ruleId: 'bundled-executable',
   severity: 'high',
-  label: 'bundled compiled code that cannot be audited as text',
+  label: 'bundled compiled or import-time code the text rules cannot audit',
+} as const satisfies Omit<AuditRule, 'patterns'>;
+
+export const UNSCANNED_CONTENT_RULE = {
+  ruleId: 'unscanned-content',
+  severity: 'med',
+  label: 'bundled content the audit could not scan',
 } as const satisfies Omit<AuditRule, 'patterns'>;

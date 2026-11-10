@@ -1,100 +1,93 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, extname, join } from 'node:path';
-import type { AuditFinding, AuditResult } from '../types/audit';
+import { readFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import type { AuditFinding, AuditResult, SkippedDirectory } from '../types/audit';
 import type { SkillRecord } from '../types/skill';
-import { BUNDLED_EXECUTABLE_RULE, RULES } from './rules';
+import { collectBundledFiles, MAX_SCRIPT_BYTES } from './bundledFiles';
+import { BUNDLED_EXECUTABLE_RULE, RULES, UNSCANNED_CONTENT_RULE } from './rules';
 
-// Extensions of compiled or opaque artifacts that the text rules cannot read.
-const OPAQUE_EXECUTABLE_EXTENSIONS = new Set([
-  '.pyc', '.pyo', '.so', '.dylib', '.dll', '.exe', '.class', '.jar', '.node', '.wasm',
-]);
-// Source files whose text the audit rules can read.
-const SCRIPT_EXTENSIONS = new Set([
-  '.py', '.sh', '.bash', '.zsh', '.js', '.mjs', '.cjs', '.ts', '.rb', '.pl', '.php', '.ps1', '.bat', '.cmd',
-]);
-const SKIPPED_DIRECTORIES = new Set(['.git', '.skill-doctor', 'node_modules']);
-const MAX_SCRIPT_BYTES = 1_000_000;
-
-interface BundledFiles {
-  opaque?: string; // first compiled or opaque artifact (relative path)
-  scripts: string[]; // relative paths of readable script sources
+export interface AuditOptions {
+  // Also walk node_modules, .git and .skill-doctor inside skills. Slow on large trees, so opt-in.
+  includeHeavyDirectories?: boolean;
 }
 
-function collectBundledFiles(dir: string, prefix = '', found: BundledFiles = { scripts: [] }): BundledFiles {
-  let entries;
+const UNSCANNED_REASONS = {
+  oversized: `file larger than ${MAX_SCRIPT_BYTES / 1_000_000} MB`,
+  'directory-link': 'symbolic link to a directory is not followed',
+} as const;
+
+function readScript(path: string): string {
   try {
-    entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    return readFileSync(path, 'utf-8');
   } catch {
-    return found;
-  }
-  for (const entry of entries) {
-    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
-      if (!SKIPPED_DIRECTORIES.has(entry.name)) collectBundledFiles(join(dir, entry.name), relativePath, found);
-    } else if (entry.isFile()) {
-      const extension = extname(entry.name).toLowerCase();
-      if (OPAQUE_EXECUTABLE_EXTENSIONS.has(extension)) found.opaque ??= relativePath;
-      else if (SCRIPT_EXTENSIONS.has(extension)) found.scripts.push(relativePath);
-    }
-  }
-  return found;
-}
-
-function readScript(skillDir: string, relativePath: string): string | undefined {
-  try {
-    const path = join(skillDir, relativePath);
-    return statSync(path).size > MAX_SCRIPT_BYTES ? undefined : readFileSync(path, 'utf-8');
-  } catch {
-    return undefined;
+    return '';
   }
 }
 
-export function runAudit(skills: SkillRecord[]): AuditResult {
+function moreSuffix(total: number): string {
+  return total > 1 ? ` (+${total - 1} more)` : '';
+}
+
+function makeFinding(
+  skill: SkillRecord,
+  rule: { ruleId: AuditFinding['ruleId']; severity: AuditFinding['severity'] },
+  matchedText: string,
+  summary: string,
+): AuditFinding {
+  return {
+    skillName: skill.name,
+    sourcePath: skill.sourcePath,
+    platform: skill.platform,
+    scope: skill.scope,
+    provenance: skill.provenance,
+    ruleId: rule.ruleId,
+    severity: rule.severity,
+    matchedText,
+    summary,
+  };
+}
+
+export function runAudit(skills: SkillRecord[], options: AuditOptions = {}): AuditResult {
   const findings: AuditFinding[] = [];
+  const skippedDirectories: SkippedDirectory[] = [];
 
   for (const skill of skills) {
     const text = [skill.name, skill.description, ...skill.triggers].join(' ');
     // Only a SKILL.md owns its directory; other platforms' files share theirs.
     const skillDir = basename(skill.sourcePath) === 'SKILL.md' ? dirname(skill.sourcePath) : undefined;
-    const bundled = skillDir ? collectBundledFiles(skillDir) : undefined;
+    const bundled = skillDir ? collectBundledFiles(skillDir, options) : undefined;
 
     for (const rule of RULES) {
       // Manifest text first, then bundled scripts; one finding per rule per skill.
-      const sources = [{ text, file: undefined as string | undefined }];
-      for (const file of bundled?.scripts ?? []) sources.push({ text: '', file });
+      const sources = [{ file: undefined as string | undefined, content: text }];
+      for (const file of bundled?.scripts ?? []) sources.push({ file, content: '' });
 
       for (const source of sources) {
-        const content = source.file && skillDir ? readScript(skillDir, source.file) : source.text;
+        const content = source.file && skillDir ? readScript(join(skillDir, source.file)) : source.content;
         const match = content ? rule.patterns.map((pattern) => pattern.exec(content)).find(Boolean) : undefined;
         if (!match) continue;
+        const matched = match[0].trim();
         const where = source.file ? ` (in ${source.file})` : '';
-        findings.push({
-          skillName: skill.name,
-          sourcePath: skill.sourcePath,
-          platform: skill.platform,
-          scope: skill.scope,
-          provenance: skill.provenance,
-          ruleId: rule.ruleId,
-          severity: rule.severity,
-          matchedText: match[0].trim(),
-          summary: `"${match[0].trim()}" — ${rule.label}${where}`,
-        });
+        findings.push(makeFinding(skill, rule, matched, `"${matched}" — ${rule.label}${where}`));
         break;
       }
     }
 
-    if (bundled?.opaque) {
-      findings.push({
-        skillName: skill.name,
-        sourcePath: skill.sourcePath,
-        platform: skill.platform,
-        scope: skill.scope,
-        provenance: skill.provenance,
-        ruleId: BUNDLED_EXECUTABLE_RULE.ruleId,
-        severity: BUNDLED_EXECUTABLE_RULE.severity,
-        matchedText: bundled.opaque,
-        summary: `"${bundled.opaque}" — ${BUNDLED_EXECUTABLE_RULE.label}`,
-      });
+    if (!bundled) continue;
+
+    const [opaque] = bundled.opaque;
+    if (opaque) {
+      const { label } = BUNDLED_EXECUTABLE_RULE;
+      findings.push(makeFinding(skill, BUNDLED_EXECUTABLE_RULE, opaque, `"${opaque}" — ${label}${moreSuffix(bundled.opaque.length)}`));
+    }
+
+    const [unscanned] = bundled.unscanned;
+    if (unscanned) {
+      const summary = `"${unscanned.path}" — ${UNSCANNED_CONTENT_RULE.label} (${UNSCANNED_REASONS[unscanned.reason]})${moreSuffix(bundled.unscanned.length)}`;
+      findings.push(makeFinding(skill, UNSCANNED_CONTENT_RULE, unscanned.path, summary));
+    }
+
+    for (const directory of bundled.skippedDirectories) {
+      skippedDirectories.push({ skillName: skill.name, sourcePath: skill.sourcePath, directory });
     }
   }
 
@@ -103,5 +96,5 @@ export function runAudit(skills: SkillRecord[]): AuditResult {
     summary[f.severity]++;
   }
 
-  return { scanned: skills.length, findings, summary };
+  return { scanned: skills.length, findings, summary, ...(skippedDirectories.length > 0 ? { skippedDirectories } : {}) };
 }

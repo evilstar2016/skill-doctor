@@ -68,6 +68,7 @@ export function buildDoctorSnapshot(input: BuildSnapshotInput): DoctorSnapshot {
       findings: input.audit.findings,
       aiFindings: input.audit.aiFindings ?? [],
       summary: input.audit.summary,
+      ...(input.audit.skippedDirectories ? { skippedDirectories: input.audit.skippedDirectories } : {}),
     },
     ...(input.context ? { context: input.context } : {}),
     ...(input.groups ? { groups: input.groups } : {}),
@@ -491,7 +492,7 @@ function auditTitle(ruleId: string): string {
   return ({
     'shell-exec': 'i18n:audit.shellExecTitle', destructive: 'i18n:audit.destructiveTitle',
     'secret-leak': 'i18n:audit.secretLeakTitle', 'network-call': 'i18n:audit.networkCallTitle',
-    'bundled-executable': 'i18n:audit.bundledExecutableTitle',
+    'bundled-executable': 'i18n:audit.bundledExecutableTitle', 'unscanned-content': 'i18n:audit.unscannedContentTitle',
   } as Record<string, string>)[ruleId] ?? 'i18n:audit.unknownTitle';
 }
 
@@ -499,7 +500,7 @@ function auditRecommendation(ruleId: string): string {
   return ({
     'shell-exec': 'i18n:audit.shellExecRecommendation', destructive: 'i18n:audit.destructiveRecommendation',
     'secret-leak': 'i18n:audit.secretLeakRecommendation', 'network-call': 'i18n:audit.networkCallRecommendation',
-    'bundled-executable': 'i18n:audit.bundledExecutableRecommendation',
+    'bundled-executable': 'i18n:audit.bundledExecutableRecommendation', 'unscanned-content': 'i18n:audit.unscannedContentRecommendation',
   } as Record<string, string>)[ruleId] ?? 'i18n:audit.unknownRecommendation';
 }
 

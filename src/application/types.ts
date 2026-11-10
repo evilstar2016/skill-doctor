@@ -1,4 +1,4 @@
-import type { AuditFinding, AiFinding } from '../types/audit';
+import type { AuditFinding, AiFinding, SkippedDirectory } from '../types/audit';
 import type { CleanupSuggestion } from '../types/cleanup';
 import type { CodexControlStatus, ContextCostResult, ContextResource } from '../types/context';
 import type { DiffResult } from '../diff/types';
@@ -23,6 +23,7 @@ export interface HealthCheckOptions {
   includeCache?: boolean;
   discoverMcpTools?: boolean;
   useAiAudit?: boolean;
+  auditHeavyDirectories?: boolean;
   aiAuditUseCache?: boolean;
   conflictStrategy?: ConflictDetectionStrategy;
   conflictOptions?: ConflictDetectionOptions;
@@ -163,6 +164,7 @@ export interface DoctorSnapshot {
     findings: AuditFinding[];
     aiFindings: AiFinding[];
     summary: Record<Severity, number>;
+    skippedDirectories?: SkippedDirectory[];
   };
   context?: ContextCostResult;
   groups?: GroupResult;
